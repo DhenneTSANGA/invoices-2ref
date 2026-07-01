@@ -1,0 +1,202 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { motion } from "framer-motion";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { ArrowUpRight, FileText, Plus, ReceiptText, TrendingUp, Users, Wallet } from "lucide-react";
+import { StatCard } from "@/components/common/StatCard";
+import { PageHeader } from "@/components/common/PageHeader";
+import { StatusBadge } from "@/components/common/StatusBadge";
+import { useAppStore } from "@/store/useAppStore";
+import { currency, shortDate } from "@/lib/format";
+
+export const Route = createFileRoute("/_app/dashboard")({
+  head: () => ({ meta: [{ title: "Tableau de bord — FacturIA" }, { name: "description", content: "Vue d'ensemble premium de votre activité." }] }),
+  component: Dashboard,
+});
+
+const revenueData = [
+  { m: "Jun", revenue: 84000, devis: 62000 },
+  { m: "Jul", revenue: 96500, devis: 71000 },
+  { m: "Aoû", revenue: 88200, devis: 68000 },
+  { m: "Sep", revenue: 112400, devis: 95000 },
+  { m: "Oct", revenue: 128700, devis: 102000 },
+  { m: "Nov", revenue: 145200, devis: 118000 },
+];
+
+const docsData = [
+  { d: "Lun", factures: 4, devis: 2 },
+  { d: "Mar", factures: 6, devis: 4 },
+  { d: "Mer", factures: 3, devis: 5 },
+  { d: "Jeu", factures: 8, devis: 3 },
+  { d: "Ven", factures: 7, devis: 6 },
+  { d: "Sam", factures: 2, devis: 1 },
+  { d: "Dim", factures: 1, devis: 0 },
+];
+
+function Dashboard() {
+  const documents = useAppStore((s) => s.documents);
+  const clients = useAppStore((s) => s.clients);
+  const activities = useAppStore((s) => s.activities);
+
+  const invoices = documents.filter((d) => d.type === "invoice");
+  const quotations = documents.filter((d) => d.type === "quotation");
+  const paid = invoices.filter((d) => d.status === "paid").reduce((a, b) => a + b.total, 0);
+  const pending = invoices.filter((d) => d.status === "sent" || d.status === "overdue").reduce((a, b) => a + b.total, 0);
+
+  const statusData = [
+    { name: "Payées", value: invoices.filter((d) => d.status === "paid").length, color: "var(--success)" },
+    { name: "Envoyées", value: invoices.filter((d) => d.status === "sent").length, color: "var(--primary)" },
+    { name: "En retard", value: invoices.filter((d) => d.status === "overdue").length, color: "var(--danger)" },
+    { name: "Brouillon", value: invoices.filter((d) => d.status === "draft").length, color: "var(--muted-foreground)" },
+  ];
+
+  const recent = [...documents].sort((a, b) => b.issueDate.localeCompare(a.issueDate)).slice(0, 6);
+
+  return (
+    <div>
+      <PageHeader
+        title="Bonjour Yasmine 👋"
+        subtitle="Voici l'état de votre cabinet aujourd'hui."
+        actions={
+          <>
+            <Link to="/quotations/new" className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface/70 px-4 py-2 text-sm font-medium hover:bg-muted transition-colors"><FileText className="h-4 w-4" /> Nouveau devis</Link>
+            <Link to="/invoices/new" className="inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow"><Plus className="h-4 w-4" /> Facture</Link>
+          </>
+        }
+      />
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="Chiffre d'affaires" value={paid} variant="primary" icon={Wallet} format={(n) => currency(n, "MAD")} delta={{ value: 12.4, direction: "up" }} index={0} />
+        <StatCard label="Factures émises" value={invoices.length} icon={ReceiptText} delta={{ value: 8.1, direction: "up" }} index={1} />
+        <StatCard label="Devis actifs" value={quotations.length} variant="accent" icon={FileText} delta={{ value: 4.6, direction: "up" }} index={2} />
+        <StatCard label="Clients" value={clients.length} icon={Users} delta={{ value: 2.3, direction: "up" }} index={3} />
+      </div>
+
+      <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-3">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-panel rounded-3xl p-5 xl:col-span-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-display text-lg font-semibold">Revenus mensuels</h3>
+              <p className="text-xs text-muted-foreground">Cumul des 6 derniers mois</p>
+            </div>
+            <div className="flex items-center gap-1.5 rounded-full bg-success/15 px-2.5 py-1 text-xs font-medium text-success">
+              <TrendingUp className="h-3 w-3" /> +18,2%
+            </div>
+          </div>
+          <div className="mt-4 h-72">
+            <ResponsiveContainer>
+              <AreaChart data={revenueData}>
+                <defs>
+                  <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.45} />
+                    <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="devGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--accent)" stopOpacity={0.35} />
+                    <stop offset="100%" stopColor="var(--accent)" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 6" stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="m" stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                <Tooltip contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 14, fontSize: 12 }} />
+                <Area type="monotone" dataKey="revenue" stroke="var(--primary)" strokeWidth={2.5} fill="url(#revGrad)" animationDuration={1200} />
+                <Area type="monotone" dataKey="devis" stroke="var(--accent)" strokeWidth={2} fill="url(#devGrad)" animationDuration={1400} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </motion.div>
+
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass-panel rounded-3xl p-5">
+          <h3 className="font-display text-lg font-semibold">Statut des factures</h3>
+          <p className="text-xs text-muted-foreground">Répartition actuelle</p>
+          <div className="mt-2 h-48">
+            <ResponsiveContainer>
+              <PieChart>
+                <Pie data={statusData} dataKey="value" innerRadius={48} outerRadius={72} paddingAngle={3} stroke="none" animationDuration={900}>
+                  {statusData.map((d, i) => <Cell key={i} fill={d.color} />)}
+                </Pie>
+                <Tooltip contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 14, fontSize: 12 }} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            {statusData.map((s) => (
+              <div key={s.name} className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full" style={{ background: s.color }} />{s.name} · <b>{s.value}</b></div>
+            ))}
+          </div>
+          <div className="mt-4 rounded-2xl bg-gradient-mesh p-3 text-xs">
+            En attente : <b className="font-numeric">{currency(pending)}</b>
+          </div>
+        </motion.div>
+      </div>
+
+      <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-3">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="glass-panel rounded-3xl p-5">
+          <h3 className="font-display text-lg font-semibold">Documents cette semaine</h3>
+          <p className="text-xs text-muted-foreground">Devis & factures émis</p>
+          <div className="mt-4 h-56">
+            <ResponsiveContainer>
+              <BarChart data={docsData}>
+                <CartesianGrid strokeDasharray="3 6" stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="d" stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
+                <Tooltip contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 14, fontSize: 12 }} />
+                <Bar dataKey="factures" fill="var(--primary)" radius={[8, 8, 0, 0]} animationDuration={900} />
+                <Bar dataKey="devis" fill="var(--accent)" radius={[8, 8, 0, 0]} animationDuration={1100} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </motion.div>
+
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="glass-panel rounded-3xl p-5 xl:col-span-2">
+          <div className="flex items-center justify-between">
+            <h3 className="font-display text-lg font-semibold">Documents récents</h3>
+            <Link to="/invoices" className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">Voir tout <ArrowUpRight className="h-3 w-3" /></Link>
+          </div>
+          <div className="mt-3 overflow-hidden rounded-2xl border border-border/60">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/60 text-xs uppercase tracking-wider text-muted-foreground">
+                <tr><th className="px-4 py-2 text-left">Numéro</th><th className="px-4 py-2 text-left">Client</th><th className="px-4 py-2 text-left">Date</th><th className="px-4 py-2 text-left">Statut</th><th className="px-4 py-2 text-right">Montant</th></tr>
+              </thead>
+              <tbody>
+                {recent.map((d, i) => {
+                  const client = clients.find((c) => c.id === d.clientId);
+                  return (
+                    <motion.tr key={d.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 * i }} className="border-t border-border/40 hover:bg-muted/50">
+                      <td className="px-4 py-2.5 font-medium"><Link to={d.type === "invoice" ? "/invoices/$id" : "/quotations/$id"} params={{ id: d.id }} className="hover:text-primary">{d.number}</Link></td>
+                      <td className="px-4 py-2.5">{client?.name}</td>
+                      <td className="px-4 py-2.5 text-muted-foreground">{shortDate(d.issueDate)}</td>
+                      <td className="px-4 py-2.5"><StatusBadge status={d.status} /></td>
+                      <td className="px-4 py-2.5 text-right font-numeric font-semibold">{currency(d.total)}</td>
+                    </motion.tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </motion.div>
+      </div>
+
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="glass-panel mt-6 rounded-3xl p-5">
+        <h3 className="font-display text-lg font-semibold">Activité récente</h3>
+        <ul className="mt-3 space-y-1">
+          {activities.map((a, i) => (
+            <motion.li key={a.id} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.05 * i }} className="flex items-start gap-3 rounded-2xl p-3 hover:bg-muted/50 transition-colors">
+              <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+                a.kind.includes("paid") || a.kind.includes("accepted") ? "bg-success/15 text-success" :
+                a.kind.includes("overdue") ? "bg-danger/15 text-danger" :
+                "bg-primary/15 text-primary"}`}>
+                {a.kind.includes("invoice") ? <ReceiptText className="h-4 w-4" /> : a.kind.includes("quotation") ? <FileText className="h-4 w-4" /> : <Users className="h-4 w-4" />}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium">{a.title}</div>
+                <div className="text-xs text-muted-foreground">{a.description}</div>
+              </div>
+              <div className="text-xs text-muted-foreground">{shortDate(a.at)}</div>
+            </motion.li>
+          ))}
+        </ul>
+      </motion.div>
+    </div>
+  );
+}

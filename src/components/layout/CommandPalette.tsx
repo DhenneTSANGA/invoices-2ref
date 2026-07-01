@@ -1,0 +1,61 @@
+import { useEffect } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
+import { useAppStore } from "@/store/useAppStore";
+import { FileText, ReceiptText, Users, Plus, LayoutDashboard, Settings, Archive, Package } from "lucide-react";
+
+export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+  const navigate = useNavigate();
+  const clients = useAppStore((s) => s.clients);
+  const documents = useAppStore((s) => s.documents);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        onOpenChange(!open);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onOpenChange]);
+
+  const go = (to: string) => { onOpenChange(false); navigate({ to }); };
+
+  return (
+    <CommandDialog open={open} onOpenChange={onOpenChange}>
+      <CommandInput placeholder="Rechercher partout…" />
+      <CommandList>
+        <CommandEmpty>Aucun résultat.</CommandEmpty>
+        <CommandGroup heading="Actions rapides">
+          <CommandItem onSelect={() => go("/invoices/new")}><Plus className="h-4 w-4" /> Nouvelle facture</CommandItem>
+          <CommandItem onSelect={() => go("/quotations/new")}><Plus className="h-4 w-4" /> Nouveau devis</CommandItem>
+          <CommandItem onSelect={() => go("/clients/new")}><Plus className="h-4 w-4" /> Nouveau client</CommandItem>
+        </CommandGroup>
+        <CommandSeparator />
+        <CommandGroup heading="Navigation">
+          <CommandItem onSelect={() => go("/dashboard")}><LayoutDashboard className="h-4 w-4" /> Tableau de bord</CommandItem>
+          <CommandItem onSelect={() => go("/clients")}><Users className="h-4 w-4" /> Clients</CommandItem>
+          <CommandItem onSelect={() => go("/services")}><Package className="h-4 w-4" /> Catalogue</CommandItem>
+          <CommandItem onSelect={() => go("/archive")}><Archive className="h-4 w-4" /> Archives</CommandItem>
+          <CommandItem onSelect={() => go("/settings")}><Settings className="h-4 w-4" /> Paramètres</CommandItem>
+        </CommandGroup>
+        <CommandSeparator />
+        <CommandGroup heading="Clients">
+          {clients.slice(0, 6).map((c) => (
+            <CommandItem key={c.id} value={`client ${c.name}`} onSelect={() => go(`/clients/${c.id}`)}>
+              <Users className="h-4 w-4" /> {c.name}
+            </CommandItem>
+          ))}
+        </CommandGroup>
+        <CommandGroup heading="Documents">
+          {documents.slice(0, 8).map((d) => (
+            <CommandItem key={d.id} value={`doc ${d.number}`} onSelect={() => go(d.type === "invoice" ? `/invoices/${d.id}` : `/quotations/${d.id}`)}>
+              {d.type === "invoice" ? <ReceiptText className="h-4 w-4" /> : <FileText className="h-4 w-4" />} {d.number}
+            </CommandItem>
+          ))}
+        </CommandGroup>
+      </CommandList>
+    </CommandDialog>
+  );
+}
