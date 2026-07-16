@@ -62,7 +62,7 @@ function ServicesPage() {
 }
 
 function NewServiceDialog({ onClose, onCreate }: { onClose: () => void; onCreate: (s: { code: string; name: string; description: string; unit: string; unitPrice: number; vatRate: number; category: string }) => void }) {
-  const [form, setForm] = useState({ code: "", name: "", description: "", unit: "mois", unitPrice: 0, vatRate: 20, category: "Conseil" });
+  const [form, setForm] = useState({ code: "", name: "", description: "", unit: "mois", unitPrice: 0, vatRate: 18, category: "Conseil" });
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur p-4" onClick={onClose}>
       <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} onClick={(e) => e.stopPropagation()} className="glass-panel w-full max-w-lg rounded-3xl p-6 shadow-float">

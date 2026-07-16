@@ -11,10 +11,9 @@ type State = {
   company: {
     name: string;
     tagline: string;
-    ice: string;
-    if: string;
-    rc: string;
-    patente: string;
+    nif: string;
+    niu: string;
+    rccm: string;
     cnss: string;
     address: string;
     city: string;
@@ -22,7 +21,7 @@ type State = {
     email: string;
     website: string;
     bankName: string;
-    bankRib: string;
+    bankAccount: string;
   };
 
   addClient: (c: Omit<Client, "id" | "createdAt">) => Client;
@@ -54,19 +53,18 @@ export const useAppStore = create<State>((set) => ({
   notifications: seedNotifications,
   company: {
     name: "FacturIA Conseil & Expertise",
-    tagline: "Cabinet d'expertise comptable et fiscale",
-    ice: "002998877000001",
-    if: "40998877",
-    rc: "11223",
-    patente: "33445566",
-    cnss: "9988776",
-    address: "27 Boulevard Zerktouni, 6ème étage",
-    city: "20 000 Casablanca, Maroc",
-    phone: "+212 522 99 88 77",
-    email: "contact@facturia.ma",
-    website: "www.facturia.ma",
-    bankName: "Attijariwafa Bank",
-    bankRib: "007 780 0001234567890123 45",
+    tagline: "Cabinet d'expertise comptable et fiscale — Gabon & CEMAC",
+    nif: "GA20249988770",
+    niu: "M012345698877A",
+    rccm: "GA-LBV-01-2019-B12-00123",
+    cnss: "CNSS-GA-9988776",
+    address: "27 Boulevard Triomphal, 3ème étage",
+    city: "Libreville, Gabon",
+    phone: "+241 07 99 88 77",
+    email: "contact@facturia.ga",
+    website: "www.facturia.ga",
+    bankName: "BGFI Bank Gabon",
+    bankAccount: "40002 00001 01234567890 12",
   },
 
   addClient: (c) => {

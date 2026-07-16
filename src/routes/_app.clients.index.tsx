@@ -24,7 +24,7 @@ function ClientsPage() {
 
   const filtered = clients.filter((c) =>
     (city === "all" || c.city === city) &&
-    (q === "" || `${c.name} ${c.ice} ${c.email} ${c.contactName}`.toLowerCase().includes(q.toLowerCase())),
+    (q === "" || `${c.name} ${c.nif} ${c.rccm} ${c.email} ${c.contactName}`.toLowerCase().includes(q.toLowerCase())),
   );
 
   return (
@@ -42,7 +42,7 @@ function ClientsPage() {
       <div className="glass-panel mb-4 flex flex-wrap items-center gap-3 rounded-2xl p-3">
         <div className="relative flex-1 min-w-60">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher par nom, ICE, email…" className="w-full rounded-xl border border-border/60 bg-transparent pl-10 pr-3 py-2 text-sm focus:border-primary focus:outline-none" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher par nom, NIF, email…" className="w-full rounded-xl border border-border/60 bg-transparent pl-10 pr-3 py-2 text-sm focus:border-primary focus:outline-none" />
         </div>
         <select value={city} onChange={(e) => setCity(e.target.value)} className="rounded-xl border border-border/60 bg-surface px-3 py-2 text-sm">
           <option value="all">Toutes les villes</option>
@@ -75,7 +75,7 @@ function ClientsPage() {
                   <div className="flex items-center gap-2"><Phone className="h-3.5 w-3.5" /> {c.phone}</div>
                 </div>
                 <div className="mt-4 grid grid-cols-3 gap-2 border-t border-border/60 pt-3 text-xs">
-                  <div><div className="text-muted-foreground">ICE</div><div className="font-numeric font-medium">{c.ice.slice(0, 8)}…</div></div>
+                  <div><div className="text-muted-foreground">NIF</div><div className="font-numeric font-medium">{c.nif.slice(0, 8)}…</div></div>
                   <div><div className="text-muted-foreground">Documents</div><div className="font-semibold">{docsCount}</div></div>
                   <div><div className="text-muted-foreground">CA payé</div><div className="font-numeric font-semibold text-success">{Math.round(totalRevenue / 1000)}k</div></div>
                 </div>

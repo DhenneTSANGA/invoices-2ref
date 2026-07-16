@@ -70,7 +70,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "FacturIA — Smart Invoice & Quotation Management" },
-      { name: "description", content: "Plateforme premium de gestion des clients, devis et factures pour cabinets fiscaux." },
+      { name: "description", content: "Plateforme premium de gestion des clients, devis et factures pour cabinets fiscaux du Gabon et de la zone CEMAC." },
       { name: "author", content: "FacturIA" },
       { property: "og:title", content: "FacturIA — Smart Invoice & Quotation Management" },
       { property: "og:description", content: "Plateforme premium de gestion des clients, devis et factures." },
@@ -98,6 +98,11 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="fr" suppressHydrationWarning>
       <head>
         <HeadContent />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var u=localStorage.getItem("facturia-theme-user");var t=localStorage.getItem("facturia-theme");if(!u||t!=="dark"){document.documentElement.classList.remove("dark");}else{document.documentElement.classList.add("dark");}}catch(e){}})();`,
+          }}
+        />
       </head>
       <body>
         {children}

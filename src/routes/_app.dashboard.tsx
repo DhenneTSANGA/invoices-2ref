@@ -54,7 +54,7 @@ function Dashboard() {
   return (
     <div>
       <PageHeader
-        title="Bonjour Yasmine 👋"
+        title="Bonjour Dhenne TSANGA 👋"
         subtitle="Voici l'état de votre cabinet aujourd'hui."
         actions={
           <>
@@ -65,7 +65,7 @@ function Dashboard() {
       />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Chiffre d'affaires" value={paid} variant="primary" icon={Wallet} format={(n) => currency(n, "MAD")} delta={{ value: 12.4, direction: "up" }} index={0} />
+        <StatCard label="Chiffre d'affaires" value={paid} variant="primary" icon={Wallet} format={(n) => currency(n, "XAF")} delta={{ value: 12.4, direction: "up" }} index={0} />
         <StatCard label="Factures émises" value={invoices.length} icon={ReceiptText} delta={{ value: 8.1, direction: "up" }} index={1} />
         <StatCard label="Devis actifs" value={quotations.length} variant="accent" icon={FileText} delta={{ value: 4.6, direction: "up" }} index={2} />
         <StatCard label="Clients" value={clients.length} icon={Users} delta={{ value: 2.3, direction: "up" }} index={3} />

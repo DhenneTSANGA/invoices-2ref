@@ -94,8 +94,8 @@ export function AppTopbar() {
               onClick={() => { setProfileOpen(o => !o); setBellOpen(false); }}
               className="flex items-center gap-2 rounded-2xl border border-border/60 bg-surface/70 pl-1 pr-2 py-1 transition-colors hover:bg-muted"
             >
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-accent text-accent-foreground font-bold text-sm">YA</div>
-              <span className="hidden text-sm font-medium md:inline">Yasmine A.</span>
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-accent text-accent-foreground font-bold text-sm">DT</div>
+              <span className="hidden text-sm font-medium md:inline">Dhenne TSANGA.</span>
               <ChevronDown className="hidden h-3.5 w-3.5 text-muted-foreground md:inline" />
             </button>
             <AnimatePresence>
@@ -108,7 +108,7 @@ export function AppTopbar() {
                   className="glass-panel absolute right-0 top-12 z-50 w-56 rounded-2xl p-2 shadow-float"
                 >
                   <div className="px-3 py-2">
-                    <div className="text-sm font-semibold">Yasmine Alaoui</div>
+                    <div className="text-sm font-semibold">Dhenne TSANGA</div>
                     <div className="text-xs text-muted-foreground">Expert-comptable</div>
                   </div>
                   <div className="my-1 h-px bg-border" />

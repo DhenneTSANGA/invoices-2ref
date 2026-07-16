@@ -2,10 +2,9 @@ export type Client = {
   id: string;
   name: string;
   legalForm: string;
-  ice: string;
-  if: string;
-  rc: string;
-  patente: string;
+  nif: string;
+  niu: string;
+  rccm: string;
   contactName: string;
   email: string;
   phone: string;
@@ -36,8 +35,8 @@ export type LineItem = {
   discount: number;
 };
 
-export type DocumentType = "quotation" | "invoice" | "proforma";
-export type DocumentStatus = "draft" | "sent" | "accepted" | "rejected" | "paid" | "overdue" | "archived";
+export type DocumentType = "quotation" | "invoice" | "proforma" | "letter";
+export type DocumentStatus = "draft" | "sent" | "accepted" | "rejected" | "paid" | "overdue" | "archived" | "cancelled";
 
 export type Document = {
   id: string;
@@ -54,6 +53,20 @@ export type Document = {
   currency: string;
   notes?: string;
   paymentTerms?: string;
+  /** Devis */
+  validityDays?: number;
+  executionTerms?: string;
+  /** Pro forma */
+  incoterm?: string;
+  shippingNotes?: string;
+  disclaimer?: string;
+  /** Lettre commerciale */
+  subject?: string;
+  salutation?: string;
+  body?: string;
+  closing?: string;
+  signatoryTitle?: string;
+  recipientOverride?: string;
 };
 
 export type Activity = {

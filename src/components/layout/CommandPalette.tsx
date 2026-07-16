@@ -30,6 +30,8 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
         <CommandGroup heading="Actions rapides">
           <CommandItem onSelect={() => go("/invoices/new")}><Plus className="h-4 w-4" /> Nouvelle facture</CommandItem>
           <CommandItem onSelect={() => go("/quotations/new")}><Plus className="h-4 w-4" /> Nouveau devis</CommandItem>
+          <CommandItem onSelect={() => go("/proformas/new")}><Plus className="h-4 w-4" /> Nouvelle pro forma</CommandItem>
+          <CommandItem onSelect={() => go("/templates")}><Plus className="h-4 w-4" /> Modèles de documents</CommandItem>
           <CommandItem onSelect={() => go("/clients/new")}><Plus className="h-4 w-4" /> Nouveau client</CommandItem>
         </CommandGroup>
         <CommandSeparator />
@@ -49,11 +51,18 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
           ))}
         </CommandGroup>
         <CommandGroup heading="Documents">
-          {documents.slice(0, 8).map((d) => (
-            <CommandItem key={d.id} value={`doc ${d.number}`} onSelect={() => go(d.type === "invoice" ? `/invoices/${d.id}` : `/quotations/${d.id}`)}>
-              {d.type === "invoice" ? <ReceiptText className="h-4 w-4" /> : <FileText className="h-4 w-4" />} {d.number}
-            </CommandItem>
-          ))}
+          {documents.slice(0, 8).map((d) => {
+            const path =
+              d.type === "invoice" ? `/invoices/${d.id}` :
+              d.type === "quotation" ? `/quotations/${d.id}` :
+              d.type === "proforma" ? `/proformas/${d.id}` :
+              `/letters/${d.id}`;
+            return (
+              <CommandItem key={d.id} value={`doc ${d.number}`} onSelect={() => go(path)}>
+                {d.type === "invoice" ? <ReceiptText className="h-4 w-4" /> : <FileText className="h-4 w-4" />} {d.number}
+              </CommandItem>
+            );
+          })}
         </CommandGroup>
       </CommandList>
     </CommandDialog>

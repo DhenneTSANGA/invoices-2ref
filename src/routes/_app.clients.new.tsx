@@ -12,8 +12,8 @@ export const Route = createFileRoute("/_app/clients/new")({
 });
 
 const empty: Omit<Client, "id" | "createdAt"> = {
-  name: "", legalForm: "SARL", ice: "", if: "", rc: "", patente: "",
-  contactName: "", email: "", phone: "", address: "", city: "", country: "Maroc",
+  name: "", legalForm: "SARL", nif: "", niu: "", rccm: "",
+  contactName: "", email: "", phone: "", address: "", city: "", country: "Gabon",
 };
 
 function NewClient() {
@@ -36,11 +36,10 @@ function NewClient() {
       <form onSubmit={submit} className="space-y-5">
         <Section title="Identité de l'entreprise">
           <Field label="Raison sociale" value={form.name} onChange={(v) => setForm({ ...form, name: v })} required />
-          <Select label="Forme juridique" value={form.legalForm} onChange={(v) => setForm({ ...form, legalForm: v })} options={["SARL", "SA", "SAS", "SNC", "Auto-entrepreneur", "Personne physique"]} />
-          <Field label="ICE" value={form.ice} onChange={(v) => setForm({ ...form, ice: v })} placeholder="15 chiffres" />
-          <Field label="IF" value={form.if} onChange={(v) => setForm({ ...form, if: v })} />
-          <Field label="RC" value={form.rc} onChange={(v) => setForm({ ...form, rc: v })} />
-          <Field label="Patente" value={form.patente} onChange={(v) => setForm({ ...form, patente: v })} />
+          <Select label="Forme juridique" value={form.legalForm} onChange={(v) => setForm({ ...form, legalForm: v })} options={["SARL", "SA", "SAS", "SNC", "Entreprise individuelle", "Personne physique"]} />
+          <Field label="NIF" value={form.nif} onChange={(v) => setForm({ ...form, nif: v })} placeholder="Ex. GA20245678901" />
+          <Field label="NIU" value={form.niu} onChange={(v) => setForm({ ...form, niu: v })} placeholder="Identifiant CEMAC" />
+          <Field label="RCCM" value={form.rccm} onChange={(v) => setForm({ ...form, rccm: v })} placeholder="Ex. GA-LBV-01-2020-B12-00045" colSpan={2} />
         </Section>
 
         <Section title="Contact principal">

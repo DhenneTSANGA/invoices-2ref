@@ -16,10 +16,10 @@ function ProfilePage() {
         <div className="glass-panel rounded-3xl p-6 text-center">
           <div className="relative mx-auto h-28 w-28">
             <div className="absolute inset-0 -z-10 rounded-full bg-gradient-primary opacity-30 blur-2xl" />
-            <div className="flex h-full w-full items-center justify-center rounded-full bg-gradient-primary text-primary-foreground font-display text-4xl font-bold shadow-glow">YA</div>
+            <div className="flex h-full w-full items-center justify-center rounded-full bg-gradient-primary text-primary-foreground font-display text-4xl font-bold shadow-glow">MN</div>
           </div>
-          <h3 className="mt-4 font-display text-xl font-bold">Yasmine Alaoui</h3>
-          <p className="text-sm text-muted-foreground">Expert-comptable agréée</p>
+          <h3 className="mt-4 font-display text-xl font-bold">Dhenne TSANGA</h3>
+          <p className="text-sm text-muted-foreground">Expert-comptable agréé</p>
           <div className="mt-4 grid grid-cols-3 gap-2 text-center">
             <div className="rounded-xl bg-surface-2 p-2"><div className="font-display text-lg font-bold">142</div><div className="text-[10px] uppercase text-muted-foreground">Factures</div></div>
             <div className="rounded-xl bg-surface-2 p-2"><div className="font-display text-lg font-bold">89</div><div className="text-[10px] uppercase text-muted-foreground">Devis</div></div>
@@ -31,10 +31,10 @@ function ProfilePage() {
         <div className="glass-panel rounded-3xl p-6">
           <h4 className="font-display font-semibold">Informations</h4>
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <F label="Prénom" defaultValue="Yasmine" />
-            <F label="Nom" defaultValue="Alaoui" />
-            <F label="Email" defaultValue="yasmine@facturia.ma" />
-            <F label="Téléphone" defaultValue="+212 661 12 34 56" />
+            <F label="Prénom" defaultValue="Mireille" />
+            <F label="Nom" defaultValue="Ndong" />
+            <F label="Email" defaultValue="mireille@facturia.ga" />
+            <F label="Téléphone" defaultValue="+241 07 61 12 34 56" />
             <F label="Fonction" defaultValue="Expert-comptable" />
             <F label="Langue" defaultValue="Français" />
           </div>

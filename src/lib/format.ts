@@ -1,8 +1,8 @@
-export const currency = (n: number, c = "MAD") =>
-  new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n) + " " + c;
+export const currency = (n: number, c = "XAF") =>
+  new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n) + " " + c;
 
 export const number = (n: number) =>
-  new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+  new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
 
 export const shortDate = (d: string | Date) => {
   const date = typeof d === "string" ? new Date(d) : d;

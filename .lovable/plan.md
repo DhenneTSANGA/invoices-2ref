@@ -1,6 +1,6 @@
 # FacturIA — Premium Front-End Prototype Plan
 
-A high-end, fully front-end (mock data) prototype of an invoice/quotation management SaaS, built on the project's TanStack Start + Tailwind v4 + shadcn stack (not Next.js — I'll adapt the spec to the existing stack while keeping every visual/UX requirement).
+A high-end, fully front-end (mock data) prototype of an invoice/quotation management SaaS for Gabonese accounting firms and the CEMAC zone (XAF, NIF/NIU/RCCM, OHADA), built on the project's TanStack Start + Tailwind v4 + shadcn stack (not Next.js — I'll adapt the spec to the existing stack while keeping every visual/UX requirement).
 
 ## Stack adaptation
 - **Framework**: TanStack Start (existing) instead of Next.js 15 — same React 19 + file routing, no functional loss.
@@ -68,8 +68,8 @@ Plus `notFoundComponent` on root for the 404.
 - `theme/ThemeProvider.tsx` + `ThemeToggle.tsx`.
 
 ## Mock data (src/lib/mock)
-- `clients.ts` — 12 realistic fictional clients (company name, ICE, IF, RC, address, contact).
-- `services.ts` — 15 services with unit, unit price, VAT.
+- `clients.ts` — 12 realistic fictional clients (company name, NIF, NIU, RCCM, address, contact) across Gabon and CEMAC.
+- `services.ts` — 15 services with unit, unit price in XAF, VAT 18%.
 - `documents.ts` — 20 quotations + 25 invoices with line items, statuses, dates.
 - `activity.ts`, `notifications.ts`.
 - Zustand store `src/store/useAppStore.ts` for CRUD on the in-memory data so create/edit flows feel real.

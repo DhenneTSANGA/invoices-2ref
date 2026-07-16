@@ -2,7 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import {
   LayoutDashboard, Users, FileText, ReceiptText, Package,
-  Files, Archive, Settings, Bell, Search, UserCircle2, ChevronLeft,
+  Files, Archive, Settings, Bell, Search, UserCircle2, ChevronLeft, FileSignature,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -13,20 +13,25 @@ const items = [
   { to: "/services", label: "Catalogue", icon: Package },
   { to: "/quotations", label: "Devis", icon: FileText },
   { to: "/invoices", label: "Factures", icon: ReceiptText },
+  { to: "/proformas", label: "Pro forma", icon: FileSignature },
   { to: "/templates", label: "Modèles", icon: Files },
   { to: "/archive", label: "Archives", icon: Archive },
-];
+] as const;
 
 const secondary = [
   { to: "/search", label: "Recherche", icon: Search },
   { to: "/notifications", label: "Notifications", icon: Bell },
   { to: "/profile", label: "Profil", icon: UserCircle2 },
   { to: "/settings", label: "Paramètres", icon: Settings },
-];
+] as const;
+
+function selectPathname(s: { location: { pathname: string } }) {
+  return s.location.pathname;
+}
 
 export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const pathname = useRouterState({ select: selectPathname });
 
   return (
     <motion.aside
@@ -85,7 +90,7 @@ function NavSection({
   title, items, pathname, collapsed,
 }: {
   title: string;
-  items: { to: string; label: string; icon: typeof LayoutDashboard }[];
+  items: readonly { to: string; label: string; icon: typeof LayoutDashboard }[];
   pathname: string;
   collapsed: boolean;
 }) {
@@ -94,11 +99,12 @@ function NavSection({
       {!collapsed && <div className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{title}</div>}
       <ul className="space-y-1">
         {items.map((item) => {
-          const active = pathname === item.to || pathname.startsWith(item.to + "/");
+          const active = pathname === item.to || pathname.startsWith(`${item.to}/`);
           return (
             <li key={item.to}>
               <Link
                 to={item.to}
+                preload="intent"
                 className={cn(
                   "group relative flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition-all",
                   active ? "text-primary-foreground" : "text-foreground/80 hover:text-foreground hover:bg-muted/70",

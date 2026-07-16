@@ -16,7 +16,7 @@ function SearchPage() {
   const services = useAppStore((s) => s.services);
 
   const term = q.toLowerCase();
-  const cm = clients.filter((c) => `${c.name} ${c.email} ${c.ice}`.toLowerCase().includes(term));
+  const cm = clients.filter((c) => `${c.name} ${c.email} ${c.nif}`.toLowerCase().includes(term));
   const dm = docs.filter((d) => `${d.number}`.toLowerCase().includes(term));
   const sm = services.filter((s) => `${s.code} ${s.name} ${s.category}`.toLowerCase().includes(term));
 

@@ -52,13 +52,12 @@ function SettingsPage() {
           )}
           {tab === "fiscal" && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <F label="ICE" value={form.ice} onChange={(v) => setForm({ ...form, ice: v })} />
-              <F label="IF" value={form.if} onChange={(v) => setForm({ ...form, if: v })} />
-              <F label="RC" value={form.rc} onChange={(v) => setForm({ ...form, rc: v })} />
-              <F label="Patente" value={form.patente} onChange={(v) => setForm({ ...form, patente: v })} />
+              <F label="NIF" value={form.nif} onChange={(v) => setForm({ ...form, nif: v })} />
+              <F label="NIU" value={form.niu} onChange={(v) => setForm({ ...form, niu: v })} />
+              <F label="RCCM" value={form.rccm} onChange={(v) => setForm({ ...form, rccm: v })} colSpan />
               <F label="CNSS" value={form.cnss} onChange={(v) => setForm({ ...form, cnss: v })} />
               <F label="Banque" value={form.bankName} onChange={(v) => setForm({ ...form, bankName: v })} />
-              <F label="RIB" value={form.bankRib} onChange={(v) => setForm({ ...form, bankRib: v })} colSpan />
+              <F label="N° de compte" value={form.bankAccount} onChange={(v) => setForm({ ...form, bankAccount: v })} colSpan />
             </div>
           )}
           {tab === "branding" && (

@@ -1,10 +1,13 @@
+import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Download, Send, CheckCircle2, XCircle, Edit3 } from "lucide-react";
+import { ArrowLeft, Download, Send, CheckCircle2, XCircle, Edit3, Eye, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { useAppStore } from "@/store/useAppStore";
 import { DocumentPreview } from "@/components/documents/DocumentPreview";
+import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { downloadDocumentPdf } from "@/lib/pdf/downloadDocumentPdf";
 import { currency, longDate } from "@/lib/format";
 
 export const Route = createFileRoute("/_app/invoices/$id")({
@@ -17,8 +20,27 @@ function InvoiceDetail() {
   const doc = useAppStore((s) => s.documents.find((d) => d.id === id));
   const client = useAppStore((s) => s.clients.find((c) => c.id === doc?.clientId));
   const setStatus = useAppStore((s) => s.setDocumentStatus);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   if (!doc) return <div className="glass-panel rounded-3xl p-8 text-center">Document introuvable.</div>;
+
+  const downloadPdf = async () => {
+    setExporting(true);
+    const toastId = toast.loading("Génération du PDF…");
+    try {
+      await downloadDocumentPdf(doc);
+      toast.success("PDF téléchargé", { id: toastId, description: `${doc.number}.pdf` });
+    } catch (err) {
+      console.error(err);
+      toast.error("Impossible de générer le PDF", {
+        id: toastId,
+        description: err instanceof Error ? err.message : undefined,
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <div>
@@ -28,14 +50,18 @@ function InvoiceDetail() {
         subtitle={`${client?.name ?? ""} · Émise le ${longDate(doc.issueDate)}`}
         actions={
           <>
-            <button onClick={() => toast.info("Export PDF prêt", { description: "Téléchargement simulé." })} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted"><Download className="h-4 w-4" /> PDF</button>
+            <button onClick={() => setPreviewOpen(true)} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted"><Eye className="h-4 w-4" /> Aperçu</button>
+            <button onClick={downloadPdf} disabled={exporting} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60">
+              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} PDF
+            </button>
             <button onClick={() => { setStatus(doc.id, "sent"); toast.success("Facture envoyée"); }} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted"><Send className="h-4 w-4" /> Envoyer</button>
             <button onClick={() => { setStatus(doc.id, "paid"); toast.success("Marquée comme payée"); }} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-success px-4 py-2 text-sm font-medium text-success-foreground shadow"><CheckCircle2 className="h-4 w-4" /> Marquer payée</button>
+            <button onClick={() => { setStatus(doc.id, "cancelled"); toast.warning("Facture annulée"); }} className="inline-flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-700 hover:bg-rose-100">Annuler</button>
           </>
         }
       />
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_minmax(0,720px)]">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
         <aside className="space-y-4">
           <div className="glass-panel rounded-3xl p-5">
             <div className="flex items-center justify-between">
@@ -69,19 +95,21 @@ function InvoiceDetail() {
         </aside>
 
         <div>
-          <div className="mb-3 text-xs uppercase tracking-wider text-muted-foreground">Aperçu</div>
-          <DocumentPreview doc={doc} />
+          <div className="mb-3 flex items-center justify-between">
+            <div className="text-xs uppercase tracking-wider text-muted-foreground">Aperçu</div>
+            <button type="button" onClick={() => setPreviewOpen(true)} className="text-xs font-medium text-primary hover:underline">Plein écran</button>
+          </div>
+          <div className="cursor-pointer" onClick={() => setPreviewOpen(true)}>
+            <DocumentPreview doc={doc} />
+          </div>
         </div>
       </div>
+
+      <DocumentPreviewModal doc={doc} open={previewOpen} onOpenChange={setPreviewOpen} />
     </div>
   );
 }
 
 function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between border-b border-border/40 py-1.5 last:border-0">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium text-right">{value}</span>
-    </div>
-  );
+  return <div className="flex items-center justify-between border-b border-border/40 py-1.5 last:border-0"><span className="text-muted-foreground">{label}</span><span className="font-medium text-right">{value}</span></div>;
 }

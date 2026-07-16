@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, Save, FileText, ReceiptText } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -17,7 +17,11 @@ function EditClient() {
   const navigate = useNavigate();
   const client = useAppStore((s) => s.clients.find((c) => c.id === id));
   const update = useAppStore((s) => s.updateClient);
-  const docs = useAppStore((s) => s.documents.filter((d) => d.clientId === id));
+  const documents = useAppStore((s) => s.documents);
+  const docs = useMemo(
+    () => documents.filter((d) => d.clientId === id),
+    [documents, id],
+  );
   const [form, setForm] = useState(client);
 
   if (!client || !form) return <div className="glass-panel rounded-3xl p-8 text-center">Client introuvable.</div>;
@@ -41,10 +45,9 @@ function EditClient() {
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Raison sociale" value={form.name} onChange={(v) => setForm({ ...form, name: v })} />
               <Field label="Forme juridique" value={form.legalForm} onChange={(v) => setForm({ ...form, legalForm: v })} />
-              <Field label="ICE" value={form.ice} onChange={(v) => setForm({ ...form, ice: v })} />
-              <Field label="IF" value={form.if} onChange={(v) => setForm({ ...form, if: v })} />
-              <Field label="RC" value={form.rc} onChange={(v) => setForm({ ...form, rc: v })} />
-              <Field label="Patente" value={form.patente} onChange={(v) => setForm({ ...form, patente: v })} />
+              <Field label="NIF" value={form.nif} onChange={(v) => setForm({ ...form, nif: v })} />
+              <Field label="NIU" value={form.niu} onChange={(v) => setForm({ ...form, niu: v })} />
+              <Field label="RCCM" value={form.rccm} onChange={(v) => setForm({ ...form, rccm: v })} colSpan />
             </div>
           </div>
           <div className="glass-panel rounded-3xl p-5">

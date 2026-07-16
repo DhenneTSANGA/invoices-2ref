@@ -33,7 +33,7 @@ function LoginPage() {
           <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="font-display text-5xl font-bold leading-tight tracking-tight">
             Gérez vos clients, devis et factures avec <span className="text-gradient-primary">élégance</span>.
           </motion.h1>
-          <p className="max-w-md text-muted-foreground">Une plateforme premium pensée pour les cabinets d'expertise comptable et fiscale.</p>
+          <p className="max-w-md text-muted-foreground">Une plateforme premium pensée pour les cabinets d'expertise comptable et fiscale du Gabon et de la zone CEMAC.</p>
 
           <div className="grid max-w-md gap-3">
             {[
@@ -62,7 +62,7 @@ function LoginPage() {
           <p className="mt-1 text-sm text-muted-foreground">Connectez-vous pour accéder à votre cabinet.</p>
 
           <div className="mt-6 space-y-4">
-            <FloatField icon={Mail} label="Adresse email" type="email" defaultValue="yasmine@facturia.ma" />
+            <FloatField icon={Mail} label="Adresse email" type="email" defaultValue="mireille@facturia.ga" />
             <FloatField icon={Lock} label="Mot de passe" type="password" defaultValue="••••••••" />
           </div>
 
