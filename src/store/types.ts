@@ -14,6 +14,19 @@ export type Client = {
   createdAt: string;
 };
 
+export type StaffRole = "member" | "admin";
+
+export type StaffMember = {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  jobTitle: string;
+  phone?: string;
+  avatarUrl?: string;
+  role: StaffRole;
+};
+
 export type Service = {
   id: string;
   code: string;
@@ -36,13 +49,23 @@ export type LineItem = {
 };
 
 export type DocumentType = "quotation" | "invoice" | "proforma" | "letter";
-export type DocumentStatus = "draft" | "sent" | "accepted" | "rejected" | "paid" | "overdue" | "archived" | "cancelled";
+export type DocumentStatus =
+  | "draft"
+  | "sent"
+  | "accepted"
+  | "rejected"
+  | "paid"
+  | "overdue"
+  | "archived"
+  | "cancelled";
 
 export type Document = {
   id: string;
   type: DocumentType;
   number: string;
   clientId: string;
+  createdById: string;
+  createdBy?: StaffMember;
   status: DocumentStatus;
   issueDate: string;
   dueDate: string;
@@ -53,14 +76,11 @@ export type Document = {
   currency: string;
   notes?: string;
   paymentTerms?: string;
-  /** Devis */
   validityDays?: number;
   executionTerms?: string;
-  /** Pro forma */
   incoterm?: string;
   shippingNotes?: string;
   disclaimer?: string;
-  /** Lettre commerciale */
   subject?: string;
   salutation?: string;
   body?: string;
@@ -71,7 +91,13 @@ export type Document = {
 
 export type Activity = {
   id: string;
-  kind: "invoice_paid" | "invoice_sent" | "invoice_overdue" | "quotation_accepted" | "quotation_sent" | "client_added";
+  kind:
+    | "invoice_paid"
+    | "invoice_sent"
+    | "invoice_overdue"
+    | "quotation_accepted"
+    | "quotation_sent"
+    | "client_added";
   title: string;
   description: string;
   at: string;

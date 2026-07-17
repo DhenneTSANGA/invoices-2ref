@@ -7,6 +7,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { DocumentPreview } from "@/components/documents/DocumentPreview";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { DocumentCreatorCard } from "@/components/documents/DocumentCreatorCard";
 import { downloadDocumentPdf } from "@/lib/pdf/downloadDocumentPdf";
 import { currency, longDate } from "@/lib/format";
 
@@ -92,6 +93,8 @@ function InvoiceDetail() {
             </div>
             <Link to="/invoices/new" className="mt-2 block w-full rounded-xl border border-border bg-surface px-3 py-2 text-center text-xs hover:bg-muted">Dupliquer</Link>
           </div>
+
+          <DocumentCreatorCard creator={doc.createdBy} />
         </aside>
 
         <div>

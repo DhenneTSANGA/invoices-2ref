@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
 import { StatusBadge, statusLabel } from "@/components/common/StatusBadge";
+import { StaffAvatar } from "@/components/common/StaffAvatar";
 import { useAppStore } from "@/store/useAppStore";
 import { currency, shortDate } from "@/lib/format";
 import type { DocumentStatus, DocumentType } from "@/store/types";
@@ -103,6 +104,7 @@ export function DocumentsList({ type }: { type: DocumentType }) {
           <table className="w-full text-sm">
             <thead className="bg-muted/60 text-xs uppercase tracking-wider text-muted-foreground">
               <tr>
+                <th className="px-5 py-3 text-left">Créateur</th>
                 <th className="px-5 py-3 text-left">Numéro</th>
                 <th className="px-5 py-3 text-left">Client</th>
                 <th className="px-5 py-3 text-left">Date</th>
@@ -115,6 +117,7 @@ export function DocumentsList({ type }: { type: DocumentType }) {
             <tbody>
               {filtered.map((d, i) => {
                 const c = clients.find((x) => x.id === d.clientId);
+                const creator = d.createdBy;
                 return (
                   <motion.tr
                     key={d.id}
@@ -128,7 +131,25 @@ export function DocumentsList({ type }: { type: DocumentType }) {
                       d.status === "overdue" && "bg-red-50/30",
                     )}
                   >
-                    <td className="px-5 py-3 font-medium font-numeric">{d.number}</td>
+                    <td className="px-5 py-3">
+                      {creator ? (
+                        <Link
+                          to={L.detail}
+                          params={{ id: d.id }}
+                          className="inline-flex items-center gap-2"
+                          title={`${creator.firstName} ${creator.lastName}`}
+                        >
+                          <StaffAvatar person={creator} size="sm" />
+                        </Link>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className="px-5 py-3 font-medium font-numeric">
+                      <Link to={L.detail} params={{ id: d.id }} className="hover:text-primary hover:underline">
+                        {d.number}
+                      </Link>
+                    </td>
                     <td className="px-5 py-3">{c?.name}</td>
                     <td className="px-5 py-3 text-muted-foreground">{shortDate(d.issueDate)}</td>
                     <td className="px-5 py-3 text-muted-foreground">{shortDate(d.dueDate)}</td>

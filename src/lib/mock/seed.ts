@@ -1,4 +1,26 @@
-import type { Client, Service, Document, LineItem, Activity, NotificationItem } from "@/store/types";
+import type { Client, Service, Document, LineItem, Activity, NotificationItem, StaffMember } from "@/store/types";
+
+export const seedStaff: StaffMember[] = [
+  {
+    id: "staff-mireille",
+    email: "mireille@2ref.ga",
+    firstName: "Mireille",
+    lastName: "Nguema",
+    jobTitle: "Expert-comptable",
+    role: "admin",
+    avatarUrl: undefined,
+  },
+  {
+    id: "staff-jean",
+    email: "jean@2ref.ga",
+    firstName: "Jean",
+    lastName: "Mba",
+    jobTitle: "Collaborateur fiscal",
+    role: "member",
+  },
+];
+
+const staffById = (id: string) => seedStaff.find((s) => s.id === id)!;
 
 export const seedClients: Client[] = [
   { id: "c1", name: "Okoumba Médical SARL", legalForm: "SARL", nif: "GA20245678901", niu: "M012345678901A", rccm: "GA-LBV-01-2020-B12-00045", contactName: "Jean-Baptiste Ndong", email: "contact@okoumba-medical.ga", phone: "+241 07 11 22 33", address: "12 Boulevard Triomphal", city: "Libreville", country: "Gabon", createdAt: "2024-01-12" },
@@ -41,13 +63,15 @@ const li = (sid: string, qty: number, services: Service[]): LineItem => {
 const makeDoc = (
   id: string, type: "quotation" | "invoice" | "proforma", number: string,
   clientId: string, status: Document["status"], dateISO: string, items: LineItem[],
+  createdById: string,
   notes?: string,
   extra?: Partial<Document>,
 ): Document => {
+  const creator = staffById(createdById);
   const subtotal = items.reduce((a, b) => a + b.quantity * b.unitPrice * (1 - (b.discount || 0) / 100), 0);
   const vat = items.reduce((a, b) => a + b.quantity * b.unitPrice * (1 - (b.discount || 0) / 100) * (b.vatRate / 100), 0);
   return {
-    id, type, number, clientId, status,
+    id, type, number, clientId, createdById, createdBy: creator, status,
     issueDate: dateISO,
     dueDate: type === "invoice" ? new Date(new Date(dateISO).getTime() + 30 * 86400000).toISOString().slice(0, 10) : new Date(new Date(dateISO).getTime() + 15 * 86400000).toISOString().slice(0, 10),
     items, subtotal, vat, total: subtotal + vat,
@@ -58,37 +82,40 @@ const makeDoc = (
   };
 };
 
+const M = "staff-mireille";
+const J = "staff-jean";
+
 export const seedDocuments: Document[] = [
-  makeDoc("d1", "invoice", "FA-2025-0142", "c1", "paid", "2025-11-04", [li("s1", 1, seedServices), li("s2", 1, seedServices)]),
-  makeDoc("d2", "invoice", "FA-2025-0143", "c3", "sent", "2025-11-12", [li("s1", 3, seedServices), li("s11", 1, seedServices)]),
-  makeDoc("d3", "invoice", "FA-2025-0144", "c6", "overdue", "2025-10-08", [li("s6", 1, seedServices)]),
-  makeDoc("d4", "quotation", "DV-2025-0089", "c9", "accepted", "2025-11-15", [li("s14", 1, seedServices), li("s7", 8, seedServices)], undefined, {
+  makeDoc("d1", "invoice", "FA-2025-0142", "c1", "paid", "2025-11-04", [li("s1", 1, seedServices), li("s2", 1, seedServices)], M),
+  makeDoc("d2", "invoice", "FA-2025-0143", "c3", "sent", "2025-11-12", [li("s1", 3, seedServices), li("s11", 1, seedServices)], J),
+  makeDoc("d3", "invoice", "FA-2025-0144", "c6", "overdue", "2025-10-08", [li("s6", 1, seedServices)], M),
+  makeDoc("d4", "quotation", "DV-2025-0089", "c9", "accepted", "2025-11-15", [li("s14", 1, seedServices), li("s7", 8, seedServices)], M, undefined, {
     validityDays: 30,
     executionTerms: "Mission d'évaluation réalisée à Libreville — délai 20 jours ouvrés après acceptation.",
     paymentTerms: "Acompte 40 % à la commande — solde à livraison.",
   }),
-  makeDoc("d5", "quotation", "DV-2025-0090", "c2", "sent", "2025-11-18", [li("s3", 1, seedServices), li("s4", 1, seedServices)], undefined, {
+  makeDoc("d5", "quotation", "DV-2025-0090", "c2", "sent", "2025-11-18", [li("s3", 1, seedServices), li("s4", 1, seedServices)], J, undefined, {
     validityDays: 30,
     executionTerms: "Production des états financiers OHADA sous 45 jours.",
   }),
-  makeDoc("d6", "invoice", "FA-2025-0145", "c5", "draft", "2025-11-22", [li("s1", 1, seedServices), li("s5", 24, seedServices)]),
-  makeDoc("d7", "invoice", "FA-2025-0146", "c11", "paid", "2025-11-01", [li("s3", 1, seedServices)]),
-  makeDoc("d8", "quotation", "DV-2025-0091", "c7", "draft", "2025-11-20", [li("s8", 1, seedServices)], undefined, { validityDays: 15 }),
-  makeDoc("d9", "invoice", "FA-2025-0147", "c4", "sent", "2025-11-19", [li("s1", 1, seedServices), li("s2", 1, seedServices), li("s5", 12, seedServices)]),
-  makeDoc("d10", "proforma", "PF-2025-0017", "c8", "sent", "2025-11-23", [li("s12", 1, seedServices)], undefined, {
+  makeDoc("d6", "invoice", "FA-2025-0145", "c5", "draft", "2025-11-22", [li("s1", 1, seedServices), li("s5", 24, seedServices)], J),
+  makeDoc("d7", "invoice", "FA-2025-0146", "c11", "paid", "2025-11-01", [li("s3", 1, seedServices)], M),
+  makeDoc("d8", "quotation", "DV-2025-0091", "c7", "draft", "2025-11-20", [li("s8", 1, seedServices)], J, undefined, { validityDays: 15 }),
+  makeDoc("d9", "invoice", "FA-2025-0147", "c4", "sent", "2025-11-19", [li("s1", 1, seedServices), li("s2", 1, seedServices), li("s5", 12, seedServices)], M),
+  makeDoc("d10", "proforma", "PF-2025-0017", "c8", "sent", "2025-11-23", [li("s12", 1, seedServices)], M, undefined, {
     incoterm: "CIP Franceville",
     shippingNotes: "Assistance contrôle fiscal — déplacement Haut-Ogooué inclus.",
     disclaimer: "Document prévisionnel sans valeur comptable ni fiscale. Ne constitue pas une facture définitive.",
   }),
-  makeDoc("d11", "invoice", "FA-2025-0148", "c10", "paid", "2025-11-10", [li("s15", 3, seedServices)]),
-  makeDoc("d12", "quotation", "DV-2025-0092", "c12", "rejected", "2025-10-30", [li("s13", 2, seedServices)], undefined, { validityDays: 30 }),
-  makeDoc("d13", "invoice", "FA-2025-0149", "c2", "sent", "2025-11-25", [li("s11", 1, seedServices)]),
-  makeDoc("d14", "quotation", "DV-2025-0093", "c6", "accepted", "2025-11-21", [li("s6", 1, seedServices), li("s4", 1, seedServices)], undefined, {
+  makeDoc("d11", "invoice", "FA-2025-0148", "c10", "paid", "2025-11-10", [li("s15", 3, seedServices)], J),
+  makeDoc("d12", "quotation", "DV-2025-0092", "c12", "rejected", "2025-10-30", [li("s13", 2, seedServices)], J, undefined, { validityDays: 30 }),
+  makeDoc("d13", "invoice", "FA-2025-0149", "c2", "sent", "2025-11-25", [li("s11", 1, seedServices)], M),
+  makeDoc("d14", "quotation", "DV-2025-0093", "c6", "accepted", "2025-11-21", [li("s6", 1, seedServices), li("s4", 1, seedServices)], M, undefined, {
     validityDays: 45,
     executionTerms: "Audit légal selon référentiel OHADA.",
   }),
-  makeDoc("d16", "invoice", "FA-2025-0150", "c7", "cancelled", "2025-11-08", [li("s1", 1, seedServices)], "Facture annulée à la demande du client."),
-  makeDoc("d17", "quotation", "DV-2025-0094", "c3", "cancelled", "2025-11-05", [li("s7", 4, seedServices)], undefined, {
+  makeDoc("d16", "invoice", "FA-2025-0150", "c7", "cancelled", "2025-11-08", [li("s1", 1, seedServices)], J, "Facture annulée à la demande du client."),
+  makeDoc("d17", "quotation", "DV-2025-0094", "c3", "cancelled", "2025-11-05", [li("s7", 4, seedServices)], J, undefined, {
     validityDays: 15,
     executionTerms: "Annulé avant acceptation.",
   }),
@@ -97,6 +124,8 @@ export const seedDocuments: Document[] = [
     type: "letter",
     number: "LT-2025-008",
     clientId: "c4",
+    createdById: M,
+    createdBy: staffById(M),
     status: "sent",
     issueDate: "2025-11-21",
     dueDate: "2025-11-21",

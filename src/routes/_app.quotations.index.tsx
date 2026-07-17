@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
 import { StatusBadge, statusLabel } from "@/components/common/StatusBadge";
+import { StaffAvatar } from "@/components/common/StaffAvatar";
 import { useAppStore } from "@/store/useAppStore";
 import { currency, shortDate } from "@/lib/format";
 import type { DocumentStatus } from "@/store/types";
@@ -112,6 +113,7 @@ function QuotationsPage() {
           <table className="w-full min-w-[720px] text-sm">
             <thead className="bg-muted/60 text-xs uppercase tracking-wider text-muted-foreground">
               <tr>
+                <th className="px-5 py-3 text-left">Créateur</th>
                 <th className="px-5 py-3 text-left">Numéro</th>
                 <th className="px-5 py-3 text-left">Client</th>
                 <th className="px-5 py-3 text-left">Date</th>
@@ -124,6 +126,7 @@ function QuotationsPage() {
             <tbody>
               {filtered.map((d, i) => {
                 const c = clients.find((x) => x.id === d.clientId);
+                const creator = d.createdBy;
                 return (
                   <motion.tr
                     key={d.id}
@@ -138,7 +141,20 @@ function QuotationsPage() {
                       d.status === "sent" && "bg-sky-50/30",
                     )}
                   >
-                    <td className="px-5 py-3 font-medium font-numeric">{d.number}</td>
+                    <td className="px-5 py-3">
+                      {creator ? (
+                        <Link to="/quotations/$id" params={{ id: d.id }} className="inline-flex">
+                          <StaffAvatar person={creator} size="sm" />
+                        </Link>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className="px-5 py-3 font-medium font-numeric">
+                      <Link to="/quotations/$id" params={{ id: d.id }} className="hover:text-primary hover:underline">
+                        {d.number}
+                      </Link>
+                    </td>
                     <td className="px-5 py-3">{c?.name}</td>
                     <td className="px-5 py-3 text-muted-foreground">{shortDate(d.issueDate)}</td>
                     <td className="px-5 py-3 text-muted-foreground">{shortDate(d.dueDate)}</td>

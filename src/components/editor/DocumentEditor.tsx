@@ -260,6 +260,7 @@ function defaultDoc(type: DocumentType, clientId: string): Document {
     id: `d-${Date.now()}`,
     type,
     clientId,
+    createdById: "staff-mireille",
     status: "draft" as const,
     issueDate: today,
     dueDate: due,

@@ -7,6 +7,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { DocumentPreview } from "@/components/documents/DocumentPreview";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { DocumentCreatorCard } from "@/components/documents/DocumentCreatorCard";
 import { downloadDocumentPdf } from "@/lib/pdf/downloadDocumentPdf";
 import { currency, longDate } from "@/lib/format";
 
@@ -63,21 +64,24 @@ function QuotationDetail() {
       />
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
-        <aside className="glass-panel h-fit rounded-3xl p-5">
-          <div className="flex items-center justify-between">
-            <span className="text-xs uppercase tracking-wider text-muted-foreground">Statut</span>
-            <StatusBadge status={doc.status} />
+        <aside className="space-y-4">
+          <div className="glass-panel h-fit rounded-3xl p-5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs uppercase tracking-wider text-muted-foreground">Statut</span>
+              <StatusBadge status={doc.status} />
+            </div>
+            <div className="mt-4 space-y-2 text-sm">
+              <Row label="Client" value={client?.name ?? "—"} />
+              <Row label="Émission" value={longDate(doc.issueDate)} />
+              <Row label="Validité" value={longDate(doc.dueDate)} />
+            </div>
+            <div className="mt-4 rounded-2xl bg-gradient-mesh p-4">
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">Total TTC</div>
+              <div className="font-display text-3xl font-bold text-gradient-primary">{currency(doc.total)}</div>
+            </div>
+            <Link to="/invoices/new" className="mt-4 block w-full rounded-xl bg-gradient-primary px-3 py-2 text-center text-sm font-medium text-primary-foreground shadow-glow">Convertir en facture</Link>
           </div>
-          <div className="mt-4 space-y-2 text-sm">
-            <Row label="Client" value={client?.name ?? "—"} />
-            <Row label="Émission" value={longDate(doc.issueDate)} />
-            <Row label="Validité" value={longDate(doc.dueDate)} />
-          </div>
-          <div className="mt-4 rounded-2xl bg-gradient-mesh p-4">
-            <div className="text-xs uppercase tracking-wider text-muted-foreground">Total TTC</div>
-            <div className="font-display text-3xl font-bold text-gradient-primary">{currency(doc.total)}</div>
-          </div>
-          <Link to="/invoices/new" className="mt-4 block w-full rounded-xl bg-gradient-primary px-3 py-2 text-center text-sm font-medium text-primary-foreground shadow-glow">Convertir en facture</Link>
+          <DocumentCreatorCard creator={doc.createdBy} />
         </aside>
         <div>
           <div className="mb-3 flex items-center justify-between">

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { useAppStore } from "@/store/useAppStore";
 import { CommandPalette } from "./CommandPalette";
+import { MobileNav } from "./MobileNav";
 import { motion, AnimatePresence } from "framer-motion";
 import { shortDate } from "@/lib/format";
 
@@ -18,7 +19,7 @@ export function AppTopbar() {
   return (
     <>
       <header className="glass-topbar sticky top-0 z-30 flex h-16 items-center gap-3 px-4 md:px-6">
-        <div className="lg:hidden flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-primary text-primary-foreground font-display font-bold">F</div>
+        <MobileNav />
 
         <button
           onClick={() => setOpenCmd(true)}

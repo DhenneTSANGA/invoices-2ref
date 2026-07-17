@@ -1,29 +1,9 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import {
-  LayoutDashboard, Users, FileText, ReceiptText, Package,
-  Files, Archive, Settings, Bell, Search, UserCircle2, ChevronLeft, FileSignature,
-} from "lucide-react";
+import { ChevronLeft, UserCircle2, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-
-const items = [
-  { to: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard },
-  { to: "/clients", label: "Clients", icon: Users },
-  { to: "/services", label: "Catalogue", icon: Package },
-  { to: "/quotations", label: "Devis", icon: FileText },
-  { to: "/invoices", label: "Factures", icon: ReceiptText },
-  { to: "/proformas", label: "Pro forma", icon: FileSignature },
-  { to: "/templates", label: "Modèles", icon: Files },
-  { to: "/archive", label: "Archives", icon: Archive },
-] as const;
-
-const secondary = [
-  { to: "/search", label: "Recherche", icon: Search },
-  { to: "/notifications", label: "Notifications", icon: Bell },
-  { to: "/profile", label: "Profil", icon: UserCircle2 },
-  { to: "/settings", label: "Paramètres", icon: Settings },
-] as const;
+import { primaryNav, secondaryNav } from "./nav-items";
 
 function selectPathname(s: { location: { pathname: string } }) {
   return s.location.pathname;
@@ -41,12 +21,12 @@ export function AppSidebar() {
     >
       <div className="flex items-center gap-3 px-3 py-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-primary text-primary-foreground shadow-glow font-display text-lg font-bold">
-          F
+          2
         </div>
         {!collapsed && (
           <div className="overflow-hidden">
-            <div className="font-display text-lg font-bold leading-none">FacturIA</div>
-            <div className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">Smart Invoicing</div>
+            <div className="font-display text-lg font-bold leading-none">2REF</div>
+            <div className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">Expertise Fiscale</div>
           </div>
         )}
         <button
@@ -59,9 +39,9 @@ export function AppSidebar() {
       </div>
 
       <div className="mt-2 flex-1 overflow-y-auto pr-1">
-        <NavSection title="Principal" items={items} pathname={pathname} collapsed={collapsed} />
+        <NavSection title="Principal" items={primaryNav} pathname={pathname} collapsed={collapsed} />
         <div className="mx-3 my-3 h-px bg-border" />
-        <NavSection title="Espace" items={secondary} pathname={pathname} collapsed={collapsed} />
+        <NavSection title="Espace" items={secondaryNav} pathname={pathname} collapsed={collapsed} />
       </div>
 
       <div className={cn(
@@ -90,7 +70,7 @@ function NavSection({
   title, items, pathname, collapsed,
 }: {
   title: string;
-  items: readonly { to: string; label: string; icon: typeof LayoutDashboard }[];
+  items: readonly { to: string; label: string; icon: LucideIcon }[];
   pathname: string;
   collapsed: boolean;
 }) {
