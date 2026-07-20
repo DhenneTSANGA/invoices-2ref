@@ -1,0 +1,199 @@
+import type { Decimal } from "@prisma/client/runtime/library";
+import type {
+  Client,
+  CompanyInfo,
+  Document,
+  LineItem,
+  Service,
+  StaffMember,
+} from "@/store/types";
+import { companyForPreview } from "@/lib/company-defaults";
+
+export function decimalToNumber(v: Decimal | number | string): number {
+  if (typeof v === "number") return v;
+  return Number(v.toString());
+}
+
+export function mapStaff(row: {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  jobTitle: string;
+  phone: string | null;
+  avatarUrl: string | null;
+  role: "member" | "admin";
+}): StaffMember {
+  return {
+    id: row.id,
+    email: row.email,
+    firstName: row.firstName,
+    lastName: row.lastName,
+    jobTitle: row.jobTitle,
+    phone: row.phone,
+    avatarUrl: row.avatarUrl,
+    role: row.role,
+  };
+}
+
+export function mapCompany(row: {
+  name: string;
+  tagline: string | null;
+  nif: string;
+  niu: string;
+  rccm: string;
+  cnss: string | null;
+  address: string;
+  city: string;
+  phone: string;
+  email: string;
+  website: string | null;
+  bankName: string | null;
+  bankAccount: string | null;
+}): CompanyInfo {
+  return companyForPreview(row);
+}
+
+export function mapClient(row: {
+  id: string;
+  name: string;
+  legalForm: string;
+  nif: string;
+  niu: string;
+  rccm: string;
+  contactName: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  country: string;
+  createdAt: Date;
+}): Client {
+  return {
+    id: row.id,
+    name: row.name,
+    legalForm: row.legalForm,
+    nif: row.nif,
+    niu: row.niu,
+    rccm: row.rccm,
+    contactName: row.contactName,
+    email: row.email,
+    phone: row.phone,
+    address: row.address,
+    city: row.city,
+    country: row.country,
+    createdAt: row.createdAt.toISOString().slice(0, 10),
+  };
+}
+
+export function mapService(row: {
+  id: string;
+  code: string;
+  name: string;
+  description: string;
+  unit: string;
+  unitPrice: Decimal;
+  vatRate: Decimal;
+  category: string;
+}): Service {
+  return {
+    id: row.id,
+    code: row.code,
+    name: row.name,
+    description: row.description,
+    unit: row.unit,
+    unitPrice: decimalToNumber(row.unitPrice),
+    vatRate: decimalToNumber(row.vatRate),
+    category: row.category,
+  };
+}
+
+export function mapDocument(row: {
+  id: string;
+  type: Document["type"];
+  number: string;
+  clientId: string;
+  createdById: string;
+  status: Document["status"];
+  issueDate: Date;
+  dueDate: Date;
+  subtotal: Decimal;
+  vat: Decimal;
+  total: Decimal;
+  currency: string;
+  notes: string | null;
+  paymentTerms: string | null;
+  validityDays: number | null;
+  executionTerms: string | null;
+  incoterm: string | null;
+  shippingNotes: string | null;
+  disclaimer: string | null;
+  subject: string | null;
+  salutation: string | null;
+  body: string | null;
+  closing: string | null;
+  signatoryTitle: string | null;
+  recipientOverride: string | null;
+  lines: Array<{
+    id: string;
+    serviceId: string | null;
+    description: string;
+    quantity: Decimal;
+    unitPrice: Decimal;
+    vatRate: Decimal;
+    discount: Decimal;
+    position: number;
+  }>;
+  createdBy?: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    jobTitle: string;
+    phone: string | null;
+    avatarUrl: string | null;
+    role: "member" | "admin";
+  };
+}): Document {
+  const items: LineItem[] = [...row.lines]
+    .sort((a, b) => a.position - b.position)
+    .map((l) => ({
+      id: l.id,
+      serviceId: l.serviceId ?? undefined,
+      description: l.description,
+      quantity: decimalToNumber(l.quantity),
+      unitPrice: decimalToNumber(l.unitPrice),
+      vatRate: decimalToNumber(l.vatRate),
+      discount: decimalToNumber(l.discount),
+    }));
+
+  return {
+    id: row.id,
+    type: row.type,
+    number: row.number,
+    clientId: row.clientId,
+    createdById: row.createdById,
+    status: row.status,
+    issueDate: row.issueDate.toISOString().slice(0, 10),
+    dueDate: row.dueDate.toISOString().slice(0, 10),
+    items,
+    subtotal: decimalToNumber(row.subtotal),
+    vat: decimalToNumber(row.vat),
+    total: decimalToNumber(row.total),
+    currency: row.currency,
+    notes: row.notes ?? undefined,
+    paymentTerms: row.paymentTerms ?? undefined,
+    validityDays: row.validityDays ?? undefined,
+    executionTerms: row.executionTerms ?? undefined,
+    incoterm: row.incoterm ?? undefined,
+    shippingNotes: row.shippingNotes ?? undefined,
+    disclaimer: row.disclaimer ?? undefined,
+    subject: row.subject ?? undefined,
+    salutation: row.salutation ?? undefined,
+    body: row.body ?? undefined,
+    closing: row.closing ?? undefined,
+    signatoryTitle: row.signatoryTitle ?? undefined,
+    recipientOverride: row.recipientOverride ?? undefined,
+    createdBy: row.createdBy ? mapStaff(row.createdBy) : undefined,
+  };
+}

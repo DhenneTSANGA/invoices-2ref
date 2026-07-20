@@ -1,6 +1,6 @@
 import { forwardRef } from "react";
 import type { Document } from "@/store/types";
-import { useAppStore } from "@/store/useAppStore";
+import { usePreviewData } from "@/hooks/use-preview-data";
 import { number, longDate } from "@/lib/format";
 import { AmountRow, LegalFooter, PreviewLogo, PreviewShell } from "./PreviewShell";
 
@@ -10,8 +10,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
   { doc, compact, variant = "full", className },
   ref,
 ) {
-  const company = useAppStore((s) => s.company);
-  const client = useAppStore((s) => s.clients.find((c) => c.id === doc.clientId));
+  const { company, client } = usePreviewData(doc);
   const isThumb = variant === "thumb";
   const accent = "#1E40AF";
 
@@ -77,7 +76,7 @@ function PartyBlock({
           {lines?.map((l, i) => <div key={i} className="text-[10px] text-[#475569]">{l}</div>)}
           <div className="mt-1 grid grid-cols-2 gap-x-2 text-[9px] text-[#475569]">
             {nif && <span>NIF: <b className="text-[#0F172A]">{nif}</b></span>}
-            {niu && <span>NIU: <b className="text-[#0F172A]">{niu}</b></span>}
+            {niu && niu !== "—" && <span>NIU: <b className="text-[#0F172A]">{niu}</b></span>}
             {rccm && <span className="col-span-2">RCCM: <b className="text-[#0F172A]">{rccm}</b></span>}
           </div>
         </>
@@ -144,10 +143,12 @@ function TotalsBlock({ doc, company, accent }: { doc: Document; company: { bankN
         <AmountRow label="TVA (18 %)" value={number(doc.vat)} currency={doc.currency} accent={accent} />
         <AmountRow label="Total TTC" value={number(doc.total)} currency={doc.currency} strong accent={accent} />
       </div>
-      <div className="mt-2 rounded-lg bg-[#F1F5F9] p-2 text-[9px] text-[#475569]">
-        <div><b>Coordonnées bancaires</b></div>
-        <div>{company.bankName} — Compte {company.bankAccount}</div>
-      </div>
+      {company.bankName && company.bankAccount && (
+        <div className="mt-2 rounded-lg bg-[#F1F5F9] p-2 text-[9px] text-[#475569]">
+          <div><b>Coordonnées bancaires</b></div>
+          <div>{company.bankName} — Compte {company.bankAccount}</div>
+        </div>
+      )}
     </div>
   );
 }

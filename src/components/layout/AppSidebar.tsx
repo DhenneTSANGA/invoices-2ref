@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { Logo } from "@/components/common/Logo";
 
 const items = [
   { to: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard },
@@ -40,13 +41,11 @@ export function AppSidebar() {
       className="glass-sidebar sticky top-4 z-40 ml-4 my-4 hidden lg:flex h-[calc(100vh-2rem)] flex-col rounded-3xl p-3 shadow-float"
     >
       <div className="flex items-center gap-3 px-3 py-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-primary text-primary-foreground shadow-glow font-display text-lg font-bold">
-          F
-        </div>
+        <Logo size="sm" className="rounded-lg" />
         {!collapsed && (
           <div className="overflow-hidden">
-            <div className="font-display text-lg font-bold leading-none">FacturIA</div>
-            <div className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">Smart Invoicing</div>
+            <div className="font-display text-lg font-bold leading-none">2REF-AUTO</div>
+            <div className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">Expertise Fiscale</div>
           </div>
         )}
         <button

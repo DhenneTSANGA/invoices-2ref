@@ -1,26 +1,26 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Save, Send, Download, Eye, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { useAppStore } from "@/store/useAppStore";
 import type { Document } from "@/store/types";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 import { downloadDocumentPdf } from "@/lib/pdf/downloadDocumentPdf";
 import { Button } from "@/components/ui/button";
+import { useClients, useUpsertDocument } from "@/hooks/use-data";
 
 type Props = { initial?: Document };
 
 export function LetterEditor({ initial }: Props) {
   const navigate = useNavigate();
-  const clients = useAppStore((s) => s.clients);
-  const upsert = useAppStore((s) => s.upsertDocument);
+  const { data: clients = [] } = useClients();
+  const upsertMutation = useUpsertDocument();
 
   const [doc, setDoc] = useState<Document>(
     initial ?? {
       id: `d-${Date.now()}`,
       type: "letter",
       number: `LT-2025-${String(10 + Math.floor(Math.random() * 89)).padStart(3, "0")}`,
-      clientId: clients[0]?.id ?? "",
+      clientId: "",
       status: "draft",
       issueDate: new Date().toISOString().slice(0, 10),
       dueDate: new Date().toISOString().slice(0, 10),
@@ -42,18 +42,58 @@ export function LetterEditor({ initial }: Props) {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
 
-  const save = (status: Document["status"] = "draft") => {
-    const saved = { ...doc, status };
-    upsert(saved);
-    toast.success(status === "sent" ? "Lettre enregistrée / envoyée" : "Lettre enregistrée", { description: saved.number });
-    navigate({ to: "/letters" });
+  useEffect(() => {
+    if (initial?.clientId) return;
+    const firstId = clients[0]?.id;
+    if (!firstId) return;
+    setDoc((d) => (d.clientId ? d : { ...d, clientId: firstId }));
+  }, [clients, initial?.clientId]);
+
+  const effectiveClientId = doc.clientId || clients[0]?.id || "";
+  const previewDoc = { ...doc, clientId: effectiveClientId };
+
+  const save = async (status: Document["status"] = "draft") => {
+    if (!effectiveClientId) {
+      toast.error("Sélectionnez un client");
+      return;
+    }
+    const saved = { ...doc, clientId: effectiveClientId, status };
+    try {
+      await upsertMutation.mutateAsync({
+        ...(initial?.id && !initial.id.startsWith("d-") ? { id: saved.id } : {}),
+        type: "letter",
+        number: saved.number,
+        clientId: saved.clientId,
+        status: saved.status,
+        issueDate: saved.issueDate,
+        dueDate: saved.dueDate,
+        currency: saved.currency,
+        subject: saved.subject ?? null,
+        salutation: saved.salutation ?? null,
+        body: saved.body ?? null,
+        closing: saved.closing ?? null,
+        signatoryTitle: saved.signatoryTitle ?? null,
+        recipientOverride: saved.recipientOverride ?? null,
+        items: [],
+        subtotal: 0,
+        vat: 0,
+        total: 0,
+      });
+      toast.success(
+        status === "sent" ? "Lettre enregistrée / envoyée" : "Lettre enregistrée",
+        { description: saved.number },
+      );
+      void navigate({ to: "/letters" });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Enregistrement impossible");
+    }
   };
 
   const downloadPdf = async () => {
     setExporting(true);
     const toastId = toast.loading("Génération du PDF…");
     try {
-      await downloadDocumentPdf(doc);
+      await downloadDocumentPdf(previewDoc);
       toast.success("PDF téléchargé", { id: toastId, description: `${doc.number}.pdf` });
     } catch (err) {
       console.error(err);
@@ -75,7 +115,7 @@ export function LetterEditor({ initial }: Props) {
             <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Destinataire (client)</span>
             <select
               className="mt-1 w-full rounded-xl border border-border/60 bg-surface px-3 py-2.5 text-sm"
-              value={doc.clientId}
+              value={effectiveClientId}
               onChange={(e) => setDoc({ ...doc, clientId: e.target.value })}
             >
               {clients.map((c) => (
@@ -137,7 +177,7 @@ export function LetterEditor({ initial }: Props) {
         </Button>
       </div>
 
-      <DocumentPreviewModal doc={doc} open={previewOpen} onOpenChange={setPreviewOpen} />
+      <DocumentPreviewModal doc={previewDoc} open={previewOpen} onOpenChange={setPreviewOpen} />
     </div>
   );
 }

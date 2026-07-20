@@ -1,6 +1,6 @@
 import { forwardRef } from "react";
 import type { Document } from "@/store/types";
-import { useAppStore } from "@/store/useAppStore";
+import { usePreviewData } from "@/hooks/use-preview-data";
 import { longDate } from "@/lib/format";
 import { LegalFooter, PreviewLogo, PreviewShell } from "./PreviewShell";
 
@@ -13,8 +13,7 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
   { doc, compact, variant = "full", className },
   ref,
 ) {
-  const company = useAppStore((s) => s.company);
-  const client = useAppStore((s) => s.clients.find((c) => c.id === doc.clientId));
+  const { company, client } = usePreviewData(doc);
   const isThumb = variant === "thumb";
 
   const recipient =
@@ -31,7 +30,7 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
     <PreviewShell innerRef={ref} accent={ACCENT} compact={compact} isThumb={isThumb} className={className}>
       <div className="flex items-start justify-between border-b border-[#99F6E4] pb-5">
         <div className="flex items-center gap-3">
-          <PreviewLogo from={ACCENT} to={ACCENT_TO} />
+          <PreviewLogo />
           <div>
             <div className="font-display text-lg font-bold tracking-tight" style={{ color: ACCENT }}>{company.name}</div>
             <div className="text-[10px] text-[#64748B]">{company.address}</div>

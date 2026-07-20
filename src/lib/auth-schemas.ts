@@ -1,0 +1,118 @@
+import { z } from "zod";
+
+export const loginSchema = z.object({
+  email: z.string().email("Email invalide"),
+  password: z.string().min(6, "Mot de passe trop court"),
+});
+
+export const signupStaffSchema = z
+  .object({
+    firstName: z.string().min(1, "Prénom requis"),
+    lastName: z.string().min(1, "Nom requis"),
+    jobTitle: z.string().min(1, "Poste requis"),
+    email: z.string().email("Email invalide"),
+    phone: z.string().min(8, "Téléphone requis"),
+    password: z.string().min(8, "8 caractères minimum"),
+    confirmPassword: z.string(),
+  })
+  .refine((d) => d.password === d.confirmPassword, {
+    message: "Les mots de passe ne correspondent pas",
+    path: ["confirmPassword"],
+  });
+
+export type StaffPayload = {
+  firstName: string;
+  lastName: string;
+  jobTitle: string;
+  email: string;
+  phone?: string | null;
+};
+
+export function toStaffPayload(
+  data: z.infer<typeof signupStaffSchema>,
+): StaffPayload {
+  return {
+    firstName: data.firstName,
+    lastName: data.lastName,
+    jobTitle: data.jobTitle,
+    email: data.email,
+    phone: data.phone,
+  };
+}
+
+export const companyInputSchema = z.object({
+  name: z.string().min(1),
+  tagline: z.string().optional().nullable(),
+  nif: z.string().min(1),
+  niu: z.string().min(1),
+  rccm: z.string().min(1),
+  cnss: z.string().optional().nullable(),
+  address: z.string().min(1),
+  city: z.string().min(1),
+  phone: z.string().min(1),
+  email: z.string().email(),
+  website: z.string().optional().nullable(),
+  bankName: z.string().optional().nullable(),
+  bankAccount: z.string().optional().nullable(),
+});
+
+export const clientInputSchema = z.object({
+  name: z.string().min(1),
+  legalForm: z.string().min(1),
+  nif: z.string().default(""),
+  niu: z.string().default(""),
+  rccm: z.string().default(""),
+  contactName: z.string().default(""),
+  email: z.string().default(""),
+  phone: z.string().default(""),
+  address: z.string().default(""),
+  city: z.string().default(""),
+  country: z.string().default("Gabon"),
+});
+
+export const lineItemSchema = z.object({
+  id: z.string().optional(),
+  serviceId: z.string().optional().nullable(),
+  description: z.string(),
+  quantity: z.number(),
+  unitPrice: z.number(),
+  vatRate: z.number(),
+  discount: z.number().default(0),
+});
+
+export const documentInputSchema = z.object({
+  id: z.string().optional(),
+  type: z.enum(["quotation", "invoice", "proforma", "letter"]),
+  number: z.string().min(1),
+  clientId: z.string().min(1),
+  status: z.enum([
+    "draft",
+    "sent",
+    "accepted",
+    "rejected",
+    "paid",
+    "overdue",
+    "archived",
+    "cancelled",
+  ]),
+  issueDate: z.string(),
+  dueDate: z.string(),
+  currency: z.string().default("XAF"),
+  notes: z.string().optional().nullable(),
+  paymentTerms: z.string().optional().nullable(),
+  validityDays: z.number().optional().nullable(),
+  executionTerms: z.string().optional().nullable(),
+  incoterm: z.string().optional().nullable(),
+  shippingNotes: z.string().optional().nullable(),
+  disclaimer: z.string().optional().nullable(),
+  subject: z.string().optional().nullable(),
+  salutation: z.string().optional().nullable(),
+  body: z.string().optional().nullable(),
+  closing: z.string().optional().nullable(),
+  signatoryTitle: z.string().optional().nullable(),
+  recipientOverride: z.string().optional().nullable(),
+  items: z.array(lineItemSchema),
+  subtotal: z.number(),
+  vat: z.number(),
+  total: z.number(),
+});

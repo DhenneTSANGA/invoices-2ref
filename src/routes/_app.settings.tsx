@@ -1,13 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Save, Building2, Receipt, Palette, ShieldCheck } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
-import { useAppStore } from "@/store/useAppStore";
+import { useCompany, useUpdateCompany } from "@/hooks/use-data";
+import { Logo } from "@/components/common/Logo";
+import { REAL_2REF_COMPANY } from "@/lib/company-defaults";
+import type { CompanyInfo } from "@/store/types";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/settings")({
-  head: () => ({ meta: [{ title: "Paramètres — FacturIA" }] }),
+  head: () => ({ meta: [{ title: "Paramètres — 2REF-AUTO" }] }),
   component: SettingsPage,
 });
 
@@ -19,14 +22,28 @@ const tabs = [
 ];
 
 function SettingsPage() {
-  const company = useAppStore((s) => s.company);
+  const { data: company } = useCompany();
+  const updateCompany = useUpdateCompany();
   const [tab, setTab] = useState("company");
-  const [form, setForm] = useState(company);
+  const [form, setForm] = useState<CompanyInfo>(REAL_2REF_COMPANY);
+
+  useEffect(() => {
+    if (company) setForm(company);
+  }, [company]);
+
+  const save = async () => {
+    try {
+      await updateCompany.mutateAsync(form);
+      toast.success("Informations du cabinet enregistrées");
+    } catch {
+      toast.error("Impossible d'enregistrer les modifications");
+    }
+  };
 
   return (
     <div>
       <PageHeader title="Paramètres" subtitle="Configurez votre cabinet et vos préférences." actions={
-        <button onClick={() => toast.success("Modifications enregistrées")} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow"><Save className="h-4 w-4" /> Enregistrer</button>
+        <button onClick={save} disabled={updateCompany.isPending} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow disabled:opacity-60"><Save className="h-4 w-4" /> Enregistrer</button>
       } />
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[240px_1fr]">
@@ -42,9 +59,9 @@ function SettingsPage() {
           {tab === "company" && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <F label="Nom du cabinet" value={form.name} onChange={(v) => setForm({ ...form, name: v })} />
-              <F label="Slogan" value={form.tagline} onChange={(v) => setForm({ ...form, tagline: v })} />
+              <F label="Forme juridique / activité" value={form.tagline} onChange={(v) => setForm({ ...form, tagline: v })} />
               <F label="Adresse" value={form.address} onChange={(v) => setForm({ ...form, address: v })} colSpan />
-              <F label="Ville / Code postal" value={form.city} onChange={(v) => setForm({ ...form, city: v })} />
+              <F label="Ville" value={form.city} onChange={(v) => setForm({ ...form, city: v })} />
               <F label="Téléphone" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} />
               <F label="Email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} />
               <F label="Site web" value={form.website} onChange={(v) => setForm({ ...form, website: v })} />
@@ -53,7 +70,7 @@ function SettingsPage() {
           {tab === "fiscal" && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <F label="NIF" value={form.nif} onChange={(v) => setForm({ ...form, nif: v })} />
-              <F label="NIU" value={form.niu} onChange={(v) => setForm({ ...form, niu: v })} />
+              <F label="NIU" value={form.niu === "—" ? "" : form.niu} onChange={(v) => setForm({ ...form, niu: v || "—" })} />
               <F label="RCCM" value={form.rccm} onChange={(v) => setForm({ ...form, rccm: v })} colSpan />
               <F label="CNSS" value={form.cnss} onChange={(v) => setForm({ ...form, cnss: v })} />
               <F label="Banque" value={form.bankName} onChange={(v) => setForm({ ...form, bankName: v })} />
@@ -74,7 +91,7 @@ function SettingsPage() {
               <div className="rounded-2xl bg-surface-2 p-6">
                 <h4 className="font-display font-semibold">Logo</h4>
                 <div className="mt-3 flex items-center gap-3">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-primary text-primary-foreground font-display text-2xl font-bold">F</div>
+                  <Logo size="lg" className="rounded-xl" />
                   <button className="rounded-xl border border-border bg-surface px-3 py-2 text-sm hover:bg-muted">Téléverser un logo</button>
                 </div>
               </div>
@@ -89,7 +106,7 @@ function SettingsPage() {
               </div>
               <div className="rounded-2xl bg-surface-2 p-5">
                 <h4 className="font-display font-semibold">Sessions actives</h4>
-                <p className="text-sm text-muted-foreground">2 appareils connectés actuellement.</p>
+                <p className="text-sm text-muted-foreground">Gérez les appareils connectés à votre compte.</p>
               </div>
             </div>
           )}

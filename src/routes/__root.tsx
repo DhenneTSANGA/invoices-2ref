@@ -69,10 +69,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "FacturIA — Smart Invoice & Quotation Management" },
-      { name: "description", content: "Plateforme premium de gestion des clients, devis et factures pour cabinets fiscaux du Gabon et de la zone CEMAC." },
-      { name: "author", content: "FacturIA" },
-      { property: "og:title", content: "FacturIA — Smart Invoice & Quotation Management" },
+      { title: "2REF-AUTO — Automatisation cabinet fiscal" },
+      { name: "description", content: "Plateforme d'automatisation du cabinet 2REF Expertise Fiscale." },
+      { name: "author", content: "2REF-AUTO" },
+      { property: "og:title", content: "2REF-AUTO — Automatisation cabinet fiscal" },
       { property: "og:description", content: "Plateforme premium de gestion des clients, devis et factures." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -85,6 +85,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap",
       },
       { rel: "stylesheet", href: appCss },
+      { rel: "icon", href: "/logo-2ref.png", type: "image/png" },
     ],
   }),
   shellComponent: RootShell,
@@ -100,7 +101,7 @@ function RootShell({ children }: { children: ReactNode }) {
         <HeadContent />
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var u=localStorage.getItem("facturia-theme-user");var t=localStorage.getItem("facturia-theme");if(!u||t!=="dark"){document.documentElement.classList.remove("dark");}else{document.documentElement.classList.add("dark");}}catch(e){}})();`,
+            __html: `(function(){try{var u=localStorage.getItem("2ref-auto-theme-user")||localStorage.getItem("2REF-AUTO-theme-user");var t=localStorage.getItem("2ref-auto-theme")||localStorage.getItem("2REF-AUTO-theme");if(!u||t!=="dark"){document.documentElement.classList.remove("dark");}else{document.documentElement.classList.add("dark");}}catch(e){}})();`,
           }}
         />
       </head>

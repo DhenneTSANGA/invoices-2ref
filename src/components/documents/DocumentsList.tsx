@@ -6,10 +6,14 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
 import { StatusBadge, statusLabel } from "@/components/common/StatusBadge";
-import { useAppStore } from "@/store/useAppStore";
 import { currency, shortDate } from "@/lib/format";
 import type { DocumentStatus, DocumentType } from "@/store/types";
 import { cn } from "@/lib/utils";
+import {
+  useClients,
+  useDocuments,
+  useSetDocumentStatus,
+} from "@/hooks/use-data";
 
 const labels = {
   invoice: { title: "Factures", new: "/invoices/new", detail: "/invoices/$id", subtitle: "Suivi de vos factures émises" },
@@ -31,18 +35,15 @@ function statusesFor(type: DocumentType): DocumentStatus[] {
 }
 
 export function DocumentsList({ type }: { type: DocumentType }) {
-  const documents = useAppStore((s) => s.documents);
-  const clients = useAppStore((s) => s.clients);
-  const setDocumentStatus = useAppStore((s) => s.setDocumentStatus);
+  const { data: documents = [], isLoading } = useDocuments(type);
+  const { data: clients = [] } = useClients();
+  const setStatusMutation = useSetDocumentStatus();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string>("all");
   const L = labels[type];
   const statusOptions = statusesFor(type);
 
-  const docs = useMemo(
-    () => documents.filter((d) => d.type === type),
-    [documents, type],
-  );
+  const docs = useMemo(() => documents, [documents]);
 
   const filtered = useMemo(() => docs.filter((d) => {
     const client = clients.find((c) => c.id === d.clientId);
@@ -54,9 +55,25 @@ export function DocumentsList({ type }: { type: DocumentType }) {
   const total = filtered.reduce((a, b) => a + b.total, 0);
 
   const setStatusWithToast = (id: string, next: DocumentStatus, number: string) => {
-    setDocumentStatus(id, next);
-    toast.success(`Statut mis à jour — ${number}`, { description: statusLabel(next) });
+    setStatusMutation.mutate(
+      { id, status: next },
+      {
+        onSuccess: () =>
+          toast.success(`Statut mis à jour — ${number}`, {
+            description: statusLabel(next),
+          }),
+        onError: (e) => toast.error(e.message),
+      },
+    );
   };
+
+  if (isLoading) {
+    return (
+      <div className="py-20 text-center text-sm text-muted-foreground">
+        Chargement des documents…
+      </div>
+    );
+  }
 
   return (
     <div>

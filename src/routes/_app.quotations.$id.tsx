@@ -3,7 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, Download, Send, CheckCircle2, XCircle, Eye, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
-import { useAppStore } from "@/store/useAppStore";
+import { useDocument, useClients, useSetDocumentStatus } from "@/hooks/use-data";
 import { DocumentPreview } from "@/components/documents/DocumentPreview";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -11,19 +11,36 @@ import { downloadDocumentPdf } from "@/lib/pdf/downloadDocumentPdf";
 import { currency, longDate } from "@/lib/format";
 
 export const Route = createFileRoute("/_app/quotations/$id")({
-  head: () => ({ meta: [{ title: "Détail devis — FacturIA" }] }),
+  head: () => ({ meta: [{ title: "Détail devis — 2REF-AUTO" }] }),
   component: QuotationDetail,
 });
 
 function QuotationDetail() {
   const { id } = Route.useParams();
-  const doc = useAppStore((s) => s.documents.find((d) => d.id === id));
-  const client = useAppStore((s) => s.clients.find((c) => c.id === doc?.clientId));
-  const setStatus = useAppStore((s) => s.setDocumentStatus);
+  const { data: doc, isLoading } = useDocument(id);
+  const { data: clients = [] } = useClients();
+  const client = clients.find((c) => c.id === doc?.clientId);
+  const setStatusMutation = useSetDocumentStatus();
   const [previewOpen, setPreviewOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
 
+  if (isLoading) return <div className="py-20 text-center text-sm text-muted-foreground">Chargement…</div>;
   if (!doc) return <div className="glass-panel rounded-3xl p-8 text-center">Devis introuvable.</div>;
+
+  const patchStatus = (
+    status: typeof doc.status,
+    message: string,
+    level: "success" | "warning" = "success",
+  ) => {
+    setStatusMutation.mutate(
+      { id: doc.id, status },
+      {
+        onSuccess: () =>
+          level === "warning" ? toast.warning(message) : toast.success(message),
+        onError: (e) => toast.error(e.message),
+      },
+    );
+  };
 
   const downloadPdf = async () => {
     setExporting(true);
@@ -54,10 +71,10 @@ function QuotationDetail() {
             <button onClick={downloadPdf} disabled={exporting} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60">
               {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} PDF
             </button>
-            <button onClick={() => { setStatus(doc.id, "sent"); toast.success("Devis envoyé"); }} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted"><Send className="h-4 w-4" /> Envoyer</button>
-            <button onClick={() => { setStatus(doc.id, "accepted"); toast.success("Devis accepté"); }} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-success px-4 py-2 text-sm font-medium text-success-foreground shadow"><CheckCircle2 className="h-4 w-4" /> Accepter</button>
-            <button onClick={() => { setStatus(doc.id, "rejected"); toast.warning("Devis refusé"); }} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-danger px-4 py-2 text-sm font-medium text-danger-foreground shadow"><XCircle className="h-4 w-4" /> Refuser</button>
-            <button onClick={() => { setStatus(doc.id, "cancelled"); toast.warning("Devis annulé"); }} className="inline-flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-700 hover:bg-rose-100">Annuler</button>
+            <button onClick={() => patchStatus("sent", "Devis envoyé")} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted"><Send className="h-4 w-4" /> Envoyer</button>
+            <button onClick={() => patchStatus("accepted", "Devis accepté")} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-success px-4 py-2 text-sm font-medium text-success-foreground shadow"><CheckCircle2 className="h-4 w-4" /> Accepter</button>
+            <button onClick={() => patchStatus("rejected", "Devis refusé", "warning")} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-danger px-4 py-2 text-sm font-medium text-danger-foreground shadow"><XCircle className="h-4 w-4" /> Refuser</button>
+            <button onClick={() => patchStatus("cancelled", "Devis annulé", "warning")} className="inline-flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-700 hover:bg-rose-100">Annuler</button>
           </>
         }
       />

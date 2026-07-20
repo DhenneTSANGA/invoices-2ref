@@ -1,13 +1,13 @@
 import { useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
-import { useAppStore } from "@/store/useAppStore";
+import { useClients, useDocuments } from "@/hooks/use-data";
 import { FileText, ReceiptText, Users, Plus, LayoutDashboard, Settings, Archive, Package } from "lucide-react";
 
 export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const navigate = useNavigate();
-  const clients = useAppStore((s) => s.clients);
-  const documents = useAppStore((s) => s.documents);
+  const { data: clients = [] } = useClients();
+  const { data: documents = [] } = useDocuments();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

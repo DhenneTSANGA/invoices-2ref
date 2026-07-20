@@ -1,3 +1,14 @@
+export type StaffMember = {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  jobTitle: string;
+  phone?: string | null;
+  avatarUrl?: string | null;
+  role: "member" | "admin";
+};
+
 export type Client = {
   id: string;
   name: string;
@@ -12,6 +23,22 @@ export type Client = {
   city: string;
   country: string;
   createdAt: string;
+};
+
+export type CompanyInfo = {
+  name: string;
+  tagline: string;
+  nif: string;
+  niu: string;
+  rccm: string;
+  cnss: string;
+  address: string;
+  city: string;
+  phone: string;
+  email: string;
+  website: string;
+  bankName: string;
+  bankAccount: string;
 };
 
 export type Service = {
@@ -43,6 +70,8 @@ export type Document = {
   type: DocumentType;
   number: string;
   clientId: string;
+  createdById?: string;
+  createdBy?: StaffMember;
   status: DocumentStatus;
   issueDate: string;
   dueDate: string;

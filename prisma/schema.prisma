@@ -1,0 +1,214 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum DocumentType {
+  quotation
+  invoice
+  proforma
+  letter
+}
+
+enum DocumentStatus {
+  draft
+  sent
+  accepted
+  rejected
+  paid
+  overdue
+  archived
+  cancelled
+}
+
+enum ActivityKind {
+  invoice_paid
+  invoice_sent
+  invoice_overdue
+  quotation_accepted
+  quotation_sent
+  client_added
+}
+
+enum NotificationType {
+  info
+  success
+  warning
+  danger
+}
+
+enum StaffRole {
+  member
+  admin
+}
+
+model Company {
+  id          String   @id @default(cuid())
+  name        String
+  tagline     String?
+  nif         String
+  niu         String
+  rccm        String
+  cnss        String?
+  address     String
+  city        String
+  phone       String
+  email       String
+  website     String?
+  bankName    String?
+  bankAccount String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("companies")
+}
+
+model StaffMember {
+  id        String    @id
+  email     String    @unique
+  firstName String
+  lastName  String
+  jobTitle  String
+  phone     String?
+  avatarUrl String?
+  role      StaffRole @default(member)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  documents Document[]
+
+  @@index([lastName])
+  @@index([role])
+  @@map("staff_members")
+}
+
+model Client {
+  id          String   @id @default(cuid())
+  name        String
+  legalForm   String
+  nif         String
+  niu         String
+  rccm        String
+  contactName String
+  email       String
+  phone       String
+  address     String
+  city        String
+  country     String   @default("Gabon")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  documents Document[]
+
+  @@index([name])
+  @@index([city])
+  @@map("clients")
+}
+
+model Service {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String   @default("")
+  unit        String
+  unitPrice   Decimal  @db.Decimal(18, 2)
+  vatRate     Decimal  @db.Decimal(5, 2)
+  category    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  lines DocumentLine[]
+
+  @@index([category])
+  @@map("services")
+}
+
+model Document {
+  id              String         @id @default(cuid())
+  type            DocumentType
+  number          String
+  clientId        String
+  createdById     String
+  status          DocumentStatus @default(draft)
+  issueDate       DateTime       @db.Date
+  dueDate         DateTime       @db.Date
+  subtotal        Decimal        @db.Decimal(18, 2)
+  vat             Decimal        @db.Decimal(18, 2)
+  total           Decimal        @db.Decimal(18, 2)
+  currency        String         @default("XAF")
+  notes           String?
+  paymentTerms    String?
+  validityDays    Int?
+  executionTerms  String?
+  incoterm        String?
+  shippingNotes   String?
+  disclaimer      String?
+  subject         String?
+  salutation      String?
+  body            String?
+  closing         String?
+  signatoryTitle  String?
+  recipientOverride String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  client    Client         @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  createdBy StaffMember    @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  lines     DocumentLine[]
+
+  @@unique([type, number])
+  @@index([clientId])
+  @@index([createdById])
+  @@index([status])
+  @@index([type])
+  @@index([issueDate])
+  @@map("documents")
+}
+
+model DocumentLine {
+  id          String  @id @default(cuid())
+  documentId  String
+  serviceId   String?
+  description String
+  quantity    Decimal @db.Decimal(18, 3)
+  unitPrice   Decimal @db.Decimal(18, 2)
+  vatRate     Decimal @db.Decimal(5, 2)
+  discount    Decimal @default(0) @db.Decimal(5, 2)
+  position    Int     @default(0)
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  service  Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+
+  @@index([documentId])
+  @@index([serviceId])
+  @@map("document_lines")
+}
+
+model Activity {
+  id          String       @id @default(cuid())
+  kind        ActivityKind
+  title       String
+  description String
+  at          DateTime     @default(now())
+
+  @@index([at])
+  @@map("activities")
+}
+
+model Notification {
+  id    String           @id @default(cuid())
+  title String
+  body  String
+  at    DateTime         @default(now())
+  read  Boolean          @default(false)
+  type  NotificationType @default(info)
+
+  @@index([read])
+  @@index([at])
+  @@map("notifications")
+}

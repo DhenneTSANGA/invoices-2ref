@@ -2,18 +2,18 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Search, FileText, ReceiptText, Users, Package } from "lucide-react";
 import { useState } from "react";
 import { PageHeader } from "@/components/common/PageHeader";
-import { useAppStore } from "@/store/useAppStore";
+import { useClients, useDocuments, useServices } from "@/hooks/use-data";
 
 export const Route = createFileRoute("/_app/search")({
-  head: () => ({ meta: [{ title: "Recherche globale — FacturIA" }] }),
+  head: () => ({ meta: [{ title: "Recherche globale — 2REF-AUTO" }] }),
   component: SearchPage,
 });
 
 function SearchPage() {
   const [q, setQ] = useState("");
-  const clients = useAppStore((s) => s.clients);
-  const docs = useAppStore((s) => s.documents);
-  const services = useAppStore((s) => s.services);
+  const { data: clients = [] } = useClients();
+  const { data: docs = [] } = useDocuments();
+  const { data: services = [] } = useServices();
 
   const term = q.toLowerCase();
   const cm = clients.filter((c) => `${c.name} ${c.email} ${c.nif}`.toLowerCase().includes(term));

@@ -10,10 +10,12 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as SignupRouteImport } from './routes/signup'
 import { Route as QuotasRouteImport } from './routes/quotas'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AppTemplatesRouteImport } from './routes/_app.templates'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppServicesRouteImport } from './routes/_app.services'
@@ -29,6 +31,7 @@ import { Route as AppProformasIndexRouteImport } from './routes/_app.proformas.i
 import { Route as AppLettersIndexRouteImport } from './routes/_app.letters.index'
 import { Route as AppInvoicesIndexRouteImport } from './routes/_app.invoices.index'
 import { Route as AppClientsIndexRouteImport } from './routes/_app.clients.index'
+import { Route as ApiStaffSyncRouteImport } from './routes/api/staff.sync'
 import { Route as AppQuotationsNewRouteImport } from './routes/_app.quotations.new'
 import { Route as AppQuotationsIdRouteImport } from './routes/_app.quotations.$id'
 import { Route as AppProformasNewRouteImport } from './routes/_app.proformas.new'
@@ -43,6 +46,11 @@ import { Route as AppClientsIdRouteImport } from './routes/_app.clients.$id'
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignupRoute = SignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
   getParentRoute: () => rootRouteImport,
 } as any)
 const QuotasRoute = QuotasRouteImport.update({
@@ -62,6 +70,11 @@ const AppRoute = AppRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/auth/callback',
+  path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppTemplatesRoute = AppTemplatesRouteImport.update({
@@ -139,6 +152,11 @@ const AppClientsIndexRoute = AppClientsIndexRouteImport.update({
   path: '/clients/',
   getParentRoute: () => AppRoute,
 } as any)
+const ApiStaffSyncRoute = ApiStaffSyncRouteImport.update({
+  id: '/api/staff/sync',
+  path: '/api/staff/sync',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppQuotationsNewRoute = AppQuotationsNewRouteImport.update({
   id: '/new',
   path: '/new',
@@ -194,6 +212,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/quotas': typeof QuotasRoute
+  '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/archive': typeof AppArchiveRoute
   '/dashboard': typeof AppDashboardRoute
@@ -205,6 +224,7 @@ export interface FileRoutesByFullPath {
   '/services': typeof AppServicesRoute
   '/settings': typeof AppSettingsRoute
   '/templates': typeof AppTemplatesRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/clients/$id': typeof AppClientsIdRoute
   '/clients/new': typeof AppClientsNewRoute
   '/invoices/$id': typeof AppInvoicesIdRoute
@@ -215,6 +235,7 @@ export interface FileRoutesByFullPath {
   '/proformas/new': typeof AppProformasNewRoute
   '/quotations/$id': typeof AppQuotationsIdRoute
   '/quotations/new': typeof AppQuotationsNewRoute
+  '/api/staff/sync': typeof ApiStaffSyncRoute
   '/clients/': typeof AppClientsIndexRoute
   '/invoices/': typeof AppInvoicesIndexRoute
   '/letters/': typeof AppLettersIndexRoute
@@ -225,6 +246,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/quotas': typeof QuotasRoute
+  '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/archive': typeof AppArchiveRoute
   '/dashboard': typeof AppDashboardRoute
@@ -234,6 +256,7 @@ export interface FileRoutesByTo {
   '/services': typeof AppServicesRoute
   '/settings': typeof AppSettingsRoute
   '/templates': typeof AppTemplatesRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/clients/$id': typeof AppClientsIdRoute
   '/clients/new': typeof AppClientsNewRoute
   '/invoices/$id': typeof AppInvoicesIdRoute
@@ -244,6 +267,7 @@ export interface FileRoutesByTo {
   '/proformas/new': typeof AppProformasNewRoute
   '/quotations/$id': typeof AppQuotationsIdRoute
   '/quotations/new': typeof AppQuotationsNewRoute
+  '/api/staff/sync': typeof ApiStaffSyncRoute
   '/clients': typeof AppClientsIndexRoute
   '/invoices': typeof AppInvoicesIndexRoute
   '/letters': typeof AppLettersIndexRoute
@@ -256,6 +280,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/quotas': typeof QuotasRoute
+  '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/_app/archive': typeof AppArchiveRoute
   '/_app/dashboard': typeof AppDashboardRoute
@@ -267,6 +292,7 @@ export interface FileRoutesById {
   '/_app/services': typeof AppServicesRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/templates': typeof AppTemplatesRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/_app/clients/$id': typeof AppClientsIdRoute
   '/_app/clients/new': typeof AppClientsNewRoute
   '/_app/invoices/$id': typeof AppInvoicesIdRoute
@@ -277,6 +303,7 @@ export interface FileRoutesById {
   '/_app/proformas/new': typeof AppProformasNewRoute
   '/_app/quotations/$id': typeof AppQuotationsIdRoute
   '/_app/quotations/new': typeof AppQuotationsNewRoute
+  '/api/staff/sync': typeof ApiStaffSyncRoute
   '/_app/clients/': typeof AppClientsIndexRoute
   '/_app/invoices/': typeof AppInvoicesIndexRoute
   '/_app/letters/': typeof AppLettersIndexRoute
@@ -289,6 +316,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/quotas'
+    | '/signup'
     | '/sitemap.xml'
     | '/archive'
     | '/dashboard'
@@ -300,6 +328,7 @@ export interface FileRouteTypes {
     | '/services'
     | '/settings'
     | '/templates'
+    | '/auth/callback'
     | '/clients/$id'
     | '/clients/new'
     | '/invoices/$id'
@@ -310,6 +339,7 @@ export interface FileRouteTypes {
     | '/proformas/new'
     | '/quotations/$id'
     | '/quotations/new'
+    | '/api/staff/sync'
     | '/clients/'
     | '/invoices/'
     | '/letters/'
@@ -320,6 +350,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/quotas'
+    | '/signup'
     | '/sitemap.xml'
     | '/archive'
     | '/dashboard'
@@ -329,6 +360,7 @@ export interface FileRouteTypes {
     | '/services'
     | '/settings'
     | '/templates'
+    | '/auth/callback'
     | '/clients/$id'
     | '/clients/new'
     | '/invoices/$id'
@@ -339,6 +371,7 @@ export interface FileRouteTypes {
     | '/proformas/new'
     | '/quotations/$id'
     | '/quotations/new'
+    | '/api/staff/sync'
     | '/clients'
     | '/invoices'
     | '/letters'
@@ -350,6 +383,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/login'
     | '/quotas'
+    | '/signup'
     | '/sitemap.xml'
     | '/_app/archive'
     | '/_app/dashboard'
@@ -361,6 +395,7 @@ export interface FileRouteTypes {
     | '/_app/services'
     | '/_app/settings'
     | '/_app/templates'
+    | '/auth/callback'
     | '/_app/clients/$id'
     | '/_app/clients/new'
     | '/_app/invoices/$id'
@@ -371,6 +406,7 @@ export interface FileRouteTypes {
     | '/_app/proformas/new'
     | '/_app/quotations/$id'
     | '/_app/quotations/new'
+    | '/api/staff/sync'
     | '/_app/clients/'
     | '/_app/invoices/'
     | '/_app/letters/'
@@ -383,7 +419,10 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
   QuotasRoute: typeof QuotasRoute
+  SignupRoute: typeof SignupRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  AuthCallbackRoute: typeof AuthCallbackRoute
+  ApiStaffSyncRoute: typeof ApiStaffSyncRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -393,6 +432,13 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/signup': {
+      id: '/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof SignupRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/quotas': {
@@ -421,6 +467,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/auth/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/templates': {
@@ -527,6 +580,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/clients/'
       preLoaderRoute: typeof AppClientsIndexRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/api/staff/sync': {
+      id: '/api/staff/sync'
+      path: '/api/staff/sync'
+      fullPath: '/api/staff/sync'
+      preLoaderRoute: typeof ApiStaffSyncRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_app/quotations/new': {
       id: '/_app/quotations/new'
@@ -684,7 +744,10 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
   QuotasRoute: QuotasRoute,
+  SignupRoute: SignupRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  AuthCallbackRoute: AuthCallbackRoute,
+  ApiStaffSyncRoute: ApiStaffSyncRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -6,10 +6,10 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { DocumentPreview } from "@/components/documents/DocumentPreview";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 import type { Document, DocumentType } from "@/store/types";
-import { useAppStore } from "@/store/useAppStore";
+import { useClients } from "@/hooks/use-data";
 
 export const Route = createFileRoute("/_app/templates")({
-  head: () => ({ meta: [{ title: "Modèles de documents — FacturIA" }] }),
+  head: () => ({ meta: [{ title: "Modèles de documents — 2REF-AUTO" }] }),
   component: Templates,
 });
 
@@ -124,8 +124,8 @@ function Templates() {
 }
 
 function useSampleDocs(): Record<DocumentType, Document> {
-  const clients = useAppStore((s) => s.clients);
-  const clientId = clients[0]?.id ?? "c1";
+  const { data: clients = [] } = useClients();
+  const clientId = clients[0]?.id ?? "";
 
   return useMemo(() => {
     const items = [
