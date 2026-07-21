@@ -1,40 +1,26 @@
 import type { StaffPayload } from "@/lib/auth-schemas";
 
-/** Appelle l’API pour écrire dans `staff_members`. */
-export async function syncStaffToDatabase(input: {
+export async function syncStaffToDatabase(payload: {
   id: string;
   email: string;
   firstName: string;
   lastName: string;
   jobTitle: string;
   phone?: string | null;
-  avatarUrl?: string | null;
-  role?: "member" | "admin";
 }) {
   const res = await fetch("/api/staff/sync", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
+    body: JSON.stringify(payload),
   });
-
-  const payload = (await res.json().catch(() => ({}))) as {
-    error?: string;
-    staff?: unknown;
-  };
-
-  if (!res.ok) {
-    throw new Error(payload.error ?? `Sync staff échouée (${res.status})`);
-  }
-
-  return payload.staff;
+  const data = (await res.json()) as { ok?: boolean; error?: string; staff?: unknown };
+  if (!res.ok) throw new Error(data.error ?? `Sync staff échouée (${res.status})`);
+  return data.staff;
 }
 
-export async function syncStaffFromSignup(
-  userId: string,
-  staff: StaffPayload,
-) {
+export async function syncStaffFromSignup(id: string, staff: StaffPayload) {
   return syncStaffToDatabase({
-    id: userId,
+    id,
     email: staff.email,
     firstName: staff.firstName,
     lastName: staff.lastName,

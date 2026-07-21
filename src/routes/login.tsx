@@ -1,224 +1,209 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowRight, Lock, Mail } from "lucide-react";
-import { useEffect, useState } from "react";
+import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
+import { Logo } from "@/components/common/Logo";
+import { useState } from "react";
 import { toast } from "sonner";
-
+import { ArrowRight, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import {
-  AuthDivider,
-  AuthShell,
-  FloatField,
-  SocialAuthButtons,
-} from "@/components/auth/AuthShell";
-import {
-  authErrorMessage,
-  signInWithEmailMagicLink,
   signInWithEmailPassword,
   signInWithGoogle,
+  signInWithEmailMagicLink,
 } from "@/lib/auth";
 import { loginSchema } from "@/lib/auth-schemas";
 import { syncStaffToDatabase } from "@/lib/staff-client";
 import { staffFromAuthUser } from "@/lib/staff-parse";
-
-type LoginSearch = { error?: string };
+import { getCurrentSession } from "@/lib/session.functions";
+import { EmailBrandIcon, GoogleIcon } from "@/components/auth/AuthIcons";
 
 export const Route = createFileRoute("/login")({
-  validateSearch: (search: Record<string, unknown>): LoginSearch => ({
-    error: typeof search.error === "string" ? search.error : undefined,
-  }),
   head: () => ({
     meta: [
-      { title: "Connexion — 2REF" },
-      {
-        name: "description",
-        content: "Connectez-vous à votre espace 2REF Expertise Fiscale.",
-      },
+      { title: "Connexion — 2REF-AUTO" },
+      { name: "description", content: "Accédez à votre espace 2REF-AUTO." },
     ],
   }),
+  beforeLoad: async () => {
+    const session = await getCurrentSession();
+    if (session) throw redirect({ to: "/dashboard" });
+  },
   component: LoginPage,
 });
 
 function LoginPage() {
   const navigate = useNavigate();
-  const { error: searchError } = Route.useSearch();
+  const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [remember, setRemember] = useState(true);
-  const [loading, setLoading] = useState(false);
-  const [oauthLoading, setOauthLoading] = useState(false);
-
-  useEffect(() => {
-    if (searchError) {
-      toast.error(authErrorMessage({ message: decodeURIComponent(searchError) }));
-    }
-  }, [searchError]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const parsed = loginSchema.safeParse({ email: email.trim(), password });
+    const parsed = loginSchema.safeParse({ email, password });
     if (!parsed.success) {
       toast.error(parsed.error.issues[0]?.message ?? "Formulaire invalide");
       return;
     }
-
     setLoading(true);
     try {
       const { data, error } = await signInWithEmailPassword(
         parsed.data.email,
         parsed.data.password,
       );
-      if (error) {
-        toast.error(authErrorMessage(error));
-        return;
-      }
-
-      const user = data.user;
+      if (error) throw error;
+      const user = data.user ?? data.session?.user;
       if (user) {
         const payload = staffFromAuthUser(user);
-        if (payload) {
-          try {
-            await syncStaffToDatabase(payload);
-          } catch (err) {
-            console.error(err);
-            toast.warning(
-              "Connecté, mais le profil n’a pas pu être synchronisé en base.",
-            );
-          }
-        }
+        await syncStaffToDatabase({ ...payload, id: user.id });
       }
-
       toast.success("Connexion réussie");
       void navigate({ to: "/dashboard" });
-    } catch {
-      toast.error("Impossible de se connecter. Réessayez.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Connexion impossible");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleGoogle = async () => {
-    setOauthLoading(true);
-    try {
-      const { data, error } = await signInWithGoogle();
-      if (error) {
-        toast.error(authErrorMessage(error));
-        setOauthLoading(false);
-        return;
-      }
-      if (data.url) window.location.assign(data.url);
-    } catch {
-      toast.error("Connexion Google indisponible.");
-      setOauthLoading(false);
+  const google = async () => {
+    setLoading(true);
+    const { error } = await signInWithGoogle();
+    if (error) {
+      toast.error(error.message);
+      setLoading(false);
     }
   };
 
-  const handleEmailMagic = async () => {
-    const trimmed = email.trim();
-    if (!trimmed) {
-      toast.message("Indiquez votre email");
+  const magic = async () => {
+    if (!email) {
+      toast.error("Saisissez votre email");
       return;
     }
-    setOauthLoading(true);
-    try {
-      const { error } = await signInWithEmailMagicLink(trimmed);
-      if (error) {
-        toast.error(authErrorMessage(error));
-        return;
-      }
-      toast.success("Lien envoyé", { description: `Vérifiez ${trimmed}` });
-    } catch {
-      toast.error("Impossible d’envoyer le lien email.");
-    } finally {
-      setOauthLoading(false);
-    }
+    setLoading(true);
+    const { error } = await signInWithEmailMagicLink(email);
+    if (error) toast.error(error.message);
+    else toast.success("Lien magique envoyé — consultez votre boîte mail");
+    setLoading(false);
   };
 
-  const busy = loading || oauthLoading;
+  return (
+    <div className="grid min-h-screen lg:grid-cols-2">
+      <div className="aurora-bg relative hidden flex-col justify-between p-12 lg:flex">
+        <Brand />
+        <div>
+          <h1 className="font-display text-4xl font-bold leading-tight">
+            2REF-AUTO
+          </h1>
+          <p className="mt-3 max-w-md text-muted-foreground">
+            Plateforme d&apos;automatisation du cabinet 2REF Expertise Fiscale.
+          </p>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          © {new Date().getFullYear()} 2REF-AUTO
+        </p>
+      </div>
+
+      <div className="flex items-center justify-center p-6">
+        <form onSubmit={submit} className="glass-panel w-full max-w-md rounded-3xl p-8 shadow-float">
+          <div className="lg:hidden mb-6">
+            <Brand />
+          </div>
+          <h2 className="font-display text-2xl font-bold">Connexion</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Accédez à votre espace collaborateur.
+          </p>
+
+          <div className="mt-6 space-y-4">
+            <Field icon={Mail} label="Email" type="email" value={email} onChange={setEmail} />
+            <Field icon={Lock} label="Mot de passe" type="password" value={password} onChange={setPassword} />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-70"
+          >
+            {loading ? "Connexion…" : <>Se connecter <ArrowRight className="h-4 w-4" /></>}
+          </button>
+
+          <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={google}
+              disabled={loading}
+              className="inline-flex w-full items-center justify-center gap-2.5 rounded-2xl border border-border/80 bg-surface px-3 py-3 text-sm font-medium transition hover:bg-muted/80 disabled:opacity-60"
+            >
+              <GoogleIcon className="h-5 w-5 shrink-0" />
+              Google
+            </button>
+            <button
+              type="button"
+              onClick={magic}
+              disabled={loading}
+              className="inline-flex w-full items-center justify-center gap-2.5 rounded-2xl border border-border/80 bg-surface px-3 py-3 text-sm font-medium transition hover:bg-muted/80 disabled:opacity-60"
+            >
+              <EmailBrandIcon className="h-5 w-5 shrink-0" />
+              Email
+            </button>
+          </div>
+
+          <p className="mt-6 text-center text-xs text-muted-foreground">
+            Pas de compte ?{" "}
+            <Link to="/signup" className="text-primary font-medium hover:underline">
+              S&apos;inscrire
+            </Link>
+          </p>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function Brand() {
+  return <Logo size="md" className="rounded-lg" />;
+}
+
+function Field({
+  icon: Icon,
+  label,
+  type,
+  value,
+  onChange,
+}: {
+  icon: typeof Mail;
+  label: string;
+  type: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const isPassword = type === "password";
+  const [showPassword, setShowPassword] = useState(false);
+  const inputType = isPassword ? (showPassword ? "text" : "password") : type;
 
   return (
-    <AuthShell
-      title="Bon retour"
-      subtitle="Espace collaborateur — 2REF Expertise Fiscale"
-    >
-      <form onSubmit={(e) => void submit(e)} className="mt-6 space-y-4">
-        <FloatField
-          icon={Mail}
-          label="Email"
-          type="email"
-          name="email"
-          value={email}
-          onChange={setEmail}
-          autoComplete="email"
-          required
-          placeholder="prenom@2ref.ga"
+    <label className="block">
+      <span className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        {label}
+      </span>
+      <div className="relative">
+        <Icon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type={inputType}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={`w-full rounded-2xl border border-border/60 bg-surface/70 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25 ${
+            isPassword ? "px-10 pr-11" : "px-10"
+          }`}
         />
-        <FloatField
-          icon={Lock}
-          label="Mot de passe"
-          type="password"
-          name="password"
-          value={password}
-          onChange={setPassword}
-          autoComplete="current-password"
-          required
-          placeholder="••••••••"
-        />
-
-        <div className="flex items-center justify-between text-sm">
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={remember}
-              onChange={(e) => setRemember(e.target.checked)}
-              className="rounded border-border"
-            />
-            <span>Se souvenir de moi</span>
-          </label>
+        {isPassword ? (
           <button
             type="button"
-            className="text-primary hover:underline"
-            onClick={() => {
-              if (!email.trim()) {
-                toast.message("Saisissez votre email d’abord.");
-                return;
-              }
-              void handleEmailMagic();
-            }}
+            tabIndex={-1}
+            onClick={() => setShowPassword((v) => !v)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
           >
-            Mot de passe oublié ?
+            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
-        </div>
-
-        <button
-          type="submit"
-          disabled={busy}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-glow transition-transform hover:scale-[1.01] active:scale-[0.99] disabled:opacity-70"
-        >
-          {loading ? (
-            "Connexion…"
-          ) : (
-            <>
-              Se connecter <ArrowRight className="h-4 w-4" />
-            </>
-          )}
-        </button>
-
-        <AuthDivider label="connexion rapide" />
-        <SocialAuthButtons
-          loading={busy}
-          onGoogle={() => void handleGoogle()}
-          onEmail={() => void handleEmailMagic()}
-        />
-      </form>
-
-      <p className="mt-6 text-center text-xs text-muted-foreground">
-        Nouveau collaborateur ?{" "}
-        <Link
-          to="/signup"
-          className="font-medium text-primary hover:underline"
-        >
-          Créer un compte
-        </Link>
-      </p>
-    </AuthShell>
+        ) : null}
+      </div>
+    </label>
   );
 }

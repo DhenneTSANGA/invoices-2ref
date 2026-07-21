@@ -1,10 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import {
   createServerClient,
   parseCookieHeader,
   serializeCookieHeader,
 } from "@supabase/ssr";
-
 import { staffFromAuthUser } from "@/lib/staff-parse";
 
 function supabaseUrl() {
@@ -19,10 +18,6 @@ function supabaseKey() {
   );
 }
 
-/**
- * Callback OAuth / magic link — échange PKCE côté serveur
- * + synchronisation dans `staff_members`.
- */
 export const Route = createFileRoute("/auth/callback")({
   server: {
     handlers: {
@@ -35,78 +30,52 @@ export const Route = createFileRoute("/auth/callback")({
 
         const responseHeaders = new Headers();
 
-        const redirect = (path: string) => {
-          const target = new URL(path, requestUrl.origin);
-          responseHeaders.set("Location", target.toString());
+        const go = (path: string) => {
+          responseHeaders.set("Location", new URL(path, requestUrl.origin).toString());
           return new Response(null, { status: 302, headers: responseHeaders });
         };
 
-        if (oauthError) {
-          return redirect(`/login?error=${encodeURIComponent(oauthError)}`);
-        }
-
-        if (!code) {
-          return redirect("/login?error=missing_code");
-        }
+        if (oauthError) return go(`/login?error=${encodeURIComponent(oauthError)}`);
+        if (!code) return go("/login?error=missing_code");
 
         const supabase = createServerClient(supabaseUrl(), supabaseKey(), {
           cookies: {
             getAll() {
               return parseCookieHeader(request.headers.get("Cookie") ?? "");
             },
-            setAll(cookiesToSet, cacheHeaders) {
+            setAll(cookiesToSet) {
               cookiesToSet.forEach(({ name, value, options }) => {
                 responseHeaders.append(
                   "Set-Cookie",
                   serializeCookieHeader(name, value, options),
                 );
               });
-              Object.entries(cacheHeaders).forEach(([key, value]) => {
-                responseHeaders.set(key, value);
-              });
             },
           },
         });
 
         const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-
         if (error) {
-          console.error("[auth/callback]", error.message);
-          return redirect(
-            `/login?error=${encodeURIComponent(error.message)}`,
-          );
+          return go(`/login?error=${encodeURIComponent(error.message)}`);
         }
 
         const user = data.user ?? data.session?.user;
-        const payload = user ? staffFromAuthUser(user) : null;
-        if (payload) {
+        if (user) {
           try {
             const { syncStaffMember } = await import("@/lib/staff-sync");
-            await syncStaffMember(payload);
+            await syncStaffMember(staffFromAuthUser(user));
           } catch (err) {
             console.error("[auth/callback] staff upsert", err);
           }
         }
 
-        return redirect("/dashboard");
+        return go("/dashboard");
       },
     },
   },
-  component: AuthCallbackFallback,
-});
-
-function AuthCallbackFallback() {
-  return (
+  component: () => (
     <div className="aurora-bg flex min-h-screen items-center justify-center p-6">
-      <div className="glass-panel max-w-sm rounded-3xl px-8 py-10 text-center shadow-float">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-primary font-display text-lg font-bold text-primary-foreground shadow-glow">
-          2
-        </div>
-        <p className="text-sm font-medium">Finalisation de la connexion…</p>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Redirection en cours.
-        </p>
-      </div>
+      <p className="text-sm text-muted-foreground">Connexion en cours…</p>
     </div>
-  );
-}
+  ),
+});

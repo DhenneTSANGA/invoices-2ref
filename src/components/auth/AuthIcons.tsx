@@ -1,4 +1,4 @@
-/** Icônes de marque officielles (SVG) pour l’auth. */
+/** Icônes de marque officielles (SVG) pour l'auth. */
 
 export function GoogleIcon({ className }: { className?: string }) {
   return (

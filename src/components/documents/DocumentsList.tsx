@@ -1,27 +1,32 @@
 import { Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { Eye, FileText, Plus, Search, Send, Banknote, XCircle, CheckCircle2, Ban } from "lucide-react";
+import { Eye, FileText, Plus, Search, Send, Banknote, XCircle, CheckCircle2, Ban, Mails } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
 import { StatusBadge, statusLabel } from "@/components/common/StatusBadge";
-import { StaffAvatar } from "@/components/common/StaffAvatar";
-import { useAppStore } from "@/store/useAppStore";
+import { documentRowClass, getDocumentRowStyles } from "@/lib/document-row-styles";
 import { currency, shortDate } from "@/lib/format";
 import type { DocumentStatus, DocumentType } from "@/store/types";
 import { cn } from "@/lib/utils";
+import {
+  useClients,
+  useDocuments,
+  useSetDocumentStatus,
+  useSendDocumentEmail,
+} from "@/hooks/use-data";
 
 const labels = {
   invoice: { title: "Factures", new: "/invoices/new", detail: "/invoices/$id", subtitle: "Suivi de vos factures émises" },
   quotation: { title: "Devis", new: "/quotations/new", detail: "/quotations/$id", subtitle: "Pipeline de propositions commerciales" },
   proforma: { title: "Pro forma", new: "/proformas/new", detail: "/proformas/$id", subtitle: "Estimations sans valeur comptable" },
-  letter: { title: "Lettres", new: "/letters/new", detail: "/letters/$id", subtitle: "Courriers commerciaux" },
+  letter: { title: "Lettres", new: "/lettre/new", detail: "/lettre/$id", subtitle: "Courriers commerciaux" },
 } as const;
 
 const invoiceStatuses: DocumentStatus[] = ["draft", "sent", "paid", "overdue", "cancelled"];
 const quotationStatuses: DocumentStatus[] = ["draft", "sent", "accepted", "rejected", "cancelled"];
-const proformaStatuses: DocumentStatus[] = ["draft", "sent", "cancelled"];
+const proformaStatuses: DocumentStatus[] = ["draft", "sent"];
 const letterStatuses: DocumentStatus[] = ["draft", "sent", "cancelled"];
 
 function statusesFor(type: DocumentType): DocumentStatus[] {
@@ -32,18 +37,16 @@ function statusesFor(type: DocumentType): DocumentStatus[] {
 }
 
 export function DocumentsList({ type }: { type: DocumentType }) {
-  const documents = useAppStore((s) => s.documents);
-  const clients = useAppStore((s) => s.clients);
-  const setDocumentStatus = useAppStore((s) => s.setDocumentStatus);
+  const { data: documents = [], isLoading } = useDocuments(type);
+  const { data: clients = [] } = useClients();
+  const setStatusMutation = useSetDocumentStatus();
+  const sendEmailMutation = useSendDocumentEmail();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string>("all");
   const L = labels[type];
   const statusOptions = statusesFor(type);
 
-  const docs = useMemo(
-    () => documents.filter((d) => d.type === type),
-    [documents, type],
-  );
+  const docs = useMemo(() => documents, [documents]);
 
   const filtered = useMemo(() => docs.filter((d) => {
     const client = clients.find((c) => c.id === d.clientId);
@@ -55,9 +58,42 @@ export function DocumentsList({ type }: { type: DocumentType }) {
   const total = filtered.reduce((a, b) => a + b.total, 0);
 
   const setStatusWithToast = (id: string, next: DocumentStatus, number: string) => {
-    setDocumentStatus(id, next);
-    toast.success(`Statut mis à jour — ${number}`, { description: statusLabel(next) });
+    if (next === "sent") {
+      const toastId = toast.loading("Envoi de l'email…");
+      sendEmailMutation.mutate(id, {
+        onSuccess: (res) =>
+          toast.success(`Email envoyé — ${number}`, {
+            id: toastId,
+            description: `À ${res.to}`,
+          }),
+        onError: (e) =>
+          toast.error("Échec de l'envoi", {
+            id: toastId,
+            description: e.message,
+            duration: 12_000,
+          }),
+      });
+      return;
+    }
+    setStatusMutation.mutate(
+      { id, status: next },
+      {
+        onSuccess: () =>
+          toast.success(`Statut mis à jour — ${number}`, {
+            description: statusLabel(next),
+          }),
+        onError: (e) => toast.error(e.message),
+      },
+    );
   };
+
+  if (isLoading) {
+    return (
+      <div className="py-20 text-center text-sm text-muted-foreground">
+        Chargement des documents…
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -65,9 +101,19 @@ export function DocumentsList({ type }: { type: DocumentType }) {
         title={L.title}
         subtitle={L.subtitle}
         actions={
-          <Link to={L.new} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow">
-            <Plus className="h-4 w-4" /> Nouveau
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            {type === "letter" && (
+              <Link
+                to="/lettre/publipostage"
+                className="inline-flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-900 hover:bg-amber-100"
+              >
+                <Mails className="h-4 w-4" /> Publipostage
+              </Link>
+            )}
+            <Link to={L.new} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow">
+              <Plus className="h-4 w-4" /> Nouveau
+            </Link>
+          </div>
         }
       />
 
@@ -104,7 +150,6 @@ export function DocumentsList({ type }: { type: DocumentType }) {
           <table className="w-full text-sm">
             <thead className="bg-muted/60 text-xs uppercase tracking-wider text-muted-foreground">
               <tr>
-                <th className="px-5 py-3 text-left">Créateur</th>
                 <th className="px-5 py-3 text-left">Numéro</th>
                 <th className="px-5 py-3 text-left">Client</th>
                 <th className="px-5 py-3 text-left">Date</th>
@@ -117,49 +162,30 @@ export function DocumentsList({ type }: { type: DocumentType }) {
             <tbody>
               {filtered.map((d, i) => {
                 const c = clients.find((x) => x.id === d.clientId);
-                const creator = d.createdBy;
+                const row = getDocumentRowStyles(d.status);
+                const onColoredRow = d.status !== "draft" && d.status !== "cancelled";
                 return (
                   <motion.tr
                     key={d.id}
                     initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.02 }}
-                    className={cn(
-                      "border-t border-border/40 hover:bg-muted/50",
-                      d.status === "cancelled" && "opacity-60",
-                      d.status === "paid" && "bg-green-50/40",
-                      d.status === "overdue" && "bg-red-50/30",
-                    )}
+                    className={documentRowClass(d.status)}
                   >
-                    <td className="px-5 py-3">
-                      {creator ? (
-                        <Link
-                          to={L.detail}
-                          params={{ id: d.id }}
-                          className="inline-flex items-center gap-2"
-                          title={`${creator.firstName} ${creator.lastName}`}
-                        >
-                          <StaffAvatar person={creator} size="sm" />
-                        </Link>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-3 font-medium font-numeric">
-                      <Link to={L.detail} params={{ id: d.id }} className="hover:text-primary hover:underline">
-                        {d.number}
-                      </Link>
-                    </td>
+                    <td className="px-5 py-3 font-medium font-numeric">{d.number}</td>
                     <td className="px-5 py-3">{c?.name}</td>
-                    <td className="px-5 py-3 text-muted-foreground">{shortDate(d.issueDate)}</td>
-                    <td className="px-5 py-3 text-muted-foreground">{shortDate(d.dueDate)}</td>
+                    <td className={cn("px-5 py-3", row.muted)}>{shortDate(d.issueDate)}</td>
+                    <td className={cn("px-5 py-3", row.muted)}>{shortDate(d.dueDate)}</td>
                     <td className="px-5 py-3">
                       <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center">
-                        <StatusBadge status={d.status} />
+                        <StatusBadge status={d.status} variant={onColoredRow ? "onRow" : "default"} />
                         <select
                           value={d.status}
                           onChange={(e) => setStatusWithToast(d.id, e.target.value as DocumentStatus, d.number)}
-                          className="rounded-lg border border-border/60 bg-surface px-2 py-1 text-[11px] focus:border-primary focus:outline-none"
+                          className={cn(
+                            "rounded-lg border px-2 py-1 text-[11px] focus:border-primary focus:outline-none",
+                            row.select,
+                          )}
                           aria-label="Changer le statut"
                         >
                           {statusOptions.map((s) => (
@@ -173,27 +199,27 @@ export function DocumentsList({ type }: { type: DocumentType }) {
                       <div className="flex items-center justify-end gap-1">
                         {/* Raccourcis statut */}
                         {type === "invoice" && d.status !== "sent" && d.status !== "paid" && d.status !== "cancelled" && (
-                          <ActionBtn title="Marquer envoyée" onClick={() => setStatusWithToast(d.id, "sent", d.number)} className="text-sky-600 hover:bg-sky-50">
+                          <ActionBtn title="Marquer envoyée" onClick={() => setStatusWithToast(d.id, "sent", d.number)} className={row.actionBtn}>
                             <Send className="h-4 w-4" />
                           </ActionBtn>
                         )}
                         {type === "invoice" && d.status !== "paid" && d.status !== "cancelled" && (
-                          <ActionBtn title="Marquer payée" onClick={() => setStatusWithToast(d.id, "paid", d.number)} className="text-green-600 hover:bg-green-50">
+                          <ActionBtn title="Marquer payée" onClick={() => setStatusWithToast(d.id, "paid", d.number)} className={row.actionBtn}>
                             <Banknote className="h-4 w-4" />
                           </ActionBtn>
                         )}
                         {type === "quotation" && d.status !== "accepted" && d.status !== "cancelled" && (
-                          <ActionBtn title="Marquer accepté" onClick={() => setStatusWithToast(d.id, "accepted", d.number)} className="text-emerald-600 hover:bg-emerald-50">
+                          <ActionBtn title="Marquer accepté" onClick={() => setStatusWithToast(d.id, "accepted", d.number)} className={row.actionBtn}>
                             <CheckCircle2 className="h-4 w-4" />
                           </ActionBtn>
                         )}
                         {type === "quotation" && d.status !== "rejected" && d.status !== "cancelled" && (
-                          <ActionBtn title="Marquer refusé" onClick={() => setStatusWithToast(d.id, "rejected", d.number)} className="text-orange-600 hover:bg-orange-50">
+                          <ActionBtn title="Marquer refusé" onClick={() => setStatusWithToast(d.id, "rejected", d.number)} className={row.actionBtn}>
                             <XCircle className="h-4 w-4" />
                           </ActionBtn>
                         )}
-                        {d.status !== "cancelled" && (
-                          <ActionBtn title="Annuler" onClick={() => setStatusWithToast(d.id, "cancelled", d.number)} className="text-rose-600 hover:bg-rose-50">
+                        {type !== "proforma" && d.status !== "cancelled" && (
+                          <ActionBtn title="Annuler" onClick={() => setStatusWithToast(d.id, "cancelled", d.number)} className={row.actionBtn}>
                             <Ban className="h-4 w-4" />
                           </ActionBtn>
                         )}
@@ -201,7 +227,10 @@ export function DocumentsList({ type }: { type: DocumentType }) {
                           to={L.detail}
                           params={{ id: d.id }}
                           title="Voir les détails"
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary transition hover:bg-primary hover:text-primary-foreground"
+                          className={cn(
+                            "inline-flex h-9 w-9 items-center justify-center rounded-xl transition",
+                            row.viewLink,
+                          )}
                         >
                           <Eye className="h-4 w-4" />
                         </Link>

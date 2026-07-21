@@ -3,7 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, Download, Send, CheckCircle2, XCircle, Edit3, Eye, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
-import { useAppStore } from "@/store/useAppStore";
+import { useDocument, useClients, useSetDocumentStatus, useSendDocumentEmail } from "@/hooks/use-data";
 import { DocumentPreview } from "@/components/documents/DocumentPreview";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -12,19 +12,54 @@ import { downloadDocumentPdf } from "@/lib/pdf/downloadDocumentPdf";
 import { currency, longDate } from "@/lib/format";
 
 export const Route = createFileRoute("/_app/invoices/$id")({
-  head: () => ({ meta: [{ title: "Détail facture — FacturIA" }] }),
+  head: () => ({ meta: [{ title: "Détail facture — 2REF-AUTO" }] }),
   component: InvoiceDetail,
 });
 
 function InvoiceDetail() {
   const { id } = Route.useParams();
-  const doc = useAppStore((s) => s.documents.find((d) => d.id === id));
-  const client = useAppStore((s) => s.clients.find((c) => c.id === doc?.clientId));
-  const setStatus = useAppStore((s) => s.setDocumentStatus);
+  const { data: doc, isLoading } = useDocument(id);
+  const { data: clients = [] } = useClients();
+  const client = clients.find((c) => c.id === doc?.clientId);
+  const setStatusMutation = useSetDocumentStatus();
+  const sendEmailMutation = useSendDocumentEmail();
   const [previewOpen, setPreviewOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
 
+  if (isLoading) return <div className="py-20 text-center text-sm text-muted-foreground">Chargement…</div>;
   if (!doc) return <div className="glass-panel rounded-3xl p-8 text-center">Document introuvable.</div>;
+
+  const patchStatus = (
+    status: typeof doc.status,
+    message: string,
+    level: "success" | "warning" = "success",
+  ) => {
+    setStatusMutation.mutate(
+      { id: doc.id, status },
+      {
+        onSuccess: () =>
+          level === "warning" ? toast.warning(message) : toast.success(message),
+        onError: (e) => toast.error(e.message),
+      },
+    );
+  };
+
+  const sendByEmail = () => {
+    const toastId = toast.loading("Envoi de l'email…");
+    sendEmailMutation.mutate(doc.id, {
+      onSuccess: (res) =>
+        toast.success("Facture envoyée par email", {
+          id: toastId,
+          description: `À ${res.to}`,
+        }),
+      onError: (e) =>
+        toast.error("Échec de l'envoi", {
+          id: toastId,
+          description: e.message,
+          duration: 12_000,
+        }),
+    });
+  };
 
   const downloadPdf = async () => {
     setExporting(true);
@@ -55,9 +90,9 @@ function InvoiceDetail() {
             <button onClick={downloadPdf} disabled={exporting} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60">
               {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} PDF
             </button>
-            <button onClick={() => { setStatus(doc.id, "sent"); toast.success("Facture envoyée"); }} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted"><Send className="h-4 w-4" /> Envoyer</button>
-            <button onClick={() => { setStatus(doc.id, "paid"); toast.success("Marquée comme payée"); }} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-success px-4 py-2 text-sm font-medium text-success-foreground shadow"><CheckCircle2 className="h-4 w-4" /> Marquer payée</button>
-            <button onClick={() => { setStatus(doc.id, "cancelled"); toast.warning("Facture annulée"); }} className="inline-flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-700 hover:bg-rose-100">Annuler</button>
+            <button onClick={sendByEmail} disabled={sendEmailMutation.isPending} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60"><Send className="h-4 w-4" /> {sendEmailMutation.isPending ? "Envoi…" : "Envoyer"}</button>
+            <button onClick={() => patchStatus("paid", "Marquée comme payée")} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-success px-4 py-2 text-sm font-medium text-success-foreground shadow"><CheckCircle2 className="h-4 w-4" /> Marquer payée</button>
+            <button onClick={() => patchStatus("cancelled", "Facture annulée", "warning")} className="inline-flex items-center gap-2 rounded-2xl border border-zinc-300 bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-200">Annuler</button>
           </>
         }
       />
@@ -88,8 +123,8 @@ function InvoiceDetail() {
           <div className="glass-panel rounded-3xl p-5">
             <h4 className="font-display font-semibold">Actions</h4>
             <div className="mt-3 grid grid-cols-2 gap-2">
-              <button onClick={() => { setStatus(doc.id, "draft"); toast.success("Repassée en brouillon"); }} className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-xs hover:bg-muted"><Edit3 className="h-3.5 w-3.5" /> Brouillon</button>
-              <button onClick={() => { setStatus(doc.id, "overdue"); toast.warning("Marquée en retard"); }} className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-xs hover:bg-muted"><XCircle className="h-3.5 w-3.5" /> En retard</button>
+              <button onClick={() => patchStatus("draft", "Repassée en brouillon")} className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-xs hover:bg-muted"><Edit3 className="h-3.5 w-3.5" /> Brouillon</button>
+              <button onClick={() => patchStatus("overdue", "Marquée en retard", "warning")} className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-xs hover:bg-muted"><XCircle className="h-3.5 w-3.5" /> En retard</button>
             </div>
             <Link to="/invoices/new" className="mt-2 block w-full rounded-xl border border-border bg-surface px-3 py-2 text-center text-xs hover:bg-muted">Dupliquer</Link>
           </div>

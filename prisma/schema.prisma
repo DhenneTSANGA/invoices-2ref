@@ -8,8 +8,6 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-// ─── Enums ────────────────────────────────────────────────────────────────
-
 enum DocumentType {
   quotation
   invoice
@@ -49,9 +47,6 @@ enum StaffRole {
   admin
 }
 
-// ─── Tables métier 2REF Expertise Fiscale ─────────────────────────────────
-
-/// Cabinet singleton (une seule ligne)
 model Company {
   id          String   @id @default(cuid())
   name        String
@@ -73,9 +68,8 @@ model Company {
   @@map("companies")
 }
 
-/// Collaborateur du cabinet (lié à auth.users via id = UUID Supabase)
 model StaffMember {
-  id        String    @id /// UUID auth.users
+  id        String    @id
   email     String    @unique
   firstName String
   lastName  String
@@ -87,6 +81,8 @@ model StaffMember {
   updatedAt DateTime  @updatedAt
 
   documents Document[]
+
+  notifications Notification[]
 
   @@index([lastName])
   @@index([role])
@@ -135,41 +131,40 @@ model Service {
 }
 
 model Document {
-  id         String         @id @default(cuid())
-  type       DocumentType
-  number     String
-  clientId   String
-  createdById String
-  status     DocumentStatus @default(draft)
-  issueDate  DateTime       @db.Date
-  dueDate    DateTime       @db.Date
-  subtotal   Decimal        @db.Decimal(18, 2)
-  vat        Decimal        @db.Decimal(18, 2)
-  total      Decimal        @db.Decimal(18, 2)
-  currency   String         @default("XAF")
-  notes      String?
-  paymentTerms String?
-
+  id              String         @id @default(cuid())
+  type            DocumentType
+  number          String
+  clientId        String
+  createdById     String
+  status          DocumentStatus @default(draft)
+  issueDate       DateTime       @db.Date
+  dueDate         DateTime       @db.Date
+  subtotal        Decimal        @db.Decimal(18, 2)
+  tps             Decimal        @default(0) @db.Decimal(18, 2)
+  css             Decimal        @default(0) @db.Decimal(18, 2)
+  vat             Decimal        @db.Decimal(18, 2)
+  total           Decimal        @db.Decimal(18, 2)
+  currency        String         @default("XAF")
+  notes           String?
+  paymentTerms    String?
   validityDays    Int?
   executionTerms  String?
+  incoterm        String?
+  shippingNotes   String?
+  disclaimer      String?
+  subject         String?
+  salutation      String?
+  body            String?
+  closing         String?
+  signatoryTitle  String?
+  recipientOverride String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
-  incoterm      String?
-  shippingNotes String?
-  disclaimer    String?
-
-  subject            String?
-  salutation         String?
-  body               String?
-  closing            String?
-  signatoryTitle     String?
-  recipientOverride  String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  client    Client      @relation(fields: [clientId], references: [id], onDelete: Restrict)
-  createdBy StaffMember @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  client    Client         @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  createdBy StaffMember    @relation(fields: [createdById], references: [id], onDelete: Restrict)
   lines     DocumentLine[]
+  notifications Notification[]
 
   @@unique([type, number])
   @@index([clientId])
@@ -189,6 +184,8 @@ model DocumentLine {
   unitPrice   Decimal @db.Decimal(18, 2)
   vatRate     Decimal @db.Decimal(5, 2)
   discount    Decimal @default(0) @db.Decimal(5, 2)
+  tpsRate     Decimal @default(0) @db.Decimal(5, 2)
+  cssRate     Decimal @default(0) @db.Decimal(5, 2)
   position    Int     @default(0)
 
   document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
@@ -211,14 +208,19 @@ model Activity {
 }
 
 model Notification {
-  id        String           @id @default(cuid())
-  title     String
-  body      String
-  at        DateTime         @default(now())
-  read      Boolean          @default(false)
-  type      NotificationType @default(info)
+  id         String           @id @default(cuid())
+  staffId    String
+  title      String
+  body       String
+  at         DateTime         @default(now())
+  read       Boolean          @default(false)
+  type       NotificationType @default(info)
+  documentId String?
 
-  @@index([read])
-  @@index([at])
+  staff    StaffMember @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  document Document?   @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  @@index([staffId, read])
+  @@index([staffId, at])
   @@map("notifications")
 }

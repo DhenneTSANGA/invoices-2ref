@@ -1,6 +1,6 @@
 import { forwardRef } from "react";
 import type { Document } from "@/store/types";
-import { useAppStore } from "@/store/useAppStore";
+import { usePreviewData } from "@/hooks/use-preview-data";
 import { number, longDate } from "@/lib/format";
 import { AmountRow, LegalFooter, PreviewLogo, PreviewShell } from "./PreviewShell";
 import { ItemsTable, PartyBlock, StampBox } from "./InvoicePreview";
@@ -14,8 +14,7 @@ export const ProformaPreview = forwardRef<HTMLDivElement, Props>(function Profor
   { doc, compact, variant = "full", className },
   ref,
 ) {
-  const company = useAppStore((s) => s.company);
-  const client = useAppStore((s) => s.clients.find((c) => c.id === doc.clientId));
+  const { company, client } = usePreviewData(doc);
   const isThumb = variant === "thumb";
   const disclaimer =
     doc.disclaimer ||
@@ -30,7 +29,7 @@ export const ProformaPreview = forwardRef<HTMLDivElement, Props>(function Profor
 
         <div className="flex items-start justify-between border-b-2 border-[#64748B] pb-5">
           <div className="flex items-center gap-3">
-            <PreviewLogo from={ACCENT} to={ACCENT_TO} />
+            <PreviewLogo />
             <div>
               <div className="font-display text-lg font-bold tracking-tight text-[#334155]">{company.name}</div>
               <div className="text-[10px] text-[#64748B]">{company.tagline}</div>

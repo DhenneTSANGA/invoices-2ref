@@ -1,20 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Archive } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
-import { useAppStore } from "@/store/useAppStore";
+import { useClients, useDocuments } from "@/hooks/use-data";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { currency, shortDate } from "@/lib/format";
 import { EmptyState } from "@/components/common/EmptyState";
 
 export const Route = createFileRoute("/_app/archive")({
-  head: () => ({ meta: [{ title: "Archives — FacturIA" }] }),
+  head: () => ({ meta: [{ title: "Archives — 2REF-AUTO" }] }),
   component: ArchivePage,
 });
 
 function ArchivePage() {
-  const documents = useAppStore((s) => s.documents);
-  const clients = useAppStore((s) => s.clients);
-  // Archive = paid invoices + accepted/rejected quotations
+  const { data: documents = [] } = useDocuments();
+  const { data: clients = [] } = useClients();
   const archived = documents.filter((d) =>
     (d.type === "invoice" && (d.status === "paid" || d.status === "archived")) ||
     (d.type === "quotation" && (d.status === "accepted" || d.status === "rejected"))

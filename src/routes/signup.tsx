@@ -1,56 +1,35 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowRight, Briefcase, Lock, Mail, Phone, User } from "lucide-react";
+import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
+import { Logo } from "@/components/common/Logo";
 import { useState } from "react";
 import { toast } from "sonner";
-
-import {
-  AuthDivider,
-  AuthShell,
-  FloatField,
-  SocialAuthButtons,
-} from "@/components/auth/AuthShell";
-import {
-  authErrorMessage,
-  signInWithEmailMagicLink,
-  signInWithGoogle,
-  signUpWithStaff,
-} from "@/lib/auth";
+import { ArrowRight, Mail, Lock, User, Phone, Briefcase, Eye, EyeOff } from "lucide-react";
+import { signUpWithStaff, signInWithGoogle } from "@/lib/auth";
 import { signupStaffSchema, toStaffPayload } from "@/lib/auth-schemas";
 import { syncStaffFromSignup } from "@/lib/staff-client";
+import { getCurrentSession } from "@/lib/session.functions";
+import { GoogleIcon } from "@/components/auth/AuthIcons";
 
 export const Route = createFileRoute("/signup")({
-  head: () => ({
-    meta: [
-      { title: "Inscription — 2REF" },
-      {
-        name: "description",
-        content: "Créez votre compte collaborateur 2REF Expertise Fiscale.",
-      },
-    ],
-  }),
+  head: () => ({ meta: [{ title: "Inscription — 2REF-AUTO" }] }),
+  beforeLoad: async () => {
+    const session = await getCurrentSession();
+    if (session) throw redirect({ to: "/dashboard" });
+  },
   component: SignupPage,
 });
 
-const emptyForm = {
-  firstName: "",
-  lastName: "",
-  jobTitle: "",
-  email: "",
-  phone: "",
-  password: "",
-  confirmPassword: "",
-};
-
 function SignupPage() {
   const navigate = useNavigate();
-  const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(false);
-  const [oauthLoading, setOauthLoading] = useState(false);
-
-  const set =
-    (key: keyof typeof emptyForm) =>
-    (value: string) =>
-      setForm((f) => ({ ...f, [key]: value }));
+  const [form, setForm] = useState({
+    firstName: "",
+    lastName: "",
+    jobTitle: "",
+    email: "",
+    phone: "",
+    password: "",
+    confirmPassword: "",
+  });
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,7 +38,6 @@ function SignupPage() {
       toast.error(parsed.error.issues[0]?.message ?? "Formulaire invalide");
       return;
     }
-
     const staff = toStaffPayload(parsed.data);
     setLoading(true);
     try {
@@ -68,202 +46,115 @@ function SignupPage() {
         parsed.data.password,
         staff,
       );
-      if (error) {
-        toast.error(authErrorMessage(error));
-        return;
-      }
-
-      if (!data.user?.id) {
-        toast.error("Compte Auth créé sans identifiant utilisateur.");
-        return;
-      }
-
-      // Toujours écrire dans staff_members (même sans session / email à confirmer)
-      try {
+      if (error) throw error;
+      if (data.user) {
         await syncStaffFromSignup(data.user.id, staff);
-      } catch (err) {
-        console.error(err);
-        toast.error(
-          err instanceof Error
-            ? err.message
-            : "Compte Auth OK, mais profil non enregistré en base.",
-        );
-        return;
       }
-
-      if (data.session) {
-        toast.success("Bienvenue chez 2REF");
-        void navigate({ to: "/dashboard" });
-        return;
-      }
-
-      toast.success("Compte enregistré", {
-        description:
-          "Confirmez votre email si demandé, puis connectez-vous. Votre profil est déjà en base.",
+      toast.success("Compte créé", {
+        description: data.session
+          ? "Bienvenue sur 2REF-AUTO"
+          : "Confirmez votre email puis connectez-vous",
       });
-      void navigate({ to: "/login" });
-    } catch {
-      toast.error("Impossible de créer le compte. Réessayez.");
+      void navigate({ to: data.session ? "/dashboard" : "/login" });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Inscription impossible");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleGoogle = async () => {
-    setOauthLoading(true);
-    try {
-      const { data, error } = await signInWithGoogle();
-      if (error) {
-        toast.error(authErrorMessage(error));
-        setOauthLoading(false);
-        return;
-      }
-      if (data.url) window.location.assign(data.url);
-    } catch {
-      toast.error("Inscription Google indisponible.");
-      setOauthLoading(false);
-    }
-  };
-
-  const handleEmailMagic = async () => {
-    const trimmed = form.email.trim();
-    if (!trimmed) {
-      toast.message("Indiquez votre email professionnel");
-      return;
-    }
-    setOauthLoading(true);
-    try {
-      const { error } = await signInWithEmailMagicLink(trimmed);
-      if (error) {
-        toast.error(authErrorMessage(error));
-        return;
-      }
-      toast.success("Lien envoyé", { description: `Vérifiez ${trimmed}` });
-    } catch {
-      toast.error("Impossible d’envoyer le lien email.");
-    } finally {
-      setOauthLoading(false);
-    }
-  };
-
-  const busy = loading || oauthLoading;
-
   return (
-    <AuthShell
-      title="Rejoindre l’équipe"
-      subtitle="Compte collaborateur — 2REF Expertise Fiscale"
-    >
-      <form onSubmit={(e) => void submit(e)} className="mt-6 space-y-4">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <FloatField
-            icon={User}
-            label="Prénom"
-            type="text"
-            name="firstName"
-            value={form.firstName}
-            onChange={set("firstName")}
-            autoComplete="given-name"
-            required
-            placeholder="Mireille"
-          />
-          <FloatField
-            icon={User}
-            label="Nom"
-            type="text"
-            name="lastName"
-            value={form.lastName}
-            onChange={set("lastName")}
-            autoComplete="family-name"
-            required
-            placeholder="Nguema"
-          />
+    <div className="flex min-h-screen items-center justify-center p-6 aurora-bg">
+      <form onSubmit={submit} className="glass-panel w-full max-w-lg rounded-3xl p-8 shadow-float">
+        <div className="mb-6">
+          <Logo size="md" className="rounded-lg" />
+          <div className="mt-3 text-xs text-muted-foreground">Inscription collaborateur</div>
         </div>
-        <FloatField
-          icon={Briefcase}
-          label="Poste"
-          type="text"
-          name="jobTitle"
-          value={form.jobTitle}
-          onChange={set("jobTitle")}
-          autoComplete="organization-title"
-          required
-          placeholder="Expert-comptable, Assistante…"
-        />
-        <FloatField
-          icon={Mail}
-          label="Email professionnel"
-          type="email"
-          name="email"
-          value={form.email}
-          onChange={set("email")}
-          autoComplete="email"
-          required
-          placeholder="prenom@2ref.ga"
-        />
-        <FloatField
-          icon={Phone}
-          label="Téléphone"
-          type="tel"
-          name="phone"
-          value={form.phone}
-          onChange={set("phone")}
-          autoComplete="tel"
-          required
-          placeholder="+241 07 00 00 00"
-        />
+
         <div className="grid gap-4 sm:grid-cols-2">
-          <FloatField
-            icon={Lock}
-            label="Mot de passe"
-            type="password"
-            name="password"
-            value={form.password}
-            onChange={set("password")}
-            autoComplete="new-password"
-            required
-            placeholder="Au moins 6 caractères"
-          />
-          <FloatField
-            icon={Lock}
-            label="Confirmer"
-            type="password"
-            name="confirmPassword"
-            value={form.confirmPassword}
-            onChange={set("confirmPassword")}
-            autoComplete="new-password"
-            required
-            placeholder="••••••••"
-          />
+          <Input icon={User} label="Prénom" value={form.firstName} onChange={(v) => setForm({ ...form, firstName: v })} />
+          <Input icon={User} label="Nom" value={form.lastName} onChange={(v) => setForm({ ...form, lastName: v })} />
+          <Input icon={Briefcase} label="Poste" value={form.jobTitle} onChange={(v) => setForm({ ...form, jobTitle: v })} className="sm:col-span-2" />
+          <Input icon={Mail} label="Email" type="email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} className="sm:col-span-2" />
+          <Input icon={Phone} label="Téléphone" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} className="sm:col-span-2" />
+          <Input icon={Lock} label="Mot de passe" type="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} />
+          <Input icon={Lock} label="Confirmation" type="password" value={form.confirmPassword} onChange={(v) => setForm({ ...form, confirmPassword: v })} />
         </div>
 
         <button
           type="submit"
-          disabled={busy}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-glow transition-transform hover:scale-[1.01] active:scale-[0.99] disabled:opacity-70"
+          disabled={loading}
+          className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-70"
         >
-          {loading ? (
-            "Création…"
-          ) : (
-            <>
-              Créer mon compte <ArrowRight className="h-4 w-4" />
-            </>
-          )}
+          {loading ? "Création…" : <>Créer mon compte <ArrowRight className="h-4 w-4" /></>}
         </button>
 
-        <AuthDivider label="connexion rapide" />
-        <SocialAuthButtons
-          loading={busy}
-          onGoogle={() => void handleGoogle()}
-          onEmail={() => void handleEmailMagic()}
-        />
-      </form>
+        <button
+          type="button"
+          onClick={() => signInWithGoogle()}
+          className="mt-3 inline-flex w-full items-center justify-center gap-2.5 rounded-2xl border border-border/80 bg-surface px-3 py-3 text-sm font-medium transition hover:bg-muted/80"
+        >
+          <GoogleIcon className="h-5 w-5 shrink-0" />
+          Google
+        </button>
 
-      <p className="mt-6 text-center text-xs text-muted-foreground">
-        Déjà un compte ?{" "}
-        <Link to="/login" className="font-medium text-primary hover:underline">
-          Se connecter
-        </Link>
-      </p>
-    </AuthShell>
+        <p className="mt-4 text-center text-xs text-muted-foreground">
+          Déjà inscrit ?{" "}
+          <Link to="/login" className="text-primary font-medium hover:underline">
+            Se connecter
+          </Link>
+        </p>
+      </form>
+    </div>
+  );
+}
+
+function Input({
+  icon: Icon,
+  label,
+  value,
+  onChange,
+  type = "text",
+  className = "",
+}: {
+  icon: typeof Mail;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+  className?: string;
+}) {
+  const isPassword = type === "password";
+  const [showPassword, setShowPassword] = useState(false);
+  const inputType = isPassword ? (showPassword ? "text" : "password") : type;
+
+  return (
+    <label className={className}>
+      <span className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        {label}
+      </span>
+      <div className="relative">
+        <Icon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type={inputType}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={`w-full rounded-xl border border-border/60 bg-transparent py-2.5 text-sm focus:border-primary focus:outline-none ${
+            isPassword ? "px-10 pr-11" : "px-10"
+          }`}
+        />
+        {isPassword ? (
+          <button
+            type="button"
+            tabIndex={-1}
+            onClick={() => setShowPassword((v) => !v)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+          >
+            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        ) : null}
+      </div>
+    </label>
   );
 }

@@ -3,11 +3,11 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, Save } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
-import { useAppStore } from "@/store/useAppStore";
+import { useCreateClient } from "@/hooks/use-data";
 import type { Client } from "@/store/types";
 
 export const Route = createFileRoute("/_app/clients/new")({
-  head: () => ({ meta: [{ title: "Nouveau client — FacturIA" }] }),
+  head: () => ({ meta: [{ title: "Nouveau client — 2REF-AUTO" }] }),
   component: NewClient,
 });
 
@@ -18,15 +18,19 @@ const empty: Omit<Client, "id" | "createdAt"> = {
 
 function NewClient() {
   const navigate = useNavigate();
-  const addClient = useAppStore((s) => s.addClient);
+  const createClient = useCreateClient();
   const [form, setForm] = useState(empty);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name) { toast.error("Le nom est requis"); return; }
-    const c = addClient(form);
-    toast.success("Client créé", { description: c.name });
-    navigate({ to: "/clients" });
+    try {
+      const c = await createClient.mutateAsync(form);
+      toast.success("Client créé", { description: c.name });
+      void navigate({ to: "/clients" });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Création impossible");
+    }
   };
 
   return (

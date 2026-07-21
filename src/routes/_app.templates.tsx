@@ -6,10 +6,11 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { DocumentPreview } from "@/components/documents/DocumentPreview";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 import type { Document, DocumentType } from "@/store/types";
-import { useAppStore } from "@/store/useAppStore";
+import { computeTotals } from "@/lib/document-math";
+import { useClients } from "@/hooks/use-data";
 
 export const Route = createFileRoute("/_app/templates")({
-  head: () => ({ meta: [{ title: "Modèles de documents — FacturIA" }] }),
+  head: () => ({ meta: [{ title: "Modèles de documents — 2REF-AUTO" }] }),
   component: Templates,
 });
 
@@ -19,7 +20,7 @@ const META: {
   description: string;
   icon: typeof FileText;
   gradient: string;
-  to: "/invoices/new" | "/quotations/new" | "/proformas/new" | "/letters/new";
+  to: "/invoices/new" | "/quotations/new" | "/proformas/new" | "/lettre/new";
   accent: string;
 }[] = [
   {
@@ -36,9 +37,9 @@ const META: {
     name: "Devis professionnel",
     description: "Proposition chiffrée avec validité, conditions de réalisation et bon pour accord.",
     icon: FileText,
-    gradient: "bg-gradient-accent",
+    gradient: "bg-gradient-success",
     to: "/quotations/new",
-    accent: "#B45309",
+    accent: "#0F766E",
   },
   {
     id: "proforma",
@@ -54,9 +55,9 @@ const META: {
     name: "Lettre commerciale",
     description: "Courrier structuré (relance, proposition, réclamation) au format professionnel gabonais.",
     icon: Mail,
-    gradient: "bg-gradient-success",
-    to: "/letters/new",
-    accent: "#0F766E",
+    gradient: "bg-gradient-accent",
+    to: "/lettre/new",
+    accent: "#B45309",
   },
 ];
 
@@ -124,8 +125,8 @@ function Templates() {
 }
 
 function useSampleDocs(): Record<DocumentType, Document> {
-  const clients = useAppStore((s) => s.clients);
-  const clientId = clients[0]?.id ?? "c1";
+  const { data: clients = [] } = useClients();
+  const clientId = clients[0]?.id ?? "";
 
   return useMemo(() => {
     const items = [
@@ -136,6 +137,8 @@ function useSampleDocs(): Record<DocumentType, Document> {
         unitPrice: 250000,
         vatRate: 18,
         discount: 0,
+        tpsRate: 9.5,
+        cssRate: 1,
       },
       {
         id: "tpl-2",
@@ -144,19 +147,18 @@ function useSampleDocs(): Record<DocumentType, Document> {
         unitPrice: 75000,
         vatRate: 18,
         discount: 0,
+        tpsRate: 9.5,
+        cssRate: 1,
       },
     ];
-    const subtotal = items.reduce((a, b) => a + b.quantity * b.unitPrice, 0);
-    const vat = subtotal * 0.18;
+    const totals = computeTotals(items);
     const base = {
       clientId,
       status: "draft" as const,
       issueDate: "2025-11-20",
       dueDate: "2025-12-20",
       items,
-      subtotal,
-      vat,
-      total: subtotal + vat,
+      ...totals,
       currency: "XAF",
     };
 
@@ -197,6 +199,8 @@ function useSampleDocs(): Record<DocumentType, Document> {
         number: "LT-2025-012",
         items: [],
         subtotal: 0,
+        tps: 0,
+        css: 0,
         vat: 0,
         total: 0,
         subject: "Relance de paiement — facture en souffrance",

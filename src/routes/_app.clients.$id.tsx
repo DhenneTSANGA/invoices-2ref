@@ -1,36 +1,51 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, Save, FileText, ReceiptText } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
-import { useAppStore } from "@/store/useAppStore";
+import { useClient, useUpdateClient, useDocuments } from "@/hooks/use-data";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { currency, shortDate } from "@/lib/format";
+import type { Client } from "@/store/types";
 
 export const Route = createFileRoute("/_app/clients/$id")({
-  head: () => ({ meta: [{ title: "Fiche client — FacturIA" }] }),
+  head: () => ({ meta: [{ title: "Fiche client — 2REF-AUTO" }] }),
   component: EditClient,
 });
 
 function EditClient() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
-  const client = useAppStore((s) => s.clients.find((c) => c.id === id));
-  const update = useAppStore((s) => s.updateClient);
-  const documents = useAppStore((s) => s.documents);
+  const { data: client, isLoading } = useClient(id);
+  const { data: documents = [] } = useDocuments();
+  const updateClient = useUpdateClient();
   const docs = useMemo(
     () => documents.filter((d) => d.clientId === id),
     [documents, id],
   );
-  const [form, setForm] = useState(client);
+  const [form, setForm] = useState<Client | undefined>(client);
 
-  if (!client || !form) return <div className="glass-panel rounded-3xl p-8 text-center">Client introuvable.</div>;
+  useEffect(() => {
+    if (client) setForm(client);
+  }, [client]);
 
-  const save = (e: React.FormEvent) => {
+  if (isLoading) {
+    return <div className="py-20 text-center text-sm text-muted-foreground">Chargement…</div>;
+  }
+
+  if (!client || !form) {
+    return <div className="glass-panel rounded-3xl p-8 text-center">Client introuvable.</div>;
+  }
+
+  const save = async (e: React.FormEvent) => {
     e.preventDefault();
-    update(client.id, form);
-    toast.success("Modifications enregistrées");
-    navigate({ to: "/clients" });
+    try {
+      await updateClient.mutateAsync({ ...form, id: client.id });
+      toast.success("Modifications enregistrées");
+      void navigate({ to: "/clients" });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur");
+    }
   };
 
   return (

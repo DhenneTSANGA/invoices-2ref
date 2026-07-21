@@ -30,12 +30,12 @@ const map: Record<DocumentStatus | "default", { label: string; cls: string; dot:
   overdue: {
     label: "En retard",
     cls: "bg-red-50 text-red-700 ring-1 ring-red-200",
-    dot: "bg-red-500",
+    dot: "bg-red-600",
   },
   cancelled: {
     label: "Annulé",
-    cls: "bg-rose-50 text-rose-700 ring-1 ring-rose-200",
-    dot: "bg-rose-500",
+    cls: "bg-zinc-100 text-zinc-600 ring-1 ring-zinc-300",
+    dot: "bg-zinc-400",
   },
   archived: {
     label: "Archivé",
@@ -53,11 +53,28 @@ export function statusLabel(status: DocumentStatus): string {
   return (map[status] ?? map.default).label;
 }
 
-export function StatusBadge({ status, className }: { status: DocumentStatus; className?: string }) {
+const onRowCls =
+  "bg-white/20 text-white ring-1 ring-white/30 [&_span:first-child]:bg-white";
+
+export function StatusBadge({
+  status,
+  className,
+  variant = "default",
+}: {
+  status: DocumentStatus;
+  className?: string;
+  variant?: "default" | "onRow";
+}) {
   const m = map[status] ?? map.default;
   return (
-    <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold", m.cls, className)}>
-      <span className={cn("h-1.5 w-1.5 rounded-full", m.dot)} />
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold",
+        variant === "onRow" ? onRowCls : m.cls,
+        className,
+      )}
+    >
+      <span className={cn("h-1.5 w-1.5 rounded-full", variant === "onRow" ? undefined : m.dot)} />
       {m.label}
     </span>
   );

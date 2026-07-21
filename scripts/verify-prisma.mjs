@@ -8,14 +8,11 @@ const counts = await Promise.all([
   prisma.client.count(),
   prisma.service.count(),
   prisma.document.count(),
-  prisma.documentLine.count(),
-  prisma.activity.count(),
-  prisma.notification.count(),
   prisma.staffMember.count(),
 ]);
 
 console.log(
-  "Prisma OK — companies/clients/services/documents/lines/activities/notifications/staff:",
+  "Prisma OK — company/clients/services/documents/staff:",
   counts.join("/"),
 );
 

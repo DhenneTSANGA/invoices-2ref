@@ -1,5 +1,6 @@
 import type { ReactNode, Ref } from "react";
 import { cn } from "@/lib/utils";
+import { LOGO_SRC } from "@/components/common/Logo";
 
 type ShellProps = {
   children: ReactNode;
@@ -21,6 +22,7 @@ export function PreviewShell({
   return (
     <div
       ref={innerRef}
+      data-document-preview
       className={cn(
         "mx-auto bg-white text-[#0F172A] shadow-float ring-1 ring-black/5",
         compact || isThumb ? "" : "aspect-[1/1.414]",
@@ -36,14 +38,13 @@ export function PreviewShell({
   );
 }
 
-export function PreviewLogo({ letter = "F", from = "#1E40AF", to = "#3B82F6" }: { letter?: string; from?: string; to?: string }) {
+export function PreviewLogo({ className }: { className?: string }) {
   return (
-    <div
-      className="flex h-14 w-14 items-center justify-center rounded-2xl text-white font-display text-2xl font-bold shadow"
-      style={{ background: `linear-gradient(135deg, ${from}, ${to})` }}
-    >
-      {letter}
-    </div>
+    <img
+      src={LOGO_SRC}
+      alt="2REF Conseil Fiscal"
+      className={cn("h-14 w-auto shrink-0 object-contain", className)}
+    />
   );
 }
 
@@ -96,11 +97,20 @@ export function LegalFooter({
   email: string;
   website: string;
 }) {
+  const legalParts = [
+    name,
+    `${address}, ${city}`,
+    nif && `NIF ${nif}`,
+    niu && niu !== "—" && `NIU ${niu}`,
+    rccm && `RCCM ${rccm}`,
+    cnss && `CNSS ${cnss}`,
+  ].filter(Boolean);
+
   return (
     <div className="mt-auto border-t border-[#E2E8F0] pt-3 text-center text-[9px] text-[#64748B]">
-      {name} — {address}, {city} · NIF {nif} · NIU {niu} · RCCM {rccm} · CNSS {cnss}
+      {legalParts.join(" · ")}
       <br />
-      {phone} · {email} · {website}
+      {[phone, email, website].filter(Boolean).join(" · ")}
       <br />
       <span className="text-[8px]">Document conforme aux usages OHADA / zone CEMAC — montants en Francs CFA (XAF)</span>
     </div>

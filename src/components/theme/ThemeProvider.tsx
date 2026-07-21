@@ -5,8 +5,8 @@ type Ctx = { theme: Theme; toggle: () => void; setTheme: (t: Theme) => void };
 
 const ThemeContext = createContext<Ctx>({ theme: "light", toggle: () => {}, setTheme: () => {} });
 
-const THEME_KEY = "facturia-theme";
-const USER_KEY = "facturia-theme-user";
+const THEME_KEY = "2ref-auto-theme";
+const USER_KEY = "2ref-auto-theme-user";
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>("light");

@@ -1,13 +1,13 @@
 import { useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
-import { useAppStore } from "@/store/useAppStore";
-import { FileText, ReceiptText, Users, Plus, LayoutDashboard, Settings, Archive, Package } from "lucide-react";
+import { useClients, useDocuments } from "@/hooks/use-data";
+import { FileText, ReceiptText, Users, Plus, LayoutDashboard, Settings, Archive, Package, Mails } from "lucide-react";
 
 export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const navigate = useNavigate();
-  const clients = useAppStore((s) => s.clients);
-  const documents = useAppStore((s) => s.documents);
+  const { data: clients = [] } = useClients();
+  const { data: documents = [] } = useDocuments();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -31,8 +31,10 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
           <CommandItem onSelect={() => go("/invoices/new")}><Plus className="h-4 w-4" /> Nouvelle facture</CommandItem>
           <CommandItem onSelect={() => go("/quotations/new")}><Plus className="h-4 w-4" /> Nouveau devis</CommandItem>
           <CommandItem onSelect={() => go("/proformas/new")}><Plus className="h-4 w-4" /> Nouvelle pro forma</CommandItem>
-          <CommandItem onSelect={() => go("/templates")}><Plus className="h-4 w-4" /> Modèles de documents</CommandItem>
+          <CommandItem onSelect={() => go("/lettre/new")}><Plus className="h-4 w-4" /> Nouvelle lettre</CommandItem>
+          <CommandItem onSelect={() => go("/lettre/publipostage")}><Mails className="h-4 w-4" /> Publipostage</CommandItem>
           <CommandItem onSelect={() => go("/clients/new")}><Plus className="h-4 w-4" /> Nouveau client</CommandItem>
+          <CommandItem onSelect={() => go("/templates")}><Plus className="h-4 w-4" /> Modèles de documents</CommandItem>
         </CommandGroup>
         <CommandSeparator />
         <CommandGroup heading="Navigation">
@@ -56,7 +58,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
               d.type === "invoice" ? `/invoices/${d.id}` :
               d.type === "quotation" ? `/quotations/${d.id}` :
               d.type === "proforma" ? `/proformas/${d.id}` :
-              `/letters/${d.id}`;
+              `/lettre/${d.id}`;
             return (
               <CommandItem key={d.id} value={`doc ${d.number}`} onSelect={() => go(path)}>
                 {d.type === "invoice" ? <ReceiptText className="h-4 w-4" /> : <FileText className="h-4 w-4" />} {d.number}
