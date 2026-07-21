@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Users, FileText, ReceiptText, Package,
-  Files, Archive, Settings, Bell, Search, UserCircle2, FileSignature, FolderOpen,
+  Files, Archive, Settings, Bell, Search, UserCircle2, FileSignature, FolderOpen, Mail,
 } from "lucide-react";
 
 export const primaryNav = [
@@ -11,6 +11,7 @@ export const primaryNav = [
   { to: "/quotations", label: "Devis", icon: FileText },
   { to: "/invoices", label: "Factures", icon: ReceiptText },
   { to: "/proformas", label: "Pro forma", icon: FileSignature },
+  { to: "/lettre", label: "Lettres", icon: Mail },
   { to: "/templates", label: "Modèles", icon: Files },
   { to: "/archive", label: "Archives", icon: Archive },
 ] as const;

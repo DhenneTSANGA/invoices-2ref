@@ -4,6 +4,7 @@ import { Bell, Moon, Search, Sun, Plus, ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { CommandPalette } from "./CommandPalette";
+import { MobileNav } from "./MobileNav";
 import { motion, AnimatePresence } from "framer-motion";
 import { shortDate } from "@/lib/format";
 import { useSession, useNotifications, useMarkNotificationRead } from "@/hooks/use-data";
@@ -62,6 +63,7 @@ export function AppTopbar() {
   return (
     <>
       <header className="glass-topbar sticky top-0 z-30 flex h-16 items-center gap-3 px-4 md:px-6">
+        <MobileNav />
         <Logo size="xs" className="lg:hidden rounded-md" />
 
         <button
