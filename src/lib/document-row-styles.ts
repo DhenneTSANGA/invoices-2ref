@@ -46,11 +46,11 @@ const styles: Record<DocumentStatus | "default", RowStyles> = {
     viewLink: "bg-white/20 text-white hover:bg-white hover:text-red-700",
   },
   rejected: {
-    row: "bg-orange-500 text-white hover:bg-orange-600",
-    muted: "text-orange-100",
-    select: "border-orange-300/60 bg-white text-slate-900",
+    row: "bg-red-600 text-white hover:bg-red-700",
+    muted: "text-red-100",
+    select: "border-red-300/60 bg-white text-slate-900",
     actionBtn: "text-white hover:bg-white/20",
-    viewLink: "bg-white/20 text-white hover:bg-white hover:text-orange-700",
+    viewLink: "bg-white/20 text-white hover:bg-white hover:text-red-700",
   },
   cancelled: {
     row: "bg-zinc-200 text-zinc-700 hover:bg-zinc-300",

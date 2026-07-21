@@ -6,15 +6,17 @@ import { useTheme } from "@/components/theme/ThemeProvider";
 import { CommandPalette } from "./CommandPalette";
 import { motion, AnimatePresence } from "framer-motion";
 import { shortDate } from "@/lib/format";
-import { useSession, useNotifications } from "@/hooks/use-data";
+import { useSession, useNotifications, useMarkNotificationRead } from "@/hooks/use-data";
 import { signOut } from "@/lib/auth";
 import { staffInitials } from "@/lib/auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { sessionKey } from "@/hooks/use-data";
+import type { NotificationItem } from "@/store/types";
 
 export function AppTopbar() {
   const { theme, toggle } = useTheme();
   const { data: notifications = [] } = useNotifications();
+  const markOneMutation = useMarkNotificationRead();
   const unread = notifications.filter((n) => !n.read).length;
   const [openCmd, setOpenCmd] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
@@ -35,6 +37,19 @@ export function AppTopbar() {
     await signOut();
     qc.setQueryData(sessionKey, null);
     void navigate({ to: "/login" });
+  };
+
+  const openNotification = (n: NotificationItem) => {
+    setBellOpen(false);
+    if (!n.read) markOneMutation.mutate(n.id);
+    if (n.documentId) {
+      void navigate({
+        to: "/documents",
+        search: { focus: n.documentId },
+      });
+    } else {
+      void navigate({ to: "/notifications" });
+    }
   };
 
   return (
@@ -76,7 +91,9 @@ export function AppTopbar() {
             >
               <Bell className="h-4 w-4" />
               {unread > 0 && (
-                <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-gradient-danger px-1 text-[10px] font-bold text-danger-foreground shadow">{unread}</span>
+                <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 text-[11px] font-bold leading-none text-white ring-2 ring-background shadow-md">
+                  {unread > 99 ? "99+" : unread}
+                </span>
               )}
             </button>
             <AnimatePresence>
@@ -94,15 +111,25 @@ export function AppTopbar() {
                   </div>
                   <ul className="max-h-96 overflow-y-auto">
                     {notifications.slice(0, 5).map((n) => (
-                      <li key={n.id} className="rounded-xl px-3 py-2 hover:bg-muted/70 transition-colors">
-                        <div className="flex items-start gap-2">
-                          <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${n.type === "success" ? "bg-success" : n.type === "warning" ? "bg-warning" : n.type === "danger" ? "bg-danger" : "bg-primary"}`} />
-                          <div className="min-w-0">
-                            <div className="truncate text-sm font-medium">{n.title}</div>
-                            <div className="truncate text-xs text-muted-foreground">{n.body}</div>
-                            <div className="mt-0.5 text-[10px] text-muted-foreground">{shortDate(n.at)}</div>
+                      <li key={n.id}>
+                        <button
+                          type="button"
+                          onClick={() => openNotification(n)}
+                          className="w-full rounded-xl px-3 py-2 text-left transition-colors hover:bg-muted/70"
+                        >
+                          <div className="flex items-start gap-2">
+                            <span
+                              className={`mt-1 h-2 w-2 shrink-0 rounded-full ${n.type === "success" ? "bg-success" : n.type === "warning" ? "bg-warning" : n.type === "danger" ? "bg-danger" : "bg-primary"}`}
+                            />
+                            <div className="min-w-0">
+                              <div className="truncate text-sm font-medium">{n.title}</div>
+                              <div className="truncate text-xs text-muted-foreground">{n.body}</div>
+                              <div className="mt-0.5 text-[10px] text-muted-foreground">
+                                {shortDate(n.at)}
+                              </div>
+                            </div>
                           </div>
-                        </div>
+                        </button>
                       </li>
                     ))}
                   </ul>

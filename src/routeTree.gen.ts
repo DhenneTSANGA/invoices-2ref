@@ -25,6 +25,7 @@ import { Route as AppProfileRouteImport } from './routes/_app.profile'
 import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
 import { Route as AppLettreRouteImport } from './routes/_app.lettre'
 import { Route as AppInvoicesRouteImport } from './routes/_app.invoices'
+import { Route as AppDocumentsRouteImport } from './routes/_app.documents'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppArchiveRouteImport } from './routes/_app.archive'
 import { Route as AppQuotationsIndexRouteImport } from './routes/_app.quotations.index'
@@ -125,6 +126,11 @@ const AppLettreRoute = AppLettreRouteImport.update({
 const AppInvoicesRoute = AppInvoicesRouteImport.update({
   id: '/invoices',
   path: '/invoices',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDocumentsRoute = AppDocumentsRouteImport.update({
+  id: '/documents',
+  path: '/documents',
   getParentRoute: () => AppRoute,
 } as any)
 const AppDashboardRoute = AppDashboardRouteImport.update({
@@ -246,6 +252,7 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/archive': typeof AppArchiveRoute
   '/dashboard': typeof AppDashboardRoute
+  '/documents': typeof AppDocumentsRoute
   '/invoices': typeof AppInvoicesRouteWithChildren
   '/lettre': typeof AppLettreRouteWithChildren
   '/notifications': typeof AppNotificationsRoute
@@ -285,6 +292,7 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/archive': typeof AppArchiveRoute
   '/dashboard': typeof AppDashboardRoute
+  '/documents': typeof AppDocumentsRoute
   '/notifications': typeof AppNotificationsRoute
   '/profile': typeof AppProfileRoute
   '/search': typeof AppSearchRoute
@@ -323,6 +331,7 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/_app/archive': typeof AppArchiveRoute
   '/_app/dashboard': typeof AppDashboardRoute
+  '/_app/documents': typeof AppDocumentsRoute
   '/_app/invoices': typeof AppInvoicesRouteWithChildren
   '/_app/lettre': typeof AppLettreRouteWithChildren
   '/_app/notifications': typeof AppNotificationsRoute
@@ -364,6 +373,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/archive'
     | '/dashboard'
+    | '/documents'
     | '/invoices'
     | '/lettre'
     | '/notifications'
@@ -403,6 +413,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/archive'
     | '/dashboard'
+    | '/documents'
     | '/notifications'
     | '/profile'
     | '/search'
@@ -440,6 +451,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/_app/archive'
     | '/_app/dashboard'
+    | '/_app/documents'
     | '/_app/invoices'
     | '/_app/lettre'
     | '/_app/notifications'
@@ -595,6 +607,13 @@ declare module '@tanstack/react-router' {
       path: '/invoices'
       fullPath: '/invoices'
       preLoaderRoute: typeof AppInvoicesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/documents': {
+      id: '/_app/documents'
+      path: '/documents'
+      fullPath: '/documents'
+      preLoaderRoute: typeof AppDocumentsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/dashboard': {
@@ -807,6 +826,7 @@ const AppQuotationsRouteWithChildren = AppQuotationsRoute._addFileChildren(
 interface AppRouteChildren {
   AppArchiveRoute: typeof AppArchiveRoute
   AppDashboardRoute: typeof AppDashboardRoute
+  AppDocumentsRoute: typeof AppDocumentsRoute
   AppInvoicesRoute: typeof AppInvoicesRouteWithChildren
   AppLettreRoute: typeof AppLettreRouteWithChildren
   AppNotificationsRoute: typeof AppNotificationsRoute
@@ -830,6 +850,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppArchiveRoute: AppArchiveRoute,
   AppDashboardRoute: AppDashboardRoute,
+  AppDocumentsRoute: AppDocumentsRoute,
   AppInvoicesRoute: AppInvoicesRouteWithChildren,
   AppLettreRoute: AppLettreRouteWithChildren,
   AppNotificationsRoute: AppNotificationsRoute,

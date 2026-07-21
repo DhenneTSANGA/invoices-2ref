@@ -20,7 +20,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
           error:
             "!bg-red-600 !text-white [&_[data-description]]:!text-red-50",
           warning:
-            "!bg-amber-500 !text-white [&_[data-description]]:!text-amber-50",
+            "!bg-yellow-400 !text-yellow-950 [&_[data-description]]:!text-yellow-900",
           info:
             "!bg-sky-600 !text-white [&_[data-description]]:!text-sky-50",
           loading:

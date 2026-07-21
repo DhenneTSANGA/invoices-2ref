@@ -96,16 +96,34 @@ export const listDocuments = createServerFn({ method: "GET" })
     return rows.map(mapDocument);
   });
 
+/** Vue cabinet : tous les documents, tous créateurs (staff authentifié). */
+export const listAllDocuments = createServerFn({ method: "GET" })
+  .validator(
+    z.object({
+      type: z.enum(["quotation", "invoice", "proforma", "letter"]).optional(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    await requireStaff();
+    const rows = await prisma.document.findMany({
+      where: data.type
+        ? { type: data.type as "quotation" | "invoice" | "proforma" | "letter" }
+        : undefined,
+      include: docInclude,
+      orderBy: { issueDate: "desc" },
+    });
+    return rows.map(mapDocument);
+  });
+
 export const getDocument = createServerFn({ method: "GET" })
   .validator(z.object({ id: z.string() }))
   .handler(async ({ data }) => {
-    const staff = await requireStaff();
+    await requireStaff();
     const row = await prisma.document.findUnique({
       where: { id: data.id },
       include: docInclude,
     });
     if (!row) return null;
-    if (staff.role !== "admin" && row.createdById !== staff.id) return null;
     return mapDocument(row);
   });
 

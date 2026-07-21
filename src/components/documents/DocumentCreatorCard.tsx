@@ -29,3 +29,22 @@ export function DocumentCreatorCard({ creator }: { creator?: StaffMember }) {
     </div>
   );
 }
+
+/** Ligne compacte créateur — pour les cartes du hub /documents */
+export function DocumentCreatorInline({ creator }: { creator?: StaffMember }) {
+  if (!creator) {
+    return <div className="text-xs text-muted-foreground">Créateur inconnu</div>;
+  }
+
+  return (
+    <div className="flex items-center gap-2.5">
+      <StaffAvatar person={creator} size="sm" />
+      <div className="min-w-0">
+        <div className="truncate text-sm font-medium">
+          {creator.firstName} {creator.lastName}
+        </div>
+        <div className="truncate text-xs text-muted-foreground">{creator.jobTitle}</div>
+      </div>
+    </div>
+  );
+}

@@ -19,8 +19,8 @@ const map: Record<DocumentStatus | "default", { label: string; cls: string; dot:
   },
   rejected: {
     label: "Refusé",
-    cls: "bg-orange-50 text-orange-700 ring-1 ring-orange-200",
-    dot: "bg-orange-500",
+    cls: "bg-red-600 text-white ring-1 ring-red-700",
+    dot: "bg-white",
   },
   paid: {
     label: "Payé",
@@ -29,8 +29,8 @@ const map: Record<DocumentStatus | "default", { label: string; cls: string; dot:
   },
   overdue: {
     label: "En retard",
-    cls: "bg-red-50 text-red-700 ring-1 ring-red-200",
-    dot: "bg-red-600",
+    cls: "bg-red-600 text-white ring-1 ring-red-700",
+    dot: "bg-white",
   },
   cancelled: {
     label: "Annulé",

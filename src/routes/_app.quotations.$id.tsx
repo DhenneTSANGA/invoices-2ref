@@ -92,7 +92,7 @@ function QuotationDetail() {
             </button>
             <button onClick={sendByEmail} disabled={sendEmailMutation.isPending} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60"><Send className="h-4 w-4" /> {sendEmailMutation.isPending ? "Envoi…" : "Envoyer"}</button>
             <button onClick={() => patchStatus("accepted", "Devis accepté")} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-success px-4 py-2 text-sm font-medium text-success-foreground shadow"><CheckCircle2 className="h-4 w-4" /> Accepter</button>
-            <button onClick={() => patchStatus("rejected", "Devis refusé", "warning")} className="inline-flex items-center gap-2 rounded-2xl border border-orange-200 bg-orange-500 px-4 py-2 text-sm font-medium text-white shadow hover:bg-orange-600"><XCircle className="h-4 w-4" /> Refuser</button>
+            <button onClick={() => patchStatus("rejected", "Devis refusé", "warning")} className="inline-flex items-center gap-2 rounded-2xl border border-red-700 bg-red-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-red-700"><XCircle className="h-4 w-4" /> Refuser</button>
             <button onClick={() => patchStatus("cancelled", "Devis annulé", "warning")} className="inline-flex items-center gap-2 rounded-2xl border border-zinc-300 bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-200">Annuler</button>
           </>
         }

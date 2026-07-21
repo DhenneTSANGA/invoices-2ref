@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
 import { useClients, useDocuments } from "@/hooks/use-data";
-import { FileText, ReceiptText, Users, Plus, LayoutDashboard, Settings, Archive, Package, Mails } from "lucide-react";
+import { FileText, ReceiptText, Users, Plus, LayoutDashboard, Settings, Archive, Package, Mails, Files } from "lucide-react";
 
 export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const navigate = useNavigate();
@@ -39,6 +39,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
         <CommandSeparator />
         <CommandGroup heading="Navigation">
           <CommandItem onSelect={() => go("/dashboard")}><LayoutDashboard className="h-4 w-4" /> Tableau de bord</CommandItem>
+          <CommandItem onSelect={() => go("/documents")}><Files className="h-4 w-4" /> Tous les documents</CommandItem>
           <CommandItem onSelect={() => go("/clients")}><Users className="h-4 w-4" /> Clients</CommandItem>
           <CommandItem onSelect={() => go("/services")}><Package className="h-4 w-4" /> Catalogue</CommandItem>
           <CommandItem onSelect={() => go("/archive")}><Archive className="h-4 w-4" /> Archives</CommandItem>

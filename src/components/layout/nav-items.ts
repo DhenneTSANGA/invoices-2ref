@@ -1,12 +1,13 @@
 import {
   LayoutDashboard, Users, FileText, ReceiptText, Package,
-  Files, Archive, Settings, Bell, Search, UserCircle2, FileSignature,
+  Files, Archive, Settings, Bell, Search, UserCircle2, FileSignature, FolderOpen,
 } from "lucide-react";
 
 export const primaryNav = [
   { to: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard },
   { to: "/clients", label: "Clients", icon: Users },
   { to: "/services", label: "Catalogue", icon: Package },
+  { to: "/documents", label: "Documents", icon: FolderOpen },
   { to: "/quotations", label: "Devis", icon: FileText },
   { to: "/invoices", label: "Factures", icon: ReceiptText },
   { to: "/proformas", label: "Pro forma", icon: FileSignature },

@@ -7,6 +7,7 @@ import {
   deleteClient,
   listServices,
   listDocuments,
+  listAllDocuments,
   getDocument,
   upsertDocument,
   setDocumentStatus,
@@ -28,6 +29,7 @@ export const clientsKey = ["clients"] as const;
 export const servicesKey = ["services"] as const;
 export const documentsKey = (type?: DocumentType) =>
   type ? (["documents", type] as const) : (["documents"] as const);
+export const allDocumentsKey = ["documents", "all"] as const;
 export const companyKey = ["company"] as const;
 export const notificationsKey = ["notifications"] as const;
 
@@ -97,6 +99,15 @@ export function useDocuments(type?: DocumentType) {
   return useQuery({
     queryKey: documentsKey(type),
     queryFn: () => listDocuments({ data: { type } }),
+    staleTime: 10_000,
+    refetchInterval: POLL_MS,
+  });
+}
+
+export function useAllDocuments(type?: DocumentType) {
+  return useQuery({
+    queryKey: type ? ([...allDocumentsKey, type] as const) : allDocumentsKey,
+    queryFn: () => listAllDocuments({ data: { type } }),
     staleTime: 10_000,
     refetchInterval: POLL_MS,
   });
