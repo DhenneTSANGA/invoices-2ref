@@ -57,6 +57,7 @@ function DocumentsHubPage() {
   );
   const { data: clients = [] } = useClients();
   const [q, setQ] = useState("");
+  /** ID mis en surbrillance (indépendant du moment où le DOM est prêt). */
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
@@ -73,22 +74,52 @@ function DocumentsHubPage() {
     });
   }, [documents, clients, q]);
 
+  // Dès qu'un focus arrive dans l'URL, activer la surbrillance tout de suite
+  useEffect(() => {
+    if (!focus) return;
+    setHighlightedId(focus);
+    setQ("");
+  }, [focus]);
+
+  // Scroll + maintien 5s, avec retries si la carte n'est pas encore montée
   useEffect(() => {
     if (!focus || isLoading) return;
-    const el = document.getElementById(`doc-${focus}`);
-    if (!el) return;
-    setHighlightedId(focus);
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
-    const t = window.setTimeout(() => {
+    const inList = documents.some((d) => d.id === focus);
+    if (!inList) return;
+
+    let cancelled = false;
+    let attempts = 0;
+
+    const tryScroll = () => {
+      if (cancelled) return;
+      const el = window.document.getElementById(`doc-${focus}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        return;
+      }
+      attempts += 1;
+      if (attempts < 30) {
+        window.requestAnimationFrame(tryScroll);
+      }
+    };
+
+    tryScroll();
+
+    const clearTimer = window.setTimeout(() => {
+      if (cancelled) return;
       setHighlightedId(null);
       void navigate({
         to: "/documents",
         search: (prev) => ({ ...prev, focus: undefined }),
         replace: true,
       });
-    }, 2500);
-    return () => window.clearTimeout(t);
-  }, [focus, isLoading, filtered.length, navigate]);
+    }, 5000);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(clearTimer);
+    };
+  }, [focus, isLoading, documents, navigate]);
 
   const setTypeFilter = (value: "all" | DocumentType) => {
     void navigate({
@@ -96,6 +127,7 @@ function DocumentsHubPage() {
       search: (prev) => ({
         ...prev,
         type: value === "all" ? undefined : value,
+        focus: undefined,
       }),
     });
   };
@@ -151,7 +183,7 @@ function DocumentsHubPage() {
         <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
           {filtered.map((doc, i) => {
             const client = clients.find((c) => c.id === doc.clientId);
-            const focused = highlightedId === doc.id;
+            const focused = highlightedId === doc.id || focus === doc.id;
             return (
               <motion.li
                 key={doc.id}
@@ -160,8 +192,10 @@ function DocumentsHubPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: Math.min(i * 0.03, 0.3) }}
                 className={cn(
-                  "glass-panel scroll-mt-24 rounded-3xl p-5 transition-shadow",
-                  focused && "ring-2 ring-yellow-400 shadow-glow",
+                  "scroll-mt-24 rounded-3xl p-5 transition-all duration-300",
+                  focused
+                    ? "border-2 border-yellow-400 bg-yellow-100 shadow-[0_0_0_4px_rgba(250,204,21,0.45)] dark:bg-yellow-400/25"
+                    : "glass-panel",
                 )}
               >
                 <div className="flex items-start justify-between gap-2">

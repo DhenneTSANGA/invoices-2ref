@@ -17,7 +17,8 @@ export function AppTopbar() {
   const { theme, toggle } = useTheme();
   const { data: notifications = [] } = useNotifications();
   const markOneMutation = useMarkNotificationRead();
-  const unread = notifications.filter((n) => !n.read).length;
+  const unreadList = notifications.filter((n) => !n.read);
+  const unread = unreadList.length;
   const [openCmd, setOpenCmd] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -39,9 +40,15 @@ export function AppTopbar() {
     void navigate({ to: "/login" });
   };
 
-  const openNotification = (n: NotificationItem) => {
+  const openNotification = async (n: NotificationItem) => {
     setBellOpen(false);
-    if (!n.read) markOneMutation.mutate(n.id);
+    if (!n.read) {
+      try {
+        await markOneMutation.mutateAsync(n.id);
+      } catch {
+        // On navigue quand même
+      }
+    }
     if (n.documentId) {
       void navigate({
         to: "/documents",
@@ -110,11 +117,16 @@ export function AppTopbar() {
                     <Link to="/notifications" className="text-xs text-primary hover:underline" onClick={() => setBellOpen(false)}>Tout voir</Link>
                   </div>
                   <ul className="max-h-96 overflow-y-auto">
-                    {notifications.slice(0, 5).map((n) => (
+                    {unreadList.length === 0 ? (
+                      <li className="px-3 py-6 text-center text-xs text-muted-foreground">
+                        Aucune notification non lue
+                      </li>
+                    ) : (
+                      unreadList.slice(0, 5).map((n) => (
                       <li key={n.id}>
                         <button
                           type="button"
-                          onClick={() => openNotification(n)}
+                          onClick={() => void openNotification(n)}
                           className="w-full rounded-xl px-3 py-2 text-left transition-colors hover:bg-muted/70"
                         >
                           <div className="flex items-start gap-2">
@@ -131,7 +143,8 @@ export function AppTopbar() {
                           </div>
                         </button>
                       </li>
-                    ))}
+                      ))
+                    )}
                   </ul>
                 </motion.div>
               )}

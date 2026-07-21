@@ -20,7 +20,7 @@ import {
 } from "@/lib/data.functions";
 import { sendDocumentEmail } from "@/lib/send-document-email";
 import { getCurrentSession } from "@/lib/session.functions";
-import type { DocumentStatus, DocumentType } from "@/store/types";
+import type { DocumentStatus, DocumentType, NotificationItem } from "@/store/types";
 import type { z } from "zod";
 import type { clientInputSchema, documentInputSchema, companyInputSchema } from "@/lib/auth-schemas";
 
@@ -202,7 +202,23 @@ export function useMarkAllNotificationsRead() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => markAllNotificationsRead(),
-    onSuccess: () => qc.invalidateQueries({ queryKey: notificationsKey }),
+    onMutate: async () => {
+      await qc.cancelQueries({ queryKey: notificationsKey });
+      const previous = qc.getQueryData<NotificationItem[]>(notificationsKey);
+      qc.setQueryData<NotificationItem[]>(notificationsKey, (old = []) =>
+        old.map((n) => ({ ...n, read: true })),
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) qc.setQueryData(notificationsKey, ctx.previous);
+    },
+    onSuccess: () => {
+      qc.setQueryData<NotificationItem[]>(notificationsKey, (old = []) =>
+        old.map((n) => ({ ...n, read: true })),
+      );
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: notificationsKey }),
   });
 }
 
@@ -210,6 +226,22 @@ export function useMarkNotificationRead() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => markNotificationRead({ data: { id } }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: notificationsKey }),
+    onMutate: async (id) => {
+      await qc.cancelQueries({ queryKey: notificationsKey });
+      const previous = qc.getQueryData<NotificationItem[]>(notificationsKey);
+      qc.setQueryData<NotificationItem[]>(notificationsKey, (old = []) =>
+        old.map((n) => (n.id === id ? { ...n, read: true } : n)),
+      );
+      return { previous };
+    },
+    onError: (_err, _id, ctx) => {
+      if (ctx?.previous) qc.setQueryData(notificationsKey, ctx.previous);
+    },
+    onSuccess: (_data, id) => {
+      qc.setQueryData<NotificationItem[]>(notificationsKey, (old = []) =>
+        old.map((n) => (n.id === id ? { ...n, read: true } : n)),
+      );
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: notificationsKey }),
   });
 }

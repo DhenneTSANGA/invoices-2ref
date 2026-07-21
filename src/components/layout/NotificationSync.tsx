@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import {
   documentsKey,
   notificationsKey,
+  useMarkNotificationRead,
   useNotifications,
 } from "@/hooks/use-data";
 
@@ -13,6 +14,7 @@ export function NotificationSync() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { data: notifications = [] } = useNotifications();
+  const { mutate: markRead } = useMarkNotificationRead();
   const initialized = useRef(false);
   const seenIds = useRef(new Set<string>());
 
@@ -33,6 +35,7 @@ export function NotificationSync() {
         className:
           "!bg-yellow-400 !text-yellow-950 !border-yellow-500 [&_[data-description]]:!text-yellow-900",
         onClick: () => {
+          if (!n.read) markRead(n.id);
           if (n.documentId) {
             void navigate({
               to: "/documents",
@@ -52,7 +55,7 @@ export function NotificationSync() {
       }
     }
     void qc.invalidateQueries({ queryKey: notificationsKey });
-  }, [notifications, qc, navigate]);
+  }, [notifications, qc, navigate, markRead]);
 
   return null;
 }

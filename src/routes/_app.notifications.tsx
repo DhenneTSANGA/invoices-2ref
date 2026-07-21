@@ -31,8 +31,14 @@ function NotificationsPage() {
   const markOneMutation = useMarkNotificationRead();
   const unread = notifications.filter((n) => !n.read).length;
 
-  const openNotification = (n: NotificationItem) => {
-    if (!n.read) markOneMutation.mutate(n.id);
+  const openNotification = async (n: NotificationItem) => {
+    if (!n.read) {
+      try {
+        await markOneMutation.mutateAsync(n.id);
+      } catch {
+        // On navigue quand même vers le document si possible
+      }
+    }
     if (n.documentId) {
       void navigate({
         to: "/documents",
@@ -69,42 +75,68 @@ function NotificationsPage() {
         />
       ) : (
         <ul className="space-y-2">
-          {notifications.map((n, i) => (
+          {notifications.map((n, i) => {
+            const clickable = Boolean(n.documentId);
+            return (
             <motion.li
               key={n.id}
               initial={{ opacity: 0, x: -8 }}
-              animate={{ opacity: 1, x: 0 }}
+              animate={{ opacity: n.read ? 0.45 : 1, x: 0 }}
               transition={{ delay: i * 0.04 }}
               className={cn(
-                "glass-panel flex cursor-pointer items-start gap-3 rounded-2xl p-4 transition-shadow hover:shadow-glow",
+                "glass-panel flex items-start gap-3 rounded-2xl p-4 transition-all",
+                clickable && "cursor-pointer hover:shadow-glow",
                 !n.read && "ring-1 ring-primary/30",
+                n.read && "grayscale-[0.35]",
               )}
-              onClick={() => openNotification(n)}
+              onClick={() => void openNotification(n)}
+              role={clickable ? "link" : undefined}
             >
               <div
                 className={cn(
                   "mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white shadow",
                   typeColor[n.type],
+                  n.read && "opacity-70",
                 )}
               >
                 <Bell className="h-4 w-4" />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <div className="font-semibold">{n.title}</div>
+                  <div
+                    className={cn(
+                      "font-semibold",
+                      n.read && "font-medium text-muted-foreground",
+                    )}
+                  >
+                    {n.title}
+                  </div>
                   {!n.read && (
                     <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-medium text-primary">
                       Nouveau
                     </span>
                   )}
+                  {n.read && (
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                      Lu
+                    </span>
+                  )}
                 </div>
-                <p className="text-sm text-muted-foreground">{n.body}</p>
+                <p
+                  className={cn(
+                    "text-sm text-muted-foreground",
+                    n.read && "text-muted-foreground/70",
+                  )}
+                >
+                  {n.body}
+                </p>
               </div>
               <div className="whitespace-nowrap text-xs text-muted-foreground">
                 {shortDate(n.at)}
               </div>
             </motion.li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </div>
