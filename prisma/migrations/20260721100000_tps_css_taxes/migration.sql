@@ -1,0 +1,7 @@
+-- AlterTable
+ALTER TABLE "documents" ADD COLUMN "tps" DECIMAL(18,2) NOT NULL DEFAULT 0;
+ALTER TABLE "documents" ADD COLUMN "css" DECIMAL(18,2) NOT NULL DEFAULT 0;
+
+-- AlterTable
+ALTER TABLE "document_lines" ADD COLUMN "tpsRate" DECIMAL(5,2) NOT NULL DEFAULT 0;
+ALTER TABLE "document_lines" ADD COLUMN "cssRate" DECIMAL(5,2) NOT NULL DEFAULT 0;

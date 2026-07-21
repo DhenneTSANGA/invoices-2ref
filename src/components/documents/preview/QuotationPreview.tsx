@@ -7,8 +7,8 @@ import { ItemsTable, PartyBlock, StampBox } from "./InvoicePreview";
 
 type Props = { doc: Document; compact?: boolean; variant?: "full" | "thumb"; className?: string };
 
-const ACCENT = "#B45309";
-const ACCENT_TO = "#D97706";
+const ACCENT = "#0F766E";
+const ACCENT_TO = "#14B8A6";
 
 export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function QuotationPreview(
   { doc, compact, variant = "full", className },
@@ -35,7 +35,7 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
         </div>
       </div>
 
-      <div className="mt-4 rounded-xl px-3 py-2 text-[10px] font-medium text-[#92400E]" style={{ background: "#FFFBEB", border: "1px solid #FDE68A" }}>
+      <div className="mt-4 rounded-xl px-3 py-2 text-[10px] font-medium text-[#0F766E]" style={{ background: "#F0FDFA", border: "1px solid #99F6E4" }}>
         Proposition commerciale valable <b>{validity} jours</b> à compter de la date d'émission — acceptation écrite requise (OHADA / Gabon).
       </div>
 
@@ -50,30 +50,32 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
         {doc.paymentTerms && <span>Paiement : <b className="text-[#0F172A]">{doc.paymentTerms}</b></span>}
       </div>
 
-      <ItemsTable doc={doc} headerFrom={ACCENT} headerTo={ACCENT_TO} />
+      <ItemsTable doc={doc} headerFrom={ACCENT} headerTo={ACCENT_TO} showTaxColumns />
 
       <div className="mt-4 grid grid-cols-2 gap-4">
         <div className="space-y-3">
           {(doc.executionTerms || doc.notes) && (
-            <div className="rounded-lg bg-[#FFFBEB] p-3 ring-1 ring-[#FDE68A]">
-              <div className="text-[9px] font-bold uppercase tracking-wider text-[#92400E]">Conditions de réalisation</div>
-              <p className="mt-1 text-[10px] text-[#78350F]">{doc.executionTerms || doc.notes}</p>
+            <div className="rounded-lg bg-[#F0FDFA] p-3 ring-1 ring-[#99F6E4]">
+              <div className="text-[9px] font-bold uppercase tracking-wider text-[#0F766E]">Conditions de réalisation</div>
+              <p className="mt-1 text-[10px] text-[#134E4A]">{doc.executionTerms || doc.notes}</p>
             </div>
           )}
-          <div className="rounded-lg border border-dashed border-[#F59E0B]/50 p-3 text-center">
-            <div className="text-[9px] font-bold uppercase tracking-wider text-[#92400E]">Bon pour accord client</div>
-            <div className="mt-4 text-[9px] text-[#B45309]">Date & signature</div>
-            <div className="mt-6 mx-auto h-10 w-40 border-b border-[#D97706]/40" />
+          <div className="rounded-lg border border-dashed border-[#14B8A6]/50 p-3 text-center">
+            <div className="text-[9px] font-bold uppercase tracking-wider text-[#0F766E]">Bon pour accord client</div>
+            <div className="mt-4 text-[9px] text-[#0F766E]">Date & signature</div>
+            <div className="mt-6 mx-auto h-10 w-40 border-b border-[#14B8A6]/40" />
           </div>
           <StampBox accent={ACCENT} label="Cachet du cabinet" />
         </div>
         <div className="ml-auto w-full max-w-xs">
-          <div className="overflow-hidden rounded-lg ring-1 ring-[#FDE68A]">
+          <div className="overflow-hidden rounded-lg ring-1 ring-[#99F6E4]">
             <AmountRow label="Sous-total HT" value={number(doc.subtotal)} currency={doc.currency} accent={ACCENT} />
+            {(doc.tps ?? 0) > 0 && <AmountRow label="TPS" value={number(doc.tps!)} currency={doc.currency} accent={ACCENT} />}
+            {(doc.css ?? 0) > 0 && <AmountRow label="CSS" value={number(doc.css!)} currency={doc.currency} accent={ACCENT} />}
             <AmountRow label="TVA (18 %)" value={number(doc.vat)} currency={doc.currency} accent={ACCENT} />
             <AmountRow label="Total TTC" value={number(doc.total)} currency={doc.currency} strong accent={ACCENT} />
           </div>
-          <div className="mt-2 rounded-lg bg-[#FFFBEB] p-2 text-[9px] text-[#78350F]">
+          <div className="mt-2 rounded-lg bg-[#F0FDFA] p-2 text-[9px] text-[#134E4A]">
             <div><b>Modalités</b></div>
             <div>{doc.paymentTerms || "Acompte 40 % à la commande — solde à livraison."}</div>
             <div className="mt-1">{company.bankName} — {company.bankAccount}</div>

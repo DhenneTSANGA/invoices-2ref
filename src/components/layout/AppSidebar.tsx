@@ -2,7 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import {
   LayoutDashboard, Users, FileText, ReceiptText, Package,
-  Files, Archive, Settings, Bell, Search, UserCircle2, ChevronLeft, FileSignature,
+  Files, Archive, Settings, Bell, Search, UserCircle2, ChevronLeft, FileSignature, Mail,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -15,6 +15,7 @@ const items = [
   { to: "/quotations", label: "Devis", icon: FileText },
   { to: "/invoices", label: "Factures", icon: ReceiptText },
   { to: "/proformas", label: "Pro forma", icon: FileSignature },
+  { to: "/lettre", label: "Lettres", icon: Mail },
   { to: "/templates", label: "Modèles", icon: Files },
   { to: "/archive", label: "Archives", icon: Archive },
 ] as const;

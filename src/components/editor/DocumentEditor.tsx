@@ -41,6 +41,7 @@ export function DocumentEditor({ initial, type }: Props) {
   const [saving, setSaving] = useState(false);
 
   const totals = useMemo(() => computeTotals(doc.items), [doc.items]);
+  const showTaxColumns = type === "invoice" || type === "quotation";
   const effectiveClientId = doc.clientId || clients[0]?.id || "";
   const merged: Document = { ...doc, ...totals, clientId: effectiveClientId };
 
@@ -62,6 +63,8 @@ export function DocumentEditor({ initial, type }: Props) {
           unitPrice: 0,
           vatRate: 18,
           discount: 0,
+          tpsRate: 0,
+          cssRate: 0,
         },
       ],
     }));
@@ -81,6 +84,8 @@ export function DocumentEditor({ initial, type }: Props) {
           unitPrice: s.unitPrice,
           vatRate: s.vatRate,
           discount: 0,
+          tpsRate: 0,
+          cssRate: 0,
         },
       ],
     }));
@@ -96,7 +101,7 @@ export function DocumentEditor({ initial, type }: Props) {
         ? "/quotations"
         : type === "proforma"
           ? "/proformas"
-          : "/letters";
+          : "/lettre";
 
   const save = async (status: Document["status"] = "draft") => {
     if (!merged.clientId) {
@@ -135,8 +140,12 @@ export function DocumentEditor({ initial, type }: Props) {
           unitPrice: it.unitPrice,
           vatRate: it.vatRate,
           discount: it.discount ?? 0,
+          tpsRate: it.tpsRate ?? 0,
+          cssRate: it.cssRate ?? 0,
         })),
         subtotal: merged.subtotal,
+        tps: merged.tps,
+        css: merged.css,
         vat: merged.vat,
         total: merged.total,
       };
@@ -317,13 +326,19 @@ export function DocumentEditor({ initial, type }: Props) {
                 <th className="py-2 text-right font-medium w-20">Qté</th>
                 <th className="py-2 text-right font-medium w-28">P.U.</th>
                 <th className="py-2 text-right font-medium w-20">TVA %</th>
+                {showTaxColumns && (
+                  <>
+                    <th className="py-2 text-right font-medium w-20">TPS %</th>
+                    <th className="py-2 text-right font-medium w-20">CSS %</th>
+                  </>
+                )}
                 <th className="py-2 text-right font-medium w-20">Rem. %</th>
                 <th className="py-2 text-right font-medium w-28">Total</th>
                 <th className="w-10" />
               </tr>
             </thead>
             <tbody>
-              <AnimateEmpty items={doc.items} />
+              <AnimateEmpty items={doc.items} colSpan={showTaxColumns ? 9 : 7} />
               {doc.items.map((it) => {
                 const lineTotal =
                   it.quantity * it.unitPrice * (1 - (it.discount || 0) / 100);
@@ -357,6 +372,22 @@ export function DocumentEditor({ initial, type }: Props) {
                         onChange={(v) => updateItem(it.id, { vatRate: v })}
                       />
                     </td>
+                    {showTaxColumns && (
+                      <>
+                        <td className="py-2 px-1">
+                          <NumInput
+                            value={it.tpsRate}
+                            onChange={(v) => updateItem(it.id, { tpsRate: v })}
+                          />
+                        </td>
+                        <td className="py-2 px-1">
+                          <NumInput
+                            value={it.cssRate}
+                            onChange={(v) => updateItem(it.id, { cssRate: v })}
+                          />
+                        </td>
+                      </>
+                    )}
                     <td className="py-2 px-1">
                       <NumInput
                         value={it.discount}
@@ -384,6 +415,8 @@ export function DocumentEditor({ initial, type }: Props) {
 
         <div className="mt-5 ml-auto w-full max-w-xs space-y-2 rounded-2xl bg-surface-2 p-4">
           <Total label="Sous-total HT" value={totals.subtotal} />
+          {showTaxColumns && totals.tps > 0 && <Total label="TPS" value={totals.tps} />}
+          {showTaxColumns && totals.css > 0 && <Total label="CSS" value={totals.css} />}
           <Total label="TVA" value={totals.vat} />
           <div className="my-2 h-px bg-border" />
           <Total label="Total TTC" value={totals.total} strong />
@@ -449,11 +482,11 @@ export function DocumentEditor({ initial, type }: Props) {
   );
 }
 
-function AnimateEmpty({ items }: { items: LineItem[] }) {
+function AnimateEmpty({ items, colSpan = 7 }: { items: LineItem[]; colSpan?: number }) {
   if (items.length > 0) return null;
   return (
     <tr>
-      <td colSpan={7} className="py-8 text-center text-sm text-muted-foreground">
+      <td colSpan={colSpan} className="py-8 text-center text-sm text-muted-foreground">
         Aucune ligne — ajoutez une prestation depuis le catalogue ou une ligne libre.
       </td>
     </tr>
@@ -578,6 +611,8 @@ function defaultDoc(type: DocumentType, clientId: string): Document {
     dueDate: due,
     items: [] as LineItem[],
     subtotal: 0,
+    tps: 0,
+    css: 0,
     vat: 0,
     total: 0,
     currency: "XAF",

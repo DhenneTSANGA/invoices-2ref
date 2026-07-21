@@ -78,6 +78,8 @@ export const lineItemSchema = z.object({
   unitPrice: z.number(),
   vatRate: z.number(),
   discount: z.number().default(0),
+  tpsRate: z.number().default(0),
+  cssRate: z.number().default(0),
 });
 
 export const documentInputSchema = z.object({
@@ -113,6 +115,8 @@ export const documentInputSchema = z.object({
   recipientOverride: z.string().optional().nullable(),
   items: z.array(lineItemSchema),
   subtotal: z.number(),
+  tps: z.number().default(0),
+  css: z.number().default(0),
   vat: z.number(),
   total: z.number(),
 });

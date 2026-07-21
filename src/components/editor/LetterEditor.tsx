@@ -26,6 +26,8 @@ export function LetterEditor({ initial }: Props) {
       dueDate: new Date().toISOString().slice(0, 10),
       items: [],
       subtotal: 0,
+      tps: 0,
+      css: 0,
       vat: 0,
       total: 0,
       currency: "XAF",
@@ -76,6 +78,8 @@ export function LetterEditor({ initial }: Props) {
         recipientOverride: saved.recipientOverride ?? null,
         items: [],
         subtotal: 0,
+        tps: 0,
+        css: 0,
         vat: 0,
         total: 0,
       });
@@ -83,7 +87,7 @@ export function LetterEditor({ initial }: Props) {
         status === "sent" ? "Lettre enregistrée / envoyée" : "Lettre enregistrée",
         { description: saved.number },
       );
-      void navigate({ to: "/letters" });
+      void navigate({ to: "/lettre" });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Enregistrement impossible");
     }

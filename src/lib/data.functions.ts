@@ -1,10 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { mapClient, mapDocument, mapService, mapCompany } from "@/lib/mappers";
+import { mapClient, mapDocument, mapService, mapCompany, mapNotification } from "@/lib/mappers";
 import { clientInputSchema, documentInputSchema, companyInputSchema } from "@/lib/auth-schemas";
 import { REAL_2REF_COMPANY } from "@/lib/company-defaults";
 import { getCurrentSession } from "@/lib/session.functions";
+import {
+  broadcastDocumentStatusChange,
+  staffDisplayName,
+} from "@/lib/notify-document-status";
 
 const docInclude = {
   lines: { orderBy: { position: "asc" as const } },
@@ -117,6 +121,8 @@ export const upsertDocument = createServerFn({ method: "POST" })
       unitPrice: item.unitPrice,
       vatRate: item.vatRate,
       discount: item.discount ?? 0,
+      tpsRate: item.tpsRate ?? 0,
+      cssRate: item.cssRate ?? 0,
       position,
     }));
 
@@ -129,6 +135,8 @@ export const upsertDocument = createServerFn({ method: "POST" })
       issueDate: new Date(data.issueDate),
       dueDate: new Date(data.dueDate),
       subtotal: data.subtotal,
+      tps: data.tps ?? 0,
+      css: data.css ?? 0,
       vat: data.vat,
       total: data.total,
       currency: data.currency,
@@ -156,7 +164,7 @@ export const upsertDocument = createServerFn({ method: "POST" })
 
       const row = await prisma.$transaction(async (tx) => {
         await tx.documentLine.deleteMany({ where: { documentId: data.id! } });
-        return tx.document.update({
+        const updated = await tx.document.update({
           where: { id: data.id },
           data: {
             ...docData,
@@ -166,16 +174,48 @@ export const upsertDocument = createServerFn({ method: "POST" })
           },
           include: docInclude,
         });
+        if (existing.status !== data.status) {
+          await broadcastDocumentStatusChange(
+            {
+              actorStaffId: staff.id,
+              actorName: staffDisplayName(staff),
+              documentId: updated.id,
+              documentNumber: updated.number,
+              documentType: updated.type,
+              previousStatus: existing.status,
+              nextStatus: data.status,
+            },
+            tx,
+          );
+        }
+        return updated;
       });
       return mapDocument(row);
     }
 
-    const row = await prisma.document.create({
-      data: {
-        ...docData,
-        lines: { create: lines.map(({ id: _id, ...l }) => l) },
-      },
-      include: docInclude,
+    const row = await prisma.$transaction(async (tx) => {
+      const created = await tx.document.create({
+        data: {
+          ...docData,
+          lines: { create: lines.map(({ id: _id, ...l }) => l) },
+        },
+        include: docInclude,
+      });
+      if (data.status !== "draft") {
+        await broadcastDocumentStatusChange(
+          {
+            actorStaffId: staff.id,
+            actorName: staffDisplayName(staff),
+            documentId: created.id,
+            documentNumber: created.number,
+            documentType: created.type,
+            previousStatus: "draft",
+            nextStatus: data.status,
+          },
+          tx,
+        );
+      }
+      return created;
     });
     return mapDocument(row);
   });
@@ -203,12 +243,70 @@ export const setDocumentStatus = createServerFn({ method: "POST" })
     if (staff.role !== "admin" && existing.createdById !== staff.id) {
       throw new Error("Accès refusé");
     }
-    const row = await prisma.document.update({
-      where: { id: data.id },
-      data: { status: data.status },
-      include: docInclude,
+    const row = await prisma.$transaction(async (tx) => {
+      const updated = await tx.document.update({
+        where: { id: data.id },
+        data: { status: data.status },
+        include: docInclude,
+      });
+      if (existing.status !== data.status) {
+        await broadcastDocumentStatusChange(
+          {
+            actorStaffId: staff.id,
+            actorName: staffDisplayName(staff),
+            documentId: updated.id,
+            documentNumber: updated.number,
+            documentType: updated.type,
+            previousStatus: existing.status,
+            nextStatus: data.status,
+          },
+          tx,
+        );
+      }
+      return updated;
     });
     return mapDocument(row);
+  });
+
+// ─── Notifications ───────────────────────────────────────────────────────
+
+const notificationInclude = {
+  document: { select: { type: true } },
+} as const;
+
+export const listNotifications = createServerFn({ method: "GET" }).handler(async () => {
+  const staff = await requireStaff();
+  const rows = await prisma.notification.findMany({
+    where: { staffId: staff.id },
+    include: notificationInclude,
+    orderBy: { at: "desc" },
+    take: 100,
+  });
+  return rows.map(mapNotification);
+});
+
+export const markAllNotificationsRead = createServerFn({ method: "POST" }).handler(
+  async () => {
+    const staff = await requireStaff();
+    await prisma.notification.updateMany({
+      where: { staffId: staff.id, read: false },
+      data: { read: true },
+    });
+    return { ok: true };
+  },
+);
+
+export const markNotificationRead = createServerFn({ method: "POST" })
+  .validator(z.object({ id: z.string() }))
+  .handler(async ({ data }) => {
+    const staff = await requireStaff();
+    const row = await prisma.notification.findUnique({ where: { id: data.id } });
+    if (!row || row.staffId !== staff.id) throw new Error("Notification introuvable");
+    await prisma.notification.update({
+      where: { id: data.id },
+      data: { read: true },
+    });
+    return { ok: true };
   });
 
 export const deleteDocument = createServerFn({ method: "POST" })

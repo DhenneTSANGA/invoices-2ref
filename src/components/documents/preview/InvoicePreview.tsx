@@ -42,7 +42,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
         {doc.paymentTerms && <span>Conditions : <b className="text-[#0F172A]">{doc.paymentTerms}</b></span>}
       </div>
 
-      <ItemsTable doc={doc} headerFrom={accent} headerTo="#3B82F6" />
+      <ItemsTable doc={doc} headerFrom={accent} headerTo="#3B82F6" showTaxColumns />
 
       <div className="mt-4 grid grid-cols-2 gap-4">
         <div>
@@ -87,7 +87,17 @@ function PartyBlock({
   );
 }
 
-function ItemsTable({ doc, headerFrom, headerTo }: { doc: Document; headerFrom: string; headerTo: string }) {
+function ItemsTable({
+  doc,
+  headerFrom,
+  headerTo,
+  showTaxColumns = false,
+}: {
+  doc: Document;
+  headerFrom: string;
+  headerTo: string;
+  showTaxColumns?: boolean;
+}) {
   return (
     <div className="mt-4 overflow-hidden rounded-lg ring-1 ring-[#E2E8F0]">
       <table className="w-full border-collapse text-[10.5px]">
@@ -110,7 +120,12 @@ function ItemsTable({ doc, headerFrom, headerTo }: { doc: Document; headerFrom: 
             return (
               <tr key={it.id} className={i % 2 === 0 ? "bg-white" : "bg-[#F8FAFC]"}>
                 <td className="px-3 py-2 align-top text-[#64748B]">{String(i + 1).padStart(2, "0")}</td>
-                <td className="px-3 py-2 align-top">{it.description}{it.discount ? <span className="text-[#B45309]"> (−{it.discount}%)</span> : null}</td>
+                <td className="px-3 py-2 align-top">
+                  {it.description}
+                  {it.discount ? <span className="text-[#B45309]"> (−{it.discount}%)</span> : null}
+                  {showTaxColumns && it.tpsRate ? <span className="text-[#0F766E]"> (TPS {it.tpsRate}%)</span> : null}
+                  {showTaxColumns && it.cssRate ? <span className="text-[#6366F1]"> (CSS {it.cssRate}%)</span> : null}
+                </td>
                 <td className="px-3 py-2 text-right align-top font-mono">{it.quantity}</td>
                 <td className="px-3 py-2 text-right align-top font-mono">{number(it.unitPrice)}</td>
                 <td className="px-3 py-2 text-right align-top font-mono">{it.vatRate}%</td>
@@ -140,6 +155,8 @@ function TotalsBlock({ doc, company, accent }: { doc: Document; company: { bankN
     <div className="ml-auto w-full max-w-xs">
       <div className="overflow-hidden rounded-lg ring-1 ring-[#E2E8F0]">
         <AmountRow label="Sous-total HT" value={number(doc.subtotal)} currency={doc.currency} accent={accent} />
+        {(doc.tps ?? 0) > 0 && <AmountRow label="TPS" value={number(doc.tps!)} currency={doc.currency} accent={accent} />}
+        {(doc.css ?? 0) > 0 && <AmountRow label="CSS" value={number(doc.css!)} currency={doc.currency} accent={accent} />}
         <AmountRow label="TVA (18 %)" value={number(doc.vat)} currency={doc.currency} accent={accent} />
         <AmountRow label="Total TTC" value={number(doc.total)} currency={doc.currency} strong accent={accent} />
       </div>

@@ -11,6 +11,7 @@ import {
   servicesKey,
 } from "@/hooks/use-data";
 import { listClients, getCompany, listServices } from "@/lib/data.functions";
+import { NotificationSync } from "@/components/layout/NotificationSync";
 
 export const Route = createFileRoute("/_app")({
   beforeLoad: async ({ context }) => {
@@ -46,6 +47,7 @@ function AppLayout() {
 
   return (
     <div className="flex min-h-screen w-full">
+      <NotificationSync />
       <AppSidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <AppTopbar />

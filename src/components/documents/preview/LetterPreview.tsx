@@ -6,8 +6,8 @@ import { LegalFooter, PreviewLogo, PreviewShell } from "./PreviewShell";
 
 type Props = { doc: Document; compact?: boolean; variant?: "full" | "thumb"; className?: string };
 
-const ACCENT = "#0F766E";
-const ACCENT_TO = "#14B8A6";
+const ACCENT = "#B45309";
+const ACCENT_TO = "#D97706";
 
 export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPreview(
   { doc, compact, variant = "full", className },
@@ -28,7 +28,7 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
 
   return (
     <PreviewShell innerRef={ref} accent={ACCENT} compact={compact} isThumb={isThumb} className={className}>
-      <div className="flex items-start justify-between border-b border-[#99F6E4] pb-5">
+      <div className="flex items-start justify-between border-b border-[#FDE68A] pb-5">
         <div className="flex items-center gap-3">
           <PreviewLogo />
           <div>
@@ -50,7 +50,7 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
       </div>
 
       <div className="mt-8 text-[11px]">
-        <span className="font-semibold text-[#0F766E]">Objet : </span>
+        <span className="font-semibold text-[#B45309]">Objet : </span>
         <span className="font-medium text-[#0F172A]">{doc.subject || "Courrier commercial"}</span>
       </div>
       {doc.number && (
@@ -73,7 +73,7 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
       <div className="mt-10 flex justify-end">
         <div className="w-48 text-center">
           <div className="text-[11px] font-semibold text-[#0F172A]">Mireille Ndong</div>
-          <div className="text-[10px] text-[#0F766E]">{doc.signatoryTitle || "Expert-comptable"}</div>
+          <div className="text-[10px] text-[#B45309]">{doc.signatoryTitle || "Expert-comptable"}</div>
           <div className="mx-auto mt-6 flex h-14 w-32 items-center justify-center rounded-full border-2 border-dashed text-[9px] italic" style={{ borderColor: `${ACCENT}66`, color: `${ACCENT}99` }}>
             Cachet
           </div>

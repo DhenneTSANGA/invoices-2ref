@@ -4,6 +4,7 @@ import type {
   CompanyInfo,
   Document,
   LineItem,
+  NotificationItem,
   Service,
   StaffMember,
 } from "@/store/types";
@@ -118,6 +119,8 @@ export function mapDocument(row: {
   issueDate: Date;
   dueDate: Date;
   subtotal: Decimal;
+  tps: Decimal;
+  css: Decimal;
   vat: Decimal;
   total: Decimal;
   currency: string;
@@ -142,6 +145,8 @@ export function mapDocument(row: {
     unitPrice: Decimal;
     vatRate: Decimal;
     discount: Decimal;
+    tpsRate: Decimal;
+    cssRate: Decimal;
     position: number;
   }>;
   createdBy?: {
@@ -165,6 +170,8 @@ export function mapDocument(row: {
       unitPrice: decimalToNumber(l.unitPrice),
       vatRate: decimalToNumber(l.vatRate),
       discount: decimalToNumber(l.discount),
+      tpsRate: decimalToNumber(l.tpsRate),
+      cssRate: decimalToNumber(l.cssRate),
     }));
 
   return {
@@ -178,6 +185,8 @@ export function mapDocument(row: {
     dueDate: row.dueDate.toISOString().slice(0, 10),
     items,
     subtotal: decimalToNumber(row.subtotal),
+    tps: decimalToNumber(row.tps),
+    css: decimalToNumber(row.css),
     vat: decimalToNumber(row.vat),
     total: decimalToNumber(row.total),
     currency: row.currency,
@@ -195,5 +204,27 @@ export function mapDocument(row: {
     signatoryTitle: row.signatoryTitle ?? undefined,
     recipientOverride: row.recipientOverride ?? undefined,
     createdBy: row.createdBy ? mapStaff(row.createdBy) : undefined,
+  };
+}
+
+export function mapNotification(row: {
+  id: string;
+  title: string;
+  body: string;
+  at: Date;
+  read: boolean;
+  type: "info" | "success" | "warning" | "danger";
+  documentId: string | null;
+  document?: { type: Document["type"] } | null;
+}): NotificationItem {
+  return {
+    id: row.id,
+    title: row.title,
+    body: row.body,
+    at: row.at.toISOString(),
+    read: row.read,
+    type: row.type,
+    documentId: row.documentId ?? undefined,
+    documentType: row.document?.type,
   };
 }

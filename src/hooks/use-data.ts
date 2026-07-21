@@ -13,6 +13,9 @@ import {
   deleteDocument,
   getCompany,
   updateCompany,
+  listNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
 } from "@/lib/data.functions";
 import { getCurrentSession } from "@/lib/session.functions";
 import type { DocumentStatus, DocumentType } from "@/store/types";
@@ -25,6 +28,9 @@ export const servicesKey = ["services"] as const;
 export const documentsKey = (type?: DocumentType) =>
   type ? (["documents", type] as const) : (["documents"] as const);
 export const companyKey = ["company"] as const;
+export const notificationsKey = ["notifications"] as const;
+
+const POLL_MS = 5_000;
 
 export function useSession() {
   return useQuery({
@@ -90,7 +96,8 @@ export function useDocuments(type?: DocumentType) {
   return useQuery({
     queryKey: documentsKey(type),
     queryFn: () => listDocuments({ data: { type } }),
-    staleTime: 30_000,
+    staleTime: 10_000,
+    refetchInterval: POLL_MS,
   });
 }
 
@@ -99,7 +106,8 @@ export function useDocument(id: string) {
     queryKey: ["document", id],
     queryFn: () => getDocument({ data: { id } }),
     enabled: !!id,
-    staleTime: 30_000,
+    staleTime: 10_000,
+    refetchInterval: POLL_MS,
   });
 }
 
@@ -112,6 +120,7 @@ export function useUpsertDocument() {
       qc.invalidateQueries({ queryKey: documentsKey() });
       qc.invalidateQueries({ queryKey: documentsKey(doc.type) });
       qc.invalidateQueries({ queryKey: ["document", doc.id] });
+      qc.invalidateQueries({ queryKey: notificationsKey });
     },
   });
 }
@@ -124,6 +133,8 @@ export function useSetDocumentStatus() {
     onSuccess: (doc) => {
       qc.invalidateQueries({ queryKey: documentsKey() });
       qc.invalidateQueries({ queryKey: documentsKey(doc.type) });
+      qc.invalidateQueries({ queryKey: ["document", doc.id] });
+      qc.invalidateQueries({ queryKey: notificationsKey });
     },
   });
 }
@@ -150,5 +161,30 @@ export function useUpdateCompany() {
     mutationFn: (data: z.infer<typeof companyInputSchema>) =>
       updateCompany({ data }),
     onSuccess: () => qc.invalidateQueries({ queryKey: companyKey }),
+  });
+}
+
+export function useNotifications() {
+  return useQuery({
+    queryKey: notificationsKey,
+    queryFn: () => listNotifications(),
+    staleTime: 2_000,
+    refetchInterval: POLL_MS,
+  });
+}
+
+export function useMarkAllNotificationsRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => markAllNotificationsRead(),
+    onSuccess: () => qc.invalidateQueries({ queryKey: notificationsKey }),
+  });
+}
+
+export function useMarkNotificationRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => markNotificationRead({ data: { id } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: notificationsKey }),
   });
 }

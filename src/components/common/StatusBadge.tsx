@@ -53,11 +53,28 @@ export function statusLabel(status: DocumentStatus): string {
   return (map[status] ?? map.default).label;
 }
 
-export function StatusBadge({ status, className }: { status: DocumentStatus; className?: string }) {
+const onRowCls =
+  "bg-white/20 text-white ring-1 ring-white/30 [&_span:first-child]:bg-white";
+
+export function StatusBadge({
+  status,
+  className,
+  variant = "default",
+}: {
+  status: DocumentStatus;
+  className?: string;
+  variant?: "default" | "onRow";
+}) {
   const m = map[status] ?? map.default;
   return (
-    <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold", m.cls, className)}>
-      <span className={cn("h-1.5 w-1.5 rounded-full", m.dot)} />
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold",
+        variant === "onRow" ? onRowCls : m.cls,
+        className,
+      )}
+    >
+      <span className={cn("h-1.5 w-1.5 rounded-full", variant === "onRow" ? undefined : m.dot)} />
       {m.label}
     </span>
   );

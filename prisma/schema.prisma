@@ -82,6 +82,8 @@ model StaffMember {
 
   documents Document[]
 
+  notifications Notification[]
+
   @@index([lastName])
   @@index([role])
   @@map("staff_members")
@@ -138,6 +140,8 @@ model Document {
   issueDate       DateTime       @db.Date
   dueDate         DateTime       @db.Date
   subtotal        Decimal        @db.Decimal(18, 2)
+  tps             Decimal        @default(0) @db.Decimal(18, 2)
+  css             Decimal        @default(0) @db.Decimal(18, 2)
   vat             Decimal        @db.Decimal(18, 2)
   total           Decimal        @db.Decimal(18, 2)
   currency        String         @default("XAF")
@@ -160,6 +164,7 @@ model Document {
   client    Client         @relation(fields: [clientId], references: [id], onDelete: Restrict)
   createdBy StaffMember    @relation(fields: [createdById], references: [id], onDelete: Restrict)
   lines     DocumentLine[]
+  notifications Notification[]
 
   @@unique([type, number])
   @@index([clientId])
@@ -179,6 +184,8 @@ model DocumentLine {
   unitPrice   Decimal @db.Decimal(18, 2)
   vatRate     Decimal @db.Decimal(5, 2)
   discount    Decimal @default(0) @db.Decimal(5, 2)
+  tpsRate     Decimal @default(0) @db.Decimal(5, 2)
+  cssRate     Decimal @default(0) @db.Decimal(5, 2)
   position    Int     @default(0)
 
   document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
@@ -201,14 +208,19 @@ model Activity {
 }
 
 model Notification {
-  id    String           @id @default(cuid())
-  title String
-  body  String
-  at    DateTime         @default(now())
-  read  Boolean          @default(false)
-  type  NotificationType @default(info)
+  id         String           @id @default(cuid())
+  staffId    String
+  title      String
+  body       String
+  at         DateTime         @default(now())
+  read       Boolean          @default(false)
+  type       NotificationType @default(info)
+  documentId String?
 
-  @@index([read])
-  @@index([at])
+  staff    StaffMember @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  document Document?   @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  @@index([staffId, read])
+  @@index([staffId, at])
   @@map("notifications")
 }

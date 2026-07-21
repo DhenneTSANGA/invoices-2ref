@@ -3,11 +3,10 @@ import { Logo } from "@/components/common/Logo";
 import { Bell, Moon, Search, Sun, Plus, ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { useTheme } from "@/components/theme/ThemeProvider";
-import { useAppStore } from "@/store/useAppStore";
 import { CommandPalette } from "./CommandPalette";
 import { motion, AnimatePresence } from "framer-motion";
 import { shortDate } from "@/lib/format";
-import { useSession } from "@/hooks/use-data";
+import { useSession, useNotifications } from "@/hooks/use-data";
 import { signOut } from "@/lib/auth";
 import { staffInitials } from "@/lib/auth";
 import { useQueryClient } from "@tanstack/react-query";
@@ -15,7 +14,7 @@ import { sessionKey } from "@/hooks/use-data";
 
 export function AppTopbar() {
   const { theme, toggle } = useTheme();
-  const notifications = useAppStore((s) => s.notifications);
+  const { data: notifications = [] } = useNotifications();
   const unread = notifications.filter((n) => !n.read).length;
   const [openCmd, setOpenCmd] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);

@@ -60,6 +60,8 @@ export type LineItem = {
   unitPrice: number;
   vatRate: number;
   discount: number;
+  tpsRate: number;
+  cssRate: number;
 };
 
 export type DocumentType = "quotation" | "invoice" | "proforma" | "letter";
@@ -77,6 +79,8 @@ export type Document = {
   dueDate: string;
   items: LineItem[];
   subtotal: number;
+  tps: number;
+  css: number;
   vat: number;
   total: number;
   currency: string;
@@ -113,4 +117,6 @@ export type NotificationItem = {
   at: string;
   read: boolean;
   type: "info" | "success" | "warning" | "danger";
+  documentId?: string;
+  documentType?: DocumentType;
 };

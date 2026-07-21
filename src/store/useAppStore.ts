@@ -1,16 +1,6 @@
 import { create } from "zustand";
-import type { NotificationItem } from "./types";
 
-/** Store UI léger — plus de données métier mock (tout passe par PostgreSQL). */
-type State = {
-  notifications: NotificationItem[];
-  markAllNotificationsRead: () => void;
-};
+/** Store UI léger — les notifications passent par PostgreSQL + polling. */
+type State = Record<string, never>;
 
-export const useAppStore = create<State>((set) => ({
-  notifications: [],
-  markAllNotificationsRead: () =>
-    set((s) => ({
-      notifications: s.notifications.map((n) => ({ ...n, read: true })),
-    })),
-}));
+export const useAppStore = create<State>(() => ({}));
