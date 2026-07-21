@@ -17,6 +17,7 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
 } from "@/lib/data.functions";
+import { sendDocumentEmail } from "@/lib/send-document-email";
 import { getCurrentSession } from "@/lib/session.functions";
 import type { DocumentStatus, DocumentType } from "@/store/types";
 import type { z } from "zod";
@@ -134,6 +135,19 @@ export function useSetDocumentStatus() {
       qc.invalidateQueries({ queryKey: documentsKey() });
       qc.invalidateQueries({ queryKey: documentsKey(doc.type) });
       qc.invalidateQueries({ queryKey: ["document", doc.id] });
+      qc.invalidateQueries({ queryKey: notificationsKey });
+    },
+  });
+}
+
+export function useSendDocumentEmail() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => sendDocumentEmail({ data: { id } }),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: documentsKey() });
+      qc.invalidateQueries({ queryKey: documentsKey(res.type) });
+      qc.invalidateQueries({ queryKey: ["document", res.documentId] });
       qc.invalidateQueries({ queryKey: notificationsKey });
     },
   });

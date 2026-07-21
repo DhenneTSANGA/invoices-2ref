@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { Eye, FileText, Plus, Search, Send, Banknote, XCircle, CheckCircle2, Ban } from "lucide-react";
+import { Eye, FileText, Plus, Search, Send, Banknote, XCircle, CheckCircle2, Ban, Mails } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -14,6 +14,7 @@ import {
   useClients,
   useDocuments,
   useSetDocumentStatus,
+  useSendDocumentEmail,
 } from "@/hooks/use-data";
 
 const labels = {
@@ -39,6 +40,7 @@ export function DocumentsList({ type }: { type: DocumentType }) {
   const { data: documents = [], isLoading } = useDocuments(type);
   const { data: clients = [] } = useClients();
   const setStatusMutation = useSetDocumentStatus();
+  const sendEmailMutation = useSendDocumentEmail();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string>("all");
   const L = labels[type];
@@ -56,6 +58,23 @@ export function DocumentsList({ type }: { type: DocumentType }) {
   const total = filtered.reduce((a, b) => a + b.total, 0);
 
   const setStatusWithToast = (id: string, next: DocumentStatus, number: string) => {
+    if (next === "sent") {
+      const toastId = toast.loading("Envoi de l'email…");
+      sendEmailMutation.mutate(id, {
+        onSuccess: (res) =>
+          toast.success(`Email envoyé — ${number}`, {
+            id: toastId,
+            description: `À ${res.to}`,
+          }),
+        onError: (e) =>
+          toast.error("Échec de l'envoi", {
+            id: toastId,
+            description: e.message,
+            duration: 12_000,
+          }),
+      });
+      return;
+    }
     setStatusMutation.mutate(
       { id, status: next },
       {
@@ -82,9 +101,19 @@ export function DocumentsList({ type }: { type: DocumentType }) {
         title={L.title}
         subtitle={L.subtitle}
         actions={
-          <Link to={L.new} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow">
-            <Plus className="h-4 w-4" /> Nouveau
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            {type === "letter" && (
+              <Link
+                to="/lettre/publipostage"
+                className="inline-flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-900 hover:bg-amber-100"
+              >
+                <Mails className="h-4 w-4" /> Publipostage
+              </Link>
+            )}
+            <Link to={L.new} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow">
+              <Plus className="h-4 w-4" /> Nouveau
+            </Link>
+          </div>
         }
       />
 

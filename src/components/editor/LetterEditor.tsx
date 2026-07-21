@@ -1,12 +1,25 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Save, Send, Download, Eye, Loader2 } from "lucide-react";
+import {
+  Save,
+  Send,
+  Download,
+  Eye,
+  Loader2,
+  FileText,
+  UserRound,
+  PenLine,
+  Stamp,
+  MapPin,
+} from "lucide-react";
 import { toast } from "sonner";
 import type { Document } from "@/store/types";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
+import { DocumentPreview } from "@/components/documents/DocumentPreview";
 import { downloadDocumentPdf } from "@/lib/pdf/downloadDocumentPdf";
 import { Button } from "@/components/ui/button";
-import { useClients, useUpsertDocument } from "@/hooks/use-data";
+import { useClients, useUpsertDocument, useSendDocumentEmail } from "@/hooks/use-data";
+import { cn } from "@/lib/utils";
 
 type Props = { initial?: Document };
 
@@ -14,6 +27,7 @@ export function LetterEditor({ initial }: Props) {
   const navigate = useNavigate();
   const { data: clients = [] } = useClients();
   const upsertMutation = useUpsertDocument();
+  const sendEmailMutation = useSendDocumentEmail();
 
   const [doc, setDoc] = useState<Document>(
     initial ?? {
@@ -53,29 +67,30 @@ export function LetterEditor({ initial }: Props) {
 
   const effectiveClientId = doc.clientId || clients[0]?.id || "";
   const previewDoc = { ...doc, clientId: effectiveClientId };
+  const selectedClient = clients.find((c) => c.id === effectiveClientId);
 
   const save = async (status: Document["status"] = "draft") => {
     if (!effectiveClientId) {
       toast.error("Sélectionnez un client");
       return;
     }
-    const saved = { ...doc, clientId: effectiveClientId, status };
+    const draft = { ...doc, clientId: effectiveClientId, status };
     try {
-      await upsertMutation.mutateAsync({
-        ...(initial?.id && !initial.id.startsWith("d-") ? { id: saved.id } : {}),
+      const saved = await upsertMutation.mutateAsync({
+        ...(initial?.id && !initial.id.startsWith("d-") ? { id: draft.id } : {}),
         type: "letter",
-        number: saved.number,
-        clientId: saved.clientId,
-        status: saved.status,
-        issueDate: saved.issueDate,
-        dueDate: saved.dueDate,
-        currency: saved.currency,
-        subject: saved.subject ?? null,
-        salutation: saved.salutation ?? null,
-        body: saved.body ?? null,
-        closing: saved.closing ?? null,
-        signatoryTitle: saved.signatoryTitle ?? null,
-        recipientOverride: saved.recipientOverride ?? null,
+        number: draft.number,
+        clientId: draft.clientId,
+        status: status === "sent" ? "draft" : draft.status,
+        issueDate: draft.issueDate,
+        dueDate: draft.dueDate,
+        currency: draft.currency,
+        subject: draft.subject ?? null,
+        salutation: draft.salutation ?? null,
+        body: draft.body ?? null,
+        closing: draft.closing ?? null,
+        signatoryTitle: draft.signatoryTitle ?? null,
+        recipientOverride: draft.recipientOverride ?? null,
         items: [],
         subtotal: 0,
         tps: 0,
@@ -83,10 +98,14 @@ export function LetterEditor({ initial }: Props) {
         vat: 0,
         total: 0,
       });
-      toast.success(
-        status === "sent" ? "Lettre enregistrée / envoyée" : "Lettre enregistrée",
-        { description: saved.number },
-      );
+      if (status === "sent") {
+        const emailed = await sendEmailMutation.mutateAsync(saved.id);
+        toast.success("Lettre envoyée par email", {
+          description: `${saved.number} → ${emailed.to}`,
+        });
+      } else {
+        toast.success("Lettre enregistrée", { description: saved.number });
+      }
       void navigate({ to: "/lettre" });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Enregistrement impossible");
@@ -111,78 +130,214 @@ export function LetterEditor({ initial }: Props) {
   };
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-5">
-      <div className="glass-panel rounded-3xl p-5">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Référence" value={doc.number} onChange={(v) => setDoc({ ...doc, number: v })} />
-          <label className="block">
-            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Destinataire (client)</span>
-            <select
-              className="mt-1 w-full rounded-xl border border-border/60 bg-surface px-3 py-2.5 text-sm"
-              value={effectiveClientId}
-              onChange={(e) => setDoc({ ...doc, clientId: e.target.value })}
+    <div className="space-y-5">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.95fr)]">
+        {/* Formulaire */}
+        <div className="space-y-4">
+          <Section
+            icon={<FileText className="h-4 w-4" />}
+            title="Identification"
+            hint="Référence et date d'émission du courrier"
+          >
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field
+                label="Référence"
+                value={doc.number}
+                onChange={(v) => setDoc({ ...doc, number: v })}
+              />
+              <Field
+                label="Date"
+                type="date"
+                value={doc.issueDate}
+                onChange={(v) => setDoc({ ...doc, issueDate: v })}
+              />
+            </div>
+          </Section>
+
+          <Section
+            icon={<UserRound className="h-4 w-4" />}
+            title="Destinataire"
+            hint="Client rattaché ou adresse libre"
+          >
+            <div className="space-y-4">
+              <label className="block">
+                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Client
+                </span>
+                <select
+                  className="mt-1.5 w-full rounded-xl border border-border/60 bg-surface px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  value={effectiveClientId}
+                  onChange={(e) => setDoc({ ...doc, clientId: e.target.value })}
+                >
+                  {clients.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {selectedClient && !doc.recipientOverride && (
+                <div className="flex gap-3 rounded-2xl border border-amber-200/70 bg-amber-50/60 px-4 py-3 text-sm text-amber-950">
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+                  <div className="min-w-0 leading-relaxed">
+                    <div className="font-medium">{selectedClient.contactName}</div>
+                    <div className="text-amber-900/80">{selectedClient.name}</div>
+                    <div className="text-amber-900/70">
+                      {selectedClient.address} — {selectedClient.city}, {selectedClient.country}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <TextArea
+                label="Adresse destinataire (optionnel)"
+                hint="Remplace l'adresse du client sur le courrier"
+                rows={3}
+                placeholder={"Nom\nEntreprise\nAdresse\nVille, Pays"}
+                value={doc.recipientOverride ?? ""}
+                onChange={(v) => setDoc({ ...doc, recipientOverride: v || undefined })}
+              />
+            </div>
+          </Section>
+
+          <Section
+            icon={<PenLine className="h-4 w-4" />}
+            title="Contenu de la lettre"
+            hint="Objet, formule d'appel et corps du message"
+          >
+            <div className="space-y-4">
+              <Field
+                label="Objet"
+                value={doc.subject ?? ""}
+                onChange={(v) => setDoc({ ...doc, subject: v })}
+              />
+              <Field
+                label="Formule d'appel"
+                value={doc.salutation ?? ""}
+                onChange={(v) => setDoc({ ...doc, salutation: v })}
+              />
+              <TextArea
+                label="Corps de la lettre"
+                rows={11}
+                value={doc.body ?? ""}
+                onChange={(v) => setDoc({ ...doc, body: v })}
+                className="leading-relaxed"
+              />
+              <TextArea
+                label="Formule de politesse"
+                rows={2}
+                value={doc.closing ?? ""}
+                onChange={(v) => setDoc({ ...doc, closing: v })}
+              />
+            </div>
+          </Section>
+
+          <Section
+            icon={<Stamp className="h-4 w-4" />}
+            title="Signature"
+            hint="Qualité affichée sous le nom du signataire"
+          >
+            <Field
+              label="Fonction du signataire"
+              value={doc.signatoryTitle ?? ""}
+              onChange={(v) => setDoc({ ...doc, signatoryTitle: v })}
+            />
+          </Section>
+
+          <div className="flex flex-wrap items-center justify-end gap-2 rounded-3xl border border-border/50 bg-surface/80 p-3 backdrop-blur">
+            <Button variant="outline" className="rounded-xl" onClick={() => setPreviewOpen(true)}>
+              <Eye className="h-4 w-4" /> Aperçu
+            </Button>
+            <Button
+              variant="outline"
+              className="rounded-xl"
+              disabled={exporting}
+              onClick={downloadPdf}
             >
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </label>
-          <Field label="Date" type="date" value={doc.issueDate} onChange={(v) => setDoc({ ...doc, issueDate: v })} />
-          <Field label="Fonction du signataire" value={doc.signatoryTitle ?? ""} onChange={(v) => setDoc({ ...doc, signatoryTitle: v })} />
+              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              PDF
+            </Button>
+            <Button
+              variant="outline"
+              className="rounded-xl"
+              disabled={upsertMutation.isPending}
+              onClick={() => save("draft")}
+            >
+              <Save className="h-4 w-4" /> Enregistrer
+            </Button>
+            <Button
+              className="rounded-xl bg-gradient-primary text-primary-foreground shadow-glow"
+              disabled={upsertMutation.isPending}
+              onClick={() => save("sent")}
+            >
+              <Send className="h-4 w-4" /> Envoyer
+            </Button>
+          </div>
         </div>
-      </div>
 
-      <div className="glass-panel rounded-3xl p-5 space-y-4">
-        <Field label="Objet" value={doc.subject ?? ""} onChange={(v) => setDoc({ ...doc, subject: v })} />
-        <Field label="Formule d'appel" value={doc.salutation ?? ""} onChange={(v) => setDoc({ ...doc, salutation: v })} />
-        <label className="block">
-          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Corps de la lettre</span>
-          <textarea
-            className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm leading-relaxed focus:border-primary focus:outline-none"
-            rows={10}
-            value={doc.body ?? ""}
-            onChange={(e) => setDoc({ ...doc, body: e.target.value })}
-          />
-        </label>
-        <label className="block">
-          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Formule de politesse</span>
-          <textarea
-            className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
-            rows={2}
-            value={doc.closing ?? ""}
-            onChange={(e) => setDoc({ ...doc, closing: e.target.value })}
-          />
-        </label>
-        <label className="block">
-          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Adresse destinataire (optionnel, remplace le client)</span>
-          <textarea
-            className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
-            rows={3}
-            placeholder="Nom&#10;Entreprise&#10;Adresse&#10;Ville, Pays"
-            value={doc.recipientOverride ?? ""}
-            onChange={(e) => setDoc({ ...doc, recipientOverride: e.target.value })}
-          />
-        </label>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        <Button variant="outline" className="rounded-xl" onClick={() => setPreviewOpen(true)}>
-          <Eye className="h-4 w-4" /> Aperçu
-        </Button>
-        <Button variant="outline" className="rounded-xl" disabled={exporting} onClick={downloadPdf}>
-          {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-          PDF
-        </Button>
-        <Button variant="outline" className="rounded-xl" onClick={() => save("draft")}>
-          <Save className="h-4 w-4" /> Enregistrer
-        </Button>
-        <Button className="rounded-xl bg-gradient-primary text-primary-foreground shadow-glow" onClick={() => save("sent")}>
-          <Send className="h-4 w-4" /> Envoyer
-        </Button>
+        {/* Aperçu live */}
+        <aside className="hidden xl:block">
+          <div className="sticky top-6 space-y-3">
+            <div className="flex items-center justify-between px-1">
+              <div>
+                <div className="text-sm font-semibold">Aperçu en direct</div>
+                <div className="text-xs text-muted-foreground">Mise à jour à chaque saisie</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewOpen(true)}
+                className="text-xs font-medium text-primary hover:underline"
+              >
+                Agrandir
+              </button>
+            </div>
+            <div
+              className="overflow-hidden rounded-3xl border border-border/60 bg-muted/40 p-3 shadow-inner"
+              onClick={() => setPreviewOpen(true)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") setPreviewOpen(true);
+              }}
+            >
+              <div className="origin-top scale-[0.72] cursor-zoom-in" style={{ width: "138.9%" }}>
+                <DocumentPreview doc={previewDoc} compact />
+              </div>
+            </div>
+          </div>
+        </aside>
       </div>
 
       <DocumentPreviewModal doc={previewDoc} open={previewOpen} onOpenChange={setPreviewOpen} />
     </div>
+  );
+}
+
+function Section({
+  icon,
+  title,
+  hint,
+  children,
+}: {
+  icon: ReactNode;
+  title: string;
+  hint?: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="glass-panel overflow-hidden rounded-3xl">
+      <div className="flex items-start gap-3 border-b border-border/50 bg-muted/30 px-5 py-4">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-800 ring-1 ring-amber-500/20">
+          {icon}
+        </div>
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold tracking-tight">{title}</h3>
+          {hint && <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>}
+        </div>
+      </div>
+      <div className="p-5">{children}</div>
+    </section>
   );
 }
 
@@ -199,10 +354,49 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</span>
+      <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        {label}
+      </span>
       <input
         type={type}
-        className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+        className="mt-1.5 w-full rounded-xl border border-border/60 bg-surface px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </label>
+  );
+}
+
+function TextArea({
+  label,
+  value,
+  onChange,
+  rows,
+  placeholder,
+  hint,
+  className,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  rows: number;
+  placeholder?: string;
+  hint?: string;
+  className?: string;
+}) {
+  return (
+    <label className="block">
+      <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        {label}
+      </span>
+      {hint && <span className="mt-0.5 block text-[11px] text-muted-foreground/80">{hint}</span>}
+      <textarea
+        className={cn(
+          "mt-1.5 w-full rounded-xl border border-border/60 bg-surface px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20",
+          className,
+        )}
+        rows={rows}
+        placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />

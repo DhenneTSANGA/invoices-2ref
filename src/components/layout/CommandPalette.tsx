@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
 import { useClients, useDocuments } from "@/hooks/use-data";
-import { FileText, ReceiptText, Users, Plus, LayoutDashboard, Settings, Archive, Package } from "lucide-react";
+import { FileText, ReceiptText, Users, Plus, LayoutDashboard, Settings, Archive, Package, Mails } from "lucide-react";
 
 export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const navigate = useNavigate();
@@ -32,6 +32,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
           <CommandItem onSelect={() => go("/quotations/new")}><Plus className="h-4 w-4" /> Nouveau devis</CommandItem>
           <CommandItem onSelect={() => go("/proformas/new")}><Plus className="h-4 w-4" /> Nouvelle pro forma</CommandItem>
           <CommandItem onSelect={() => go("/lettre/new")}><Plus className="h-4 w-4" /> Nouvelle lettre</CommandItem>
+          <CommandItem onSelect={() => go("/lettre/publipostage")}><Mails className="h-4 w-4" /> Publipostage</CommandItem>
           <CommandItem onSelect={() => go("/clients/new")}><Plus className="h-4 w-4" /> Nouveau client</CommandItem>
           <CommandItem onSelect={() => go("/templates")}><Plus className="h-4 w-4" /> Modèles de documents</CommandItem>
         </CommandGroup>

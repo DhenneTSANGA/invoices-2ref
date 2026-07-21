@@ -53,11 +53,11 @@ const styles: Record<DocumentStatus | "default", RowStyles> = {
     viewLink: "bg-white/20 text-white hover:bg-white hover:text-orange-700",
   },
   cancelled: {
-    row: "bg-slate-400/70 text-slate-700 hover:bg-slate-400",
-    muted: "text-slate-600",
-    select: "border-slate-400/60 bg-white text-slate-900",
-    actionBtn: "text-slate-700 hover:bg-slate-500/30",
-    viewLink: "bg-slate-800/10 text-slate-800 hover:bg-slate-800 hover:text-white",
+    row: "bg-zinc-200 text-zinc-700 hover:bg-zinc-300",
+    muted: "text-zinc-500",
+    select: "border-zinc-400/60 bg-white text-zinc-900",
+    actionBtn: "text-zinc-700 hover:bg-zinc-400/30",
+    viewLink: "bg-zinc-800/10 text-zinc-800 hover:bg-zinc-800 hover:text-white",
   },
   archived: {
     row: "bg-slate-500 text-white hover:bg-slate-600",

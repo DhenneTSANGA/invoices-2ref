@@ -3,7 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, Download, Send, Eye, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
-import { useDocument, useClients, useSetDocumentStatus } from "@/hooks/use-data";
+import { useDocument, useClients, useSendDocumentEmail } from "@/hooks/use-data";
 import { DocumentPreview } from "@/components/documents/DocumentPreview";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -20,21 +20,28 @@ function ProformaDetail() {
   const { data: doc, isLoading } = useDocument(id);
   const { data: clients = [] } = useClients();
   const client = clients.find((c) => c.id === doc?.clientId);
-  const setStatusMutation = useSetDocumentStatus();
+  const sendEmailMutation = useSendDocumentEmail();
   const [previewOpen, setPreviewOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
 
   if (isLoading) return <div className="py-20 text-center text-sm text-muted-foreground">Chargement…</div>;
   if (!doc) return <div className="glass-panel rounded-3xl p-8 text-center">Pro forma introuvable.</div>;
 
-  const patchStatus = (status: typeof doc.status, message: string) => {
-    setStatusMutation.mutate(
-      { id: doc.id, status },
-      {
-        onSuccess: () => toast.success(message),
-        onError: (e) => toast.error(e.message),
-      },
-    );
+  const sendByEmail = () => {
+    const toastId = toast.loading("Envoi de l'email…");
+    sendEmailMutation.mutate(doc.id, {
+      onSuccess: (res) =>
+        toast.success("Pro forma envoyée par email", {
+          id: toastId,
+          description: `À ${res.to}`,
+        }),
+      onError: (e) =>
+        toast.error("Échec de l'envoi", {
+          id: toastId,
+          description: e.message,
+          duration: 12_000,
+        }),
+    });
   };
 
   const downloadPdf = async () => {
@@ -67,8 +74,8 @@ function ProformaDetail() {
             <button onClick={downloadPdf} disabled={exporting} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60">
               {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} PDF
             </button>
-            <button onClick={() => patchStatus("sent", "Pro forma envoyée")} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted">
-              <Send className="h-4 w-4" /> Envoyer
+            <button onClick={sendByEmail} disabled={sendEmailMutation.isPending} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60">
+              <Send className="h-4 w-4" /> {sendEmailMutation.isPending ? "Envoi…" : "Envoyer"}
             </button>
             <Link to="/invoices/new" className="inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow">
               Convertir en facture

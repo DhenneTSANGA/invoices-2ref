@@ -38,6 +38,7 @@ import { Route as AppQuotationsNewRouteImport } from './routes/_app.quotations.n
 import { Route as AppQuotationsIdRouteImport } from './routes/_app.quotations.$id'
 import { Route as AppProformasNewRouteImport } from './routes/_app.proformas.new'
 import { Route as AppProformasIdRouteImport } from './routes/_app.proformas.$id'
+import { Route as AppLettrePublipostageRouteImport } from './routes/_app.lettre.publipostage'
 import { Route as AppLettreNewRouteImport } from './routes/_app.lettre.new'
 import { Route as AppLettreIdRouteImport } from './routes/_app.lettre.$id'
 import { Route as AppLettersNewRouteImport } from './routes/_app.letters.new'
@@ -191,6 +192,11 @@ const AppProformasIdRoute = AppProformasIdRouteImport.update({
   path: '/proformas/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppLettrePublipostageRoute = AppLettrePublipostageRouteImport.update({
+  id: '/publipostage',
+  path: '/publipostage',
+  getParentRoute: () => AppLettreRoute,
+} as any)
 const AppLettreNewRoute = AppLettreNewRouteImport.update({
   id: '/new',
   path: '/new',
@@ -258,6 +264,7 @@ export interface FileRoutesByFullPath {
   '/letters/new': typeof AppLettersNewRoute
   '/lettre/$id': typeof AppLettreIdRoute
   '/lettre/new': typeof AppLettreNewRoute
+  '/lettre/publipostage': typeof AppLettrePublipostageRoute
   '/proformas/$id': typeof AppProformasIdRoute
   '/proformas/new': typeof AppProformasNewRoute
   '/quotations/$id': typeof AppQuotationsIdRoute
@@ -293,6 +300,7 @@ export interface FileRoutesByTo {
   '/letters/new': typeof AppLettersNewRoute
   '/lettre/$id': typeof AppLettreIdRoute
   '/lettre/new': typeof AppLettreNewRoute
+  '/lettre/publipostage': typeof AppLettrePublipostageRoute
   '/proformas/$id': typeof AppProformasIdRoute
   '/proformas/new': typeof AppProformasNewRoute
   '/quotations/$id': typeof AppQuotationsIdRoute
@@ -333,6 +341,7 @@ export interface FileRoutesById {
   '/_app/letters/new': typeof AppLettersNewRoute
   '/_app/lettre/$id': typeof AppLettreIdRoute
   '/_app/lettre/new': typeof AppLettreNewRoute
+  '/_app/lettre/publipostage': typeof AppLettrePublipostageRoute
   '/_app/proformas/$id': typeof AppProformasIdRoute
   '/_app/proformas/new': typeof AppProformasNewRoute
   '/_app/quotations/$id': typeof AppQuotationsIdRoute
@@ -373,6 +382,7 @@ export interface FileRouteTypes {
     | '/letters/new'
     | '/lettre/$id'
     | '/lettre/new'
+    | '/lettre/publipostage'
     | '/proformas/$id'
     | '/proformas/new'
     | '/quotations/$id'
@@ -408,6 +418,7 @@ export interface FileRouteTypes {
     | '/letters/new'
     | '/lettre/$id'
     | '/lettre/new'
+    | '/lettre/publipostage'
     | '/proformas/$id'
     | '/proformas/new'
     | '/quotations/$id'
@@ -447,6 +458,7 @@ export interface FileRouteTypes {
     | '/_app/letters/new'
     | '/_app/lettre/$id'
     | '/_app/lettre/new'
+    | '/_app/lettre/publipostage'
     | '/_app/proformas/$id'
     | '/_app/proformas/new'
     | '/_app/quotations/$id'
@@ -676,6 +688,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProformasIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/lettre/publipostage': {
+      id: '/_app/lettre/publipostage'
+      path: '/publipostage'
+      fullPath: '/lettre/publipostage'
+      preLoaderRoute: typeof AppLettrePublipostageRouteImport
+      parentRoute: typeof AppLettreRoute
+    }
     '/_app/lettre/new': {
       id: '/_app/lettre/new'
       path: '/new'
@@ -754,12 +773,14 @@ const AppInvoicesRouteWithChildren = AppInvoicesRoute._addFileChildren(
 interface AppLettreRouteChildren {
   AppLettreIdRoute: typeof AppLettreIdRoute
   AppLettreNewRoute: typeof AppLettreNewRoute
+  AppLettrePublipostageRoute: typeof AppLettrePublipostageRoute
   AppLettreIndexRoute: typeof AppLettreIndexRoute
 }
 
 const AppLettreRouteChildren: AppLettreRouteChildren = {
   AppLettreIdRoute: AppLettreIdRoute,
   AppLettreNewRoute: AppLettreNewRoute,
+  AppLettrePublipostageRoute: AppLettrePublipostageRoute,
   AppLettreIndexRoute: AppLettreIndexRoute,
 }
 

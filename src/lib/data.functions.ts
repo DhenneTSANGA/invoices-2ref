@@ -162,62 +162,50 @@ export const upsertDocument = createServerFn({ method: "POST" })
         throw new Error("Accès refusé");
       }
 
-      const row = await prisma.$transaction(async (tx) => {
-        await tx.documentLine.deleteMany({ where: { documentId: data.id! } });
-        const updated = await tx.document.update({
-          where: { id: data.id },
-          data: {
-            ...docData,
-            lines: {
-              create: lines.map(({ id: _id, ...l }) => l),
-            },
-          },
-          include: docInclude,
-        });
-        if (existing.status !== data.status) {
-          await broadcastDocumentStatusChange(
-            {
-              actorStaffId: staff.id,
-              actorName: staffDisplayName(staff),
-              documentId: updated.id,
-              documentNumber: updated.number,
-              documentType: updated.type,
-              previousStatus: existing.status,
-              nextStatus: data.status,
-            },
-            tx,
-          );
-        }
-        return updated;
-      });
-      return mapDocument(row);
-    }
-
-    const row = await prisma.$transaction(async (tx) => {
-      const created = await tx.document.create({
+      const updated = await prisma.document.update({
+        where: { id: data.id },
         data: {
           ...docData,
-          lines: { create: lines.map(({ id: _id, ...l }) => l) },
+          lines: {
+            deleteMany: {},
+            create: lines.map(({ id: _id, ...l }) => l),
+          },
         },
         include: docInclude,
       });
-      if (data.status !== "draft") {
-        await broadcastDocumentStatusChange(
-          {
-            actorStaffId: staff.id,
-            actorName: staffDisplayName(staff),
-            documentId: created.id,
-            documentNumber: created.number,
-            documentType: created.type,
-            previousStatus: "draft",
-            nextStatus: data.status,
-          },
-          tx,
-        );
+      if (existing.status !== data.status) {
+        await broadcastDocumentStatusChange({
+          actorStaffId: staff.id,
+          actorName: staffDisplayName(staff),
+          documentId: updated.id,
+          documentNumber: updated.number,
+          documentType: updated.type,
+          previousStatus: existing.status,
+          nextStatus: data.status,
+        });
       }
-      return created;
+      return mapDocument(updated);
+    }
+
+    const created = await prisma.document.create({
+      data: {
+        ...docData,
+        lines: { create: lines.map(({ id: _id, ...l }) => l) },
+      },
+      include: docInclude,
     });
-    return mapDocument(row);
+    if (data.status !== "draft") {
+      await broadcastDocumentStatusChange({
+        actorStaffId: staff.id,
+        actorName: staffDisplayName(staff),
+        documentId: created.id,
+        documentNumber: created.number,
+        documentType: created.type,
+        previousStatus: "draft",
+        nextStatus: data.status,
+      });
+    }
+    return mapDocument(created);
   });
 
 export const setDocumentStatus = createServerFn({ method: "POST" })
@@ -243,29 +231,23 @@ export const setDocumentStatus = createServerFn({ method: "POST" })
     if (staff.role !== "admin" && existing.createdById !== staff.id) {
       throw new Error("Accès refusé");
     }
-    const row = await prisma.$transaction(async (tx) => {
-      const updated = await tx.document.update({
-        where: { id: data.id },
-        data: { status: data.status },
-        include: docInclude,
-      });
-      if (existing.status !== data.status) {
-        await broadcastDocumentStatusChange(
-          {
-            actorStaffId: staff.id,
-            actorName: staffDisplayName(staff),
-            documentId: updated.id,
-            documentNumber: updated.number,
-            documentType: updated.type,
-            previousStatus: existing.status,
-            nextStatus: data.status,
-          },
-          tx,
-        );
-      }
-      return updated;
+    const updated = await prisma.document.update({
+      where: { id: data.id },
+      data: { status: data.status },
+      include: docInclude,
     });
-    return mapDocument(row);
+    if (existing.status !== data.status) {
+      await broadcastDocumentStatusChange({
+        actorStaffId: staff.id,
+        actorName: staffDisplayName(staff),
+        documentId: updated.id,
+        documentNumber: updated.number,
+        documentType: updated.type,
+        previousStatus: existing.status,
+        nextStatus: data.status,
+      });
+    }
+    return mapDocument(updated);
   });
 
 // ─── Notifications ───────────────────────────────────────────────────────

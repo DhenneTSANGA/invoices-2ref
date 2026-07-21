@@ -3,7 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, Download, Send, CheckCircle2, XCircle, Edit3, Eye, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
-import { useDocument, useClients, useSetDocumentStatus } from "@/hooks/use-data";
+import { useDocument, useClients, useSetDocumentStatus, useSendDocumentEmail } from "@/hooks/use-data";
 import { DocumentPreview } from "@/components/documents/DocumentPreview";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -21,6 +21,7 @@ function InvoiceDetail() {
   const { data: clients = [] } = useClients();
   const client = clients.find((c) => c.id === doc?.clientId);
   const setStatusMutation = useSetDocumentStatus();
+  const sendEmailMutation = useSendDocumentEmail();
   const [previewOpen, setPreviewOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
 
@@ -40,6 +41,23 @@ function InvoiceDetail() {
         onError: (e) => toast.error(e.message),
       },
     );
+  };
+
+  const sendByEmail = () => {
+    const toastId = toast.loading("Envoi de l'email…");
+    sendEmailMutation.mutate(doc.id, {
+      onSuccess: (res) =>
+        toast.success("Facture envoyée par email", {
+          id: toastId,
+          description: `À ${res.to}`,
+        }),
+      onError: (e) =>
+        toast.error("Échec de l'envoi", {
+          id: toastId,
+          description: e.message,
+          duration: 12_000,
+        }),
+    });
   };
 
   const downloadPdf = async () => {
@@ -71,9 +89,9 @@ function InvoiceDetail() {
             <button onClick={downloadPdf} disabled={exporting} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60">
               {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} PDF
             </button>
-            <button onClick={() => patchStatus("sent", "Facture envoyée")} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted"><Send className="h-4 w-4" /> Envoyer</button>
+            <button onClick={sendByEmail} disabled={sendEmailMutation.isPending} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60"><Send className="h-4 w-4" /> {sendEmailMutation.isPending ? "Envoi…" : "Envoyer"}</button>
             <button onClick={() => patchStatus("paid", "Marquée comme payée")} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-success px-4 py-2 text-sm font-medium text-success-foreground shadow"><CheckCircle2 className="h-4 w-4" /> Marquer payée</button>
-            <button onClick={() => patchStatus("cancelled", "Facture annulée", "warning")} className="inline-flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-700 hover:bg-rose-100">Annuler</button>
+            <button onClick={() => patchStatus("cancelled", "Facture annulée", "warning")} className="inline-flex items-center gap-2 rounded-2xl border border-zinc-300 bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-200">Annuler</button>
           </>
         }
       />

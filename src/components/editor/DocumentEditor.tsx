@@ -8,7 +8,7 @@ import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModa
 import { downloadDocumentPdf } from "@/lib/pdf/downloadDocumentPdf";
 import { number } from "@/lib/format";
 import { Button } from "@/components/ui/button";
-import { useClients, useServices, useUpsertDocument } from "@/hooks/use-data";
+import { useClients, useServices, useUpsertDocument, useSendDocumentEmail } from "@/hooks/use-data";
 
 type Props = { initial?: Document; type: DocumentType };
 
@@ -23,6 +23,7 @@ export function DocumentEditor({ initial, type }: Props) {
   const { data: clients = [], isLoading: loadingClients } = useClients();
   const { data: services = [] } = useServices();
   const upsertMutation = useUpsertDocument();
+  const sendEmailMutation = useSendDocumentEmail();
 
   const [doc, setDoc] = useState<Document>(() =>
     initial ?? defaultDoc(type, ""),
@@ -115,7 +116,7 @@ export function DocumentEditor({ initial, type }: Props) {
         type,
         number: merged.number,
         clientId: merged.clientId,
-        status,
+        status: status === "sent" ? ("draft" as const) : status,
         issueDate: merged.issueDate,
         dueDate: merged.dueDate,
         currency: merged.currency,
@@ -149,11 +150,15 @@ export function DocumentEditor({ initial, type }: Props) {
         vat: merged.vat,
         total: merged.total,
       };
-      await upsertMutation.mutateAsync(payload);
-      toast.success(
-        status === "sent" ? "Document envoyé" : "Document enregistré",
-        { description: merged.number },
-      );
+      const saved = await upsertMutation.mutateAsync(payload);
+      if (status === "sent") {
+        const emailed = await sendEmailMutation.mutateAsync(saved.id);
+        toast.success("Document envoyé par email", {
+          description: `${saved.number} → ${emailed.to}`,
+        });
+      } else {
+        toast.success("Document enregistré", { description: saved.number });
+      }
       void navigate({ to: listPath });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Enregistrement impossible");

@@ -30,12 +30,12 @@ const map: Record<DocumentStatus | "default", { label: string; cls: string; dot:
   overdue: {
     label: "En retard",
     cls: "bg-red-50 text-red-700 ring-1 ring-red-200",
-    dot: "bg-red-500",
+    dot: "bg-red-600",
   },
   cancelled: {
     label: "Annulé",
-    cls: "bg-rose-50 text-rose-700 ring-1 ring-rose-200",
-    dot: "bg-rose-500",
+    cls: "bg-zinc-100 text-zinc-600 ring-1 ring-zinc-300",
+    dot: "bg-zinc-400",
   },
   archived: {
     label: "Archivé",

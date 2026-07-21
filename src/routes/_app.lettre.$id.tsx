@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft, Download, Send, Eye, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
-import { useDocument, useClients, useSetDocumentStatus } from "@/hooks/use-data";
+import { useDocument, useClients, useSendDocumentEmail } from "@/hooks/use-data";
 import { DocumentPreview } from "@/components/documents/DocumentPreview";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -21,7 +21,7 @@ function LetterDetail() {
   const { data: doc, isLoading } = useDocument(id);
   const { data: clients = [] } = useClients();
   const client = clients.find((c) => c.id === doc?.clientId);
-  const setStatusMutation = useSetDocumentStatus();
+  const sendEmailMutation = useSendDocumentEmail();
   const [previewOpen, setPreviewOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -74,8 +74,23 @@ function LetterDetail() {
             <button onClick={() => setEditing(true)} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted">
               Modifier
             </button>
-            <button onClick={() => setStatusMutation.mutate({ id: doc.id, status: "sent" }, { onSuccess: () => toast.success("Lettre marquée comme envoyée"), onError: (e) => toast.error(e.message) })} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow">
-              <Send className="h-4 w-4" /> Envoyer
+            <button onClick={() => {
+              const toastId = toast.loading("Envoi de l'email…");
+              sendEmailMutation.mutate(doc.id, {
+                onSuccess: (res) =>
+                  toast.success("Lettre envoyée par email", {
+                    id: toastId,
+                    description: `À ${res.to}`,
+                  }),
+                onError: (e) =>
+                  toast.error("Échec de l'envoi", {
+                    id: toastId,
+                    description: e.message,
+                    duration: 12_000,
+                  }),
+              });
+            }} disabled={sendEmailMutation.isPending} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow disabled:opacity-60">
+              <Send className="h-4 w-4" /> {sendEmailMutation.isPending ? "Envoi…" : "Envoyer"}
             </button>
           </>
         }
