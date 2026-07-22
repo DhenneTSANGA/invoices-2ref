@@ -1,5 +1,6 @@
 import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
-import { Logo } from "@/components/common/Logo";
+import { DualCabinetLogos } from "@/components/common/Logo";
+import { AuthVisualPanel } from "@/components/auth/AuthVisualPanel";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ArrowRight, Mail, Lock, Eye, EyeOff } from "lucide-react";
@@ -15,8 +16,12 @@ import { getAuthBootstrap } from "@/lib/admin.functions";
 export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
-      { title: "Connexion — 2R Expertise Fiscale" },
-      { name: "description", content: "Accédez à votre espace 2R Expertise Fiscale." },
+      { title: "Connexion — 2R" },
+      {
+        name: "description",
+        content:
+          "Accédez à votre espace collaborateur 2R Conseil ou 2R Expertise Fiscale.",
+      },
     ],
   }),
   beforeLoad: async () => {
@@ -63,7 +68,8 @@ function LoginPage() {
         void navigate({ to: homePathForRole(session.staff.role) });
       } else {
         void navigate({ to: "/onboarding" });
-      }    } catch (err) {
+      }
+    } catch (err) {
       toast.error(err instanceof Error ? err.message : "Connexion impossible");
     } finally {
       setLoading(false);
@@ -81,34 +87,38 @@ function LoginPage() {
 
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
-      <div className="aurora-bg relative hidden flex-col justify-between p-12 lg:flex">
-        <Brand />
-        <div>
-          <h1 className="font-display text-4xl font-bold leading-tight">
-            2R Expertise Fiscale
-          </h1>
-          <p className="mt-3 max-w-md text-muted-foreground">
-            Plateforme d&apos;automatisation du cabinet 2R Expertise Fiscale.
-          </p>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          © {new Date().getFullYear()} 2R Expertise Fiscale
-        </p>
-      </div>
+      <AuthVisualPanel
+        imageSrc="/auth/login-panel.png"
+        imageAlt="Bureaux 2R Conseil et 2R Expertise Fiscale"
+        title="Deux cabinets, un seul espace de travail"
+        subtitle="Reprenez vos devis, factures et dossiers clients là où vous les avez laissés."
+      />
 
       <div className="flex items-center justify-center p-6">
-        <form onSubmit={submit} className="glass-panel w-full max-w-md rounded-3xl p-5 shadow-float sm:p-8">
-          <div className="lg:hidden mb-6">
-            <Brand />
+        <form
+          onSubmit={submit}
+          className="glass-panel w-full max-w-md rounded-3xl p-5 shadow-float sm:p-8"
+        >
+          <div className="mb-6">
+            <DualCabinetLogos size="sm" className="gap-2.5 [&_img]:h-10" />
+            <p className="mt-3 text-xs text-muted-foreground">
+              Connexion collaborateur
+            </p>
           </div>
           <h2 className="font-display text-2xl font-bold">Connexion</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Accédez à votre espace collaborateur.
+            Accédez à votre espace pour 2R Conseil ou 2R Expertise Fiscale.
           </p>
 
           <div className="mt-6 space-y-4">
             <Field icon={Mail} label="Email" type="email" value={email} onChange={setEmail} />
-            <Field icon={Lock} label="Mot de passe" type="password" value={password} onChange={setPassword} />
+            <Field
+              icon={Lock}
+              label="Mot de passe"
+              type="password"
+              value={password}
+              onChange={setPassword}
+            />
           </div>
 
           <button
@@ -116,7 +126,13 @@ function LoginPage() {
             disabled={loading}
             className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-70"
           >
-            {loading ? "Connexion…" : <>Se connecter <ArrowRight className="h-4 w-4" /></>}
+            {loading ? (
+              "Connexion…"
+            ) : (
+              <>
+                Se connecter <ArrowRight className="h-4 w-4" />
+              </>
+            )}
           </button>
 
           <button
@@ -131,7 +147,7 @@ function LoginPage() {
 
           <p className="mt-6 text-center text-xs text-muted-foreground">
             Pas de compte ?{" "}
-            <Link to="/signup" className="text-primary font-medium hover:underline">
+            <Link to="/signup" className="font-medium text-primary hover:underline">
               S&apos;inscrire
             </Link>
           </p>
@@ -139,10 +155,6 @@ function LoginPage() {
       </div>
     </div>
   );
-}
-
-function Brand() {
-  return <Logo size="md" className="rounded-lg" />;
 }
 
 function Field({

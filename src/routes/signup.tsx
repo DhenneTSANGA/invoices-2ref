@@ -1,8 +1,19 @@
 import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
-import { Logo } from "@/components/common/Logo";
+import { DualCabinetLogos } from "@/components/common/Logo";
+import { AuthVisualPanel } from "@/components/auth/AuthVisualPanel";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ArrowRight, Mail, Lock, User, Phone, Eye, EyeOff, Building2, Briefcase } from "lucide-react";
+import {
+  ArrowRight,
+  Mail,
+  Lock,
+  User,
+  Phone,
+  Eye,
+  EyeOff,
+  Building2,
+  Briefcase,
+} from "lucide-react";
 import { signUpWithStaff, signInWithGoogle } from "@/lib/auth";
 import { signupStaffSchema, toStaffPayload } from "@/lib/auth-schemas";
 import { syncStaffFromSignup } from "@/lib/staff-client";
@@ -12,7 +23,7 @@ import { CABINET_LABELS, STAFF_JOB_TITLES } from "@/lib/cabinets";
 import { homePathForRole } from "@/lib/roles";
 
 export const Route = createFileRoute("/signup")({
-  head: () => ({ meta: [{ title: "Inscription — 2R Expertise Fiscale" }] }),
+  head: () => ({ meta: [{ title: "Inscription — 2R" }] }),
   beforeLoad: async () => {
     const session = await getCurrentSession();
     if (session) throw redirect({ to: homePathForRole(session.staff.role) });
@@ -75,67 +86,128 @@ function SignupPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-6 aurora-bg">
-      <form onSubmit={submit} className="glass-panel w-full max-w-lg rounded-3xl p-5 shadow-float sm:p-8">
-        <div className="mb-6">
-          <Logo size="md" className="rounded-lg" />
-          <div className="mt-3 text-xs text-muted-foreground">Inscription collaborateur</div>
-        </div>
+    <div className="grid min-h-screen lg:grid-cols-2">
+      <AuthVisualPanel
+        imageSrc="/auth/signup2.png"
+        imageAlt="Bienvenue chez 2R Conseil et 2R Expertise Fiscale"
+        title="Bienvenue dans l’équipe 2R"
+        subtitle="Choisissez votre cabinet et votre poste pour démarrer — documents, clients et collaboration au même endroit."
+      />
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Input icon={User} label="Prénom" value={form.firstName} onChange={(v) => setForm({ ...form, firstName: v })} />
-          <Input icon={User} label="Nom" value={form.lastName} onChange={(v) => setForm({ ...form, lastName: v })} />
-          <Select
-            icon={Building2}
-            label="Cabinet"
-            value={form.cabinet}
-            onChange={(v) => setForm({ ...form, cabinet: v })}
-            className="sm:col-span-2"
-            required
-            options={[
-              { value: "conseil", label: CABINET_LABELS.conseil },
-              { value: "expertise_fiscale", label: CABINET_LABELS.expertise_fiscale },
-            ]}
-          />
-          <Select
-            icon={Briefcase}
-            label="Poste"
-            value={form.jobTitle}
-            onChange={(v) => setForm({ ...form, jobTitle: v })}
-            className="sm:col-span-2"
-            required
-            options={STAFF_JOB_TITLES.map((j) => ({ value: j.value, label: j.label }))}
-          />
-          <Input icon={Mail} label="Email" type="email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} className="sm:col-span-2" />
-          <Input icon={Phone} label="Téléphone" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} className="sm:col-span-2" />
-          <Input icon={Lock} label="Mot de passe" type="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} />
-          <Input icon={Lock} label="Confirmation" type="password" value={form.confirmPassword} onChange={(v) => setForm({ ...form, confirmPassword: v })} />
-        </div>
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-70"
+      <div className="flex items-center justify-center p-6">
+        <form
+          onSubmit={submit}
+          className="glass-panel w-full max-w-lg rounded-3xl p-5 shadow-float sm:p-8"
         >
-          {loading ? "Création…" : <>Créer mon compte <ArrowRight className="h-4 w-4" /></>}
-        </button>
+          <div className="mb-6">
+            <DualCabinetLogos size="sm" className="gap-2.5 [&_img]:h-10" />
+            <div className="mt-3 text-xs text-muted-foreground">
+              Inscription collaborateur
+            </div>
+          </div>
 
-        <button
-          type="button"
-          onClick={() => signInWithGoogle()}
-          className="mt-3 inline-flex w-full items-center justify-center gap-2.5 rounded-2xl border border-border/80 bg-surface px-3 py-3 text-sm font-medium transition hover:bg-muted/80"
-        >
-          <GoogleIcon className="h-5 w-5 shrink-0" />
-          Google
-        </button>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Input
+              icon={User}
+              label="Prénom"
+              value={form.firstName}
+              onChange={(v) => setForm({ ...form, firstName: v })}
+            />
+            <Input
+              icon={User}
+              label="Nom"
+              value={form.lastName}
+              onChange={(v) => setForm({ ...form, lastName: v })}
+            />
+            <Select
+              icon={Building2}
+              label="Cabinet"
+              value={form.cabinet}
+              onChange={(v) => setForm({ ...form, cabinet: v })}
+              className="sm:col-span-2"
+              required
+              options={[
+                { value: "conseil", label: CABINET_LABELS.conseil },
+                {
+                  value: "expertise_fiscale",
+                  label: CABINET_LABELS.expertise_fiscale,
+                },
+              ]}
+            />
+            <Select
+              icon={Briefcase}
+              label="Poste"
+              value={form.jobTitle}
+              onChange={(v) => setForm({ ...form, jobTitle: v })}
+              className="sm:col-span-2"
+              required
+              options={STAFF_JOB_TITLES.map((j) => ({
+                value: j.value,
+                label: j.label,
+              }))}
+            />
+            <Input
+              icon={Mail}
+              label="Email"
+              type="email"
+              value={form.email}
+              onChange={(v) => setForm({ ...form, email: v })}
+              className="sm:col-span-2"
+            />
+            <Input
+              icon={Phone}
+              label="Téléphone"
+              value={form.phone}
+              onChange={(v) => setForm({ ...form, phone: v })}
+              className="sm:col-span-2"
+            />
+            <Input
+              icon={Lock}
+              label="Mot de passe"
+              type="password"
+              value={form.password}
+              onChange={(v) => setForm({ ...form, password: v })}
+            />
+            <Input
+              icon={Lock}
+              label="Confirmation"
+              type="password"
+              value={form.confirmPassword}
+              onChange={(v) => setForm({ ...form, confirmPassword: v })}
+            />
+          </div>
 
-        <p className="mt-4 text-center text-xs text-muted-foreground">
-          Déjà inscrit ?{" "}
-          <Link to="/login" className="text-primary font-medium hover:underline">
-            Se connecter
-          </Link>
-        </p>
-      </form>
+          <button
+            type="submit"
+            disabled={loading}
+            className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-70"
+          >
+            {loading ? (
+              "Création…"
+            ) : (
+              <>
+                Créer mon compte <ArrowRight className="h-4 w-4" />
+              </>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => signInWithGoogle()}
+            className="mt-3 inline-flex w-full items-center justify-center gap-2.5 rounded-2xl border border-border/80 bg-surface px-3 py-3 text-sm font-medium transition hover:bg-muted/80"
+          >
+            <GoogleIcon className="h-5 w-5 shrink-0" />
+            Google
+          </button>
+
+          <p className="mt-4 text-center text-xs text-muted-foreground">
+            Déjà inscrit ?{" "}
+            <Link to="/login" className="font-medium text-primary hover:underline">
+              Se connecter
+            </Link>
+          </p>
+        </form>
+      </div>
     </div>
   );
 }
