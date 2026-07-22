@@ -299,6 +299,9 @@
   * {
     border-color: var(--color-border);
   }
+  html {
+    overflow-x: clip;
+  }
   html, body {
     background-color: var(--color-background);
     color: var(--color-foreground);
@@ -307,7 +310,13 @@
     text-rendering: optimizeLegibility;
   }
   body {
+    overflow-x: clip;
     background-image: var(--gradient-mesh);
     background-attachment: fixed;
+  }
+  #root, #app {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: clip;
   }
 }

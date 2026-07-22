@@ -65,7 +65,7 @@ function SignupPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-6 aurora-bg">
-      <form onSubmit={submit} className="glass-panel w-full max-w-lg rounded-3xl p-8 shadow-float">
+      <form onSubmit={submit} className="glass-panel w-full max-w-lg rounded-3xl p-5 shadow-float sm:p-8">
         <div className="mb-6">
           <Logo size="md" className="rounded-lg" />
           <div className="mt-3 text-xs text-muted-foreground">Inscription collaborateur</div>

@@ -107,8 +107,8 @@ function Dashboard() {
         subtitle="Voici l'état de votre cabinet aujourd'hui."
         actions={
           <>
-            <Link to="/quotations/new" className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface/70 px-4 py-2 text-sm font-medium hover:bg-muted transition-colors"><FileText className="h-4 w-4" /> Nouveau devis</Link>
-            <Link to="/invoices/new" className="inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow"><Plus className="h-4 w-4" /> Facture</Link>
+            <Link to="/quotations/new" className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl border border-border bg-surface/70 px-3 py-2 text-sm font-medium hover:bg-muted transition-colors sm:flex-none sm:px-4"><FileText className="h-4 w-4 shrink-0" /> <span className="truncate">Nouveau devis</span></Link>
+            <Link to="/invoices/new" className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-gradient-primary px-3 py-2 text-sm font-medium text-primary-foreground shadow-glow sm:flex-none sm:px-4"><Plus className="h-4 w-4 shrink-0" /> Facture</Link>
           </>
         }
       />
@@ -121,20 +121,20 @@ function Dashboard() {
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-panel rounded-3xl p-5 xl:col-span-2">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-display text-lg font-semibold">Revenus mensuels</h3>
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-panel min-w-0 overflow-hidden rounded-3xl p-4 sm:p-5 xl:col-span-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <h3 className="font-display text-base font-semibold sm:text-lg">Revenus mensuels</h3>
               <p className="text-xs text-muted-foreground">Factures payées et devis émis — 6 derniers mois</p>
             </div>
             {revenueGrowth !== 0 && (
-              <div className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${revenueGrowth >= 0 ? "bg-success/15 text-success" : "bg-danger/15 text-danger"}`}>
+              <div className={`flex shrink-0 items-center gap-1.5 self-start rounded-full px-2.5 py-1 text-xs font-medium ${revenueGrowth >= 0 ? "bg-success/15 text-success" : "bg-danger/15 text-danger"}`}>
                 <TrendingUp className="h-3 w-3" /> {revenueGrowth >= 0 ? "+" : ""}{revenueGrowth.toFixed(1)}%
               </div>
             )}
           </div>
-          <div className="mt-4 h-72">
-            <ResponsiveContainer>
+          <div className="mt-4 h-64 w-full min-w-0 sm:h-72">
+            <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={revenueData}>
                 <defs>
                   <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">

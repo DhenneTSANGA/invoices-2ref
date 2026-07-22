@@ -84,7 +84,7 @@ function NotificationsPage() {
               animate={{ opacity: n.read ? 0.45 : 1, x: 0 }}
               transition={{ delay: i * 0.04 }}
               className={cn(
-                "glass-panel flex items-start gap-3 rounded-2xl p-4 transition-all",
+                "glass-panel flex flex-col gap-2 rounded-2xl p-3 transition-all sm:flex-row sm:items-start sm:gap-3 sm:p-4",
                 clickable && "cursor-pointer hover:shadow-glow",
                 !n.read && "ring-1 ring-primary/30",
                 n.read && "grayscale-[0.35]",
@@ -92,6 +92,7 @@ function NotificationsPage() {
               onClick={() => void openNotification(n)}
               role={clickable ? "link" : undefined}
             >
+              <div className="flex min-w-0 flex-1 items-start gap-3">
               <div
                 className={cn(
                   "mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white shadow",
@@ -102,10 +103,10 @@ function NotificationsPage() {
                 <Bell className="h-4 w-4" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <div
                     className={cn(
-                      "font-semibold",
+                      "min-w-0 break-words font-semibold",
                       n.read && "font-medium text-muted-foreground",
                     )}
                   >
@@ -124,14 +125,15 @@ function NotificationsPage() {
                 </div>
                 <p
                   className={cn(
-                    "text-sm text-muted-foreground",
+                    "break-words text-sm text-muted-foreground",
                     n.read && "text-muted-foreground/70",
                   )}
                 >
                   {n.body}
                 </p>
               </div>
-              <div className="whitespace-nowrap text-xs text-muted-foreground">
+              </div>
+              <div className="shrink-0 self-end text-xs text-muted-foreground sm:self-start">
                 {shortDate(n.at)}
               </div>
             </motion.li>

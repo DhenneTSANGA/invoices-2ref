@@ -99,6 +99,7 @@
     "globals": "^15.15.0",
     "nitro": "3.0.260603-beta",
     "pg": "^8.22.0",
+    "playwright": "1.51.0",
     "prettier": "^3.7.3",
     "prisma": "^6.19.3",
     "typescript": "^5.8.3",

@@ -59,21 +59,21 @@ export function AppTopbar() {
 
   return (
     <>
-      <header className="glass-topbar sticky top-0 z-30 flex h-16 items-center gap-3 px-4 md:px-6">
+      <header className="glass-topbar sticky top-0 z-30 flex h-14 min-w-0 items-center gap-2 overflow-x-clip px-3 sm:h-16 sm:gap-3 sm:px-4 md:px-6">
         <MobileNav />
-        <Logo size="xs" className="lg:hidden rounded-md" />
+        <Logo size="xs" className="hidden shrink-0 rounded-md sm:block lg:hidden" />
 
         <button
           onClick={() => setOpenCmd(true)}
-          className="flex flex-1 items-center gap-2 rounded-2xl border border-border/60 bg-surface/70 px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-surface max-w-xl"
+          className="flex min-w-0 flex-1 items-center gap-2 rounded-2xl border border-border/60 bg-surface/70 px-2.5 py-2 text-sm text-muted-foreground transition-colors hover:bg-surface sm:max-w-xl sm:px-3"
         >
-          <Search className="h-4 w-4" />
-          <span className="hidden sm:inline">Rechercher clients, devis, factures…</span>
-          <span className="sm:hidden">Rechercher</span>
+          <Search className="h-4 w-4 shrink-0" />
+          <span className="hidden truncate sm:inline">Rechercher clients, devis, factures…</span>
+          <span className="truncate sm:hidden">Rechercher</span>
           <kbd className="ml-auto hidden rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-mono sm:inline-block">⌘K</kbd>
         </button>
 
-        <div className="ml-auto flex items-center gap-1.5">
+        <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-1.5">
           <Link
             to="/invoices/new"
             className="hidden md:inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow transition-transform hover:scale-[1.02] active:scale-[0.98]"
@@ -109,7 +109,7 @@ export function AppTopbar() {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -8, scale: 0.96 }}
                   transition={{ duration: 0.18 }}
-                  className="glass-panel absolute right-0 top-12 z-50 w-80 rounded-2xl p-2 shadow-float"
+                  className="glass-panel absolute right-0 top-12 z-50 w-[min(20rem,calc(100vw-1.5rem))] rounded-2xl p-2 shadow-float"
                 >
                   <div className="flex items-center justify-between px-3 py-2">
                     <div className="text-sm font-semibold">Notifications</div>

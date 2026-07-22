@@ -34,17 +34,19 @@ export function StatCard({
       transition={{ duration: 0.5, delay: index * 0.08, ease: [0.22, 1, 0.36, 1] }}
       whileHover={{ y: -4, scale: 1.015 }}
       className={cn(
-        "relative overflow-hidden rounded-3xl p-6 shadow-float",
+        "relative overflow-hidden rounded-3xl p-4 shadow-float sm:p-6",
         variant === "default" ? "glass-panel" : v.tile,
       )}
     >
       <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/10 blur-2xl" aria-hidden />
-      <div className="relative flex items-start justify-between">
-        <div>
+      <div className="relative flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
           <p className={cn("text-xs font-medium uppercase tracking-wider", variant === "default" ? "text-muted-foreground" : "opacity-80")}>{label}</p>
-          <div className="mt-3 flex items-baseline gap-1 font-display text-3xl font-bold tracking-tight">
+          <div className="mt-2 flex min-w-0 flex-wrap items-baseline gap-1 font-display text-2xl font-bold tracking-tight sm:mt-3 sm:text-3xl">
             {prefix && <span className="text-base opacity-70">{prefix}</span>}
-            <AnimatedCounter value={value} format={format} />
+            <span className="min-w-0 break-words">
+              <AnimatedCounter value={value} format={format} />
+            </span>
             {suffix && <span className="text-base opacity-70">{suffix}</span>}
           </div>
           {delta && (
@@ -61,8 +63,8 @@ export function StatCard({
             </div>
           )}
         </div>
-        <div className={cn("flex h-12 w-12 items-center justify-center rounded-2xl", v.icon)}>
-          <Icon className="h-6 w-6" />
+        <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl sm:h-12 sm:w-12", v.icon)}>
+          <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
         </div>
       </div>
     </motion.div>

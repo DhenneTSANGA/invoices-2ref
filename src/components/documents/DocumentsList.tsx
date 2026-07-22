@@ -123,12 +123,12 @@ export function DocumentsList({ type }: { type: DocumentType }) {
         <Kpi label="En attente" value={String(filtered.filter((d) => d.status === "sent" || d.status === "draft").length)} />
       </div>
 
-      <div className="glass-panel mb-4 flex flex-wrap items-center gap-3 rounded-2xl p-3">
-        <div className="relative flex-1 min-w-60">
+      <div className="glass-panel mb-4 flex flex-col gap-3 rounded-2xl p-3 sm:flex-row sm:flex-wrap sm:items-center">
+        <div className="relative min-w-0 flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher par numéro ou client…" className="w-full rounded-xl border border-border/60 bg-transparent pl-10 pr-3 py-2 text-sm focus:border-primary focus:outline-none" />
         </div>
-        <select value={status} onChange={(e) => setStatus(e.target.value)} className="rounded-xl border border-border/60 bg-surface px-3 py-2 text-sm">
+        <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full rounded-xl border border-border/60 bg-surface px-3 py-2 text-sm sm:w-auto">
           <option value="all">Tous les statuts</option>
           {statusOptions.map((s) => (
             <option key={s} value={s}>{statusLabel(s)}</option>
@@ -147,7 +147,8 @@ export function DocumentsList({ type }: { type: DocumentType }) {
         <EmptyState icon={FileText} title="Aucun document" description="Aucun résultat ne correspond à votre recherche." />
       ) : (
         <div className="glass-panel overflow-hidden rounded-3xl">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[720px] text-sm">
             <thead className="bg-muted/60 text-xs uppercase tracking-wider text-muted-foreground">
               <tr>
                 <th className="px-5 py-3 text-left">Numéro</th>
@@ -241,6 +242,7 @@ export function DocumentsList({ type }: { type: DocumentType }) {
               })}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

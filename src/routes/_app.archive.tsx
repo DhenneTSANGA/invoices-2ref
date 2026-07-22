@@ -24,7 +24,8 @@ function ArchivePage() {
       <PageHeader title="Archives" subtitle="Documents clôturés et historisés." />
       {archived.length === 0 ? <EmptyState icon={Archive} title="Archive vide" description="Vos documents finalisés s'afficheront ici." /> : (
         <div className="glass-panel overflow-hidden rounded-3xl">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] text-sm">
             <thead className="bg-muted/60 text-xs uppercase tracking-wider text-muted-foreground">
               <tr><th className="px-5 py-3 text-left">Numéro</th><th className="px-5 py-3 text-left">Type</th><th className="px-5 py-3 text-left">Client</th><th className="px-5 py-3 text-left">Date</th><th className="px-5 py-3 text-left">Statut</th><th className="px-5 py-3 text-right">Montant</th></tr>
             </thead>
@@ -44,6 +45,7 @@ function ArchivePage() {
               })}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

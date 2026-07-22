@@ -192,7 +192,7 @@ function DocumentsHubPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: Math.min(i * 0.03, 0.3) }}
                 className={cn(
-                  "scroll-mt-24 rounded-3xl p-5 transition-all duration-300",
+                  "scroll-mt-24 min-w-0 rounded-3xl p-4 transition-all duration-300 sm:p-5",
                   focused
                     ? "border-2 border-yellow-400 bg-yellow-100 shadow-[0_0_0_4px_rgba(250,204,21,0.45)] dark:bg-yellow-400/25"
                     : "glass-panel",

@@ -84,7 +84,7 @@ export function AuthShell({
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="glass-panel w-full max-w-lg rounded-3xl p-8 shadow-float"
+          className="glass-panel w-full max-w-lg rounded-3xl p-5 shadow-float sm:p-8"
         >
           <div className="mb-6 flex items-center gap-3 lg:hidden">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-primary font-bold text-primary-foreground">

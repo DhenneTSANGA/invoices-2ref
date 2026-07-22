@@ -101,7 +101,7 @@ function LoginPage() {
       </div>
 
       <div className="flex items-center justify-center p-6">
-        <form onSubmit={submit} className="glass-panel w-full max-w-md rounded-3xl p-8 shadow-float">
+        <form onSubmit={submit} className="glass-panel w-full max-w-md rounded-3xl p-5 shadow-float sm:p-8">
           <div className="lg:hidden mb-6">
             <Brand />
           </div>

@@ -46,12 +46,12 @@ function AppLayout() {
   }, [queryClient]);
 
   return (
-    <div className="flex min-h-screen w-full">
+    <div className="flex min-h-screen w-full max-w-[100vw] overflow-x-clip">
       <NotificationSync />
       <AppSidebar />
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex min-w-0 flex-1 flex-col">
         <AppTopbar />
-        <main className="flex-1 px-4 py-6 md:px-8">
+        <main className="min-w-0 flex-1 overflow-x-clip px-3 py-5 sm:px-4 sm:py-6 md:px-8">
           <PageTransition>
             <Outlet />
           </PageTransition>

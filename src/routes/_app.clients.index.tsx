@@ -57,8 +57,8 @@ function ClientsPage() {
         }
       />
 
-      <div className="glass-panel mb-4 flex flex-wrap items-center gap-3 rounded-2xl p-3">
-        <div className="relative flex-1 min-w-60">
+      <div className="glass-panel mb-4 flex flex-col gap-3 rounded-2xl p-3 sm:flex-row sm:flex-wrap sm:items-center">
+        <div className="relative min-w-0 flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             value={q}
