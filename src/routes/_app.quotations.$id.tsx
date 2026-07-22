@@ -12,7 +12,7 @@ import { downloadDocumentPdf } from "@/lib/pdf/downloadDocumentPdf";
 import { currency, longDate } from "@/lib/format";
 
 export const Route = createFileRoute("/_app/quotations/$id")({
-  head: () => ({ meta: [{ title: "Détail devis — 2REF-AUTO" }] }),
+  head: () => ({ meta: [{ title: "Détail devis — 2R Expertise Fiscale" }] }),
   component: QuotationDetail,
 });
 

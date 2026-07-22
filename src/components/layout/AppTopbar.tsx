@@ -5,11 +5,11 @@ import { useState } from "react";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { CommandPalette } from "./CommandPalette";
 import { MobileNav } from "./MobileNav";
+import { StaffAvatar } from "@/components/common/StaffAvatar";
 import { motion, AnimatePresence } from "framer-motion";
 import { shortDate } from "@/lib/format";
 import { useSession, useNotifications, useMarkNotificationRead } from "@/hooks/use-data";
 import { signOut } from "@/lib/auth";
-import { staffInitials } from "@/lib/auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { sessionKey } from "@/hooks/use-data";
 import type { NotificationItem } from "@/store/types";
@@ -31,9 +31,6 @@ export function AppTopbar() {
   const displayName = staff
     ? `${staff.firstName} ${staff.lastName}`
   : "Collaborateur";
-  const initials = staff
-    ? staffInitials(staff.firstName, staff.lastName)
-    : "2R";
 
   const logout = async () => {
     await signOut();
@@ -158,7 +155,16 @@ export function AppTopbar() {
               onClick={() => { setProfileOpen((o) => !o); setBellOpen(false); }}
               className="flex items-center gap-2 rounded-2xl border border-border/60 bg-surface/70 pl-1 pr-2 py-1 transition-colors hover:bg-muted"
             >
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-accent text-accent-foreground font-bold text-sm">{initials}</div>
+              <StaffAvatar
+                person={
+                  staff ?? {
+                    firstName: displayName,
+                    lastName: "",
+                  }
+                }
+                size="sm"
+                className="!h-8 !w-8 !rounded-xl !text-sm"
+              />
               <span className="hidden text-sm font-medium md:inline max-w-[140px] truncate">{displayName}</span>
               <ChevronDown className="hidden h-3.5 w-3.5 text-muted-foreground md:inline" />
             </button>

@@ -14,6 +14,7 @@ export async function syncStaffMember(input: SyncStaffInput) {
       lastName: input.lastName,
       jobTitle: input.jobTitle,
       phone: input.phone ?? null,
+      avatarUrl: input.avatarUrl ?? null,
       role: input.role ?? "member",
     },
     update: {
@@ -22,6 +23,8 @@ export async function syncStaffMember(input: SyncStaffInput) {
       lastName: input.lastName,
       jobTitle: input.jobTitle,
       phone: input.phone ?? null,
+      // Ne pas effacer une photo existante si le provider n'en renvoie pas (ex. magic link)
+      ...(input.avatarUrl ? { avatarUrl: input.avatarUrl } : {}),
     },
   });
 }

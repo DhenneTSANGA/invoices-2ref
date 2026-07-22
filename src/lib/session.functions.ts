@@ -21,21 +21,37 @@ const sessionMemo = new Map<string, { at: number; value: AppSession }>();
 export const getCurrentSession = createServerFn({ method: "GET" }).handler(
   async (): Promise<AppSession> => {
     const supabase = createSupabaseServer();
-    const { data, error } = await supabase.auth.getSession();
-    const user = data.session?.user;
+    // getUser() rafraîchit les métadonnées (avatar Google inclus)
+    const { data, error } = await supabase.auth.getUser();
+    const user = data.user;
     if (error || !user) return null;
 
     const cached = sessionMemo.get(user.id);
     if (cached && Date.now() - cached.at < SESSION_TTL_MS) {
-      return cached.value;
+      // Si l'avatar manque encore en cache mais est présent côté Auth, forcer le refresh
+      const payloadPeek = staffFromAuthUser(user);
+      if (
+        !cached.value?.staff.avatarUrl &&
+        payloadPeek.avatarUrl
+      ) {
+        sessionMemo.delete(user.id);
+      } else {
+        return cached.value;
+      }
     }
 
     let staffRow = await prisma.staffMember.findUnique({
       where: { id: user.id },
     });
 
+    const payload = staffFromAuthUser(user);
     if (!staffRow) {
-      const payload = staffFromAuthUser(user);
+      staffRow = await syncStaffMember(payload);
+    } else if (
+      payload.avatarUrl &&
+      payload.avatarUrl !== staffRow.avatarUrl
+    ) {
+      // Rafraîchir la photo Google quand elle change ou manquait
       staffRow = await syncStaffMember(payload);
     }
 

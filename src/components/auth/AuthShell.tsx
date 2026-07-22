@@ -34,7 +34,7 @@ export function AuthShell({
             2
           </div>
           <div>
-            <div className="font-display text-xl font-bold">2REF</div>
+            <div className="font-display text-xl font-bold">2R</div>
             <div className="text-xs uppercase tracking-wider text-muted-foreground">
               Expertise Fiscale
             </div>
@@ -90,7 +90,7 @@ export function AuthShell({
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-primary font-bold text-primary-foreground">
               2
             </div>
-            <span className="font-display text-lg font-bold">2REF</span>
+            <span className="font-display text-lg font-bold">2R</span>
           </div>
           <h2 className="font-display text-2xl font-bold">{title}</h2>
           <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>

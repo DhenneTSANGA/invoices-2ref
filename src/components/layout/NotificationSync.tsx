@@ -8,28 +8,42 @@ import {
   useMarkNotificationRead,
   useNotifications,
 } from "@/hooks/use-data";
+import {
+  loadToastedNotificationIds,
+  rememberToastedNotificationIds,
+} from "@/lib/notification-toast-state";
 
 /** Polling + toasts quand un autre collaborateur met à jour un document. */
 export function NotificationSync() {
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const { data: notifications = [] } = useNotifications();
+  const { data: notifications = [], isSuccess } = useNotifications();
   const { mutate: markRead } = useMarkNotificationRead();
-  const initialized = useRef(false);
-  const seenIds = useRef(new Set<string>());
+  const toastedIds = useRef(loadToastedNotificationIds());
+  const bootstrapped = useRef(false);
 
   useEffect(() => {
-    if (!initialized.current) {
-      for (const n of notifications) seenIds.current.add(n.id);
-      initialized.current = true;
+    if (!isSuccess) return;
+
+    // Premier chargement réussi : ne pas re-toaster les notifs déjà présentes
+    if (!bootstrapped.current) {
+      rememberToastedNotificationIds(
+        toastedIds.current,
+        notifications.map((n) => n.id),
+      );
+      bootstrapped.current = true;
       return;
     }
 
-    const fresh = notifications.filter((n) => !seenIds.current.has(n.id));
+    const fresh = notifications.filter((n) => !toastedIds.current.has(n.id));
     if (fresh.length === 0) return;
 
+    rememberToastedNotificationIds(
+      toastedIds.current,
+      fresh.map((n) => n.id),
+    );
+
     for (const n of fresh) {
-      seenIds.current.add(n.id);
       toast(n.title, {
         description: n.body,
         className:
@@ -55,7 +69,7 @@ export function NotificationSync() {
       }
     }
     void qc.invalidateQueries({ queryKey: notificationsKey });
-  }, [notifications, qc, navigate, markRead]);
+  }, [notifications, isSuccess, qc, navigate, markRead]);
 
   return null;
 }

@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { useClients, useDeleteClient, useDocuments } from "@/hooks/use-data";
 
 export const Route = createFileRoute("/_app/clients/")({
-  head: () => ({ meta: [{ title: "Clients — 2REF-AUTO" }] }),
+  head: () => ({ meta: [{ title: "Clients — 2R Expertise Fiscale" }] }),
   component: ClientsPage,
 });
 

@@ -15,12 +15,18 @@ export function StaffAvatar({
   title,
 }: {
   person: StaffAvatarPerson;
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "xl";
   className?: string;
   title?: string;
 }) {
   const dims =
-    size === "sm" ? "h-7 w-7 text-[10px]" : size === "lg" ? "h-11 w-11 text-sm" : "h-9 w-9 text-xs";
+    size === "sm"
+      ? "h-7 w-7 text-[10px]"
+      : size === "lg"
+        ? "h-11 w-11 text-sm"
+        : size === "xl"
+          ? "h-28 w-28 text-4xl"
+          : "h-9 w-9 text-xs";
   const label =
     title ??
     `${person.firstName} ${person.lastName}${person.jobTitle ? ` — ${person.jobTitle}` : ""}`;

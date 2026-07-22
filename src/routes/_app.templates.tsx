@@ -10,7 +10,7 @@ import { computeTotals } from "@/lib/document-math";
 import { useClients } from "@/hooks/use-data";
 
 export const Route = createFileRoute("/_app/templates")({
-  head: () => ({ meta: [{ title: "Modèles de documents — 2REF-AUTO" }] }),
+  head: () => ({ meta: [{ title: "Modèles de documents — 2R Expertise Fiscale" }] }),
   component: Templates,
 });
 

@@ -10,7 +10,7 @@ import { getCurrentSession } from "@/lib/session.functions";
 import { GoogleIcon } from "@/components/auth/AuthIcons";
 
 export const Route = createFileRoute("/signup")({
-  head: () => ({ meta: [{ title: "Inscription — 2REF-AUTO" }] }),
+  head: () => ({ meta: [{ title: "Inscription — 2R Expertise Fiscale" }] }),
   beforeLoad: async () => {
     const session = await getCurrentSession();
     if (session) throw redirect({ to: "/dashboard" });
@@ -52,7 +52,7 @@ function SignupPage() {
       }
       toast.success("Compte créé", {
         description: data.session
-          ? "Bienvenue sur 2REF-AUTO"
+          ? "Bienvenue sur 2R Expertise Fiscale"
           : "Confirmez votre email puis connectez-vous",
       });
       void navigate({ to: data.session ? "/dashboard" : "/login" });

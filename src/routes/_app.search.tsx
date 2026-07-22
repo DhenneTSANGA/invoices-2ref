@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { useClients, useDocuments, useServices } from "@/hooks/use-data";
 
 export const Route = createFileRoute("/_app/search")({
-  head: () => ({ meta: [{ title: "Recherche globale — 2REF-AUTO" }] }),
+  head: () => ({ meta: [{ title: "Recherche globale — 2R Expertise Fiscale" }] }),
   component: SearchPage,
 });
 

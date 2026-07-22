@@ -26,6 +26,7 @@ export type StaffPayload = {
   jobTitle: string;
   email: string;
   phone?: string | null;
+  avatarUrl?: string | null;
 };
 
 export function toStaffPayload(

@@ -46,7 +46,7 @@ export function AppSidebar() {
         <Logo size="sm" className="rounded-lg" />
         {!collapsed && (
           <div className="overflow-hidden">
-            <div className="font-display text-lg font-bold leading-none">2REF-AUTO</div>
+            <div className="font-display text-lg font-bold leading-none">2R</div>
             <div className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">Expertise Fiscale</div>
           </div>
         )}
@@ -63,25 +63,6 @@ export function AppSidebar() {
         <NavSection title="Principal" items={items} pathname={pathname} collapsed={collapsed} />
         <div className="mx-3 my-3 h-px bg-border" />
         <NavSection title="Espace" items={secondary} pathname={pathname} collapsed={collapsed} />
-      </div>
-
-      <div className={cn(
-        "mt-2 rounded-2xl border border-border/60 p-3",
-        collapsed ? "px-2" : "bg-gradient-primary text-primary-foreground shadow-glow border-transparent",
-      )}>
-        {!collapsed ? (
-          <div>
-            <div className="text-xs font-medium opacity-90">Plan Entreprise</div>
-            <div className="mt-1 text-sm font-semibold">Cabinet illimité</div>
-            <button className="mt-3 w-full rounded-xl bg-white/15 px-3 py-2 text-xs font-medium backdrop-blur transition-colors hover:bg-white/25">
-              Gérer l'abonnement
-            </button>
-          </div>
-        ) : (
-          <div className="flex justify-center text-primary">
-            <UserCircle2 className="h-6 w-6" />
-          </div>
-        )}
       </div>
     </motion.aside>
   );

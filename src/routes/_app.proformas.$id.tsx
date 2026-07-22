@@ -11,7 +11,7 @@ import { downloadDocumentPdf } from "@/lib/pdf/downloadDocumentPdf";
 import { currency, longDate } from "@/lib/format";
 
 export const Route = createFileRoute("/_app/proformas/$id")({
-  head: () => ({ meta: [{ title: "Détail pro forma — 2REF-AUTO" }] }),
+  head: () => ({ meta: [{ title: "Détail pro forma — 2R Expertise Fiscale" }] }),
   component: ProformaDetail,
 });
 

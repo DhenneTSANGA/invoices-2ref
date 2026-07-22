@@ -12,7 +12,7 @@ import { longDate } from "@/lib/format";
 import { LetterEditor } from "@/components/editor/LetterEditor";
 
 export const Route = createFileRoute("/_app/lettre/$id")({
-  head: () => ({ meta: [{ title: "Détail lettre — 2REF-AUTO" }] }),
+  head: () => ({ meta: [{ title: "Détail lettre — 2R Expertise Fiscale" }] }),
   component: LetterDetail,
 });
 

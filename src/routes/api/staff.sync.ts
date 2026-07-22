@@ -9,6 +9,7 @@ const bodySchema = z.object({
   lastName: z.string().min(1),
   jobTitle: z.string().min(1),
   phone: z.string().optional().nullable(),
+  avatarUrl: z.string().optional().nullable(),
 });
 
 export const Route = createFileRoute("/api/staff/sync")({

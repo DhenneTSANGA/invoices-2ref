@@ -38,7 +38,7 @@ export function DocumentCreatorInline({ creator }: { creator?: StaffMember }) {
 
   return (
     <div className="flex items-center gap-2.5">
-      <StaffAvatar person={creator} size="sm" />
+      <StaffAvatar person={creator} size="md" />
       <div className="min-w-0">
         <div className="truncate text-sm font-medium">
           {creator.firstName} {creator.lastName}

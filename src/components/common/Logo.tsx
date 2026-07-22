@@ -20,7 +20,7 @@ type LogoProps = {
 export function Logo({
   size = "sm",
   className,
-  alt = "2REF Conseil Fiscal",
+  alt = "2R Expertise Fiscale",
 }: LogoProps) {
   return (
     <img

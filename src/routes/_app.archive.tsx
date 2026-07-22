@@ -7,7 +7,7 @@ import { currency, shortDate } from "@/lib/format";
 import { EmptyState } from "@/components/common/EmptyState";
 
 export const Route = createFileRoute("/_app/archive")({
-  head: () => ({ meta: [{ title: "Archives — 2REF-AUTO" }] }),
+  head: () => ({ meta: [{ title: "Archives — 2R Expertise Fiscale" }] }),
   component: ArchivePage,
 });
 

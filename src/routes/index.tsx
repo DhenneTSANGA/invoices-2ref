@@ -15,11 +15,11 @@ import { getCurrentSession } from "@/lib/session.functions";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "2REF-AUTO — Automatisation cabinet fiscal" },
+      { title: "2R Expertise Fiscale — Automatisation cabinet fiscal" },
       {
         name: "description",
         content:
-          "Gérez clients, devis, factures et pro forma pour le cabinet 2REF Expertise Fiscale.",
+          "Gérez clients, devis, factures et pro forma pour le cabinet 2R Expertise Fiscale.",
       },
     ],
   }),
@@ -65,7 +65,7 @@ function LandingPage() {
           <Link to="/" className="flex items-center gap-2">
             <Logo size="xs" className="rounded-md" />
             <span className="font-display text-lg font-bold tracking-tight">
-              2REF-AUTO
+              2R Expertise Fiscale
             </span>
           </Link>
           <div className="flex items-center gap-2 sm:gap-3">
@@ -96,7 +96,7 @@ function LandingPage() {
           >
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-border/60 bg-surface/70 px-3 py-1 text-xs font-medium text-muted-foreground">
               <Sparkles className="h-3.5 w-3.5 text-primary" />
-              Cabinet 2REF Expertise Fiscale
+              Cabinet 2R Expertise Fiscale
             </div>
             <h1 className="font-display text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl lg:text-[3.25rem]">
               Automatisez vos{" "}
@@ -104,7 +104,7 @@ function LandingPage() {
               <span className="text-gradient-primary">factures</span>
             </h1>
             <p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-              2REF-AUTO est la plateforme interne du cabinet pour gérer clients,
+              2R Expertise Fiscale est la plateforme interne du cabinet pour gérer clients,
               devis, factures, pro forma et lettres — avec les mentions légales
               officielles et un aperçu prêt à exporter.
             </p>
@@ -113,7 +113,7 @@ function LandingPage() {
                 to="/signup"
                 className="inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-glow transition hover:scale-[1.02] active:scale-[0.98]"
               >
-                Commencer gratuitement
+                Créer un compte
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
@@ -165,7 +165,7 @@ function LandingPage() {
                 ))}
               </div>
               <div className="mt-4 rounded-2xl bg-gradient-mesh p-4 text-xs text-muted-foreground">
-                Mentions légales 2REF EXPERTISE FISCALE — NIF, RCCM, Libreville
+                Mentions légales 2R EXPERTISE FISCALE — NIF, RCCM, Libreville
               </div>
             </div>
           </motion.div>
@@ -211,7 +211,7 @@ function LandingPage() {
           </h2>
           <p className="mx-auto mt-3 max-w-lg text-sm text-muted-foreground sm:text-base">
             Créez votre compte collaborateur ou connectez-vous pour accéder au
-            tableau de bord 2REF-AUTO.
+            tableau de bord 2R Expertise Fiscale.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Link
@@ -235,10 +235,10 @@ function LandingPage() {
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 sm:flex-row sm:px-6">
           <div className="flex items-center gap-2">
             <Logo size="xs" className="rounded-md" />
-            <span className="text-sm font-semibold">2REF-AUTO</span>
+            <span className="text-sm font-semibold">2R Expertise Fiscale</span>
           </div>
           <p className="text-xs text-muted-foreground">
-            © {new Date().getFullYear()} 2REF Expertise Fiscale — Tous droits
+            © {new Date().getFullYear()} 2R Expertise Fiscale — Tous droits
             réservés.
           </p>
         </div>

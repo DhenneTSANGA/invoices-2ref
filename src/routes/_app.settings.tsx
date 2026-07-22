@@ -10,7 +10,7 @@ import type { CompanyInfo } from "@/store/types";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/settings")({
-  head: () => ({ meta: [{ title: "Paramètres — 2REF-AUTO" }] }),
+  head: () => ({ meta: [{ title: "Paramètres — 2R Expertise Fiscale" }] }),
   component: SettingsPage,
 });
 

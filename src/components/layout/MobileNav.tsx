@@ -40,7 +40,7 @@ export function MobileNav() {
               2
             </div>
             <div>
-              <SheetTitle className="font-display text-lg font-bold leading-none">2REF</SheetTitle>
+              <SheetTitle className="font-display text-lg font-bold leading-none">2R</SheetTitle>
               <SheetDescription className="mt-1 text-[10px] uppercase tracking-wider">
                 Expertise Fiscale
               </SheetDescription>
@@ -53,13 +53,6 @@ export function MobileNav() {
           <div className="mx-2 my-4 h-px bg-border" />
           <MobileSection title="Espace" items={secondaryNav} pathname={pathname} onNavigate={() => setOpen(false)} />
         </nav>
-
-        <div className="border-t border-border/60 p-4">
-          <div className="rounded-2xl bg-gradient-primary p-3 text-primary-foreground shadow-glow">
-            <div className="text-xs font-medium opacity-90">Plan Entreprise</div>
-            <div className="mt-0.5 text-sm font-semibold">Cabinet illimité</div>
-          </div>
-        </div>
       </SheetContent>
     </Sheet>
   );

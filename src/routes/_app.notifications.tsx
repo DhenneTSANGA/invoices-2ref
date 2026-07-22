@@ -13,7 +13,7 @@ import {
 import type { NotificationItem } from "@/store/types";
 
 export const Route = createFileRoute("/_app/notifications")({
-  head: () => ({ meta: [{ title: "Notifications — 2REF-AUTO" }] }),
+  head: () => ({ meta: [{ title: "Notifications — 2R Expertise Fiscale" }] }),
   component: NotificationsPage,
 });
 

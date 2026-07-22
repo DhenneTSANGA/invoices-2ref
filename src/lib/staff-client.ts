@@ -7,6 +7,7 @@ export async function syncStaffToDatabase(payload: {
   lastName: string;
   jobTitle: string;
   phone?: string | null;
+  avatarUrl?: string | null;
 }) {
   const res = await fetch("/api/staff/sync", {
     method: "POST",
@@ -26,5 +27,6 @@ export async function syncStaffFromSignup(id: string, staff: StaffPayload) {
     lastName: staff.lastName,
     jobTitle: staff.jobTitle,
     phone: staff.phone ?? null,
+    avatarUrl: staff.avatarUrl ?? null,
   });
 }

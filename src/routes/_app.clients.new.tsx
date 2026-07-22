@@ -7,7 +7,7 @@ import { useCreateClient } from "@/hooks/use-data";
 import type { Client } from "@/store/types";
 
 export const Route = createFileRoute("/_app/clients/new")({
-  head: () => ({ meta: [{ title: "Nouveau client — 2REF-AUTO" }] }),
+  head: () => ({ meta: [{ title: "Nouveau client — 2R Expertise Fiscale" }] }),
   component: NewClient,
 });
 

@@ -1,8 +1,8 @@
 import type { CompanyInfo } from "@/store/types";
 
-/** Informations légales officielles — 2REF Expertise Fiscale */
+/** Informations légales officielles — 2R Expertise Fiscale */
 export const REAL_2REF_COMPANY: CompanyInfo = {
-  name: "2REF EXPERTISE FISCALE",
+  name: "2R EXPERTISE FISCALE",
   tagline: "SARL au capital de 10 000 000 F CFA — Conseil Fiscal",
   nif: "202601003286 Z",
   niu: "—",

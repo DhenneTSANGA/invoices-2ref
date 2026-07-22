@@ -42,7 +42,7 @@ export function PreviewLogo({ className }: { className?: string }) {
   return (
     <img
       src={LOGO_SRC}
-      alt="2REF Conseil Fiscal"
+      alt="2R Expertise Fiscale"
       className={cn("h-14 w-auto shrink-0 object-contain", className)}
     />
   );

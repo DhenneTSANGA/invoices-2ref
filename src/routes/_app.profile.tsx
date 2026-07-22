@@ -1,10 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/common/PageHeader";
+import { StaffAvatar } from "@/components/common/StaffAvatar";
 import { useSession } from "@/hooks/use-data";
-import { staffInitials } from "@/lib/auth";
 
 export const Route = createFileRoute("/_app/profile")({
-  head: () => ({ meta: [{ title: "Mon profil — 2REF-AUTO" }] }),
+  head: () => ({ meta: [{ title: "Mon profil — 2R Expertise Fiscale" }] }),
   component: ProfilePage,
 });
 
@@ -23,9 +23,16 @@ function ProfilePage() {
         <div className="glass-panel rounded-3xl p-6 text-center">
           <div className="relative mx-auto h-28 w-28">
             <div className="absolute inset-0 -z-10 rounded-full bg-gradient-primary opacity-30 blur-2xl" />
-            <div className="flex h-full w-full items-center justify-center rounded-full bg-gradient-primary text-primary-foreground font-display text-4xl font-bold shadow-glow">
-              {staff ? staffInitials(staff.firstName, staff.lastName) : "2R"}
-            </div>
+            <StaffAvatar
+              person={
+                staff ?? {
+                  firstName: "2R",
+                  lastName: "",
+                }
+              }
+              size="xl"
+              className="!h-28 !w-28 shadow-glow ring-4 ring-background"
+            />
           </div>
           <h3 className="mt-4 font-display text-xl font-bold">
             {staff ? `${staff.firstName} ${staff.lastName}` : "Collaborateur"}

@@ -12,7 +12,7 @@ import { downloadDocumentPdf } from "@/lib/pdf/downloadDocumentPdf";
 import { currency, longDate } from "@/lib/format";
 
 export const Route = createFileRoute("/_app/invoices/$id")({
-  head: () => ({ meta: [{ title: "Détail facture — 2REF-AUTO" }] }),
+  head: () => ({ meta: [{ title: "Détail facture — 2R Expertise Fiscale" }] }),
   component: InvoiceDetail,
 });
 

@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { LetterEditor } from "@/components/editor/LetterEditor";
 
 export const Route = createFileRoute("/_app/lettre/new")({
-  head: () => ({ meta: [{ title: "Nouvelle lettre — 2REF-AUTO" }] }),
+  head: () => ({ meta: [{ title: "Nouvelle lettre — 2R Expertise Fiscale" }] }),
   component: () => (
     <div>
       <button onClick={() => history.back()} className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">

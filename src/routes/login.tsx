@@ -17,8 +17,8 @@ import { EmailBrandIcon, GoogleIcon } from "@/components/auth/AuthIcons";
 export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
-      { title: "Connexion — 2REF-AUTO" },
-      { name: "description", content: "Accédez à votre espace 2REF-AUTO." },
+      { title: "Connexion — 2R Expertise Fiscale" },
+      { name: "description", content: "Accédez à votre espace 2R Expertise Fiscale." },
     ],
   }),
   beforeLoad: async () => {
@@ -89,14 +89,14 @@ function LoginPage() {
         <Brand />
         <div>
           <h1 className="font-display text-4xl font-bold leading-tight">
-            2REF-AUTO
+            2R Expertise Fiscale
           </h1>
           <p className="mt-3 max-w-md text-muted-foreground">
-            Plateforme d&apos;automatisation du cabinet 2REF Expertise Fiscale.
+            Plateforme d&apos;automatisation du cabinet 2R Expertise Fiscale.
           </p>
         </div>
         <p className="text-xs text-muted-foreground">
-          © {new Date().getFullYear()} 2REF-AUTO
+          © {new Date().getFullYear()} 2R Expertise Fiscale
         </p>
       </div>
 

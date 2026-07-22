@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { DocumentEditor } from "@/components/editor/DocumentEditor";
 
 export const Route = createFileRoute("/_app/proformas/new")({
-  head: () => ({ meta: [{ title: "Nouvelle pro forma — 2REF-AUTO" }] }),
+  head: () => ({ meta: [{ title: "Nouvelle pro forma — 2R Expertise Fiscale" }] }),
   component: () => (
     <div>
       <button onClick={() => history.back()} className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
