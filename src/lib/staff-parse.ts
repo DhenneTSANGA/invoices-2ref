@@ -1,6 +1,10 @@
 import type { StaffPayload } from "@/lib/auth-schemas";
+import { isCabinet } from "@/lib/cabinets";
 
-export type SyncStaffInput = StaffPayload & { id: string; role?: "member" | "admin" };
+export type SyncStaffInput = StaffPayload & {
+  id: string;
+  role?: "member" | "admin" | "super_admin";
+};
 
 function metaString(meta: Record<string, unknown>, ...keys: string[]): string | undefined {
   for (const key of keys) {
@@ -35,6 +39,7 @@ export function staffFromAuthUser(user: {
         jobTitle?: string;
         phone?: string | null;
         avatarUrl?: string | null;
+        cabinet?: string | null;
       }
     | undefined;
 
@@ -43,6 +48,10 @@ export function staffFromAuthUser(user: {
 
   const fullName = metaString(meta, "full_name", "name") ?? "";
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
+
+  const rawCabinet =
+    staffMeta?.cabinet ?? metaString(meta, "cabinet") ?? null;
+  const cabinet = isCabinet(rawCabinet) ? rawCabinet : null;
 
   return {
     id: user.id,
@@ -58,11 +67,12 @@ export function staffFromAuthUser(user: {
       parts.slice(1).join(" ") ??
       "",
     jobTitle:
-      staffMeta?.jobTitle ?? metaString(meta, "job_title") ?? "Membre",
+      staffMeta?.jobTitle ?? metaString(meta, "job_title") ?? "service_commercial",
     phone: staffMeta?.phone ?? metaString(meta, "phone") ?? null,
     avatarUrl:
       staffMeta?.avatarUrl ??
       avatarFromAuthMetadata(meta) ??
       avatarFromAuthMetadata(identityMeta ?? undefined),
+    cabinet,
   };
 }

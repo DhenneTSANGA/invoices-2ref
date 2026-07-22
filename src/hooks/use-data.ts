@@ -27,8 +27,10 @@ import type { clientInputSchema, documentInputSchema, companyInputSchema } from 
 export const sessionKey = ["session"] as const;
 export const clientsKey = ["clients"] as const;
 export const servicesKey = ["services"] as const;
-export const documentsKey = (type?: DocumentType) =>
-  type ? (["documents", type] as const) : (["documents"] as const);
+export const documentsKey = (type?: DocumentType, cabinetScope?: string) =>
+  type
+    ? (["documents", type, cabinetScope ?? "active"] as const)
+    : (["documents", cabinetScope ?? "active"] as const);
 export const allDocumentsKey = ["documents", "all"] as const;
 export const companyKey = ["company"] as const;
 export const notificationsKey = ["notifications"] as const;
@@ -44,10 +46,13 @@ export function useSession() {
   });
 }
 
-export function useClients() {
+export function useClients(cabinetScope?: "all" | "conseil" | "expertise_fiscale") {
   return useQuery({
-    queryKey: clientsKey,
-    queryFn: () => listClients(),
+    queryKey: [...clientsKey, cabinetScope ?? "active"] as const,
+    queryFn: () =>
+      listClients({
+        data: cabinetScope ? { cabinetScope } : {},
+      }),
     staleTime: 60_000,
   });
 }
@@ -95,19 +100,33 @@ export function useServices() {
   });
 }
 
-export function useDocuments(type?: DocumentType) {
+export function useDocuments(
+  type?: DocumentType,
+  cabinetScope?: "all" | "conseil" | "expertise_fiscale",
+) {
   return useQuery({
-    queryKey: documentsKey(type),
-    queryFn: () => listDocuments({ data: { type } }),
+    queryKey: documentsKey(type, cabinetScope),
+    queryFn: () =>
+      listDocuments({
+        data: { type, ...(cabinetScope ? { cabinetScope } : {}) },
+      }),
     staleTime: 10_000,
     refetchInterval: POLL_MS,
   });
 }
 
-export function useAllDocuments(type?: DocumentType) {
+export function useAllDocuments(
+  type?: DocumentType,
+  cabinetScope?: "all" | "conseil" | "expertise_fiscale",
+) {
   return useQuery({
-    queryKey: type ? ([...allDocumentsKey, type] as const) : allDocumentsKey,
-    queryFn: () => listAllDocuments({ data: { type } }),
+    queryKey: type
+      ? ([...allDocumentsKey, type, cabinetScope ?? "active"] as const)
+      : ([...allDocumentsKey, cabinetScope ?? "active"] as const),
+    queryFn: () =>
+      listAllDocuments({
+        data: { type, ...(cabinetScope ? { cabinetScope } : {}) },
+      }),
     staleTime: 10_000,
     refetchInterval: POLL_MS,
   });

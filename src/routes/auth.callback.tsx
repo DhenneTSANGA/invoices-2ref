@@ -61,15 +61,19 @@ export const Route = createFileRoute("/auth/callback")({
 
         const user = data.user ?? data.session?.user;
         if (user) {
-          try {
+          const payload = staffFromAuthUser(user);
+          // Ne crée un staff incomplet que si le cabinet est déjà connu (email signup)
+          if (payload.cabinet) {
             const { syncStaffMember } = await import("@/lib/staff-sync");
-            await syncStaffMember(staffFromAuthUser(user));
-          } catch (err) {
-            console.error("[auth/callback] staff upsert", err);
+            await syncStaffMember(payload);
           }
         }
 
-        return go("/dashboard");
+        const { getCurrentSession } = await import("@/lib/session.functions");
+        const { homePathForRole } = await import("@/lib/roles");
+        const session = await getCurrentSession();
+        if (session) return go(homePathForRole(session.staff.role));
+        return go("/onboarding");
       },
     },
   },

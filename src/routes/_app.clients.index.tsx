@@ -6,7 +6,8 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
 import { shortDate } from "@/lib/format";
 import { toast } from "sonner";
-import { useClients, useDeleteClient, useDocuments } from "@/hooks/use-data";
+import { useClients, useDeleteClient, useDocuments, useSession } from "@/hooks/use-data";
+import { canDeleteClients } from "@/lib/roles";
 
 export const Route = createFileRoute("/_app/clients/")({
   head: () => ({ meta: [{ title: "Clients — 2R Expertise Fiscale" }] }),
@@ -16,7 +17,9 @@ export const Route = createFileRoute("/_app/clients/")({
 function ClientsPage() {
   const { data: clients = [], isLoading } = useClients();
   const { data: documents = [] } = useDocuments();
+  const { data: session } = useSession();
   const deleteClient = useDeleteClient();
+  const canDelete = session ? canDeleteClients(session.staff.role) : false;
   const [q, setQ] = useState("");
   const [city, setCity] = useState<string>("all");
 
@@ -140,6 +143,7 @@ function ClientsPage() {
                     >
                       <Pencil className="h-4 w-4" />
                     </Link>
+                    {canDelete && (
                     <button
                       onClick={() => {
                         deleteClient.mutate(c.id, {
@@ -151,6 +155,7 @@ function ClientsPage() {
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
+                    )}
                   </div>
                 </div>
                 <div className="mt-3 space-y-1 text-xs text-muted-foreground">

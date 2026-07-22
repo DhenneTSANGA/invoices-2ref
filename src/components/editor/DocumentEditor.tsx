@@ -609,6 +609,7 @@ function defaultDoc(type: DocumentType, clientId: string): Document {
   const due = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
   const base = {
     id: `d-${Date.now()}`,
+    cabinet: "expertise_fiscale" as const,
     type,
     clientId,
     createdById: "staff-mireille",

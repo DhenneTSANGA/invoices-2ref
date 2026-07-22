@@ -6,11 +6,15 @@ export type StaffMember = {
   jobTitle: string;
   phone?: string | null;
   avatarUrl?: string | null;
-  role: "member" | "admin";
+  role: "member" | "admin" | "super_admin";
+  cabinet: "conseil" | "expertise_fiscale" | null;
 };
+
+export type Cabinet = "conseil" | "expertise_fiscale";
 
 export type Client = {
   id: string;
+  cabinet: Cabinet;
   name: string;
   legalForm: string;
   nif: string;
@@ -69,6 +73,7 @@ export type DocumentStatus = "draft" | "sent" | "accepted" | "rejected" | "paid"
 
 export type Document = {
   id: string;
+  cabinet: Cabinet;
   type: DocumentType;
   number: string;
   clientId: string;

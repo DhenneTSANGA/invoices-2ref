@@ -53,6 +53,7 @@ function buildPreviewDoc(
   const today = new Date().toISOString().slice(0, 10);
   return {
     id: `preview-${client.id}`,
+    cabinet: client.cabinet,
     type: "letter",
     number: "PUB-APERCU",
     clientId: client.id,

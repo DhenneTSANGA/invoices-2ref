@@ -23,8 +23,17 @@ export async function broadcastDocumentStatusChange(
 ) {
   if (args.previousStatus === args.nextStatus) return;
 
+  const doc = await db.document.findUnique({
+    where: { id: args.documentId },
+    select: { cabinet: true },
+  });
+  if (!doc) return;
+
   const recipients = await db.staffMember.findMany({
-    where: { id: { not: args.actorStaffId } },
+    where: {
+      id: { not: args.actorStaffId },
+      OR: [{ cabinet: doc.cabinet }, { role: "super_admin" }],
+    },
     select: { id: true },
   });
 

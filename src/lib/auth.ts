@@ -23,6 +23,7 @@ export function signUpWithStaff(
         full_name: `${staff.firstName} ${staff.lastName}`,
         job_title: staff.jobTitle,
         phone: staff.phone ?? null,
+        cabinet: staff.cabinet ?? null,
       },
     },
   });

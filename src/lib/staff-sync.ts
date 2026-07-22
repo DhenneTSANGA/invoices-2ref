@@ -1,10 +1,17 @@
 import { prisma } from "@/lib/prisma";
+import { normalizeJobTitleValue } from "@/lib/cabinets";
 import type { SyncStaffInput } from "@/lib/staff-parse";
 
 export type { SyncStaffInput } from "@/lib/staff-parse";
 export { staffFromAuthUser } from "@/lib/staff-parse";
 
 export async function syncStaffMember(input: SyncStaffInput) {
+  const role = input.role ?? "member";
+  const cabinet =
+    role === "super_admin" ? null : (input.cabinet ?? null);
+  const jobTitle =
+    normalizeJobTitleValue(input.jobTitle) ?? input.jobTitle.trim();
+
   return prisma.staffMember.upsert({
     where: { id: input.id },
     create: {
@@ -12,19 +19,23 @@ export async function syncStaffMember(input: SyncStaffInput) {
       email: input.email,
       firstName: input.firstName,
       lastName: input.lastName,
-      jobTitle: input.jobTitle,
+      jobTitle,
       phone: input.phone ?? null,
       avatarUrl: input.avatarUrl ?? null,
-      role: input.role ?? "member",
+      role,
+      cabinet,
     },
     update: {
       email: input.email,
       firstName: input.firstName,
       lastName: input.lastName,
-      jobTitle: input.jobTitle,
+      jobTitle,
       phone: input.phone ?? null,
-      // Ne pas effacer une photo existante si le provider n'en renvoie pas (ex. magic link)
       ...(input.avatarUrl ? { avatarUrl: input.avatarUrl } : {}),
+      ...(input.role !== undefined ? { role: input.role } : {}),
+      ...(input.cabinet !== undefined
+        ? { cabinet: role === "super_admin" ? null : input.cabinet }
+        : {}),
     },
   });
 }

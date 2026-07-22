@@ -32,6 +32,7 @@ export function LetterEditor({ initial }: Props) {
   const [doc, setDoc] = useState<Document>(
     initial ?? {
       id: `d-${Date.now()}`,
+      cabinet: "expertise_fiscale",
       type: "letter",
       number: `LT-2025-${String(10 + Math.floor(Math.random() * 89)).padStart(3, "0")}`,
       clientId: "",

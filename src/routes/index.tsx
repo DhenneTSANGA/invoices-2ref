@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/common/Logo";
 import { getCurrentSession } from "@/lib/session.functions";
+import { homePathForRole } from "@/lib/roles";
 import {
   documentStatusLabel,
   documentTypeLabel,
@@ -52,7 +53,7 @@ export const Route = createFileRoute("/")({
   }),
   beforeLoad: async () => {
     const session = await getCurrentSession();
-    if (session) throw redirect({ to: "/dashboard" });
+    if (session) throw redirect({ to: homePathForRole(session.staff.role) });
   },
   component: LandingPage,
 });

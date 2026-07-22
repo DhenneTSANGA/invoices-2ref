@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session.functions";
 import { getResend } from "@/lib/resend";
-import { REAL_2REF_COMPANY } from "@/lib/company-defaults";
+import { COMPANY_DEFAULTS } from "@/lib/company-defaults";
 import {
   escapeHtml,
   formatFrom,
@@ -15,12 +15,13 @@ import {
   staffDisplayName,
 } from "@/lib/notify-document-status";
 import { documentTypeLabel } from "@/lib/document-status-labels";
+import { canWriteDocument, isSuperAdmin } from "@/lib/roles";
 import type { DocumentType } from "@/store/types";
 
-async function requireStaff() {
+async function requireSession() {
   const session = await getCurrentSession();
   if (!session) throw new Error("Non authentifié");
-  return session.staff;
+  return session;
 }
 
 function money(n: number | { toNumber?: () => number } | string, currency = "XAF") {
@@ -189,26 +190,32 @@ function lineAmount(quantity: number, unitPrice: number, discount: number) {
 export const sendDocumentEmail = createServerFn({ method: "POST" })
   .validator(z.object({ id: z.string() }))
   .handler(async ({ data }) => {
-    const staff = await requireStaff();
+    const session = await requireSession();
+    const { staff } = session;
     const { fromEmail } = requireResendConfig();
 
-    const doc = await prisma.document.findUnique({
-      where: { id: data.id },
+    const doc = await prisma.document.findFirst({
+      where: isSuperAdmin(staff.role)
+        ? { id: data.id }
+        : { id: data.id, cabinet: session.activeCabinet },
       include: {
         lines: { orderBy: { position: "asc" } },
         client: true,
       },
     });
     if (!doc) throw new Error("Document introuvable");
-    if (staff.role !== "admin" && doc.createdById !== staff.id) {
-      throw new Error("Accès refusé");
+    if (!canWriteDocument(staff.role, staff.id, doc.createdById)) {
+      throw new Error("Accès refusé — document en lecture seule");
     }
     if (!doc.client) throw new Error("Client introuvable");
     if (!doc.client.email?.trim()) {
       throw new Error(`Le client « ${doc.client.name} » n'a pas d'adresse email`);
     }
 
-    const company = (await prisma.company.findFirst()) ?? REAL_2REF_COMPANY;
+    const companyRow = await prisma.company.findUnique({
+      where: { cabinet: doc.cabinet },
+    });
+    const company = companyRow ?? COMPANY_DEFAULTS[doc.cabinet];
     const typeLabel = documentTypeLabel(doc.type as DocumentType);
     const from = formatFrom(company.name, fromEmail);
     const to = doc.client.email.trim();

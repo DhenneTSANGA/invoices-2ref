@@ -13,6 +13,8 @@ import { syncStaffToDatabase } from "@/lib/staff-client";
 import { staffFromAuthUser } from "@/lib/staff-parse";
 import { getCurrentSession } from "@/lib/session.functions";
 import { EmailBrandIcon, GoogleIcon } from "@/components/auth/AuthIcons";
+import { homePathForRole } from "@/lib/roles";
+import { getAuthBootstrap } from "@/lib/admin.functions";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -23,7 +25,11 @@ export const Route = createFileRoute("/login")({
   }),
   beforeLoad: async () => {
     const session = await getCurrentSession();
-    if (session) throw redirect({ to: "/dashboard" });
+    if (session) throw redirect({ to: homePathForRole(session.staff.role) });
+    const boot = await getAuthBootstrap();
+    if (boot?.status === "needs_onboarding") {
+      throw redirect({ to: "/onboarding" });
+    }
   },
   component: LoginPage,
 });
@@ -51,11 +57,17 @@ function LoginPage() {
       const user = data.user ?? data.session?.user;
       if (user) {
         const payload = staffFromAuthUser(user);
-        await syncStaffToDatabase({ ...payload, id: user.id });
+        if (payload.cabinet) {
+          await syncStaffToDatabase({ ...payload, id: user.id });
+        }
       }
-      toast.success("Connexion réussie");
-      void navigate({ to: "/dashboard" });
-    } catch (err) {
+      const session = await getCurrentSession();
+      if (session) {
+        toast.success("Connexion réussie");
+        void navigate({ to: homePathForRole(session.staff.role) });
+      } else {
+        void navigate({ to: "/onboarding" });
+      }    } catch (err) {
       toast.error(err instanceof Error ? err.message : "Connexion impossible");
     } finally {
       setLoading(false);

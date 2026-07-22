@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import { useMemo, useState } from "react";
-import { FileText, ReceiptText, Mail, FileSignature, Eye } from "lucide-react";
+import { FileText, ReceiptText, Mail, Eye } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { DocumentPreview } from "@/components/documents/DocumentPreview";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
@@ -20,7 +20,7 @@ const META: {
   description: string;
   icon: typeof FileText;
   gradient: string;
-  to: "/invoices/new" | "/quotations/new" | "/proformas/new" | "/lettre/new";
+  to: "/invoices/new" | "/quotations/new" | "/lettre/new";
   accent: string;
 }[] = [
   {
@@ -35,20 +35,11 @@ const META: {
   {
     id: "quotation",
     name: "Devis professionnel",
-    description: "Proposition chiffrée avec validité, conditions de réalisation et bon pour accord.",
+    description: "Proposition chiffrée avec validité, conditions de réalisation et bon pour accord. Utilisez aussi ce modèle pour une pro forma.",
     icon: FileText,
     gradient: "bg-gradient-success",
     to: "/quotations/new",
     accent: "#0F766E",
-  },
-  {
-    id: "proforma",
-    name: "Facture pro forma",
-    description: "Estimation sans valeur comptable — Incoterms, transport, mention légale obligatoire.",
-    icon: FileSignature,
-    gradient: "bg-gradient-secondary",
-    to: "/proformas/new",
-    accent: "#475569",
   },
   {
     id: "letter",
@@ -69,9 +60,9 @@ function Templates() {
     <div>
       <PageHeader
         title="Modèles de documents"
-        subtitle="Quatre modèles adaptés au Gabon et à la zone CEMAC — facture, devis, pro forma et lettre."
+        subtitle="Trois modèles adaptés au Gabon et à la zone CEMAC — facture, devis et lettre."
       />
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
         {META.map((t, i) => {
           const doc = sampleDocs[t.id];
           return (
@@ -153,6 +144,7 @@ function useSampleDocs(): Record<DocumentType, Document> {
     ];
     const totals = computeTotals(items);
     const base = {
+      cabinet: "expertise_fiscale" as const,
       clientId,
       status: "draft" as const,
       issueDate: "2025-11-20",
@@ -166,7 +158,7 @@ function useSampleDocs(): Record<DocumentType, Document> {
       invoice: {
         ...base,
         id: "tpl-invoice",
-        type: "invoice",
+        type: "invoice" as const,
         number: "FA-2025-0150",
         notes: "Règlement par virement bancaire.",
         paymentTerms: "30 jours fin de mois",
@@ -174,7 +166,7 @@ function useSampleDocs(): Record<DocumentType, Document> {
       quotation: {
         ...base,
         id: "tpl-quotation",
-        type: "quotation",
+        type: "quotation" as const,
         number: "DV-2025-0100",
         validityDays: 30,
         executionTerms: "Délai d'exécution : 15 jours ouvrés après acceptation à Libreville.",
@@ -184,7 +176,7 @@ function useSampleDocs(): Record<DocumentType, Document> {
       proforma: {
         ...base,
         id: "tpl-proforma",
-        type: "proforma",
+        type: "proforma" as const,
         number: "PF-2025-0020",
         incoterm: "CIP Libreville",
         shippingNotes: "Transport et assurance inclus jusqu'à Libreville (CEMAC).",
@@ -195,7 +187,7 @@ function useSampleDocs(): Record<DocumentType, Document> {
       letter: {
         ...base,
         id: "tpl-letter",
-        type: "letter",
+        type: "letter" as const,
         number: "LT-2025-012",
         items: [],
         subtotal: 0,

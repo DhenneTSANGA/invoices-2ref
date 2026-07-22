@@ -23,7 +23,7 @@ function EditClient() {
     () => documents.filter((d) => d.clientId === id),
     [documents, id],
   );
-  const [form, setForm] = useState<Client | undefined>(client);
+  const [form, setForm] = useState<Client | undefined>(client ?? undefined);
 
   useEffect(() => {
     if (client) setForm(client);

@@ -1,16 +1,24 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Save, Building2, Receipt, Palette, ShieldCheck } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
-import { useCompany, useUpdateCompany } from "@/hooks/use-data";
+import { useCompany, useUpdateCompany, useSession } from "@/hooks/use-data";
 import { Logo } from "@/components/common/Logo";
-import { REAL_2REF_COMPANY } from "@/lib/company-defaults";
+import { COMPANY_DEFAULTS } from "@/lib/company-defaults";
 import type { CompanyInfo } from "@/store/types";
 import { cn } from "@/lib/utils";
+import { canEditCompanySettings } from "@/lib/roles";
+import { getCurrentSession } from "@/lib/session.functions";
 
 export const Route = createFileRoute("/_app/settings")({
   head: () => ({ meta: [{ title: "Paramètres — 2R Expertise Fiscale" }] }),
+  beforeLoad: async () => {
+    const session = await getCurrentSession();
+    if (session && !canEditCompanySettings(session.staff.role)) {
+      throw redirect({ to: "/home" });
+    }
+  },
   component: SettingsPage,
 });
 
@@ -22,10 +30,13 @@ const tabs = [
 ];
 
 function SettingsPage() {
+  const { data: session } = useSession();
   const { data: company } = useCompany();
   const updateCompany = useUpdateCompany();
   const [tab, setTab] = useState("company");
-  const [form, setForm] = useState<CompanyInfo>(REAL_2REF_COMPANY);
+  const fallback =
+    COMPANY_DEFAULTS[session?.activeCabinet ?? "expertise_fiscale"];
+  const [form, setForm] = useState<CompanyInfo>(fallback);
 
   useEffect(() => {
     if (company) setForm(company);

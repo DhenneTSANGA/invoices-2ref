@@ -48,16 +48,19 @@ export function NotificationSync() {
         description: n.body,
         className:
           "!bg-yellow-400 !text-yellow-950 !border-yellow-500 [&_[data-description]]:!text-yellow-900",
-        onClick: () => {
-          if (!n.read) markRead(n.id);
-          if (n.documentId) {
-            void navigate({
-              to: "/documents",
-              search: { focus: n.documentId },
-            });
-          } else {
-            void navigate({ to: "/notifications" });
-          }
+        action: {
+          label: "Voir",
+          onClick: () => {
+            if (!n.read) markRead(n.id);
+            if (n.documentId) {
+              void navigate({
+                to: "/documents",
+                search: { focus: n.documentId },
+              });
+            } else {
+              void navigate({ to: "/notifications" });
+            }
+          },
         },
       });
     }

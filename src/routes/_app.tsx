@@ -4,6 +4,7 @@ import { AppSidebar } from "@/components/layout/AppSidebar";
 import { AppTopbar } from "@/components/layout/AppTopbar";
 import { PageTransition } from "@/components/common/PageTransition";
 import { getCurrentSession } from "@/lib/session.functions";
+import { getAuthBootstrap } from "@/lib/admin.functions";
 import {
   sessionKey,
   clientsKey,
@@ -16,7 +17,13 @@ import { NotificationSync } from "@/components/layout/NotificationSync";
 export const Route = createFileRoute("/_app")({
   beforeLoad: async ({ context }) => {
     const session = await getCurrentSession();
-    if (!session) throw redirect({ to: "/login" });
+    if (!session) {
+      const boot = await getAuthBootstrap();
+      if (boot?.status === "needs_onboarding") {
+        throw redirect({ to: "/onboarding" });
+      }
+      throw redirect({ to: "/login" });
+    }
     context.queryClient.setQueryData(sessionKey, session);
     return { session };
   },

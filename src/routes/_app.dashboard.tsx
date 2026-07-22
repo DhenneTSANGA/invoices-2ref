@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import { useMemo } from "react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -9,9 +9,17 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { useClients, useDocuments, useSession } from "@/hooks/use-data";
 import { currency, shortDate } from "@/lib/format";
 import type { Activity, Document } from "@/store/types";
+import { canAccessDashboard } from "@/lib/roles";
+import { getCurrentSession } from "@/lib/session.functions";
 
 export const Route = createFileRoute("/_app/dashboard")({
   head: () => ({ meta: [{ title: "Tableau de bord — 2R Expertise Fiscale" }, { name: "description", content: "Vue d'ensemble de votre activité." }] }),
+  beforeLoad: async () => {
+    const session = await getCurrentSession();
+    if (session && !canAccessDashboard(session.staff.role)) {
+      throw redirect({ to: "/home" });
+    }
+  },
   component: Dashboard,
 });
 

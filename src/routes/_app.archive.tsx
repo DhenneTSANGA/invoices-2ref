@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Archive } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
-import { useClients, useDocuments } from "@/hooks/use-data";
+import { useClients, useDocuments, useSession } from "@/hooks/use-data";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { currency, shortDate } from "@/lib/format";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -12,12 +12,19 @@ export const Route = createFileRoute("/_app/archive")({
 });
 
 function ArchivePage() {
+  const { data: session } = useSession();
   const { data: documents = [] } = useDocuments();
   const { data: clients = [] } = useClients();
-  const archived = documents.filter((d) =>
-    (d.type === "invoice" && (d.status === "paid" || d.status === "archived")) ||
-    (d.type === "quotation" && (d.status === "accepted" || d.status === "rejected"))
-  );
+  const archived = documents.filter((d) => {
+    const closed =
+      (d.type === "invoice" && (d.status === "paid" || d.status === "archived")) ||
+      (d.type === "quotation" && (d.status === "accepted" || d.status === "rejected"));
+    if (!closed) return false;
+    if (session?.staff.role === "member") {
+      return d.createdById === session.staff.id;
+    }
+    return true;
+  });
 
   return (
     <div>

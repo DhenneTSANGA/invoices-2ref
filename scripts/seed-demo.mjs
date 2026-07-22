@@ -3,8 +3,9 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-const COMPANY_DATA = {
-  name: "2REF EXPERTISE FISCALE",
+const COMPANY_EF = {
+  cabinet: "expertise_fiscale",
+  name: "2R EXPERTISE FISCALE",
   tagline: "SARL au capital de 10 000 000 F CFA — Conseil Fiscal",
   nif: "202601003286 Z",
   niu: "—",
@@ -19,13 +20,30 @@ const COMPANY_DATA = {
   bankAccount: null,
 };
 
-const existing = await prisma.company.findFirst();
-if (existing) {
-  await prisma.company.update({ where: { id: existing.id }, data: COMPANY_DATA });
-  console.log("Company mise à jour — 2REF EXPERTISE FISCALE");
-} else {
-  await prisma.company.create({ data: COMPANY_DATA });
-  console.log("Company créée — 2REF EXPERTISE FISCALE");
+const COMPANY_CONSEIL = {
+  cabinet: "conseil",
+  name: "2R CONSEIL",
+  tagline: "Cabinet de conseil",
+  nif: "—",
+  niu: "—",
+  rccm: "—",
+  cnss: null,
+  address: "Libreville",
+  city: "Libreville, Gabon",
+  phone: "",
+  email: "conseil@2ref.ga",
+  website: "www.2ref.ga",
+  bankName: null,
+  bankAccount: null,
+};
+
+for (const data of [COMPANY_EF, COMPANY_CONSEIL]) {
+  await prisma.company.upsert({
+    where: { cabinet: data.cabinet },
+    create: data,
+    update: data,
+  });
+  console.log(`Company OK — ${data.name}`);
 }
 
 const services = [
@@ -58,13 +76,15 @@ const services = [
   },
 ];
 
-for (const s of services) {
-  await prisma.service.upsert({
-    where: { code: s.code },
-    create: s,
-    update: s,
-  });
+for (const cabinet of ["expertise_fiscale", "conseil"]) {
+  for (const s of services) {
+    await prisma.service.upsert({
+      where: { cabinet_code: { cabinet, code: s.code } },
+      create: { ...s, cabinet },
+      update: s,
+    });
+  }
 }
 
-console.log(`Seed OK — ${services.length} services, company singleton`);
+console.log(`Seed OK — ${services.length * 2} services, 2 cabinets`);
 await prisma.$disconnect();

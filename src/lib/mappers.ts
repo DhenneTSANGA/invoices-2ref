@@ -23,7 +23,8 @@ export function mapStaff(row: {
   jobTitle: string;
   phone: string | null;
   avatarUrl: string | null;
-  role: "member" | "admin";
+  role: "member" | "admin" | "super_admin";
+  cabinet: "conseil" | "expertise_fiscale" | null;
 }): StaffMember {
   return {
     id: row.id,
@@ -34,29 +35,35 @@ export function mapStaff(row: {
     phone: row.phone,
     avatarUrl: row.avatarUrl,
     role: row.role,
+    cabinet: row.cabinet,
   };
 }
 
-export function mapCompany(row: {
-  name: string;
-  tagline: string | null;
-  nif: string;
-  niu: string;
-  rccm: string;
-  cnss: string | null;
-  address: string;
-  city: string;
-  phone: string;
-  email: string;
-  website: string | null;
-  bankName: string | null;
-  bankAccount: string | null;
-}): CompanyInfo {
-  return companyForPreview(row);
+export function mapCompany(
+  row: {
+    cabinet?: "conseil" | "expertise_fiscale";
+    name: string;
+    tagline: string | null;
+    nif: string;
+    niu: string;
+    rccm: string;
+    cnss: string | null;
+    address: string;
+    city: string;
+    phone: string;
+    email: string;
+    website: string | null;
+    bankName: string | null;
+    bankAccount: string | null;
+  },
+  cabinet?: "conseil" | "expertise_fiscale",
+): CompanyInfo {
+  return companyForPreview(row, row.cabinet ?? cabinet ?? "expertise_fiscale");
 }
 
 export function mapClient(row: {
   id: string;
+  cabinet: "conseil" | "expertise_fiscale";
   name: string;
   legalForm: string;
   nif: string;
@@ -72,6 +79,7 @@ export function mapClient(row: {
 }): Client {
   return {
     id: row.id,
+    cabinet: row.cabinet,
     name: row.name,
     legalForm: row.legalForm,
     nif: row.nif,
@@ -111,6 +119,7 @@ export function mapService(row: {
 
 export function mapDocument(row: {
   id: string;
+  cabinet: Document["cabinet"];
   type: Document["type"];
   number: string;
   clientId: string;
@@ -157,7 +166,8 @@ export function mapDocument(row: {
     jobTitle: string;
     phone: string | null;
     avatarUrl: string | null;
-    role: "member" | "admin";
+    role: "member" | "admin" | "super_admin";
+    cabinet: "conseil" | "expertise_fiscale" | null;
   };
 }): Document {
   const items: LineItem[] = [...row.lines]
@@ -176,6 +186,7 @@ export function mapDocument(row: {
 
   return {
     id: row.id,
+    cabinet: row.cabinet,
     type: row.type,
     number: row.number,
     clientId: row.clientId,

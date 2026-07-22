@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session.functions";
 import { getResend } from "@/lib/resend";
-import { REAL_2REF_COMPANY } from "@/lib/company-defaults";
+import { COMPANY_DEFAULTS } from "@/lib/company-defaults";
 import {
   escapeHtml,
   formatFrom,
@@ -11,10 +11,10 @@ import {
   resendErrorMessage,
 } from "@/lib/email";
 
-async function requireStaff() {
+async function requireSession() {
   const session = await getCurrentSession();
   if (!session) throw new Error("Non authentifié");
-  return session.staff;
+  return session;
 }
 
 const mailMergeSchema = z.object({
@@ -69,16 +69,20 @@ ${body}
 export const sendMailMerge = createServerFn({ method: "POST" })
   .validator(mailMergeSchema)
   .handler(async ({ data }) => {
-    const staff = await requireStaff();
+    const session = await requireSession();
+    const { staff, activeCabinet } = session;
     const { fromEmail } = requireResendConfig();
 
     const clients = await prisma.client.findMany({
-      where: { id: { in: data.clientIds } },
+      where: { id: { in: data.clientIds }, cabinet: activeCabinet },
     });
 
     if (clients.length === 0) throw new Error("Aucun client trouvé");
 
-    const company = (await prisma.company.findFirst()) ?? REAL_2REF_COMPANY;
+    const companyRow = await prisma.company.findUnique({
+      where: { cabinet: activeCabinet },
+    });
+    const company = companyRow ?? COMPANY_DEFAULTS[activeCabinet];
     const resend = getResend();
     const from = formatFrom(company.name, fromEmail);
 

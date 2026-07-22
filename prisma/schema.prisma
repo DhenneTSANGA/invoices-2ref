@@ -8,6 +8,11 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+enum Cabinet {
+  conseil
+  expertise_fiscale
+}
+
 enum DocumentType {
   quotation
   invoice
@@ -45,10 +50,18 @@ enum NotificationType {
 enum StaffRole {
   member
   admin
+  super_admin
+}
+
+enum AdminRequestStatus {
+  pending
+  accepted
+  rejected
 }
 
 model Company {
   id          String   @id @default(cuid())
+  cabinet     Cabinet  @unique
   name        String
   tagline     String?
   nif         String
@@ -77,20 +90,41 @@ model StaffMember {
   phone     String?
   avatarUrl String?
   role      StaffRole @default(member)
+  /// Null uniquement pour super_admin (au-dessus des cabinets).
+  cabinet   Cabinet?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  documents Document[]
-
+  documents     Document[]
   notifications Notification[]
+  adminRequests AdminRequest[] @relation("AdminRequestStaff")
+  reviewedRequests AdminRequest[] @relation("AdminRequestReviewer")
 
   @@index([lastName])
   @@index([role])
+  @@index([cabinet])
   @@map("staff_members")
+}
+
+model AdminRequest {
+  id           String             @id @default(cuid())
+  staffId      String
+  status       AdminRequestStatus @default(pending)
+  createdAt    DateTime           @default(now())
+  reviewedAt   DateTime?
+  reviewedById String?
+
+  staff      StaffMember  @relation("AdminRequestStaff", fields: [staffId], references: [id], onDelete: Cascade)
+  reviewedBy StaffMember? @relation("AdminRequestReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([staffId, status])
+  @@index([status, createdAt])
+  @@map("admin_requests")
 }
 
 model Client {
   id          String   @id @default(cuid())
+  cabinet     Cabinet
   name        String
   legalForm   String
   nif         String
@@ -107,6 +141,7 @@ model Client {
 
   documents Document[]
 
+  @@index([cabinet])
   @@index([name])
   @@index([city])
   @@map("clients")
@@ -114,7 +149,8 @@ model Client {
 
 model Service {
   id          String   @id @default(cuid())
-  code        String   @unique
+  cabinet     Cabinet
+  code        String
   name        String
   description String   @default("")
   unit        String
@@ -126,47 +162,51 @@ model Service {
 
   lines DocumentLine[]
 
+  @@unique([cabinet, code])
+  @@index([cabinet])
   @@index([category])
   @@map("services")
 }
 
 model Document {
-  id              String         @id @default(cuid())
-  type            DocumentType
-  number          String
-  clientId        String
-  createdById     String
-  status          DocumentStatus @default(draft)
-  issueDate       DateTime       @db.Date
-  dueDate         DateTime       @db.Date
-  subtotal        Decimal        @db.Decimal(18, 2)
-  tps             Decimal        @default(0) @db.Decimal(18, 2)
-  css             Decimal        @default(0) @db.Decimal(18, 2)
-  vat             Decimal        @db.Decimal(18, 2)
-  total           Decimal        @db.Decimal(18, 2)
-  currency        String         @default("XAF")
-  notes           String?
-  paymentTerms    String?
-  validityDays    Int?
-  executionTerms  String?
-  incoterm        String?
-  shippingNotes   String?
-  disclaimer      String?
-  subject         String?
-  salutation      String?
-  body            String?
-  closing         String?
-  signatoryTitle  String?
+  id                String         @id @default(cuid())
+  cabinet           Cabinet
+  type              DocumentType
+  number            String
+  clientId          String
+  createdById       String
+  status            DocumentStatus @default(draft)
+  issueDate         DateTime       @db.Date
+  dueDate           DateTime       @db.Date
+  subtotal          Decimal        @db.Decimal(18, 2)
+  tps               Decimal        @default(0) @db.Decimal(18, 2)
+  css               Decimal        @default(0) @db.Decimal(18, 2)
+  vat               Decimal        @db.Decimal(18, 2)
+  total             Decimal        @db.Decimal(18, 2)
+  currency          String         @default("XAF")
+  notes             String?
+  paymentTerms      String?
+  validityDays      Int?
+  executionTerms    String?
+  incoterm          String?
+  shippingNotes     String?
+  disclaimer        String?
+  subject           String?
+  salutation        String?
+  body              String?
+  closing           String?
+  signatoryTitle    String?
   recipientOverride String?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
 
-  client    Client         @relation(fields: [clientId], references: [id], onDelete: Restrict)
-  createdBy StaffMember    @relation(fields: [createdById], references: [id], onDelete: Restrict)
-  lines     DocumentLine[]
+  client        Client         @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  createdBy     StaffMember    @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  lines         DocumentLine[]
   notifications Notification[]
 
-  @@unique([type, number])
+  @@unique([cabinet, type, number])
+  @@index([cabinet])
   @@index([clientId])
   @@index([createdById])
   @@index([status])

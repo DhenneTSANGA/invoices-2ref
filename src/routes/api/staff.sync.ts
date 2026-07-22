@@ -10,6 +10,8 @@ const bodySchema = z.object({
   jobTitle: z.string().min(1),
   phone: z.string().optional().nullable(),
   avatarUrl: z.string().optional().nullable(),
+  cabinet: z.enum(["conseil", "expertise_fiscale"]).optional().nullable(),
+  role: z.enum(["member", "admin", "super_admin"]).optional(),
 });
 
 export const Route = createFileRoute("/api/staff/sync")({

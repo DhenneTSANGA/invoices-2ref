@@ -11,7 +11,7 @@ export const Route = createFileRoute("/_app/clients/new")({
   component: NewClient,
 });
 
-const empty: Omit<Client, "id" | "createdAt"> = {
+const empty: Omit<Client, "id" | "createdAt" | "cabinet"> = {
   name: "", legalForm: "SARL", nif: "", niu: "", rccm: "",
   contactName: "", email: "", phone: "", address: "", city: "", country: "Gabon",
 };

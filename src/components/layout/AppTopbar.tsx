@@ -166,6 +166,11 @@ export function AppTopbar() {
                 className="!h-8 !w-8 !rounded-xl !text-sm"
               />
               <span className="hidden text-sm font-medium md:inline max-w-[140px] truncate">{displayName}</span>
+              {staff?.role === "super_admin" && (
+                <span className="hidden rounded-full bg-gradient-primary px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-primary-foreground sm:inline">
+                  SA
+                </span>
+              )}
               <ChevronDown className="hidden h-3.5 w-3.5 text-muted-foreground md:inline" />
             </button>
             <AnimatePresence>

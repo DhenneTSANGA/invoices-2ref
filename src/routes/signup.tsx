@@ -2,18 +2,20 @@ import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-ro
 import { Logo } from "@/components/common/Logo";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ArrowRight, Mail, Lock, User, Phone, Briefcase, Eye, EyeOff } from "lucide-react";
+import { ArrowRight, Mail, Lock, User, Phone, Eye, EyeOff, Building2, Briefcase } from "lucide-react";
 import { signUpWithStaff, signInWithGoogle } from "@/lib/auth";
 import { signupStaffSchema, toStaffPayload } from "@/lib/auth-schemas";
 import { syncStaffFromSignup } from "@/lib/staff-client";
 import { getCurrentSession } from "@/lib/session.functions";
 import { GoogleIcon } from "@/components/auth/AuthIcons";
+import { CABINET_LABELS, STAFF_JOB_TITLES } from "@/lib/cabinets";
+import { homePathForRole } from "@/lib/roles";
 
 export const Route = createFileRoute("/signup")({
   head: () => ({ meta: [{ title: "Inscription — 2R Expertise Fiscale" }] }),
   beforeLoad: async () => {
     const session = await getCurrentSession();
-    if (session) throw redirect({ to: "/dashboard" });
+    if (session) throw redirect({ to: homePathForRole(session.staff.role) });
   },
   component: SignupPage,
 });
@@ -24,7 +26,8 @@ function SignupPage() {
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
-    jobTitle: "",
+    jobTitle: "" as string,
+    cabinet: "" as string,
     email: "",
     phone: "",
     password: "",
@@ -52,10 +55,10 @@ function SignupPage() {
       }
       toast.success("Compte créé", {
         description: data.session
-          ? "Bienvenue sur 2R Expertise Fiscale"
+          ? "Bienvenue"
           : "Confirmez votre email puis connectez-vous",
       });
-      void navigate({ to: data.session ? "/dashboard" : "/login" });
+      void navigate({ to: data.session ? "/home" : "/login" });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Inscription impossible");
     } finally {
@@ -74,7 +77,25 @@ function SignupPage() {
         <div className="grid gap-4 sm:grid-cols-2">
           <Input icon={User} label="Prénom" value={form.firstName} onChange={(v) => setForm({ ...form, firstName: v })} />
           <Input icon={User} label="Nom" value={form.lastName} onChange={(v) => setForm({ ...form, lastName: v })} />
-          <Input icon={Briefcase} label="Poste" value={form.jobTitle} onChange={(v) => setForm({ ...form, jobTitle: v })} className="sm:col-span-2" />
+          <Select
+            icon={Building2}
+            label="Cabinet"
+            value={form.cabinet}
+            onChange={(v) => setForm({ ...form, cabinet: v })}
+            className="sm:col-span-2"
+            options={[
+              { value: "conseil", label: CABINET_LABELS.conseil },
+              { value: "expertise_fiscale", label: CABINET_LABELS.expertise_fiscale },
+            ]}
+          />
+          <Select
+            icon={Briefcase}
+            label="Fonction"
+            value={form.jobTitle}
+            onChange={(v) => setForm({ ...form, jobTitle: v })}
+            className="sm:col-span-2"
+            options={STAFF_JOB_TITLES.map((j) => ({ value: j.value, label: j.label }))}
+          />
           <Input icon={Mail} label="Email" type="email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} className="sm:col-span-2" />
           <Input icon={Phone} label="Téléphone" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} className="sm:col-span-2" />
           <Input icon={Lock} label="Mot de passe" type="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} />
@@ -106,6 +127,45 @@ function SignupPage() {
         </p>
       </form>
     </div>
+  );
+}
+
+function Select({
+  icon: Icon,
+  label,
+  value,
+  onChange,
+  options,
+  className = "",
+}: {
+  icon: typeof Mail;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+  className?: string;
+}) {
+  return (
+    <label className={className}>
+      <span className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        {label}
+      </span>
+      <div className="relative">
+        <Icon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full appearance-none rounded-xl border border-border/60 bg-transparent py-2.5 pl-10 pr-3 text-sm focus:border-primary focus:outline-none"
+        >
+          <option value="">Choisir…</option>
+          {options.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </div>
+    </label>
   );
 }
 

@@ -12,10 +12,12 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as QuotasRouteImport } from './routes/quotas'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
+import { Route as AppUsersRouteImport } from './routes/_app.users'
 import { Route as AppTemplatesRouteImport } from './routes/_app.templates'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppServicesRouteImport } from './routes/_app.services'
@@ -25,6 +27,7 @@ import { Route as AppProfileRouteImport } from './routes/_app.profile'
 import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
 import { Route as AppLettreRouteImport } from './routes/_app.lettre'
 import { Route as AppInvoicesRouteImport } from './routes/_app.invoices'
+import { Route as AppHomeRouteImport } from './routes/_app.home'
 import { Route as AppDocumentsRouteImport } from './routes/_app.documents'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppArchiveRouteImport } from './routes/_app.archive'
@@ -64,6 +67,11 @@ const QuotasRoute = QuotasRouteImport.update({
   path: '/quotas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -82,6 +90,11 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/auth/callback',
   path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AppUsersRoute = AppUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppTemplatesRoute = AppTemplatesRouteImport.update({
   id: '/templates',
@@ -126,6 +139,11 @@ const AppLettreRoute = AppLettreRouteImport.update({
 const AppInvoicesRoute = AppInvoicesRouteImport.update({
   id: '/invoices',
   path: '/invoices',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppHomeRoute = AppHomeRouteImport.update({
+  id: '/home',
+  path: '/home',
   getParentRoute: () => AppRoute,
 } as any)
 const AppDocumentsRoute = AppDocumentsRouteImport.update({
@@ -247,12 +265,14 @@ const AppClientsIdRoute = AppClientsIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/onboarding': typeof OnboardingRoute
   '/quotas': typeof QuotasRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/archive': typeof AppArchiveRoute
   '/dashboard': typeof AppDashboardRoute
   '/documents': typeof AppDocumentsRoute
+  '/home': typeof AppHomeRoute
   '/invoices': typeof AppInvoicesRouteWithChildren
   '/lettre': typeof AppLettreRouteWithChildren
   '/notifications': typeof AppNotificationsRoute
@@ -262,6 +282,7 @@ export interface FileRoutesByFullPath {
   '/services': typeof AppServicesRoute
   '/settings': typeof AppSettingsRoute
   '/templates': typeof AppTemplatesRoute
+  '/users': typeof AppUsersRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/clients/$id': typeof AppClientsIdRoute
   '/clients/new': typeof AppClientsNewRoute
@@ -287,18 +308,21 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/onboarding': typeof OnboardingRoute
   '/quotas': typeof QuotasRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/archive': typeof AppArchiveRoute
   '/dashboard': typeof AppDashboardRoute
   '/documents': typeof AppDocumentsRoute
+  '/home': typeof AppHomeRoute
   '/notifications': typeof AppNotificationsRoute
   '/profile': typeof AppProfileRoute
   '/search': typeof AppSearchRoute
   '/services': typeof AppServicesRoute
   '/settings': typeof AppSettingsRoute
   '/templates': typeof AppTemplatesRoute
+  '/users': typeof AppUsersRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/clients/$id': typeof AppClientsIdRoute
   '/clients/new': typeof AppClientsNewRoute
@@ -326,12 +350,14 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/onboarding': typeof OnboardingRoute
   '/quotas': typeof QuotasRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/_app/archive': typeof AppArchiveRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/documents': typeof AppDocumentsRoute
+  '/_app/home': typeof AppHomeRoute
   '/_app/invoices': typeof AppInvoicesRouteWithChildren
   '/_app/lettre': typeof AppLettreRouteWithChildren
   '/_app/notifications': typeof AppNotificationsRoute
@@ -341,6 +367,7 @@ export interface FileRoutesById {
   '/_app/services': typeof AppServicesRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/templates': typeof AppTemplatesRoute
+  '/_app/users': typeof AppUsersRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/_app/clients/$id': typeof AppClientsIdRoute
   '/_app/clients/new': typeof AppClientsNewRoute
@@ -368,12 +395,14 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/onboarding'
     | '/quotas'
     | '/signup'
     | '/sitemap.xml'
     | '/archive'
     | '/dashboard'
     | '/documents'
+    | '/home'
     | '/invoices'
     | '/lettre'
     | '/notifications'
@@ -383,6 +412,7 @@ export interface FileRouteTypes {
     | '/services'
     | '/settings'
     | '/templates'
+    | '/users'
     | '/auth/callback'
     | '/clients/$id'
     | '/clients/new'
@@ -408,18 +438,21 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/onboarding'
     | '/quotas'
     | '/signup'
     | '/sitemap.xml'
     | '/archive'
     | '/dashboard'
     | '/documents'
+    | '/home'
     | '/notifications'
     | '/profile'
     | '/search'
     | '/services'
     | '/settings'
     | '/templates'
+    | '/users'
     | '/auth/callback'
     | '/clients/$id'
     | '/clients/new'
@@ -446,12 +479,14 @@ export interface FileRouteTypes {
     | '/'
     | '/_app'
     | '/login'
+    | '/onboarding'
     | '/quotas'
     | '/signup'
     | '/sitemap.xml'
     | '/_app/archive'
     | '/_app/dashboard'
     | '/_app/documents'
+    | '/_app/home'
     | '/_app/invoices'
     | '/_app/lettre'
     | '/_app/notifications'
@@ -461,6 +496,7 @@ export interface FileRouteTypes {
     | '/_app/services'
     | '/_app/settings'
     | '/_app/templates'
+    | '/_app/users'
     | '/auth/callback'
     | '/_app/clients/$id'
     | '/_app/clients/new'
@@ -488,6 +524,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
+  OnboardingRoute: typeof OnboardingRoute
   QuotasRoute: typeof QuotasRoute
   SignupRoute: typeof SignupRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
@@ -518,6 +555,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof QuotasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -545,6 +589,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/auth/callback'
       preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_app/users': {
+      id: '/_app/users'
+      path: '/users'
+      fullPath: '/users'
+      preLoaderRoute: typeof AppUsersRouteImport
+      parentRoute: typeof AppRoute
     }
     '/_app/templates': {
       id: '/_app/templates'
@@ -607,6 +658,13 @@ declare module '@tanstack/react-router' {
       path: '/invoices'
       fullPath: '/invoices'
       preLoaderRoute: typeof AppInvoicesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/home': {
+      id: '/_app/home'
+      path: '/home'
+      fullPath: '/home'
+      preLoaderRoute: typeof AppHomeRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/documents': {
@@ -827,6 +885,7 @@ interface AppRouteChildren {
   AppArchiveRoute: typeof AppArchiveRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppDocumentsRoute: typeof AppDocumentsRoute
+  AppHomeRoute: typeof AppHomeRoute
   AppInvoicesRoute: typeof AppInvoicesRouteWithChildren
   AppLettreRoute: typeof AppLettreRouteWithChildren
   AppNotificationsRoute: typeof AppNotificationsRoute
@@ -836,6 +895,7 @@ interface AppRouteChildren {
   AppServicesRoute: typeof AppServicesRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppTemplatesRoute: typeof AppTemplatesRoute
+  AppUsersRoute: typeof AppUsersRoute
   AppClientsIdRoute: typeof AppClientsIdRoute
   AppClientsNewRoute: typeof AppClientsNewRoute
   AppLettersIdRoute: typeof AppLettersIdRoute
@@ -851,6 +911,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppArchiveRoute: AppArchiveRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppDocumentsRoute: AppDocumentsRoute,
+  AppHomeRoute: AppHomeRoute,
   AppInvoicesRoute: AppInvoicesRouteWithChildren,
   AppLettreRoute: AppLettreRouteWithChildren,
   AppNotificationsRoute: AppNotificationsRoute,
@@ -860,6 +921,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppServicesRoute: AppServicesRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppTemplatesRoute: AppTemplatesRoute,
+  AppUsersRoute: AppUsersRoute,
   AppClientsIdRoute: AppClientsIdRoute,
   AppClientsNewRoute: AppClientsNewRoute,
   AppLettersIdRoute: AppLettersIdRoute,
@@ -877,6 +939,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
+  OnboardingRoute: OnboardingRoute,
   QuotasRoute: QuotasRoute,
   SignupRoute: SignupRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,

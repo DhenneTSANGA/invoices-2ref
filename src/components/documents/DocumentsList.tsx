@@ -6,13 +6,18 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
 import { StatusBadge, statusLabel } from "@/components/common/StatusBadge";
+import { CabinetFilter } from "@/components/common/CabinetFilter";
+import { CabinetBadge } from "@/components/common/CabinetBadge";
 import { documentRowClass, getDocumentRowStyles } from "@/lib/document-row-styles";
 import { currency, shortDate } from "@/lib/format";
 import type { DocumentStatus, DocumentType } from "@/store/types";
+import type { CabinetScope } from "@/lib/cabinets";
 import { cn } from "@/lib/utils";
+import { canSwitchCabinet } from "@/lib/roles";
 import {
   useClients,
   useDocuments,
+  useSession,
   useSetDocumentStatus,
   useSendDocumentEmail,
 } from "@/hooks/use-data";
@@ -37,8 +42,13 @@ function statusesFor(type: DocumentType): DocumentStatus[] {
 }
 
 export function DocumentsList({ type }: { type: DocumentType }) {
-  const { data: documents = [], isLoading } = useDocuments(type);
-  const { data: clients = [] } = useClients();
+  const { data: session } = useSession();
+  const showCabinetFilter = session ? canSwitchCabinet(session.staff.role) : false;
+  const [cabinetScope, setCabinetScope] = useState<CabinetScope>("all");
+  const scope = showCabinetFilter ? cabinetScope : undefined;
+
+  const { data: documents = [], isLoading } = useDocuments(type, scope);
+  const { data: clients = [] } = useClients(scope);
   const setStatusMutation = useSetDocumentStatus();
   const sendEmailMutation = useSendDocumentEmail();
   const [q, setQ] = useState("");
@@ -46,14 +56,12 @@ export function DocumentsList({ type }: { type: DocumentType }) {
   const L = labels[type];
   const statusOptions = statusesFor(type);
 
-  const docs = useMemo(() => documents, [documents]);
-
-  const filtered = useMemo(() => docs.filter((d) => {
+  const filtered = useMemo(() => documents.filter((d) => {
     const client = clients.find((c) => c.id === d.clientId);
     const matchQ = q === "" || `${d.number} ${client?.name ?? ""}`.toLowerCase().includes(q.toLowerCase());
     const matchS = status === "all" || d.status === status;
     return matchQ && matchS;
-  }), [docs, clients, q, status]);
+  }), [documents, clients, q, status]);
 
   const total = filtered.reduce((a, b) => a + b.total, 0);
 
@@ -99,7 +107,11 @@ export function DocumentsList({ type }: { type: DocumentType }) {
     <div>
       <PageHeader
         title={L.title}
-        subtitle={L.subtitle}
+        subtitle={
+          showCabinetFilter
+            ? `${L.subtitle} — filtrez par cabinet.`
+            : L.subtitle
+        }
         actions={
           <div className="flex flex-wrap items-center gap-2">
             {type === "letter" && (
@@ -116,6 +128,15 @@ export function DocumentsList({ type }: { type: DocumentType }) {
           </div>
         }
       />
+
+      {showCabinetFilter && (
+        <div className="mb-4">
+          <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Cabinet
+          </div>
+          <CabinetFilter value={cabinetScope} onChange={setCabinetScope} />
+        </div>
+      )}
 
       <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3">
         <Kpi label="Total documents" value={String(filtered.length)} />
@@ -136,7 +157,6 @@ export function DocumentsList({ type }: { type: DocumentType }) {
         </select>
       </div>
 
-      {/* Légende couleurs */}
       <div className="mb-4 flex flex-wrap gap-2">
         {statusOptions.map((s) => (
           <StatusBadge key={s} status={s} />
@@ -152,6 +172,7 @@ export function DocumentsList({ type }: { type: DocumentType }) {
             <thead className="bg-muted/60 text-xs uppercase tracking-wider text-muted-foreground">
               <tr>
                 <th className="px-5 py-3 text-left">Numéro</th>
+                {showCabinetFilter && <th className="px-5 py-3 text-left">Cabinet</th>}
                 <th className="px-5 py-3 text-left">Client</th>
                 <th className="px-5 py-3 text-left">Date</th>
                 <th className="px-5 py-3 text-left">Échéance</th>
@@ -174,6 +195,11 @@ export function DocumentsList({ type }: { type: DocumentType }) {
                     className={documentRowClass(d.status)}
                   >
                     <td className="px-5 py-3 font-medium font-numeric">{d.number}</td>
+                    {showCabinetFilter && (
+                      <td className="px-5 py-3">
+                        <CabinetBadge cabinet={d.cabinet} />
+                      </td>
+                    )}
                     <td className="px-5 py-3">{c?.name}</td>
                     <td className={cn("px-5 py-3", row.muted)}>{shortDate(d.issueDate)}</td>
                     <td className={cn("px-5 py-3", row.muted)}>{shortDate(d.dueDate)}</td>
@@ -198,7 +224,6 @@ export function DocumentsList({ type }: { type: DocumentType }) {
                     <td className="px-5 py-3 text-right font-numeric font-semibold">{currency(d.total)}</td>
                     <td className="px-5 py-3">
                       <div className="flex items-center justify-end gap-1">
-                        {/* Raccourcis statut */}
                         {type === "invoice" && d.status !== "sent" && d.status !== "paid" && d.status !== "cancelled" && (
                           <ActionBtn title="Marquer envoyée" onClick={() => setStatusWithToast(d.id, "sent", d.number)} className={row.actionBtn}>
                             <Send className="h-4 w-4" />

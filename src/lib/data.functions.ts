@@ -1,14 +1,22 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import type { Cabinet, DocumentType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { mapClient, mapDocument, mapService, mapCompany, mapNotification } from "@/lib/mappers";
 import { clientInputSchema, documentInputSchema, companyInputSchema } from "@/lib/auth-schemas";
-import { REAL_2REF_COMPANY } from "@/lib/company-defaults";
-import { getCurrentSession } from "@/lib/session.functions";
+import { COMPANY_DEFAULTS } from "@/lib/company-defaults";
+import { getCurrentSession, type AppSession } from "@/lib/session.functions";
 import {
   broadcastDocumentStatusChange,
   staffDisplayName,
 } from "@/lib/notify-document-status";
+import {
+  archiveScope,
+  canDeleteClients,
+  canEditCompanySettings,
+  canWriteDocument,
+  isSuperAdmin,
+} from "@/lib/roles";
 
 const docInclude = {
   lines: { orderBy: { position: "asc" as const } },
@@ -16,48 +24,88 @@ const docInclude = {
   client: true,
 };
 
-async function requireStaff() {
+const cabinetScopeSchema = z.enum(["all", "conseil", "expertise_fiscale"]).optional();
+
+async function requireSession(): Promise<NonNullable<AppSession>> {
   const session = await getCurrentSession();
   if (!session) throw new Error("Non authentifié");
-  return session.staff;
+  return session;
 }
 
-function documentWhere(staffId: string, role: "member" | "admin", type?: string) {
+function resolveDocCabinetFilter(
+  session: NonNullable<AppSession>,
+  scope?: "all" | Cabinet,
+): Cabinet | undefined {
+  if (isSuperAdmin(session.staff.role)) {
+    if (!scope || scope === "all") return undefined;
+    return scope;
+  }
+  return session.activeCabinet;
+}
+
+function cabinetDocWhere(
+  cabinet: Cabinet | undefined,
+  type?: DocumentType,
+  extra?: { createdById?: string },
+) {
   return {
-    ...(role === "admin" ? {} : { createdById: staffId }),
-    ...(type ? { type: type as "quotation" | "invoice" | "proforma" | "letter" } : {}),
+    ...(cabinet ? { cabinet } : {}),
+    ...(type ? { type } : {}),
+    ...(extra?.createdById ? { createdById: extra.createdById } : {}),
   };
+}
+
+async function assertClientInCabinet(clientId: string, cabinet: Cabinet) {
+  const client = await prisma.client.findFirst({
+    where: { id: clientId, cabinet },
+  });
+  if (!client) throw new Error("Client introuvable dans ce cabinet");
+  return client;
 }
 
 // ─── Clients ───────────────────────────────────────────────────────────────
 
-export const listClients = createServerFn({ method: "GET" }).handler(async () => {
-  await requireStaff();
-  const rows = await prisma.client.findMany({ orderBy: { name: "asc" } });
-  return rows.map(mapClient);
-});
+export const listClients = createServerFn({ method: "GET" })
+  .validator(z.object({ cabinetScope: cabinetScopeSchema }).optional())
+  .handler(async ({ data }) => {
+    const session = await requireSession();
+    const cabinet = resolveDocCabinetFilter(session, data?.cabinetScope);
+    const rows = await prisma.client.findMany({
+      where: cabinet ? { cabinet } : isSuperAdmin(session.staff.role) ? {} : { cabinet: session.activeCabinet },
+      orderBy: { name: "asc" },
+    });
+    return rows.map(mapClient);
+  });
 
 export const getClient = createServerFn({ method: "GET" })
   .validator(z.object({ id: z.string() }))
   .handler(async ({ data }) => {
-    await requireStaff();
-    const row = await prisma.client.findUnique({ where: { id: data.id } });
+    const { activeCabinet } = await requireSession();
+    const row = await prisma.client.findFirst({
+      where: { id: data.id, cabinet: activeCabinet },
+    });
     return row ? mapClient(row) : null;
   });
 
 export const createClient = createServerFn({ method: "POST" })
   .validator(clientInputSchema)
   .handler(async ({ data }) => {
-    await requireStaff();
-    const row = await prisma.client.create({ data });
+    const { activeCabinet } = await requireSession();
+    const row = await prisma.client.create({
+      data: { ...data, cabinet: activeCabinet },
+    });
     return mapClient(row);
   });
 
 export const updateClient = createServerFn({ method: "POST" })
   .validator(clientInputSchema.extend({ id: z.string() }))
   .handler(async ({ data }) => {
-    await requireStaff();
+    const { activeCabinet } = await requireSession();
     const { id, ...rest } = data;
+    const existing = await prisma.client.findFirst({
+      where: { id, cabinet: activeCabinet },
+    });
+    if (!existing) throw new Error("Client introuvable");
     const row = await prisma.client.update({ where: { id }, data: rest });
     return mapClient(row);
   });
@@ -65,7 +113,14 @@ export const updateClient = createServerFn({ method: "POST" })
 export const deleteClient = createServerFn({ method: "POST" })
   .validator(z.object({ id: z.string() }))
   .handler(async ({ data }) => {
-    await requireStaff();
+    const session = await requireSession();
+    if (!canDeleteClients(session.staff.role)) {
+      throw new Error("Suppression réservée aux administrateurs");
+    }
+    const existing = await prisma.client.findFirst({
+      where: { id: data.id, cabinet: session.activeCabinet },
+    });
+    if (!existing) throw new Error("Client introuvable");
     await prisma.client.delete({ where: { id: data.id } });
     return { ok: true };
   });
@@ -73,8 +128,11 @@ export const deleteClient = createServerFn({ method: "POST" })
 // ─── Services ──────────────────────────────────────────────────────────────
 
 export const listServices = createServerFn({ method: "GET" }).handler(async () => {
-  await requireStaff();
-  const rows = await prisma.service.findMany({ orderBy: { name: "asc" } });
+  const { activeCabinet } = await requireSession();
+  const rows = await prisma.service.findMany({
+    where: { cabinet: activeCabinet },
+    orderBy: { name: "asc" },
+  });
   return rows.map(mapService);
 });
 
@@ -84,31 +142,33 @@ export const listDocuments = createServerFn({ method: "GET" })
   .validator(
     z.object({
       type: z.enum(["quotation", "invoice", "proforma", "letter"]).optional(),
+      cabinetScope: cabinetScopeSchema,
     }),
   )
   .handler(async ({ data }) => {
-    const staff = await requireStaff();
+    const session = await requireSession();
+    const cabinet = resolveDocCabinetFilter(session, data.cabinetScope);
     const rows = await prisma.document.findMany({
-      where: documentWhere(staff.id, staff.role, data.type),
+      where: cabinetDocWhere(cabinet, data.type),
       include: docInclude,
       orderBy: { issueDate: "desc" },
     });
     return rows.map(mapDocument);
   });
 
-/** Vue cabinet : tous les documents, tous créateurs (staff authentifié). */
+/** Tous les documents (cabinet actif, ou tous si super admin + scope). */
 export const listAllDocuments = createServerFn({ method: "GET" })
   .validator(
     z.object({
       type: z.enum(["quotation", "invoice", "proforma", "letter"]).optional(),
+      cabinetScope: cabinetScopeSchema,
     }),
   )
   .handler(async ({ data }) => {
-    await requireStaff();
+    const session = await requireSession();
+    const cabinet = resolveDocCabinetFilter(session, data.cabinetScope);
     const rows = await prisma.document.findMany({
-      where: data.type
-        ? { type: data.type as "quotation" | "invoice" | "proforma" | "letter" }
-        : undefined,
+      where: cabinetDocWhere(cabinet, data.type),
       include: docInclude,
       orderBy: { issueDate: "desc" },
     });
@@ -118,9 +178,11 @@ export const listAllDocuments = createServerFn({ method: "GET" })
 export const getDocument = createServerFn({ method: "GET" })
   .validator(z.object({ id: z.string() }))
   .handler(async ({ data }) => {
-    await requireStaff();
-    const row = await prisma.document.findUnique({
-      where: { id: data.id },
+    const session = await requireSession();
+    const row = await prisma.document.findFirst({
+      where: isSuperAdmin(session.staff.role)
+        ? { id: data.id }
+        : { id: data.id, cabinet: session.activeCabinet },
       include: docInclude,
     });
     if (!row) return null;
@@ -130,7 +192,10 @@ export const getDocument = createServerFn({ method: "GET" })
 export const upsertDocument = createServerFn({ method: "POST" })
   .validator(documentInputSchema)
   .handler(async ({ data }) => {
-    const staff = await requireStaff();
+    const session = await requireSession();
+    const { staff, activeCabinet } = session;
+    await assertClientInCabinet(data.clientId, activeCabinet);
+
     const lines = data.items.map((item, position) => ({
       id: item.id,
       serviceId: item.serviceId ?? null,
@@ -145,6 +210,7 @@ export const upsertDocument = createServerFn({ method: "POST" })
     }));
 
     const docData = {
+      cabinet: activeCabinet,
       type: data.type,
       number: data.number,
       clientId: data.clientId,
@@ -174,16 +240,19 @@ export const upsertDocument = createServerFn({ method: "POST" })
     };
 
     if (data.id) {
-      const existing = await prisma.document.findUnique({ where: { id: data.id } });
+      const existing = await prisma.document.findFirst({
+        where: { id: data.id, cabinet: activeCabinet },
+      });
       if (!existing) throw new Error("Document introuvable");
-      if (staff.role !== "admin" && existing.createdById !== staff.id) {
-        throw new Error("Accès refusé");
+      if (!canWriteDocument(staff.role, staff.id, existing.createdById)) {
+        throw new Error("Accès refusé — document en lecture seule");
       }
 
       const updated = await prisma.document.update({
         where: { id: data.id },
         data: {
           ...docData,
+          createdById: existing.createdById,
           lines: {
             deleteMany: {},
             create: lines.map(({ id: _id, ...l }) => l),
@@ -243,11 +312,16 @@ export const setDocumentStatus = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data }) => {
-    const staff = await requireStaff();
-    const existing = await prisma.document.findUnique({ where: { id: data.id } });
+    const session = await requireSession();
+    const { staff } = session;
+    const existing = await prisma.document.findFirst({
+      where: isSuperAdmin(staff.role)
+        ? { id: data.id }
+        : { id: data.id, cabinet: session.activeCabinet },
+    });
     if (!existing) throw new Error("Document introuvable");
-    if (staff.role !== "admin" && existing.createdById !== staff.id) {
-      throw new Error("Accès refusé");
+    if (!canWriteDocument(staff.role, staff.id, existing.createdById)) {
+      throw new Error("Accès refusé — document en lecture seule");
     }
     const updated = await prisma.document.update({
       where: { id: data.id },
@@ -275,7 +349,7 @@ const notificationInclude = {
 } as const;
 
 export const listNotifications = createServerFn({ method: "GET" }).handler(async () => {
-  const staff = await requireStaff();
+  const { staff } = await requireSession();
   const rows = await prisma.notification.findMany({
     where: { staffId: staff.id },
     include: notificationInclude,
@@ -287,7 +361,7 @@ export const listNotifications = createServerFn({ method: "GET" }).handler(async
 
 export const markAllNotificationsRead = createServerFn({ method: "POST" }).handler(
   async () => {
-    const staff = await requireStaff();
+    const { staff } = await requireSession();
     await prisma.notification.updateMany({
       where: { staffId: staff.id, read: false },
       data: { read: true },
@@ -299,7 +373,7 @@ export const markAllNotificationsRead = createServerFn({ method: "POST" }).handl
 export const markNotificationRead = createServerFn({ method: "POST" })
   .validator(z.object({ id: z.string() }))
   .handler(async ({ data }) => {
-    const staff = await requireStaff();
+    const { staff } = await requireSession();
     const row = await prisma.notification.findUnique({ where: { id: data.id } });
     if (!row || row.staffId !== staff.id) throw new Error("Notification introuvable");
     await prisma.notification.update({
@@ -312,10 +386,15 @@ export const markNotificationRead = createServerFn({ method: "POST" })
 export const deleteDocument = createServerFn({ method: "POST" })
   .validator(z.object({ id: z.string() }))
   .handler(async ({ data }) => {
-    const staff = await requireStaff();
-    const existing = await prisma.document.findUnique({ where: { id: data.id } });
+    const session = await requireSession();
+    const { staff } = session;
+    const existing = await prisma.document.findFirst({
+      where: isSuperAdmin(staff.role)
+        ? { id: data.id }
+        : { id: data.id, cabinet: session.activeCabinet },
+    });
     if (!existing) throw new Error("Document introuvable");
-    if (staff.role !== "admin" && existing.createdById !== staff.id) {
+    if (!canWriteDocument(staff.role, staff.id, existing.createdById)) {
       throw new Error("Accès refusé");
     }
     await prisma.document.delete({ where: { id: data.id } });
@@ -325,16 +404,23 @@ export const deleteDocument = createServerFn({ method: "POST" })
 // ─── Company ───────────────────────────────────────────────────────────────
 
 export const getCompany = createServerFn({ method: "GET" }).handler(async () => {
-  await requireStaff();
-  const row = await prisma.company.findFirst();
-  return row ? mapCompany(row) : REAL_2REF_COMPANY;
+  const { activeCabinet } = await requireSession();
+  const row = await prisma.company.findUnique({
+    where: { cabinet: activeCabinet },
+  });
+  return row
+    ? mapCompany(row, activeCabinet)
+    : COMPANY_DEFAULTS[activeCabinet];
 });
 
 export const updateCompany = createServerFn({ method: "POST" })
   .validator(companyInputSchema)
   .handler(async ({ data }) => {
-    await requireStaff();
-    const existing = await prisma.company.findFirst();
+    const session = await requireSession();
+    if (!canEditCompanySettings(session.staff.role)) {
+      throw new Error("Modification réservée aux administrateurs");
+    }
+    const { activeCabinet } = session;
     const payload = {
       name: data.name,
       tagline: data.tagline ?? null,
@@ -350,8 +436,32 @@ export const updateCompany = createServerFn({ method: "POST" })
       bankName: data.bankName ?? null,
       bankAccount: data.bankAccount ?? null,
     };
-    const row = existing
-      ? await prisma.company.update({ where: { id: existing.id }, data: payload })
-      : await prisma.company.create({ data: payload });
-    return mapCompany(row);
+    const row = await prisma.company.upsert({
+      where: { cabinet: activeCabinet },
+      create: { ...payload, cabinet: activeCabinet },
+      update: payload,
+    });
+    return mapCompany(row, activeCabinet);
   });
+
+/** Filtre archives côté API selon le rôle. */
+export const listArchivedDocuments = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const session = await requireSession();
+    const { staff, activeCabinet } = session;
+    const scope = archiveScope(staff.role);
+    const rows = await prisma.document.findMany({
+      where: {
+        cabinet: activeCabinet,
+        ...(scope === "own" ? { createdById: staff.id } : {}),
+        OR: [
+          { type: "invoice", status: { in: ["paid", "archived"] } },
+          { type: "quotation", status: { in: ["accepted", "rejected"] } },
+        ],
+      },
+      include: docInclude,
+      orderBy: { issueDate: "desc" },
+    });
+    return rows.map(mapDocument);
+  },
+);

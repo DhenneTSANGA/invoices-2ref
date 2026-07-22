@@ -1,15 +1,26 @@
 import { z } from "zod";
+import { STAFF_JOB_TITLES } from "@/lib/cabinets";
+
+const jobTitleValues = STAFF_JOB_TITLES.map((j) => j.value) as [
+  (typeof STAFF_JOB_TITLES)[number]["value"],
+  ...(typeof STAFF_JOB_TITLES)[number]["value"][],
+];
 
 export const loginSchema = z.object({
   email: z.string().email("Email invalide"),
   password: z.string().min(6, "Mot de passe trop court"),
 });
 
+export const cabinetSchema = z.enum(["conseil", "expertise_fiscale"], {
+  error: "Choisissez un cabinet",
+});
+
 export const signupStaffSchema = z
   .object({
     firstName: z.string().min(1, "Prénom requis"),
     lastName: z.string().min(1, "Nom requis"),
-    jobTitle: z.string().min(1, "Poste requis"),
+    jobTitle: z.enum(jobTitleValues, { error: "Choisissez une fonction" }),
+    cabinet: cabinetSchema,
     email: z.string().email("Email invalide"),
     phone: z.string().min(8, "Téléphone requis"),
     password: z.string().min(8, "8 caractères minimum"),
@@ -20,6 +31,19 @@ export const signupStaffSchema = z
     path: ["confirmPassword"],
   });
 
+export const onboardingSchema = z.object({
+  firstName: z.string().min(1, "Prénom requis"),
+  lastName: z.string().min(1, "Nom requis"),
+  jobTitle: z.enum(jobTitleValues, { error: "Choisissez une fonction" }),
+  cabinet: cabinetSchema,
+  phone: z
+    .string()
+    .default("")
+    .refine((v) => v.trim() === "" || v.trim().length >= 8, {
+      message: "Téléphone trop court (8 caractères min)",
+    }),
+});
+
 export type StaffPayload = {
   firstName: string;
   lastName: string;
@@ -27,6 +51,7 @@ export type StaffPayload = {
   email: string;
   phone?: string | null;
   avatarUrl?: string | null;
+  cabinet?: "conseil" | "expertise_fiscale" | null;
 };
 
 export function toStaffPayload(
@@ -38,6 +63,7 @@ export function toStaffPayload(
     jobTitle: data.jobTitle,
     email: data.email,
     phone: data.phone,
+    cabinet: data.cabinet,
   };
 }
 

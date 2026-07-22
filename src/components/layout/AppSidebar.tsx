@@ -1,32 +1,14 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import {
-  LayoutDashboard, Users, FileText, ReceiptText, Package,
-  Files, Archive, Settings, Bell, Search, UserCircle2, ChevronLeft, FileSignature, Mail, FolderOpen,
-} from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/common/Logo";
-
-const items = [
-  { to: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard },
-  { to: "/clients", label: "Clients", icon: Users },
-  { to: "/services", label: "Catalogue", icon: Package },
-  { to: "/documents", label: "Documents", icon: FolderOpen },
-  { to: "/quotations", label: "Devis", icon: FileText },
-  { to: "/invoices", label: "Factures", icon: ReceiptText },
-  { to: "/proformas", label: "Pro forma", icon: FileSignature },
-  { to: "/lettre", label: "Lettres", icon: Mail },
-  { to: "/templates", label: "Modèles", icon: Files },
-  { to: "/archive", label: "Archives", icon: Archive },
-] as const;
-
-const secondary = [
-  { to: "/search", label: "Recherche", icon: Search },
-  { to: "/notifications", label: "Notifications", icon: Bell },
-  { to: "/profile", label: "Profil", icon: UserCircle2 },
-  { to: "/settings", label: "Paramètres", icon: Settings },
-] as const;
+import { useSession } from "@/hooks/use-data";
+import { CABINET_LABELS } from "@/lib/cabinets";
+import { canSwitchCabinet, isSuperAdmin, roleLabel } from "@/lib/roles";
+import { primaryNav, secondaryNav, navForRole } from "./nav-items";
+import { CabinetSwitcher } from "./CabinetSwitcher";
 
 function selectPathname(s: { location: { pathname: string } }) {
   return s.location.pathname;
@@ -35,6 +17,14 @@ function selectPathname(s: { location: { pathname: string } }) {
 export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = useRouterState({ select: selectPathname });
+  const { data: session } = useSession();
+  const role = session?.staff.role ?? "member";
+  const items = navForRole(primaryNav, role);
+  const secondary = navForRole(secondaryNav, role);
+  const cabinetLabel = session
+    ? CABINET_LABELS[session.activeCabinet]
+    : CABINET_LABELS.expertise_fiscale;
+  const isSa = session ? isSuperAdmin(session.staff.role) : false;
 
   return (
     <motion.aside
@@ -43,21 +33,74 @@ export function AppSidebar() {
       className="glass-sidebar sticky top-4 z-40 ml-4 my-4 hidden lg:flex h-[calc(100vh-2rem)] flex-col rounded-3xl p-3 shadow-float"
     >
       <div className="flex items-center gap-3 px-3 py-3">
-        <Logo size="sm" className="rounded-lg" />
+        {!isSa && (
+          <Logo
+            size="sm"
+            className="rounded-lg"
+            cabinet={session?.activeCabinet}
+          />
+        )}
+        {isSa && collapsed && (
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-primary font-display text-sm font-bold text-primary-foreground shadow-glow">
+            2R
+          </div>
+        )}
         {!collapsed && (
-          <div className="overflow-hidden">
+          <div className="min-w-0 overflow-hidden">
             <div className="font-display text-lg font-bold leading-none">2R</div>
-            <div className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">Expertise Fiscale</div>
+            <div className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground truncate">
+              {isSa ? "Multi-cabinets" : cabinetLabel.replace(/^2R\s+/i, "")}
+            </div>
           </div>
         )}
         <button
           onClick={() => setCollapsed((c) => !c)}
-          className="ml-auto flex h-8 w-8 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted transition-colors"
+          className="ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted transition-colors"
           aria-label="Réduire"
         >
           <ChevronLeft className={cn("h-4 w-4 transition-transform", collapsed && "rotate-180")} />
         </button>
       </div>
+
+      {!collapsed && session && (
+        <div className="mx-2 mb-3 space-y-3">
+          <div
+            className={cn(
+              "rounded-2xl px-3.5 py-3",
+              isSa
+                ? "border border-primary/25 bg-primary/8"
+                : "bg-muted/50",
+            )}
+          >
+            {isSa ? (
+              <>
+                <div className="inline-flex items-center rounded-full bg-gradient-primary px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary-foreground shadow-glow">
+                  Super admin
+                </div>
+                <div className="mt-2 font-display text-sm font-semibold leading-snug">
+                  {roleLabel(session.staff.role)}
+                </div>
+                <div className="mt-0.5 text-[11px] text-muted-foreground">
+                  Accès aux deux cabinets
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="text-[11px] font-medium">{roleLabel(session.staff.role)}</div>
+                <div className="text-muted-foreground text-[11px] truncate">{cabinetLabel}</div>
+              </>
+            )}
+          </div>
+          {canSwitchCabinet(session.staff.role) && (
+            <div>
+              <div className="mb-1.5 px-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Cabinet actif
+              </div>
+              <CabinetSwitcher />
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="mt-2 flex-1 overflow-y-auto pr-1">
         <NavSection title="Principal" items={items} pathname={pathname} collapsed={collapsed} />
@@ -72,7 +115,7 @@ function NavSection({
   title, items, pathname, collapsed,
 }: {
   title: string;
-  items: readonly { to: string; label: string; icon: typeof LayoutDashboard }[];
+  items: { to: string; label: string; icon: typeof ChevronLeft }[];
   pathname: string;
   collapsed: boolean;
 }) {
