@@ -5,7 +5,7 @@ import { createSupabaseServer } from "@/lib/supabase-server";
 import { mapStaff } from "@/lib/mappers";
 import { syncStaffMember } from "@/lib/staff-sync";
 import { staffFromAuthUser } from "@/lib/staff-parse";
-import { onboardingSchema } from "@/lib/auth-schemas";
+import { onboardingSchema, profileUpdateSchema } from "@/lib/auth-schemas";
 import {
   clearSessionMemo,
   getCurrentSession,
@@ -295,6 +295,57 @@ export const deleteOwnAccount = createServerFn({ method: "POST" }).handler(
     return { ok: true };
   },
 );
+
+export const updateOwnProfile = createServerFn({ method: "POST" })
+  .validator(profileUpdateSchema)
+  .handler(async ({ data }) => {
+    const session = await getCurrentSession();
+    if (!session) throw new Error("Non authentifié");
+
+    const jobTitle = normalizeJobTitleValue(data.jobTitle);
+    if (!jobTitle) throw new Error("Poste invalide");
+
+    const phone = data.phone.trim() || null;
+    const firstName = data.firstName.trim();
+    const lastName = data.lastName.trim();
+
+    const row = await prisma.staffMember.update({
+      where: { id: session.staff.id },
+      data: {
+        firstName,
+        lastName,
+        jobTitle,
+        phone,
+      },
+    });
+
+    // Aligne les métadonnées Auth (best-effort)
+    try {
+      const supabase = createSupabaseServer();
+      await supabase.auth.updateUser({
+        data: {
+          first_name: firstName,
+          last_name: lastName,
+          full_name: `${firstName} ${lastName}`,
+          job_title: jobTitle,
+          phone,
+          staff: {
+            firstName,
+            lastName,
+            jobTitle,
+            phone,
+            email: session.staff.email,
+            cabinet: session.staff.cabinet,
+          },
+        },
+      });
+    } catch (err) {
+      console.error("[updateOwnProfile] auth metadata", err);
+    }
+
+    clearSessionMemo(session.user.id);
+    return mapStaff(row);
+  });
 
 export const getMyPendingAdminRequest = createServerFn({ method: "GET" }).handler(
   async () => {

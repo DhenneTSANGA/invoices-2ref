@@ -44,6 +44,19 @@ export const onboardingSchema = z.object({
     }),
 });
 
+/** Mise à jour du profil collaborateur (hors email / cabinet / rôle). */
+export const profileUpdateSchema = z.object({
+  firstName: z.string().min(1, "Prénom requis"),
+  lastName: z.string().min(1, "Nom requis"),
+  jobTitle: z.enum(jobTitleValues, { error: "Choisissez votre poste" }),
+  phone: z
+    .string()
+    .default("")
+    .refine((v) => v.trim() === "" || v.trim().length >= 8, {
+      message: "Téléphone trop court (8 caractères min)",
+    }),
+});
+
 export type StaffPayload = {
   firstName: string;
   lastName: string;

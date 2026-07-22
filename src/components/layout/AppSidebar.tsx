@@ -32,30 +32,35 @@ export function AppSidebar() {
       transition={{ type: "spring", stiffness: 220, damping: 28 }}
       className="glass-sidebar sticky top-4 z-40 ml-4 my-4 hidden lg:flex h-[calc(100vh-2rem)] flex-col rounded-3xl p-3 shadow-float"
     >
-      <div className="flex items-center gap-3 px-3 py-3">
+      <div className="relative flex items-center px-3 py-3">
         {!isSa && (
-          <Logo
-            size="sm"
-            className="rounded-lg"
-            cabinet={session?.activeCabinet}
-          />
-        )}
-        {isSa && collapsed && (
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-primary font-display text-sm font-bold text-primary-foreground shadow-glow">
-            2R
+          <div className="flex min-w-0 flex-1 justify-center">
+            <Logo
+              size="sm"
+              className="rounded-lg"
+              cabinet={session?.activeCabinet}
+            />
           </div>
         )}
-        {!collapsed && (
-          <div className="min-w-0 overflow-hidden">
-            <div className="font-display text-lg font-bold leading-none">2R</div>
-            <div className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground truncate">
-              {isSa ? "Multi-cabinets" : cabinetLabel.replace(/^2R\s+/i, "")}
-            </div>
+        {isSa && (
+          <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
+            {collapsed ? (
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-primary font-display text-sm font-bold text-primary-foreground shadow-glow">
+                2R
+              </div>
+            ) : (
+              <div className="min-w-0">
+                <div className="font-display text-lg font-bold leading-none">2R</div>
+                <div className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground truncate">
+                  Multi-cabinets
+                </div>
+              </div>
+            )}
           </div>
         )}
         <button
           onClick={() => setCollapsed((c) => !c)}
-          className="ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted transition-colors"
+          className="absolute right-3 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted transition-colors"
           aria-label="Réduire"
         >
           <ChevronLeft className={cn("h-4 w-4 transition-transform", collapsed && "rotate-180")} />
