@@ -88,7 +88,7 @@ function LoginPage() {
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
       <AuthVisualPanel
-        imageSrc="/auth/login-panel.png"
+        imageSrc="/auth/login-panel2.png"
         imageAlt="Bureaux 2R Conseil et 2R Expertise Fiscale"
         title="Deux cabinets, un seul espace de travail"
         subtitle="Reprenez vos devis, factures et dossiers clients là où vous les avez laissés."
