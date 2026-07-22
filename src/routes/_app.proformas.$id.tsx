@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Download, Send, Eye, Loader2 } from "lucide-react";
+import { ArrowLeft, Download, Send, Eye, Loader2, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
+import { LoadingState } from "@/components/common/LoadingState";
 import { useDocument, useClients, useSendDocumentEmail } from "@/hooks/use-data";
 import { DocumentPreview } from "@/components/documents/DocumentPreview";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
@@ -24,7 +25,15 @@ function ProformaDetail() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
 
-  if (isLoading) return <div className="py-20 text-center text-sm text-muted-foreground">Chargement…</div>;
+  if (isLoading) {
+    return (
+      <LoadingState
+        icon={FileText}
+        title="Chargement de la pro forma"
+        description="Ouverture du document…"
+      />
+    );
+  }
   if (!doc) return <div className="glass-panel rounded-3xl p-8 text-center">Pro forma introuvable.</div>;
 
   const sendByEmail = () => {

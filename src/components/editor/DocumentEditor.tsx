@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Plus, Trash2, Save, Send, Download, Eye, Loader2 } from "lucide-react";
+import { Plus, Trash2, Save, Send, Download, Eye, Loader2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { computeTotals } from "@/lib/document-math";
 import type { Document, DocumentType, LineItem } from "@/store/types";
@@ -8,6 +8,7 @@ import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModa
 import { downloadDocumentPdf } from "@/lib/pdf/downloadDocumentPdf";
 import { number } from "@/lib/format";
 import { Button } from "@/components/ui/button";
+import { LoadingState } from "@/components/common/LoadingState";
 import { useClients, useServices, useUpsertDocument, useSendDocumentEmail } from "@/hooks/use-data";
 
 type Props = { initial?: Document; type: DocumentType };
@@ -189,9 +190,11 @@ export function DocumentEditor({ initial, type }: Props) {
 
   if (loadingClients) {
     return (
-      <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Chargement…
-      </div>
+      <LoadingState
+        icon={Users}
+        title="Préparation de l'éditeur"
+        description="Chargement des clients et du catalogue…"
+      />
     );
   }
 

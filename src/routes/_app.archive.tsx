@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Archive } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
+import { LoadingState } from "@/components/common/LoadingState";
 import { useClients, useDocuments, useSession } from "@/hooks/use-data";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { currency, shortDate } from "@/lib/format";
@@ -13,8 +14,19 @@ export const Route = createFileRoute("/_app/archive")({
 
 function ArchivePage() {
   const { data: session } = useSession();
-  const { data: documents = [] } = useDocuments();
-  const { data: clients = [] } = useClients();
+  const { data: documents = [], isLoading: loadingDocs } = useDocuments();
+  const { data: clients = [], isLoading: loadingClients } = useClients();
+
+  if (loadingDocs || loadingClients) {
+    return (
+      <LoadingState
+        icon={Archive}
+        title="Chargement des archives"
+        description="Récupération des documents clôturés…"
+      />
+    );
+  }
+
   const archived = documents.filter((d) => {
     const closed =
       (d.type === "invoice" && (d.status === "paid" || d.status === "archived")) ||

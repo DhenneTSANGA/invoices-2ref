@@ -5,6 +5,7 @@ import {
   serializeCookieHeader,
 } from "@supabase/ssr";
 import { staffFromAuthUser } from "@/lib/staff-parse";
+import { LoadingState } from "@/components/common/LoadingState";
 
 function supabaseUrl() {
   return process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL ?? "";
@@ -79,7 +80,11 @@ export const Route = createFileRoute("/auth/callback")({
   },
   component: () => (
     <div className="aurora-bg flex min-h-screen items-center justify-center p-6">
-      <p className="text-sm text-muted-foreground">Connexion en cours…</p>
+      <LoadingState
+        className="max-w-sm shadow-float"
+        title="Connexion en cours"
+        description="Finalisation de votre session sécurisée…"
+      />
     </div>
   ),
 });

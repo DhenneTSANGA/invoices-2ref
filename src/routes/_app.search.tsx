@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Search, FileText, ReceiptText, Users, Package } from "lucide-react";
 import { useState } from "react";
 import { PageHeader } from "@/components/common/PageHeader";
+import { LoadingState } from "@/components/common/LoadingState";
 import { useClients, useDocuments, useServices } from "@/hooks/use-data";
 
 export const Route = createFileRoute("/_app/search")({
@@ -11,9 +12,19 @@ export const Route = createFileRoute("/_app/search")({
 
 function SearchPage() {
   const [q, setQ] = useState("");
-  const { data: clients = [] } = useClients();
-  const { data: docs = [] } = useDocuments();
-  const { data: services = [] } = useServices();
+  const { data: clients = [], isLoading: loadingClients } = useClients();
+  const { data: docs = [], isLoading: loadingDocs } = useDocuments();
+  const { data: services = [], isLoading: loadingServices } = useServices();
+
+  if (loadingClients || loadingDocs || loadingServices) {
+    return (
+      <LoadingState
+        icon={Search}
+        title="Préparation de la recherche"
+        description="Indexation de vos clients, documents et services…"
+      />
+    );
+  }
 
   const term = q.toLowerCase();
   const cm = clients.filter((c) => `${c.name} ${c.email} ${c.nif}`.toLowerCase().includes(term));

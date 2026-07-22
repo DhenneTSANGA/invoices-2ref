@@ -3,16 +3,12 @@ import { Logo } from "@/components/common/Logo";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ArrowRight, Mail, Lock, Eye, EyeOff } from "lucide-react";
-import {
-  signInWithEmailPassword,
-  signInWithGoogle,
-  signInWithEmailMagicLink,
-} from "@/lib/auth";
+import { signInWithEmailPassword, signInWithGoogle } from "@/lib/auth";
 import { loginSchema } from "@/lib/auth-schemas";
 import { syncStaffToDatabase } from "@/lib/staff-client";
 import { staffFromAuthUser } from "@/lib/staff-parse";
 import { getCurrentSession } from "@/lib/session.functions";
-import { EmailBrandIcon, GoogleIcon } from "@/components/auth/AuthIcons";
+import { GoogleIcon } from "@/components/auth/AuthIcons";
 import { homePathForRole } from "@/lib/roles";
 import { getAuthBootstrap } from "@/lib/admin.functions";
 
@@ -83,18 +79,6 @@ function LoginPage() {
     }
   };
 
-  const magic = async () => {
-    if (!email) {
-      toast.error("Saisissez votre email");
-      return;
-    }
-    setLoading(true);
-    const { error } = await signInWithEmailMagicLink(email);
-    if (error) toast.error(error.message);
-    else toast.success("Lien magique envoyé — consultez votre boîte mail");
-    setLoading(false);
-  };
-
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
       <div className="aurora-bg relative hidden flex-col justify-between p-12 lg:flex">
@@ -135,26 +119,15 @@ function LoginPage() {
             {loading ? "Connexion…" : <>Se connecter <ArrowRight className="h-4 w-4" /></>}
           </button>
 
-          <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
-            <button
-              type="button"
-              onClick={google}
-              disabled={loading}
-              className="inline-flex w-full items-center justify-center gap-2.5 rounded-2xl border border-border/80 bg-surface px-3 py-3 text-sm font-medium transition hover:bg-muted/80 disabled:opacity-60"
-            >
-              <GoogleIcon className="h-5 w-5 shrink-0" />
-              Google
-            </button>
-            <button
-              type="button"
-              onClick={magic}
-              disabled={loading}
-              className="inline-flex w-full items-center justify-center gap-2.5 rounded-2xl border border-border/80 bg-surface px-3 py-3 text-sm font-medium transition hover:bg-muted/80 disabled:opacity-60"
-            >
-              <EmailBrandIcon className="h-5 w-5 shrink-0" />
-              Email
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={google}
+            disabled={loading}
+            className="mt-3 inline-flex w-full items-center justify-center gap-2.5 rounded-2xl border border-border/80 bg-surface px-3 py-3 text-sm font-medium transition hover:bg-muted/80 disabled:opacity-60"
+          >
+            <GoogleIcon className="h-5 w-5 shrink-0" />
+            Continuer avec Google
+          </button>
 
           <p className="mt-6 text-center text-xs text-muted-foreground">
             Pas de compte ?{" "}

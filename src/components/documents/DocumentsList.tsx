@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
+import { LoadingState } from "@/components/common/LoadingState";
 import { StatusBadge, statusLabel } from "@/components/common/StatusBadge";
 import { CabinetFilter } from "@/components/common/CabinetFilter";
 import { CabinetBadge } from "@/components/common/CabinetBadge";
@@ -97,9 +98,11 @@ export function DocumentsList({ type }: { type: DocumentType }) {
 
   if (isLoading) {
     return (
-      <div className="py-20 text-center text-sm text-muted-foreground">
-        Chargement des documents…
-      </div>
+      <LoadingState
+        icon={FileText}
+        title={`Chargement des ${L.title.toLowerCase()}`}
+        description="Récupération des documents du cabinet…"
+      />
     );
   }
 

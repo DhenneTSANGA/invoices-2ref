@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
+import { LoadingState } from "@/components/common/LoadingState";
 import { Button } from "@/components/ui/button";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 import { useClients } from "@/hooks/use-data";
@@ -224,7 +225,12 @@ function MailMergePage() {
           />
 
           {loadingClients ? (
-            <div className="py-8 text-center text-sm text-muted-foreground">Chargement…</div>
+            <LoadingState
+              variant="inline"
+              icon={Users}
+              title="Chargement des destinataires"
+              description="Récupération de la liste des clients…"
+            />
           ) : (
             <ul className="max-h-72 space-y-1 overflow-y-auto">
               {filteredClients.map((c) => (

@@ -6,6 +6,7 @@ import { z } from "zod";
 import { PageHeader } from "@/components/common/PageHeader";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { EmptyState } from "@/components/common/EmptyState";
+import { LoadingState } from "@/components/common/LoadingState";
 import { CabinetFilter } from "@/components/common/CabinetFilter";
 import { CabinetBadge } from "@/components/common/CabinetBadge";
 import { DocumentCreatorInline } from "@/components/documents/DocumentCreatorCard";
@@ -220,9 +221,11 @@ function DocumentsHubPage() {
       </div>
 
       {isLoading ? (
-        <div className="py-20 text-center text-sm text-muted-foreground">
-          Chargement des documents…
-        </div>
+        <LoadingState
+          icon={Files}
+          title="Chargement des documents"
+          description="Regroupement des pièces du cabinet…"
+        />
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={Files}

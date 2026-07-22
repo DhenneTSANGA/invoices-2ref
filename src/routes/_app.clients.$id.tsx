@@ -3,6 +3,7 @@ import { useMemo, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, Save, FileText, ReceiptText } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
+import { LoadingState } from "@/components/common/LoadingState";
 import { useClient, useUpdateClient, useDocuments } from "@/hooks/use-data";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { currency, shortDate } from "@/lib/format";
@@ -30,7 +31,13 @@ function EditClient() {
   }, [client]);
 
   if (isLoading) {
-    return <div className="py-20 text-center text-sm text-muted-foreground">Chargement…</div>;
+    return (
+      <LoadingState
+        icon={FileText}
+        title="Chargement de la fiche"
+        description="Récupération des informations client…"
+      />
+    );
   }
 
   if (!client || !form) {

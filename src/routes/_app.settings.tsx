@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Save, Building2, Receipt, Palette, ShieldCheck } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
+import { LoadingState } from "@/components/common/LoadingState";
 import { useCompany, useUpdateCompany, useSession } from "@/hooks/use-data";
 import { Logo } from "@/components/common/Logo";
 import { COMPANY_DEFAULTS } from "@/lib/company-defaults";
@@ -31,7 +32,7 @@ const tabs = [
 
 function SettingsPage() {
   const { data: session } = useSession();
-  const { data: company } = useCompany();
+  const { data: company, isLoading: loadingCompany } = useCompany();
   const updateCompany = useUpdateCompany();
   const [tab, setTab] = useState("company");
   const fallback =
@@ -50,6 +51,16 @@ function SettingsPage() {
       toast.error("Impossible d'enregistrer les modifications");
     }
   };
+
+  if (loadingCompany) {
+    return (
+      <LoadingState
+        icon={Building2}
+        title="Chargement des paramètres"
+        description="Récupération des informations du cabinet…"
+      />
+    );
+  }
 
   return (
     <div>

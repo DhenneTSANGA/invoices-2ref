@@ -12,14 +12,14 @@ export const loginSchema = z.object({
 });
 
 export const cabinetSchema = z.enum(["conseil", "expertise_fiscale"], {
-  error: "Choisissez un cabinet",
+  error: "Choisissez votre cabinet",
 });
 
 export const signupStaffSchema = z
   .object({
     firstName: z.string().min(1, "Prénom requis"),
     lastName: z.string().min(1, "Nom requis"),
-    jobTitle: z.enum(jobTitleValues, { error: "Choisissez une fonction" }),
+    jobTitle: z.enum(jobTitleValues, { error: "Choisissez votre poste" }),
     cabinet: cabinetSchema,
     email: z.string().email("Email invalide"),
     phone: z.string().min(8, "Téléphone requis"),

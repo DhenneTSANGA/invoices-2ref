@@ -5,6 +5,7 @@ import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, Res
 import { ArrowUpRight, FileText, Plus, ReceiptText, TrendingUp, Users, Wallet } from "lucide-react";
 import { StatCard } from "@/components/common/StatCard";
 import { PageHeader } from "@/components/common/PageHeader";
+import { LoadingState } from "@/components/common/LoadingState";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { useClients, useDocuments, useSession } from "@/hooks/use-data";
 import { currency, shortDate } from "@/lib/format";
@@ -83,9 +84,19 @@ function buildActivities(documents: Document[], clients: { id: string; name: str
 }
 
 function Dashboard() {
-  const { data: documents = [] } = useDocuments();
-  const { data: clients = [] } = useClients();
+  const { data: documents = [], isLoading: loadingDocs } = useDocuments();
+  const { data: clients = [], isLoading: loadingClients } = useClients();
   const { data: session } = useSession();
+
+  if (loadingDocs || loadingClients) {
+    return (
+      <LoadingState
+        icon={TrendingUp}
+        title="Chargement du tableau de bord"
+        description="Agrégation des indicateurs et de l’activité récente…"
+      />
+    );
+  }
 
   const invoices = documents.filter((d) => d.type === "invoice");
   const quotations = documents.filter((d) => d.type === "quotation");

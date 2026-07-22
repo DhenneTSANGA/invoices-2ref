@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { useMemo, useState } from "react";
 import { FileText, ReceiptText, Mail, Eye } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
+import { LoadingState } from "@/components/common/LoadingState";
 import { DocumentPreview } from "@/components/documents/DocumentPreview";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 import type { Document, DocumentType } from "@/store/types";
@@ -53,8 +54,19 @@ const META: {
 ];
 
 function Templates() {
+  const { isLoading } = useClients();
   const sampleDocs = useSampleDocs();
   const [preview, setPreview] = useState<Document | null>(null);
+
+  if (isLoading) {
+    return (
+      <LoadingState
+        icon={FileText}
+        title="Chargement des modèles"
+        description="Préparation des aperçus de documents…"
+      />
+    );
+  }
 
   return (
     <div>

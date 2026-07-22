@@ -10,6 +10,7 @@ import {
   X,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
+import { LoadingState } from "@/components/common/LoadingState";
 import { useSession } from "@/hooks/use-data";
 import {
   listAdminRequests,
@@ -45,11 +46,11 @@ function UsersPage() {
   const qc = useQueryClient();
   const isSuper = session ? canPromoteOrDemoteAdmins(session.staff.role) : false;
 
-  const { data: requests = [] } = useQuery({
+  const { data: requests = [], isLoading: loadingRequests } = useQuery({
     queryKey: requestsKey,
     queryFn: () => listAdminRequests(),
   });
-  const { data: staff = [] } = useQuery({
+  const { data: staff = [], isLoading: loadingStaff } = useQuery({
     queryKey: staffKey,
     queryFn: () => listCabinetStaff(),
   });
@@ -74,6 +75,16 @@ function UsersPage() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  if (loadingRequests || loadingStaff) {
+    return (
+      <LoadingState
+        icon={UserRound}
+        title="Chargement de l’équipe"
+        description="Récupération des membres et des demandes…"
+      />
+    );
+  }
 
   return (
     <div>

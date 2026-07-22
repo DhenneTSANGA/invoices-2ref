@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Package, Search } from "lucide-react";
 import { useState } from "react";
 import { PageHeader } from "@/components/common/PageHeader";
+import { LoadingState } from "@/components/common/LoadingState";
 import { useServices } from "@/hooks/use-data";
 import { currency } from "@/lib/format";
 
@@ -20,9 +21,11 @@ function ServicesPage() {
 
   if (isLoading) {
     return (
-      <div className="py-20 text-center text-sm text-muted-foreground">
-        Chargement du catalogue…
-      </div>
+      <LoadingState
+        icon={Package}
+        title="Chargement du catalogue"
+        description="Préparation des prestations disponibles…"
+      />
     );
   }
 

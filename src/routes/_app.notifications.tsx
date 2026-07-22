@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { shortDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/common/EmptyState";
+import { LoadingState } from "@/components/common/LoadingState";
 import {
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
@@ -66,7 +67,11 @@ function NotificationsPage() {
       />
 
       {isLoading ? (
-        <div className="py-20 text-center text-sm text-muted-foreground">Chargement…</div>
+        <LoadingState
+          icon={Bell}
+          title="Chargement des notifications"
+          description="Synchronisation des alertes du cabinet…"
+        />
       ) : notifications.length === 0 ? (
         <EmptyState
           icon={Bell}

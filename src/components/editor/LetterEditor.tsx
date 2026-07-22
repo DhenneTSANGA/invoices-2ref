@@ -18,6 +18,7 @@ import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModa
 import { DocumentPreview } from "@/components/documents/DocumentPreview";
 import { downloadDocumentPdf } from "@/lib/pdf/downloadDocumentPdf";
 import { Button } from "@/components/ui/button";
+import { LoadingState } from "@/components/common/LoadingState";
 import { useClients, useUpsertDocument, useSendDocumentEmail } from "@/hooks/use-data";
 import { cn } from "@/lib/utils";
 
@@ -25,7 +26,7 @@ type Props = { initial?: Document };
 
 export function LetterEditor({ initial }: Props) {
   const navigate = useNavigate();
-  const { data: clients = [] } = useClients();
+  const { data: clients = [], isLoading: loadingClients } = useClients();
   const upsertMutation = useUpsertDocument();
   const sendEmailMutation = useSendDocumentEmail();
 
@@ -65,6 +66,16 @@ export function LetterEditor({ initial }: Props) {
     if (!firstId) return;
     setDoc((d) => (d.clientId ? d : { ...d, clientId: firstId }));
   }, [clients, initial?.clientId]);
+
+  if (loadingClients) {
+    return (
+      <LoadingState
+        icon={UserRound}
+        title="Préparation de la lettre"
+        description="Chargement des destinataires…"
+      />
+    );
+  }
 
   const effectiveClientId = doc.clientId || clients[0]?.id || "";
   const previewDoc = { ...doc, clientId: effectiveClientId };

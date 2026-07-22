@@ -36,6 +36,14 @@ function SignupPage() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.cabinet) {
+      toast.error("Choisissez votre cabinet");
+      return;
+    }
+    if (!form.jobTitle) {
+      toast.error("Choisissez votre poste");
+      return;
+    }
     const parsed = signupStaffSchema.safeParse(form);
     if (!parsed.success) {
       toast.error(parsed.error.issues[0]?.message ?? "Formulaire invalide");
@@ -83,6 +91,7 @@ function SignupPage() {
             value={form.cabinet}
             onChange={(v) => setForm({ ...form, cabinet: v })}
             className="sm:col-span-2"
+            required
             options={[
               { value: "conseil", label: CABINET_LABELS.conseil },
               { value: "expertise_fiscale", label: CABINET_LABELS.expertise_fiscale },
@@ -90,10 +99,11 @@ function SignupPage() {
           />
           <Select
             icon={Briefcase}
-            label="Fonction"
+            label="Poste"
             value={form.jobTitle}
             onChange={(v) => setForm({ ...form, jobTitle: v })}
             className="sm:col-span-2"
+            required
             options={STAFF_JOB_TITLES.map((j) => ({ value: j.value, label: j.label }))}
           />
           <Input icon={Mail} label="Email" type="email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} className="sm:col-span-2" />
@@ -137,6 +147,7 @@ function Select({
   onChange,
   options,
   className = "",
+  required = false,
 }: {
   icon: typeof Mail;
   label: string;
@@ -144,20 +155,25 @@ function Select({
   onChange: (v: string) => void;
   options: { value: string; label: string }[];
   className?: string;
+  required?: boolean;
 }) {
   return (
     <label className={className}>
       <span className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
         {label}
+        {required ? <span className="text-danger"> *</span> : null}
       </span>
       <div className="relative">
         <Icon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <select
           value={value}
+          required={required}
           onChange={(e) => onChange(e.target.value)}
           className="w-full appearance-none rounded-xl border border-border/60 bg-transparent py-2.5 pl-10 pr-3 text-sm focus:border-primary focus:outline-none"
         >
-          <option value="">Choisir…</option>
+          <option value="" disabled>
+            Choisir…
+          </option>
           {options.map((o) => (
             <option key={o.value} value={o.value}>
               {o.label}

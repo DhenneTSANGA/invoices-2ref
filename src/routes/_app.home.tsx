@@ -1,6 +1,7 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { FileText, Plus, ReceiptText, Users } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
+import { LoadingState } from "@/components/common/LoadingState";
 import { StatCard } from "@/components/common/StatCard";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { useClients, useDocuments, useSession } from "@/hooks/use-data";
@@ -22,8 +23,19 @@ export const Route = createFileRoute("/_app/home")({
 
 function HomePage() {
   const { data: session } = useSession();
-  const { data: documents = [] } = useDocuments();
-  const { data: clients = [] } = useClients();
+  const { data: documents = [], isLoading: loadingDocs } = useDocuments();
+  const { data: clients = [], isLoading: loadingClients } = useClients();
+
+  if (loadingDocs || loadingClients) {
+    return (
+      <LoadingState
+        icon={FileText}
+        title="Chargement de l’accueil"
+        description="Préparation de vos documents et indicateurs…"
+      />
+    );
+  }
+
   const mine = documents.filter((d) => d.createdById === session?.staff.id);
   const recent = [...documents]
     .sort((a, b) => b.issueDate.localeCompare(a.issueDate))

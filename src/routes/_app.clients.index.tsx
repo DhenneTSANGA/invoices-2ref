@@ -4,6 +4,7 @@ import { Building2, Mail, Phone, Plus, Search, Trash2, Pencil } from "lucide-rea
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
+import { LoadingState } from "@/components/common/LoadingState";
 import { shortDate } from "@/lib/format";
 import { toast } from "sonner";
 import { useClients, useDeleteClient, useDocuments, useSession } from "@/hooks/use-data";
@@ -39,9 +40,11 @@ function ClientsPage() {
 
   if (isLoading) {
     return (
-      <div className="py-20 text-center text-sm text-muted-foreground">
-        Chargement des clients…
-      </div>
+      <LoadingState
+        icon={Building2}
+        title="Chargement des clients"
+        description="Récupération du portefeuille clients…"
+      />
     );
   }
 
