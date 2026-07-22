@@ -11,6 +11,33 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/common/Logo";
 import { getCurrentSession } from "@/lib/session.functions";
+import {
+  documentStatusLabel,
+  documentTypeLabel,
+} from "@/lib/document-status-labels";
+import type { DocumentStatus, DocumentType } from "@/store/types";
+import { cn } from "@/lib/utils";
+
+/** Aperçu marketing figé — numéros anonymisés, statuts illustratifs. */
+const LANDING_PREVIEW: {
+  type: DocumentType;
+  numberMasked: string;
+  status: DocumentStatus;
+}[] = [
+  { type: "invoice", numberMasked: "FA-••••-••18", status: "paid" },
+  { type: "quotation", numberMasked: "DV-••••-••42", status: "accepted" },
+  { type: "letter", numberMasked: "LT-••••-••07", status: "sent" },
+  { type: "invoice", numberMasked: "FA-••••-••31", status: "paid" },
+  { type: "quotation", numberMasked: "DV-••••-••15", status: "accepted" },
+  { type: "letter", numberMasked: "LT-••••-••03", status: "sent" },
+];
+
+const typeTone: Record<DocumentType, string> = {
+  quotation: "bg-accent/15 text-accent-foreground",
+  invoice: "bg-primary/15 text-primary",
+  proforma: "bg-muted text-muted-foreground",
+  letter: "bg-success/15 text-success",
+};
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -135,39 +162,69 @@ function LandingPage() {
             transition={{ duration: 0.55, delay: 0.1 }}
             className="relative"
           >
-            <div className="glass-panel overflow-hidden rounded-3xl p-5 shadow-float sm:p-6">
-              <div className="mb-4 flex items-center justify-between">
-                <div className="text-sm font-semibold">Aperçu documents</div>
-                <div className="rounded-full bg-primary/15 px-2.5 py-0.5 text-[10px] font-medium text-primary">
-                  Temps réel
+            <motion.div
+              animate={{ y: [0, -12, 0] }}
+              transition={{
+                duration: 4.5,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: 0.6,
+              }}
+              className="relative"
+            >
+              <div
+                aria-hidden
+                className="pointer-events-none absolute -inset-4 rounded-[2rem] bg-primary/20 blur-2xl"
+              />
+              <motion.div
+                animate={{
+                  boxShadow: [
+                    "0 12px 40px -12px oklch(0.62 0.18 258 / 0.28), 0 0 0 1px oklch(0.62 0.18 258 / 0.18)",
+                    "0 20px 52px -10px oklch(0.62 0.18 258 / 0.42), 0 0 0 1px oklch(0.62 0.18 258 / 0.32)",
+                    "0 12px 40px -12px oklch(0.62 0.18 258 / 0.28), 0 0 0 1px oklch(0.62 0.18 258 / 0.18)",
+                  ],
+                }}
+                transition={{
+                  duration: 4.5,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                  delay: 0.6,
+                }}
+                className="glass-panel relative overflow-hidden rounded-3xl p-5 sm:p-6"
+              >
+                <div className="mb-4">
+                  <div className="text-sm font-semibold">Aperçu documents</div>
                 </div>
-              </div>
-              <div className="space-y-3">
-                {[
-                  { label: "Devis", code: "DV-2026-0042", tone: "bg-accent/15 text-accent-foreground" },
-                  { label: "Facture", code: "FA-2026-0118", tone: "bg-primary/15 text-primary" },
-                  { label: "Pro forma", code: "PF-2026-0009", tone: "bg-muted text-muted-foreground" },
-                ].map((row) => (
-                  <div
-                    key={row.code}
-                    className="flex items-center justify-between rounded-2xl border border-border/50 bg-surface/60 px-4 py-3"
-                  >
-                    <div>
-                      <div className="text-sm font-medium">{row.label}</div>
-                      <div className="font-numeric text-xs text-muted-foreground">
-                        {row.code}
+                <div className="space-y-3">
+                  {LANDING_PREVIEW.map((row, i) => (
+                    <div
+                      key={`${row.type}-${row.numberMasked}-${i}`}
+                      className="flex items-center justify-between rounded-2xl border border-border/50 bg-surface/60 px-4 py-3"
+                    >
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium">
+                          {documentTypeLabel(row.type)}
+                        </div>
+                        <div className="font-numeric text-xs text-muted-foreground">
+                          {row.numberMasked}
+                        </div>
                       </div>
+                      <span
+                        className={cn(
+                          "shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold",
+                          typeTone[row.type],
+                        )}
+                      >
+                        {documentStatusLabel(row.status)}
+                      </span>
                     </div>
-                    <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${row.tone}`}>
-                      Prêt
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4 rounded-2xl bg-gradient-mesh p-4 text-xs text-muted-foreground">
-                Mentions légales 2R EXPERTISE FISCALE — NIF, RCCM, Libreville
-              </div>
-            </div>
+                  ))}
+                </div>
+                <div className="mt-4 rounded-2xl bg-gradient-mesh p-4 text-xs text-muted-foreground">
+                  Mentions légales 2R EXPERTISE FISCALE — NIF, RCCM, Libreville
+                </div>
+              </motion.div>
+            </motion.div>
           </motion.div>
         </div>
       </section>
