@@ -69,7 +69,7 @@ export async function exportDocumentPdf(element: HTMLElement, filename: string):
   const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
-  const margin = 8;
+  const margin = 6;
   const usableWidth = pageWidth - margin * 2;
   const usableHeight = pageHeight - margin * 2;
 

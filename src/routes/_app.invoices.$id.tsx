@@ -46,8 +46,20 @@ function InvoiceDetail() {
     setStatusMutation.mutate(
       { id: doc.id, status },
       {
-        onSuccess: () =>
-          level === "warning" ? toast.warning(message) : toast.success(message),
+        onSuccess: (res) => {
+          if (level === "warning") toast.warning(message);
+          else toast.success(message);
+          if (status === "paid" && res.emailError) {
+            toast.warning("Alerte e-mail admins non envoyée", {
+              description: res.emailError,
+              duration: 12_000,
+            });
+          } else if (status === "paid" && res.emailSent) {
+            toast.message(
+              `E-mail envoyé à ${res.emailRecipients ?? 0} admin(s)`,
+            );
+          }
+        },
         onError: (e) => toast.error(e.message),
       },
     );

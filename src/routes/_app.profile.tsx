@@ -18,9 +18,18 @@ import {
   STAFF_JOB_TITLES,
   jobTitleLabel,
   normalizeJobTitleValue,
+  type StaffJobTitleValue,
 } from "@/lib/cabinets";
 import { roleLabel } from "@/lib/roles";
 import { signOut } from "@/lib/auth";
+import type { z } from "zod";
+
+type ProfileForm = {
+  firstName: string;
+  lastName: string;
+  phone: string;
+  jobTitle: StaffJobTitleValue | "";
+};
 
 export const Route = createFileRoute("/_app/profile")({
   head: () => ({ meta: [{ title: "Mon profil — 2R" }] }),
@@ -33,11 +42,11 @@ function ProfilePage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<ProfileForm>({
     firstName: "",
     lastName: "",
     phone: "",
-    jobTitle: "" as string,
+    jobTitle: "",
   });
 
   useEffect(() => {
@@ -46,7 +55,7 @@ function ProfilePage() {
       firstName: staff.firstName,
       lastName: staff.lastName,
       phone: staff.phone ?? "",
-      jobTitle: normalizeJobTitleValue(staff.jobTitle) ?? staff.jobTitle,
+      jobTitle: normalizeJobTitleValue(staff.jobTitle) ?? "",
     });
   }, [staff]);
 
@@ -57,12 +66,8 @@ function ProfilePage() {
   });
 
   const saveProfile = useMutation({
-    mutationFn: (data: {
-      firstName: string;
-      lastName: string;
-      phone: string;
-      jobTitle: string;
-    }) => updateOwnProfile({ data }),
+    mutationFn: (data: z.infer<typeof profileUpdateSchema>) =>
+      updateOwnProfile({ data }),
     onSuccess: (updated) => {
       if (session) {
         qc.setQueryData(sessionKey, {
@@ -201,7 +206,10 @@ function ProfilePage() {
                   value={form.jobTitle}
                   required
                   onChange={(e) =>
-                    setForm({ ...form, jobTitle: e.target.value })
+                    setForm({
+                      ...form,
+                      jobTitle: e.target.value as StaffJobTitleValue | "",
+                    })
                   }
                   className="mt-1 w-full appearance-none rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
                 >

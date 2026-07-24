@@ -1,4 +1,4 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useRouteContext, useRouterState } from "@tanstack/react-router";
 import { Menu } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -10,7 +10,6 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { Logo } from "@/components/common/Logo";
-import { useSession } from "@/hooks/use-data";
 import { primaryNav, secondaryNav, navForRole } from "./nav-items";
 import { CabinetSwitcher } from "./CabinetSwitcher";
 import { canSwitchCabinet, isSuperAdmin } from "@/lib/roles";
@@ -23,11 +22,11 @@ function selectPathname(s: { location: { pathname: string } }) {
 export function MobileNav() {
   const [open, setOpen] = useState(false);
   const pathname = useRouterState({ select: selectPathname });
-  const { data: session } = useSession();
-  const role = session?.staff.role ?? "member";
+  const { session } = useRouteContext({ from: "/_app" });
+  const role = session.staff.role;
   const main = navForRole(primaryNav, role);
   const secondary = navForRole(secondaryNav, role);
-  const isSa = session ? isSuperAdmin(session.staff.role) : false;
+  const isSa = isSuperAdmin(session.staff.role);
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -51,7 +50,11 @@ export function MobileNav() {
                 2R
               </div>
             ) : (
-              <Logo size="sm" cabinet={session?.activeCabinet} className="rounded-lg" />
+              <Logo
+                size="sm"
+                cabinet={session.activeCabinet}
+                className="rounded-lg"
+              />
             )}
             {isSa && (
               <div className="min-w-0">
@@ -65,9 +68,7 @@ export function MobileNav() {
             )}
             {!isSa && (
               <SheetTitle className="sr-only">
-                {session
-                  ? CABINET_LABELS[session.activeCabinet]
-                  : CABINET_LABELS.expertise_fiscale}
+                {CABINET_LABELS[session.activeCabinet]}
               </SheetTitle>
             )}
           </div>
@@ -79,7 +80,7 @@ export function MobileNav() {
         </SheetHeader>
 
         <nav className="flex-1 overflow-y-auto px-3 py-4">
-          {session && canSwitchCabinet(session.staff.role) && (
+          {canSwitchCabinet(session.staff.role) && (
             <div className="mb-4 px-1">
               <CabinetSwitcher />
             </div>

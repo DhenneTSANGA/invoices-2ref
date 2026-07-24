@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRouterState } from "@tanstack/react-router";
 import {
   listClients,
   getClient,
@@ -13,14 +14,16 @@ import {
   setDocumentStatus,
   deleteDocument,
   getCompany,
+  getCompanyForCabinet,
   updateCompany,
   listNotifications,
   markAllNotificationsRead,
   markNotificationRead,
 } from "@/lib/data.functions";
 import { sendDocumentEmail } from "@/lib/send-document-email";
-import { getCurrentSession } from "@/lib/session.functions";
+import { getCurrentSession, type AppSession } from "@/lib/session.functions";
 import type { DocumentStatus, DocumentType, NotificationItem } from "@/store/types";
+import type { Cabinet } from "@/lib/cabinets";
 import type { z } from "zod";
 import type { clientInputSchema, documentInputSchema, companyInputSchema } from "@/lib/auth-schemas";
 
@@ -37,10 +40,30 @@ export const notificationsKey = ["notifications"] as const;
 
 const POLL_MS = 30_000;
 
+function selectRouteSession(s: {
+  matches: ReadonlyArray<{ context: unknown }>;
+}): AppSession | undefined {
+  for (let i = s.matches.length - 1; i >= 0; i--) {
+    const ctx = s.matches[i]?.context as { session?: AppSession | null } | undefined;
+    if (ctx?.session) return ctx.session;
+  }
+  return undefined;
+}
+
+/**
+ * Session app. Seedée depuis le contexte route `/_app` (SSR + hydratation)
+ * pour éviter un mismatch React Query vide côté client.
+ */
 export function useSession() {
+  const fromRoute = useRouterState({ select: selectRouteSession });
+  const qc = useQueryClient();
+  const cached = qc.getQueryData<AppSession>(sessionKey);
+  const initial = fromRoute ?? cached;
+
   return useQuery({
     queryKey: sessionKey,
     queryFn: () => getCurrentSession(),
+    initialData: initial,
     staleTime: 5 * 60_000,
     refetchOnMount: false,
   });
@@ -192,6 +215,14 @@ export function useCompany() {
   return useQuery({
     queryKey: companyKey,
     queryFn: () => getCompany(),
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useCompanyForCabinet(cabinet: Cabinet) {
+  return useQuery({
+    queryKey: [...companyKey, cabinet] as const,
+    queryFn: () => getCompanyForCabinet({ data: { cabinet } }),
     staleTime: 5 * 60_000,
   });
 }

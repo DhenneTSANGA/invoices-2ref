@@ -1,10 +1,15 @@
 import type { Document } from "@/store/types";
-import { REAL_2REF_COMPANY } from "@/lib/company-defaults";
-import { useCompany, useClients } from "./use-data";
+import { COMPANY_DEFAULTS } from "@/lib/company-defaults";
+import { useCompanyForCabinet, useClients, useClient } from "./use-data";
 
 export function usePreviewData(doc: Document) {
-  const { data: company } = useCompany();
+  const { data: company } = useCompanyForCabinet(doc.cabinet);
   const { data: clients = [] } = useClients();
-  const client = clients.find((c) => c.id === doc.clientId);
-  return { company: company ?? REAL_2REF_COMPANY, client };
+  const { data: fetchedClient } = useClient(doc.clientId);
+  const client =
+    clients.find((c) => c.id === doc.clientId) ?? fetchedClient ?? undefined;
+  return {
+    company: company ?? COMPANY_DEFAULTS[doc.cabinet],
+    client,
+  };
 }

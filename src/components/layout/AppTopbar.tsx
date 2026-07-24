@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useRouteContext } from "@tanstack/react-router";
 import { Logo } from "@/components/common/Logo";
 import { Bell, Moon, Search, Sun, Plus, ChevronDown } from "lucide-react";
 import { useState } from "react";
@@ -8,14 +8,14 @@ import { MobileNav } from "./MobileNav";
 import { StaffAvatar } from "@/components/common/StaffAvatar";
 import { motion, AnimatePresence } from "framer-motion";
 import { shortDate } from "@/lib/format";
-import { useSession, useNotifications, useMarkNotificationRead } from "@/hooks/use-data";
+import { useNotifications, useMarkNotificationRead } from "@/hooks/use-data";
 import { signOut } from "@/lib/auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { sessionKey } from "@/hooks/use-data";
 import type { NotificationItem } from "@/store/types";
 
 export function AppTopbar() {
-  const { theme, toggle } = useTheme();
+  const { theme, toggle, ready } = useTheme();
   const { data: notifications = [] } = useNotifications();
   const markOneMutation = useMarkNotificationRead();
   const unreadList = notifications.filter((n) => !n.read);
@@ -23,14 +23,13 @@ export function AppTopbar() {
   const [openCmd, setOpenCmd] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const { data: session } = useSession();
+  // Même source que la sidebar (beforeLoad) — évite mismatch d'hydratation
+  const { session } = useRouteContext({ from: "/_app" });
   const navigate = useNavigate();
   const qc = useQueryClient();
 
-  const staff = session?.staff;
-  const displayName = staff
-    ? `${staff.firstName} ${staff.lastName}`
-  : "Collaborateur";
+  const staff = session.staff;
+  const displayName = `${staff.firstName} ${staff.lastName}`.trim() || "Collaborateur";
 
   const logout = async () => {
     await signOut();
@@ -61,7 +60,11 @@ export function AppTopbar() {
     <>
       <header className="glass-topbar sticky top-0 z-30 flex h-14 min-w-0 items-center gap-2 overflow-x-clip px-3 sm:h-16 sm:gap-3 sm:px-4 md:px-6">
         <MobileNav />
-        <Logo size="xs" className="hidden shrink-0 rounded-md sm:block lg:hidden" />
+        <Logo
+          size="xs"
+          cabinet={session.activeCabinet}
+          className="hidden shrink-0 rounded-md sm:block lg:hidden"
+        />
 
         <button
           onClick={() => setOpenCmd(true)}
@@ -82,11 +85,16 @@ export function AppTopbar() {
           </Link>
 
           <button
+            type="button"
             onClick={toggle}
             className="flex h-10 w-10 items-center justify-center rounded-2xl border border-border/60 bg-surface/70 text-foreground transition-colors hover:bg-muted"
             aria-label="Basculer le thème"
           >
-            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            {!ready || theme === "light" ? (
+              <Moon className="h-4 w-4" />
+            ) : (
+              <Sun className="h-4 w-4" />
+            )}
           </button>
 
           <div className="relative">
@@ -156,17 +164,12 @@ export function AppTopbar() {
               className="flex items-center gap-2 rounded-2xl border border-border/60 bg-surface/70 pl-1 pr-2 py-1 transition-colors hover:bg-muted"
             >
               <StaffAvatar
-                person={
-                  staff ?? {
-                    firstName: displayName,
-                    lastName: "",
-                  }
-                }
+                person={staff}
                 size="sm"
                 className="!h-8 !w-8 !rounded-xl !text-sm"
               />
               <span className="hidden text-sm font-medium md:inline max-w-[140px] truncate">{displayName}</span>
-              {staff?.role === "super_admin" && (
+              {staff.role === "super_admin" && (
                 <span className="hidden rounded-full bg-gradient-primary px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-primary-foreground sm:inline">
                   SA
                 </span>
@@ -184,7 +187,7 @@ export function AppTopbar() {
                 >
                   <div className="px-3 py-2">
                     <div className="text-sm font-semibold">{displayName}</div>
-                    <div className="text-xs text-muted-foreground">{staff?.jobTitle ?? ""}</div>
+                    <div className="text-xs text-muted-foreground">{staff.jobTitle}</div>
                   </div>
                   <div className="my-1 h-px bg-border" />
                   <Link to="/profile" onClick={() => setProfileOpen(false)} className="block rounded-xl px-3 py-2 text-sm hover:bg-muted">Mon profil</Link>

@@ -32,13 +32,19 @@ async function requireSession(): Promise<NonNullable<AppSession>> {
   return session;
 }
 
+/**
+ * Filtre cabinet pour listes.
+ * - Membre/admin : toujours le cabinet du compte.
+ * - Super admin : cabinet actif par défaut ; `"all"` uniquement si demandé.
+ */
 function resolveDocCabinetFilter(
   session: NonNullable<AppSession>,
   scope?: "all" | Cabinet,
 ): Cabinet | undefined {
   if (isSuperAdmin(session.staff.role)) {
-    if (!scope || scope === "all") return undefined;
-    return scope;
+    if (scope === "all") return undefined;
+    if (scope === "conseil" || scope === "expertise_fiscale") return scope;
+    return session.activeCabinet;
   }
   return session.activeCabinet;
 }
@@ -71,7 +77,7 @@ export const listClients = createServerFn({ method: "GET" })
     const session = await requireSession();
     const cabinet = resolveDocCabinetFilter(session, data?.cabinetScope);
     const rows = await prisma.client.findMany({
-      where: cabinet ? { cabinet } : isSuperAdmin(session.staff.role) ? {} : { cabinet: session.activeCabinet },
+      where: cabinet ? { cabinet } : {},
       orderBy: { name: "asc" },
     });
     return rows.map(mapClient);
@@ -80,9 +86,11 @@ export const listClients = createServerFn({ method: "GET" })
 export const getClient = createServerFn({ method: "GET" })
   .validator(z.object({ id: z.string() }))
   .handler(async ({ data }) => {
-    const { activeCabinet } = await requireSession();
+    const session = await requireSession();
     const row = await prisma.client.findFirst({
-      where: { id: data.id, cabinet: activeCabinet },
+      where: isSuperAdmin(session.staff.role)
+        ? { id: data.id }
+        : { id: data.id, cabinet: session.activeCabinet },
     });
     return row ? mapClient(row) : null;
   });
@@ -328,8 +336,13 @@ export const setDocumentStatus = createServerFn({ method: "POST" })
       data: { status: data.status },
       include: docInclude,
     });
+    let emailNotice: {
+      emailSent?: boolean;
+      emailError?: string;
+      emailRecipients?: number;
+    } = {};
     if (existing.status !== data.status) {
-      await broadcastDocumentStatusChange({
+      emailNotice = await broadcastDocumentStatusChange({
         actorStaffId: staff.id,
         actorName: staffDisplayName(staff),
         documentId: updated.id,
@@ -339,7 +352,7 @@ export const setDocumentStatus = createServerFn({ method: "POST" })
         nextStatus: data.status,
       });
     }
-    return mapDocument(updated);
+    return { ...mapDocument(updated), ...emailNotice };
   });
 
 // ─── Notifications ───────────────────────────────────────────────────────
@@ -412,6 +425,19 @@ export const getCompany = createServerFn({ method: "GET" }).handler(async () => 
     ? mapCompany(row, activeCabinet)
     : COMPANY_DEFAULTS[activeCabinet];
 });
+
+/** Société d'un cabinet précis (preview / PDF d'un document). */
+export const getCompanyForCabinet = createServerFn({ method: "GET" })
+  .validator(z.object({ cabinet: z.enum(["conseil", "expertise_fiscale"]) }))
+  .handler(async ({ data }) => {
+    await requireSession();
+    const row = await prisma.company.findUnique({
+      where: { cabinet: data.cabinet },
+    });
+    return row
+      ? mapCompany(row, data.cabinet)
+      : COMPANY_DEFAULTS[data.cabinet];
+  });
 
 export const updateCompany = createServerFn({ method: "POST" })
   .validator(companyInputSchema)

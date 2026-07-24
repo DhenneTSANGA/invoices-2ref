@@ -62,8 +62,8 @@ function DocumentsHubPage() {
 
   const typeFilter = focus ? "all" : (typeParam ?? "all");
   const cabinetScope: CabinetScope = showCabinetFilter
-    ? (cabinetParam ?? "all")
-    : "all";
+    ? (cabinetParam ?? session?.activeCabinet ?? "expertise_fiscale")
+    : (session?.activeCabinet ?? "expertise_fiscale");
   const scope = showCabinetFilter ? cabinetScope : undefined;
 
   const { data: documents = [], isLoading } = useAllDocuments(
@@ -159,7 +159,7 @@ function DocumentsHubPage() {
       to: "/documents",
       search: (prev) => ({
         ...prev,
-        cabinet: value === "all" ? undefined : value,
+        cabinet: value,
         focus: undefined,
       }),
     });
@@ -171,7 +171,7 @@ function DocumentsHubPage() {
         title="Tous les documents"
         subtitle={
           showCabinetFilter
-            ? "Vue transversale — filtrez par cabinet et par type de document."
+            ? "Par défaut : cabinet actif. Choisissez « Tous les cabinets » pour une vue transversale."
             : "Vue cabinet — factures, devis, pro forma et lettres de tous les collaborateurs."
         }
       />

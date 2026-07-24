@@ -18,9 +18,9 @@ export const CABINET_LOGOS: Record<Cabinet, string> = {
 export type CabinetScope = "all" | Cabinet;
 
 export const CABINET_SCOPE_OPTIONS: { value: CabinetScope; label: string }[] = [
-  { value: "all", label: "Tous les cabinets" },
   { value: "conseil", label: CABINET_LABELS.conseil },
   { value: "expertise_fiscale", label: CABINET_LABELS.expertise_fiscale },
+  { value: "all", label: "Tous les cabinets" },
 ];
 
 export const STAFF_JOB_TITLES = [
@@ -77,14 +77,14 @@ export const COMPANY_DEFAULTS: Record<Cabinet, CompanyInfo> = {
   },
   conseil: {
     name: "2R CONSEIL",
-    tagline: "Cabinet de conseil",
+    tagline: "Cabinet de conseil — Libreville",
     nif: "—",
     niu: "—",
     rccm: "—",
     cnss: "",
-    address: "Libreville",
+    address: "BP 20 478, Cité Bas de Gué-Gué",
     city: "Libreville, Gabon",
-    phone: "",
+    phone: "011 44 39 64 / 065 10 99 10",
     email: "conseil@2ref.ga",
     website: "www.2ref.ga",
     bankName: "",

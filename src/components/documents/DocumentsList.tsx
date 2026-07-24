@@ -45,8 +45,12 @@ function statusesFor(type: DocumentType): DocumentStatus[] {
 export function DocumentsList({ type }: { type: DocumentType }) {
   const { data: session } = useSession();
   const showCabinetFilter = session ? canSwitchCabinet(session.staff.role) : false;
-  const [cabinetScope, setCabinetScope] = useState<CabinetScope>("all");
-  const scope = showCabinetFilter ? cabinetScope : undefined;
+  const activeCabinet = session?.activeCabinet;
+  const [cabinetScope, setCabinetScope] = useState<CabinetScope | null>(null);
+  // SA : défaut = cabinet actif (pas « tous »)
+  const scope: CabinetScope | undefined = showCabinetFilter
+    ? (cabinetScope ?? activeCabinet ?? "expertise_fiscale")
+    : undefined;
 
   const { data: documents = [], isLoading } = useDocuments(type, scope);
   const { data: clients = [] } = useClients(scope);
@@ -87,10 +91,21 @@ export function DocumentsList({ type }: { type: DocumentType }) {
     setStatusMutation.mutate(
       { id, status: next },
       {
-        onSuccess: () =>
+        onSuccess: (res) => {
           toast.success(`Statut mis à jour — ${number}`, {
             description: statusLabel(next),
-          }),
+          });
+          if (next === "paid" && res.emailError) {
+            toast.warning("Alerte e-mail admins non envoyée", {
+              description: res.emailError,
+              duration: 12_000,
+            });
+          } else if (next === "paid" && res.emailSent) {
+            toast.message(
+              `E-mail envoyé à ${res.emailRecipients ?? 0} admin(s)`,
+            );
+          }
+        },
         onError: (e) => toast.error(e.message),
       },
     );
@@ -137,7 +152,10 @@ export function DocumentsList({ type }: { type: DocumentType }) {
           <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
             Cabinet
           </div>
-          <CabinetFilter value={cabinetScope} onChange={setCabinetScope} />
+          <CabinetFilter
+            value={scope ?? "expertise_fiscale"}
+            onChange={setCabinetScope}
+          />
         </div>
       )}
 

@@ -1,10 +1,9 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useRouteContext, useRouterState } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import { ChevronLeft } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/common/Logo";
-import { useSession } from "@/hooks/use-data";
 import { CABINET_LABELS } from "@/lib/cabinets";
 import { canSwitchCabinet, isSuperAdmin, roleLabel } from "@/lib/roles";
 import { primaryNav, secondaryNav, navForRole } from "./nav-items";
@@ -17,33 +16,33 @@ function selectPathname(s: { location: { pathname: string } }) {
 export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = useRouterState({ select: selectPathname });
-  const { data: session } = useSession();
-  const role = session?.staff.role ?? "member";
+  // Session du beforeLoad — même valeur SSR et hydratation client
+  const { session } = useRouteContext({ from: "/_app" });
+  const role = session.staff.role;
   const items = navForRole(primaryNav, role);
   const secondary = navForRole(secondaryNav, role);
-  const cabinetLabel = session
-    ? CABINET_LABELS[session.activeCabinet]
-    : CABINET_LABELS.expertise_fiscale;
-  const isSa = session ? isSuperAdmin(session.staff.role) : false;
+  const cabinetLabel = CABINET_LABELS[session.activeCabinet];
+  const isSa = isSuperAdmin(session.staff.role);
 
   return (
     <motion.aside
+      initial={false}
       animate={{ width: collapsed ? 84 : 264 }}
       transition={{ type: "spring", stiffness: 220, damping: 28 }}
       className="glass-sidebar sticky top-4 z-40 ml-4 my-4 hidden lg:flex h-[calc(100vh-2rem)] flex-col rounded-3xl p-3 shadow-float"
     >
       <div className="relative flex items-center px-3 py-3">
         {!isSa && (
-          <div className="flex min-w-0 flex-1 justify-center">
+          <div className="flex min-w-0 flex-1 justify-center pr-8">
             <Logo
               size="sm"
               className="rounded-lg"
-              cabinet={session?.activeCabinet}
+              cabinet={session.activeCabinet}
             />
           </div>
         )}
         {isSa && (
-          <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
+          <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden pr-8">
             {collapsed ? (
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-primary font-display text-sm font-bold text-primary-foreground shadow-glow">
                 2R
@@ -59,15 +58,16 @@ export function AppSidebar() {
           </div>
         )}
         <button
+          type="button"
           onClick={() => setCollapsed((c) => !c)}
-          className="absolute right-3 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted transition-colors"
+          className="absolute right-3 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted"
           aria-label="Réduire"
         >
           <ChevronLeft className={cn("h-4 w-4 transition-transform", collapsed && "rotate-180")} />
         </button>
       </div>
 
-      {!collapsed && session && (
+      {!collapsed && (
         <div className="mx-2 mb-3 space-y-3">
           <div
             className={cn(
@@ -92,7 +92,7 @@ export function AppSidebar() {
             ) : (
               <>
                 <div className="text-[11px] font-medium">{roleLabel(session.staff.role)}</div>
-                <div className="text-muted-foreground text-[11px] truncate">{cabinetLabel}</div>
+                <div className="text-[11px] truncate text-muted-foreground">{cabinetLabel}</div>
               </>
             )}
           </div>

@@ -13,8 +13,11 @@ import {
   Mail,
   LayoutDashboard,
   Clock,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { DualCabinetLogos, Logo } from "@/components/common/Logo";
+import { useTheme } from "@/components/theme/ThemeProvider";
 import { getCurrentSession } from "@/lib/session.functions";
 import { homePathForRole } from "@/lib/roles";
 import {
@@ -174,6 +177,8 @@ const whyPoints = [
 ];
 
 function LandingPage() {
+  const { theme, toggle, ready } = useTheme();
+
   return (
     <div className="min-h-screen max-w-[100vw] overflow-x-clip bg-background text-foreground">
       <header className="sticky top-0 z-40 border-b border-border/40 bg-background/80 backdrop-blur-xl">
@@ -185,6 +190,18 @@ function LandingPage() {
             />
           </Link>
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
+            <button
+              type="button"
+              onClick={toggle}
+              className="flex h-9 w-9 items-center justify-center rounded-2xl border border-border/60 bg-surface/70 text-foreground transition-colors hover:bg-muted sm:h-10 sm:w-10"
+              aria-label="Basculer le thème"
+            >
+              {!ready || theme === "light" ? (
+                <Moon className="h-4 w-4" />
+              ) : (
+                <Sun className="h-4 w-4" />
+              )}
+            </button>
             <Link
               to="/login"
               className="rounded-2xl px-2.5 py-2 text-sm font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground sm:px-4"
