@@ -1,5 +1,5 @@
 import { Link, useRouteContext, useRouterState } from "@tanstack/react-router";
-import { Menu } from "lucide-react";
+import { Menu, Shield, UserRound } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import {
@@ -12,7 +12,7 @@ import {
 import { Logo } from "@/components/common/Logo";
 import { primaryNav, secondaryNav, navForRole } from "./nav-items";
 import { CabinetSwitcher } from "./CabinetSwitcher";
-import { canSwitchCabinet, isSuperAdmin } from "@/lib/roles";
+import { canSwitchCabinet, isAdmin, isSuperAdmin, roleLabel } from "@/lib/roles";
 import { CABINET_LABELS } from "@/lib/cabinets";
 
 function selectPathname(s: { location: { pathname: string } }) {
@@ -27,6 +27,8 @@ export function MobileNav() {
   const main = navForRole(primaryNav, role);
   const secondary = navForRole(secondaryNav, role);
   const isSa = isSuperAdmin(session.staff.role);
+  const adminLike = isAdmin(session.staff.role) && !isSa;
+  const cabinetLabel = CABINET_LABELS[session.activeCabinet];
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -67,14 +69,51 @@ export function MobileNav() {
               </div>
             )}
             {!isSa && (
-              <SheetTitle className="sr-only">
-                {CABINET_LABELS[session.activeCabinet]}
-              </SheetTitle>
+              <SheetTitle className="sr-only">{cabinetLabel}</SheetTitle>
             )}
           </div>
-          {isSa && (
+          {isSa ? (
             <div className="mt-3 inline-flex w-fit items-center rounded-full bg-gradient-primary px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary-foreground shadow-glow">
               Super admin
+            </div>
+          ) : (
+            <div
+              className={cn(
+                "mt-3 flex items-center gap-2.5 rounded-2xl border px-3 py-2.5",
+                adminLike
+                  ? "border-primary/20 bg-gradient-to-br from-primary/12 via-primary/5 to-transparent"
+                  : "border-border/60 bg-muted/40",
+              )}
+            >
+              <div
+                className={cn(
+                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
+                  adminLike
+                    ? "bg-gradient-primary text-primary-foreground shadow-glow"
+                    : "bg-muted text-muted-foreground",
+                )}
+              >
+                {adminLike ? (
+                  <Shield className="h-4 w-4" />
+                ) : (
+                  <UserRound className="h-4 w-4" />
+                )}
+              </div>
+              <div className="min-w-0">
+                <div
+                  className={cn(
+                    "inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider",
+                    adminLike
+                      ? "bg-primary/15 text-primary"
+                      : "bg-muted text-muted-foreground",
+                  )}
+                >
+                  {roleLabel(role)}
+                </div>
+                <SheetDescription className="mt-1 truncate text-[11px] font-medium text-foreground/80">
+                  {cabinetLabel}
+                </SheetDescription>
+              </div>
             </div>
           )}
         </SheetHeader>
@@ -85,9 +124,19 @@ export function MobileNav() {
               <CabinetSwitcher />
             </div>
           )}
-          <MobileSection title="Principal" items={main} pathname={pathname} onNavigate={() => setOpen(false)} />
+          <MobileSection
+            title="Principal"
+            items={main}
+            pathname={pathname}
+            onNavigate={() => setOpen(false)}
+          />
           <div className="mx-2 my-4 h-px bg-border" />
-          <MobileSection title="Espace" items={secondary} pathname={pathname} onNavigate={() => setOpen(false)} />
+          <MobileSection
+            title="Espace"
+            items={secondary}
+            pathname={pathname}
+            onNavigate={() => setOpen(false)}
+          />
         </nav>
       </SheetContent>
     </Sheet>

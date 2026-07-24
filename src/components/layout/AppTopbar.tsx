@@ -1,7 +1,7 @@
 import { Link, useNavigate, useRouteContext } from "@tanstack/react-router";
 import { Logo } from "@/components/common/Logo";
-import { Bell, Moon, Search, Sun, Plus, ChevronDown } from "lucide-react";
-import { useState } from "react";
+import { Bell, Moon, Search, Sun, Plus, ChevronDown, Globe } from "lucide-react";
+import { useCallback, useRef, useState } from "react";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { CommandPalette } from "./CommandPalette";
 import { MobileNav } from "./MobileNav";
@@ -12,6 +12,7 @@ import { useNotifications, useMarkNotificationRead } from "@/hooks/use-data";
 import { signOut } from "@/lib/auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { sessionKey } from "@/hooks/use-data";
+import { useClickOutside } from "@/hooks/use-click-outside";
 import type { NotificationItem } from "@/store/types";
 
 export function AppTopbar() {
@@ -23,6 +24,8 @@ export function AppTopbar() {
   const [openCmd, setOpenCmd] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const bellRef = useRef<HTMLDivElement>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
   // Même source que la sidebar (beforeLoad) — évite mismatch d'hydratation
   const { session } = useRouteContext({ from: "/_app" });
   const navigate = useNavigate();
@@ -30,6 +33,17 @@ export function AppTopbar() {
 
   const staff = session.staff;
   const displayName = `${staff.firstName} ${staff.lastName}`.trim() || "Collaborateur";
+
+  const closeDropdowns = useCallback(() => {
+    setBellOpen(false);
+    setProfileOpen(false);
+  }, []);
+
+  useClickOutside(
+    [bellRef, profileRef],
+    closeDropdowns,
+    bellOpen || profileOpen,
+  );
 
   const logout = async () => {
     await signOut();
@@ -97,11 +111,13 @@ export function AppTopbar() {
             )}
           </button>
 
-          <div className="relative">
+          <div className="relative" ref={bellRef}>
             <button
+              type="button"
               onClick={() => { setBellOpen(o => !o); setProfileOpen(false); }}
               className="relative flex h-10 w-10 items-center justify-center rounded-2xl border border-border/60 bg-surface/70 transition-colors hover:bg-muted"
               aria-label="Notifications"
+              aria-expanded={bellOpen}
             >
               <Bell className="h-4 w-4" />
               {unread > 0 && (
@@ -158,10 +174,12 @@ export function AppTopbar() {
             </AnimatePresence>
           </div>
 
-          <div className="relative">
+          <div className="relative" ref={profileRef}>
             <button
+              type="button"
               onClick={() => { setProfileOpen((o) => !o); setBellOpen(false); }}
               className="flex items-center gap-2 rounded-2xl border border-border/60 bg-surface/70 pl-1 pr-2 py-1 transition-colors hover:bg-muted"
+              aria-expanded={profileOpen}
             >
               <StaffAvatar
                 person={staff}
@@ -190,6 +208,10 @@ export function AppTopbar() {
                     <div className="text-xs text-muted-foreground">{staff.jobTitle}</div>
                   </div>
                   <div className="my-1 h-px bg-border" />
+                  <Link to="/" onClick={() => setProfileOpen(false)} className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm hover:bg-muted">
+                    <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+                    Site public
+                  </Link>
                   <Link to="/profile" onClick={() => setProfileOpen(false)} className="block rounded-xl px-3 py-2 text-sm hover:bg-muted">Mon profil</Link>
                   <Link to="/settings" onClick={() => setProfileOpen(false)} className="block rounded-xl px-3 py-2 text-sm hover:bg-muted">Paramètres</Link>
                   <button type="button" onClick={logout} className="w-full text-left rounded-xl px-3 py-2 text-sm text-danger hover:bg-danger/10">Se déconnecter</button>

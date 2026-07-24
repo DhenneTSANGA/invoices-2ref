@@ -76,8 +76,16 @@ export function DocumentPreviewModal({ doc, open, onOpenChange }: Props) {
           </div>
         </DialogHeader>
 
-        <div className="flex-1 overflow-auto bg-[#94A3B8]/30 p-4 sm:p-8">
-          <div className="mx-auto w-full max-w-[900px]">
+        <div
+          className="flex-1 overflow-auto bg-[#94A3B8]/30 p-4 sm:p-8"
+          onClick={() => onOpenChange(false)}
+          role="presentation"
+        >
+          <div
+            className="mx-auto w-full max-w-[900px]"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+          >
             <DocumentPreview doc={doc} />
           </div>
         </div>

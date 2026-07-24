@@ -1,11 +1,11 @@
 import { Link, useRouteContext, useRouterState } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Shield, UserRound } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/common/Logo";
 import { CABINET_LABELS } from "@/lib/cabinets";
-import { canSwitchCabinet, isSuperAdmin, roleLabel } from "@/lib/roles";
+import { canSwitchCabinet, isAdmin, isSuperAdmin, roleLabel } from "@/lib/roles";
 import { primaryNav, secondaryNav, navForRole } from "./nav-items";
 import { CabinetSwitcher } from "./CabinetSwitcher";
 
@@ -16,13 +16,13 @@ function selectPathname(s: { location: { pathname: string } }) {
 export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = useRouterState({ select: selectPathname });
-  // Session du beforeLoad — même valeur SSR et hydratation client
   const { session } = useRouteContext({ from: "/_app" });
   const role = session.staff.role;
   const items = navForRole(primaryNav, role);
   const secondary = navForRole(secondaryNav, role);
   const cabinetLabel = CABINET_LABELS[session.activeCabinet];
   const isSa = isSuperAdmin(session.staff.role);
+  const adminLike = isAdmin(session.staff.role) && !isSa;
 
   return (
     <motion.aside
@@ -69,33 +69,25 @@ export function AppSidebar() {
 
       {!collapsed && (
         <div className="mx-2 mb-3 space-y-3">
-          <div
-            className={cn(
-              "rounded-2xl px-3.5 py-3",
-              isSa
-                ? "border border-primary/25 bg-primary/8"
-                : "bg-muted/50",
-            )}
-          >
-            {isSa ? (
-              <>
-                <div className="inline-flex items-center rounded-full bg-gradient-primary px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary-foreground shadow-glow">
-                  Super admin
-                </div>
-                <div className="mt-2 font-display text-sm font-semibold leading-snug">
-                  {roleLabel(session.staff.role)}
-                </div>
-                <div className="mt-0.5 text-[11px] text-muted-foreground">
-                  Accès aux deux cabinets
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="text-[11px] font-medium">{roleLabel(session.staff.role)}</div>
-                <div className="text-[11px] truncate text-muted-foreground">{cabinetLabel}</div>
-              </>
-            )}
-          </div>
+          {isSa ? (
+            <div className="rounded-2xl border border-primary/25 bg-primary/8 px-3.5 py-3">
+              <div className="inline-flex items-center rounded-full bg-gradient-primary px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary-foreground shadow-glow">
+                Super admin
+              </div>
+              <div className="mt-2 font-display text-sm font-semibold leading-snug">
+                {roleLabel(session.staff.role)}
+              </div>
+              <div className="mt-0.5 text-[11px] text-muted-foreground">
+                Accès aux deux cabinets
+              </div>
+            </div>
+          ) : (
+            <RoleCabinetBadge
+              label={roleLabel(session.staff.role)}
+              cabinetLabel={cabinetLabel}
+              admin={adminLike}
+            />
+          )}
           {canSwitchCabinet(session.staff.role) && (
             <div>
               <div className="mb-1.5 px-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -107,12 +99,77 @@ export function AppSidebar() {
         </div>
       )}
 
+      {collapsed && !isSa && (
+        <div className="mb-2 flex justify-center">
+          <div
+            className={cn(
+              "flex h-9 w-9 items-center justify-center rounded-xl",
+              adminLike
+                ? "bg-gradient-primary text-primary-foreground shadow-glow"
+                : "bg-muted text-muted-foreground",
+            )}
+            title={`${roleLabel(role)} · ${cabinetLabel}`}
+          >
+            {adminLike ? <Shield className="h-4 w-4" /> : <UserRound className="h-4 w-4" />}
+          </div>
+        </div>
+      )}
+
       <div className="mt-2 flex-1 overflow-y-auto pr-1">
         <NavSection title="Principal" items={items} pathname={pathname} collapsed={collapsed} />
         <div className="mx-3 my-3 h-px bg-border" />
         <NavSection title="Espace" items={secondary} pathname={pathname} collapsed={collapsed} />
       </div>
     </motion.aside>
+  );
+}
+
+function RoleCabinetBadge({
+  label,
+  cabinetLabel,
+  admin,
+}: {
+  label: string;
+  cabinetLabel: string;
+  admin: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-2xl border px-3 py-2.5",
+        admin
+          ? "border-primary/20 bg-gradient-to-br from-primary/12 via-primary/5 to-transparent"
+          : "border-border/60 bg-muted/40",
+      )}
+    >
+      <div className="flex items-center gap-2.5">
+        <div
+          className={cn(
+            "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
+            admin
+              ? "bg-gradient-primary text-primary-foreground shadow-glow"
+              : "bg-muted text-muted-foreground",
+          )}
+        >
+          {admin ? <Shield className="h-4 w-4" /> : <UserRound className="h-4 w-4" />}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div
+            className={cn(
+              "inline-flex max-w-full items-center truncate rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider",
+              admin
+                ? "bg-primary/15 text-primary"
+                : "bg-muted text-muted-foreground",
+            )}
+          >
+            {label}
+          </div>
+          <div className="mt-1 truncate text-[11px] font-medium text-foreground/80">
+            {cabinetLabel}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

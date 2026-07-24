@@ -1,4 +1,4 @@
-import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import {
   ArrowRight,
@@ -98,8 +98,8 @@ export const Route = createFileRoute("/")({
     ],
   }),
   beforeLoad: async () => {
-    const session = await getCurrentSession();
-    if (session) throw redirect({ to: homePathForRole(session.staff.role) });
+    const session = await getCurrentSession().catch(() => null);
+    return { landingSession: session };
   },
   component: LandingPage,
 });
@@ -178,6 +178,10 @@ const whyPoints = [
 
 function LandingPage() {
   const { theme, toggle, ready } = useTheme();
+  const { landingSession } = Route.useRouteContext();
+  const appHome = landingSession
+    ? homePathForRole(landingSession.staff.role)
+    : null;
 
   return (
     <div className="min-h-screen max-w-[100vw] overflow-x-clip bg-background text-foreground">
@@ -202,19 +206,31 @@ function LandingPage() {
                 <Sun className="h-4 w-4" />
               )}
             </button>
-            <Link
-              to="/login"
-              className="rounded-2xl px-2.5 py-2 text-sm font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground sm:px-4"
-            >
-              Connexion
-            </Link>
-            <Link
-              to="/signup"
-              className="inline-flex items-center gap-1.5 rounded-2xl bg-gradient-primary px-3 py-2 text-sm font-semibold text-primary-foreground shadow-glow sm:px-4"
-            >
-              Commencer
-              <ArrowRight className="hidden h-4 w-4 sm:block" />
-            </Link>
+            {appHome ? (
+              <Link
+                to={appHome}
+                className="inline-flex items-center gap-1.5 rounded-2xl bg-gradient-primary px-3 py-2 text-sm font-semibold text-primary-foreground shadow-glow sm:px-4"
+              >
+                Espace app
+                <ArrowRight className="hidden h-4 w-4 sm:block" />
+              </Link>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  className="rounded-2xl px-2.5 py-2 text-sm font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground sm:px-4"
+                >
+                  Connexion
+                </Link>
+                <Link
+                  to="/signup"
+                  className="inline-flex items-center gap-1.5 rounded-2xl bg-gradient-primary px-3 py-2 text-sm font-semibold text-primary-foreground shadow-glow sm:px-4"
+                >
+                  Commencer
+                  <ArrowRight className="hidden h-4 w-4 sm:block" />
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -249,19 +265,31 @@ function LandingPage() {
               — sans mélanger les dossiers, avec aperçu, PDF et envoi intégrés.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
-              <Link
-                to="/signup"
-                className="inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-glow transition hover:scale-[1.02] active:scale-[0.98] sm:px-5"
-              >
-                Créer un compte
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-              <Link
-                to="/login"
-                className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface/70 px-4 py-3 text-sm font-semibold transition hover:bg-muted sm:px-5"
-              >
-                Se connecter
-              </Link>
+              {appHome ? (
+                <Link
+                  to={appHome}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-glow transition hover:scale-[1.02] active:scale-[0.98] sm:px-5"
+                >
+                  Ouvrir l’espace app
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              ) : (
+                <>
+                  <Link
+                    to="/signup"
+                    className="inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-glow transition hover:scale-[1.02] active:scale-[0.98] sm:px-5"
+                  >
+                    Créer un compte
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                  <Link
+                    to="/login"
+                    className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface/70 px-4 py-3 text-sm font-semibold transition hover:bg-muted sm:px-5"
+                  >
+                    Se connecter
+                  </Link>
+                </>
+              )}
             </div>
             <div className="mt-8 flex items-start gap-2 text-xs text-muted-foreground">
               <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-success" />
@@ -463,19 +491,31 @@ function LandingPage() {
             Fiscale.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-            <Link
-              to="/signup"
-              className="inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-glow"
-            >
-              Commencer
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link
-              to="/login"
-              className="inline-flex items-center gap-2 rounded-2xl border border-border px-5 py-3 text-sm font-semibold hover:bg-muted"
-            >
-              Connexion
-            </Link>
+            {appHome ? (
+              <Link
+                to={appHome}
+                className="inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-glow"
+              >
+                Retour à l’espace app
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            ) : (
+              <>
+                <Link
+                  to="/signup"
+                  className="inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-glow"
+                >
+                  Commencer
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+                <Link
+                  to="/login"
+                  className="inline-flex items-center gap-2 rounded-2xl border border-border px-5 py-3 text-sm font-semibold hover:bg-muted"
+                >
+                  Connexion
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </section>

@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Users, FileText, ReceiptText, Package,
-  Files, Archive, Settings, Bell, Search, UserCircle2, FileSignature, FolderOpen, Mail, Shield,
+  Files, Archive, Settings, Bell, Search, UserCircle2, FileSignature, FolderOpen, Mail, Shield, Globe,
 } from "lucide-react";
 import type { AppRole } from "@/lib/roles";
 import { canAccessDashboard, canManageAdminRequests, isMember } from "@/lib/roles";
@@ -28,6 +28,7 @@ export const primaryNav: NavDef[] = [
 ];
 
 export const secondaryNav: NavDef[] = [
+  { to: "/", label: "Site public", icon: Globe },
   { to: "/search", label: "Recherche", icon: Search },
   { to: "/notifications", label: "Notifications", icon: Bell },
   { to: "/profile", label: "Profil", icon: UserCircle2 },
