@@ -8,7 +8,8 @@ import {
 import { CABINET_LABELS } from "@/lib/cabinets";
 import { escapeHtml, formatFrom, resendErrorMessage } from "@/lib/email";
 import { currency as formatCurrency } from "@/lib/format";
-import type { DocumentStatus, DocumentType } from "@/store/types";
+import type { DocumentStatus, DocumentType, PaymentMethod } from "@/store/types";
+import { paymentMethodLabel } from "@/lib/payment-method";
 
 type BroadcastArgs = {
   actorStaffId: string;
@@ -18,6 +19,7 @@ type BroadcastArgs = {
   documentType: DocumentType;
   previousStatus: DocumentStatus;
   nextStatus: DocumentStatus;
+  paymentMethod?: PaymentMethod | null;
 };
 
 function documentPath(type: DocumentType, id: string): string {
@@ -79,13 +81,17 @@ export async function broadcastDocumentStatusChange(
     const prevLabel = documentStatusLabel(args.previousStatus);
     const nextLabel = documentStatusLabel(args.nextStatus);
     const notifType = notificationTypeForStatus(args.nextStatus);
+    const methodNote =
+      args.nextStatus === "paid" && args.paymentMethod
+        ? ` · ${paymentMethodLabel(args.paymentMethod)}`
+        : "";
 
     await db.notification.createMany({
       data: recipients.map((r) => ({
         staffId: r.id,
         documentId: args.documentId,
         title: `${typeLabel} ${args.documentNumber} — ${nextLabel}`,
-        body: `${args.actorName} a mis à jour le statut : ${prevLabel} → ${nextLabel}`,
+        body: `${args.actorName} a mis à jour le statut : ${prevLabel} → ${nextLabel}${methodNote}`,
         type: notifType,
       })),
     });
@@ -100,6 +106,7 @@ export async function broadcastDocumentStatusChange(
     clientName: doc.client?.name ?? "Client",
     total: Number(doc.total),
     currency: doc.currency || "XAF",
+    paymentMethod: args.paymentMethod,
   });
 }
 
@@ -114,6 +121,7 @@ async function notifyAdminsDocumentPaid(args: {
   clientName: string;
   total: number;
   currency: string;
+  paymentMethod?: PaymentMethod | null;
 }): Promise<{ emailSent?: boolean; emailError?: string; emailRecipients?: number }> {
   const admins = await prisma.staffMember.findMany({
     where: {
@@ -179,6 +187,7 @@ async function notifyAdminsDocumentPaid(args: {
       <ul style="margin:0 0 16px;padding-left:18px;font-size:14px">
         <li>Client : ${escapeHtml(args.clientName)}</li>
         <li>Montant : ${escapeHtml(amount)}</li>
+        <li>Règlement : ${escapeHtml(paymentMethodLabel(args.paymentMethod))}</li>
         <li>Cabinet : ${escapeHtml(cabinetLabel)}</li>
       </ul>
       <p style="margin:0">

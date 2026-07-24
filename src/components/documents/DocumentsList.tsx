@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { Eye, FileText, Plus, Search, Send, Banknote, XCircle, CheckCircle2, Ban, Mails } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Eye, FileText, Plus, Search, Send, Banknote, XCircle, CheckCircle2, Ban, Mails, Repeat } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -9,9 +9,11 @@ import { LoadingState } from "@/components/common/LoadingState";
 import { StatusBadge, statusLabel } from "@/components/common/StatusBadge";
 import { CabinetFilter } from "@/components/common/CabinetFilter";
 import { CabinetBadge } from "@/components/common/CabinetBadge";
+import { MarkAsPaidDialog } from "@/components/documents/MarkAsPaidDialog";
 import { documentRowClass, getDocumentRowStyles } from "@/lib/document-row-styles";
 import { currency, shortDate } from "@/lib/format";
-import type { DocumentStatus, DocumentType } from "@/store/types";
+import { paymentMethodLabel } from "@/lib/payment-method";
+import type { DocumentStatus, DocumentType, PaymentMethod } from "@/store/types";
 import type { CabinetScope } from "@/lib/cabinets";
 import { cn } from "@/lib/utils";
 import { canSwitchCabinet } from "@/lib/roles";
@@ -21,6 +23,7 @@ import {
   useSession,
   useSetDocumentStatus,
   useSendDocumentEmail,
+  useProcessDueSubscriptions,
 } from "@/hooks/use-data";
 
 const labels = {
@@ -56,10 +59,35 @@ export function DocumentsList({ type }: { type: DocumentType }) {
   const { data: clients = [] } = useClients(scope);
   const setStatusMutation = useSetDocumentStatus();
   const sendEmailMutation = useSendDocumentEmail();
+  const processSubs = useProcessDueSubscriptions();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string>("all");
+  const [paidPrompt, setPaidPrompt] = useState<{ id: string; number: string } | null>(null);
   const L = labels[type];
   const statusOptions = statusesFor(type);
+
+  useEffect(() => {
+    if (type !== "invoice") return;
+    processSubs.mutate(undefined, {
+      onSuccess: (res) => {
+        if (res.count > 0) {
+          toast.success(
+            `${res.count} facture${res.count > 1 ? "s" : ""} d’abonnement générée${res.count > 1 ? "s" : ""}`,
+            {
+              description: res.generated.join(", "),
+            },
+          );
+        }
+        if (res.errors.length) {
+          toast.warning("Certaines générations ont échoué", {
+            description: res.errors.slice(0, 3).join(" · "),
+          });
+        }
+      },
+    });
+    // Une seule fois à l’ouverture de la liste factures
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [type]);
 
   const filtered = useMemo(() => documents.filter((d) => {
     const client = clients.find((c) => c.id === d.clientId);
@@ -70,7 +98,44 @@ export function DocumentsList({ type }: { type: DocumentType }) {
 
   const total = filtered.reduce((a, b) => a + b.total, 0);
 
+  const applyStatus = (
+    id: string,
+    next: DocumentStatus,
+    number: string,
+    paymentMethod?: PaymentMethod,
+  ) => {
+    setStatusMutation.mutate(
+      { id, status: next, paymentMethod },
+      {
+        onSuccess: (res) => {
+          toast.success(`Statut mis à jour — ${number}`, {
+            description:
+              next === "paid" && paymentMethod
+                ? `${statusLabel(next)} · ${paymentMethodLabel(paymentMethod)}`
+                : statusLabel(next),
+          });
+          if (next === "paid" && res.emailError) {
+            toast.warning("Alerte e-mail admins non envoyée", {
+              description: res.emailError,
+              duration: 12_000,
+            });
+          } else if (next === "paid" && res.emailSent) {
+            toast.message(
+              `E-mail envoyé à ${res.emailRecipients ?? 0} admin(s)`,
+            );
+          }
+          setPaidPrompt(null);
+        },
+        onError: (e) => toast.error(e.message),
+      },
+    );
+  };
+
   const setStatusWithToast = (id: string, next: DocumentStatus, number: string) => {
+    if (next === "paid") {
+      setPaidPrompt({ id, number });
+      return;
+    }
     if (next === "sent") {
       const toastId = toast.loading("Envoi de l'email…");
       sendEmailMutation.mutate(id, {
@@ -88,27 +153,7 @@ export function DocumentsList({ type }: { type: DocumentType }) {
       });
       return;
     }
-    setStatusMutation.mutate(
-      { id, status: next },
-      {
-        onSuccess: (res) => {
-          toast.success(`Statut mis à jour — ${number}`, {
-            description: statusLabel(next),
-          });
-          if (next === "paid" && res.emailError) {
-            toast.warning("Alerte e-mail admins non envoyée", {
-              description: res.emailError,
-              duration: 12_000,
-            });
-          } else if (next === "paid" && res.emailSent) {
-            toast.message(
-              `E-mail envoyé à ${res.emailRecipients ?? 0} admin(s)`,
-            );
-          }
-        },
-        onError: (e) => toast.error(e.message),
-      },
-    );
+    applyStatus(id, next, number);
   };
 
   if (isLoading) {
@@ -215,7 +260,29 @@ export function DocumentsList({ type }: { type: DocumentType }) {
                     transition={{ delay: i * 0.02 }}
                     className={documentRowClass(d.status)}
                   >
-                    <td className="px-5 py-3 font-medium font-numeric">{d.number}</td>
+                    <td className="px-5 py-3 font-medium font-numeric">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span>{d.number}</span>
+                        {type === "invoice" && d.isSubscription && (
+                          <span
+                            title={
+                              d.subscriptionActive
+                                ? `Abonnement · jour ${d.subscriptionDay}`
+                                : "Abonnement en pause"
+                            }
+                            className={cn(
+                              "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide",
+                              d.subscriptionActive
+                                ? "bg-primary/15 text-primary"
+                                : "bg-muted text-muted-foreground",
+                            )}
+                          >
+                            <Repeat className="h-2.5 w-2.5" />
+                            Abo
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     {showCabinetFilter && (
                       <td className="px-5 py-3">
                         <CabinetBadge cabinet={d.cabinet} />
@@ -291,6 +358,19 @@ export function DocumentsList({ type }: { type: DocumentType }) {
           </div>
         </div>
       )}
+
+      <MarkAsPaidDialog
+        open={!!paidPrompt}
+        onOpenChange={(open) => {
+          if (!open) setPaidPrompt(null);
+        }}
+        documentNumber={paidPrompt?.number}
+        pending={setStatusMutation.isPending}
+        onConfirm={(method) => {
+          if (!paidPrompt) return;
+          applyStatus(paidPrompt.id, "paid", paidPrompt.number, method);
+        }}
+      />
     </div>
   );
 }

@@ -4,7 +4,16 @@ import { toast } from "sonner";
 import { ArrowLeft, Save, FileText, ReceiptText } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { LoadingState } from "@/components/common/LoadingState";
-import { useClient, useUpdateClient, useDocuments } from "@/hooks/use-data";
+import {
+  useClient,
+  useUpdateClient,
+  useDocuments,
+  useUploadClientFiche,
+} from "@/hooks/use-data";
+import {
+  ClientFicheUpload,
+  fileToBase64Payload,
+} from "@/components/clients/ClientFicheUpload";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { currency, shortDate } from "@/lib/format";
 import type { Client } from "@/store/types";
@@ -20,11 +29,15 @@ function EditClient() {
   const { data: client, isLoading } = useClient(id);
   const { data: documents = [] } = useDocuments();
   const updateClient = useUpdateClient();
+  const uploadFiche = useUploadClientFiche();
   const docs = useMemo(
     () => documents.filter((d) => d.clientId === id),
     [documents, id],
   );
   const [form, setForm] = useState<Client | undefined>(client ?? undefined);
+  const [circuitFile, setCircuitFile] = useState<File | null>(null);
+  const [statusFile, setStatusFile] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (client) setForm(client);
@@ -46,12 +59,39 @@ function EditClient() {
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSaving(true);
     try {
       await updateClient.mutateAsync({ ...form, id: client.id });
+
+      const uploads: Array<Promise<unknown>> = [];
+      if (circuitFile) {
+        const payload = await fileToBase64Payload(circuitFile);
+        uploads.push(
+          uploadFiche.mutateAsync({
+            clientId: client.id,
+            kind: "circuit",
+            ...payload,
+          }),
+        );
+      }
+      if (statusFile) {
+        const payload = await fileToBase64Payload(statusFile);
+        uploads.push(
+          uploadFiche.mutateAsync({
+            clientId: client.id,
+            kind: "status",
+            ...payload,
+          }),
+        );
+      }
+      if (uploads.length) await Promise.all(uploads);
+
       toast.success("Modifications enregistrées");
       void navigate({ to: "/clients" });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erreur");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -83,9 +123,33 @@ function EditClient() {
               <Field label="Pays" value={form.country} onChange={(v) => setForm({ ...form, country: v })} />
             </div>
           </div>
+          <div className="glass-panel rounded-3xl p-5">
+            <h3 className="font-display font-semibold">Fiches documents</h3>
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <ClientFicheUpload
+                label="Fiche circuit"
+                file={circuitFile}
+                existingUrl={form.ficheCircuitUrl}
+                existingName={form.ficheCircuitName}
+                onFileChange={setCircuitFile}
+                disabled={saving}
+              />
+              <ClientFicheUpload
+                label="Fiche status"
+                file={statusFile}
+                existingUrl={form.ficheStatusUrl}
+                existingName={form.ficheStatusName}
+                onFileChange={setStatusFile}
+                disabled={saving}
+              />
+            </div>
+          </div>
           <div className="flex justify-end gap-2">
             <button type="button" onClick={() => navigate({ to: "/clients" })} className="rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted">Annuler</button>
-            <button type="submit" className="inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow"><Save className="h-4 w-4" /> Sauvegarder</button>
+            <button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow disabled:opacity-60">
+              <Save className="h-4 w-4" />
+              {saving ? "Enregistrement…" : "Sauvegarder"}
+            </button>
           </div>
         </form>
 

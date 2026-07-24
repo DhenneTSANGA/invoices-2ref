@@ -51,6 +51,7 @@ import { Route as AppInvoicesNewRouteImport } from './routes/_app.invoices.new'
 import { Route as AppInvoicesIdRouteImport } from './routes/_app.invoices.$id'
 import { Route as AppClientsNewRouteImport } from './routes/_app.clients.new'
 import { Route as AppClientsIdRouteImport } from './routes/_app.clients.$id'
+import { Route as AppInvoicesIdEditRouteImport } from './routes/_app.invoices.$id.edit'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -261,6 +262,11 @@ const AppClientsIdRoute = AppClientsIdRouteImport.update({
   path: '/clients/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppInvoicesIdEditRoute = AppInvoicesIdEditRouteImport.update({
+  id: '/edit',
+  path: '/edit',
+  getParentRoute: () => AppInvoicesIdRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -286,7 +292,7 @@ export interface FileRoutesByFullPath {
   '/auth/callback': typeof AuthCallbackRoute
   '/clients/$id': typeof AppClientsIdRoute
   '/clients/new': typeof AppClientsNewRoute
-  '/invoices/$id': typeof AppInvoicesIdRoute
+  '/invoices/$id': typeof AppInvoicesIdRouteWithChildren
   '/invoices/new': typeof AppInvoicesNewRoute
   '/letters/$id': typeof AppLettersIdRoute
   '/letters/new': typeof AppLettersNewRoute
@@ -304,6 +310,7 @@ export interface FileRoutesByFullPath {
   '/lettre/': typeof AppLettreIndexRoute
   '/proformas/': typeof AppProformasIndexRoute
   '/quotations/': typeof AppQuotationsIndexRoute
+  '/invoices/$id/edit': typeof AppInvoicesIdEditRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -326,7 +333,7 @@ export interface FileRoutesByTo {
   '/auth/callback': typeof AuthCallbackRoute
   '/clients/$id': typeof AppClientsIdRoute
   '/clients/new': typeof AppClientsNewRoute
-  '/invoices/$id': typeof AppInvoicesIdRoute
+  '/invoices/$id': typeof AppInvoicesIdRouteWithChildren
   '/invoices/new': typeof AppInvoicesNewRoute
   '/letters/$id': typeof AppLettersIdRoute
   '/letters/new': typeof AppLettersNewRoute
@@ -344,6 +351,7 @@ export interface FileRoutesByTo {
   '/lettre': typeof AppLettreIndexRoute
   '/proformas': typeof AppProformasIndexRoute
   '/quotations': typeof AppQuotationsIndexRoute
+  '/invoices/$id/edit': typeof AppInvoicesIdEditRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -371,7 +379,7 @@ export interface FileRoutesById {
   '/auth/callback': typeof AuthCallbackRoute
   '/_app/clients/$id': typeof AppClientsIdRoute
   '/_app/clients/new': typeof AppClientsNewRoute
-  '/_app/invoices/$id': typeof AppInvoicesIdRoute
+  '/_app/invoices/$id': typeof AppInvoicesIdRouteWithChildren
   '/_app/invoices/new': typeof AppInvoicesNewRoute
   '/_app/letters/$id': typeof AppLettersIdRoute
   '/_app/letters/new': typeof AppLettersNewRoute
@@ -389,6 +397,7 @@ export interface FileRoutesById {
   '/_app/lettre/': typeof AppLettreIndexRoute
   '/_app/proformas/': typeof AppProformasIndexRoute
   '/_app/quotations/': typeof AppQuotationsIndexRoute
+  '/_app/invoices/$id/edit': typeof AppInvoicesIdEditRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -434,6 +443,7 @@ export interface FileRouteTypes {
     | '/lettre/'
     | '/proformas/'
     | '/quotations/'
+    | '/invoices/$id/edit'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -474,6 +484,7 @@ export interface FileRouteTypes {
     | '/lettre'
     | '/proformas'
     | '/quotations'
+    | '/invoices/$id/edit'
   id:
     | '__root__'
     | '/'
@@ -518,6 +529,7 @@ export interface FileRouteTypes {
     | '/_app/lettre/'
     | '/_app/proformas/'
     | '/_app/quotations/'
+    | '/_app/invoices/$id/edit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -828,17 +840,36 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppClientsIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/invoices/$id/edit': {
+      id: '/_app/invoices/$id/edit'
+      path: '/edit'
+      fullPath: '/invoices/$id/edit'
+      preLoaderRoute: typeof AppInvoicesIdEditRouteImport
+      parentRoute: typeof AppInvoicesIdRoute
+    }
   }
 }
 
+interface AppInvoicesIdRouteChildren {
+  AppInvoicesIdEditRoute: typeof AppInvoicesIdEditRoute
+}
+
+const AppInvoicesIdRouteChildren: AppInvoicesIdRouteChildren = {
+  AppInvoicesIdEditRoute: AppInvoicesIdEditRoute,
+}
+
+const AppInvoicesIdRouteWithChildren = AppInvoicesIdRoute._addFileChildren(
+  AppInvoicesIdRouteChildren,
+)
+
 interface AppInvoicesRouteChildren {
-  AppInvoicesIdRoute: typeof AppInvoicesIdRoute
+  AppInvoicesIdRoute: typeof AppInvoicesIdRouteWithChildren
   AppInvoicesNewRoute: typeof AppInvoicesNewRoute
   AppInvoicesIndexRoute: typeof AppInvoicesIndexRoute
 }
 
 const AppInvoicesRouteChildren: AppInvoicesRouteChildren = {
-  AppInvoicesIdRoute: AppInvoicesIdRoute,
+  AppInvoicesIdRoute: AppInvoicesIdRouteWithChildren,
   AppInvoicesNewRoute: AppInvoicesNewRoute,
   AppInvoicesIndexRoute: AppInvoicesIndexRoute,
 }

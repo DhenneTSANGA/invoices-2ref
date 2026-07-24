@@ -108,6 +108,19 @@ export const clientInputSchema = z.object({
   address: z.string().default(""),
   city: z.string().default(""),
   country: z.string().default("Gabon"),
+  ficheCircuitUrl: z.string().nullable().optional(),
+  ficheCircuitName: z.string().nullable().optional(),
+  ficheStatusUrl: z.string().nullable().optional(),
+  ficheStatusName: z.string().nullable().optional(),
+});
+
+export const clientFicheUploadSchema = z.object({
+  clientId: z.string().min(1),
+  kind: z.enum(["circuit", "status"]),
+  fileName: z.string().min(1),
+  contentType: z.string().min(1),
+  /** Contenu fichier en base64 (sans préfixe data:). */
+  base64: z.string().min(1),
 });
 
 export const lineItemSchema = z.object({

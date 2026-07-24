@@ -19,10 +19,13 @@ import {
   listNotifications,
   markAllNotificationsRead,
   markNotificationRead,
+  uploadClientFiche,
+  setInvoiceSubscription,
+  processDueSubscriptions,
 } from "@/lib/data.functions";
 import { sendDocumentEmail } from "@/lib/send-document-email";
 import { getCurrentSession, type AppSession } from "@/lib/session.functions";
-import type { DocumentStatus, DocumentType, NotificationItem } from "@/store/types";
+import type { DocumentStatus, DocumentType, NotificationItem, PaymentMethod } from "@/store/types";
 import type { Cabinet } from "@/lib/cabinets";
 import type { z } from "zod";
 import type { clientInputSchema, documentInputSchema, companyInputSchema } from "@/lib/auth-schemas";
@@ -115,6 +118,23 @@ export function useDeleteClient() {
   });
 }
 
+export function useUploadClientFiche() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: {
+      clientId: string;
+      kind: "circuit" | "status";
+      fileName: string;
+      contentType: string;
+      base64: string;
+    }) => uploadClientFiche({ data }),
+    onSuccess: (_row, vars) => {
+      void qc.invalidateQueries({ queryKey: clientsKey });
+      void qc.invalidateQueries({ queryKey: [...clientsKey, vars.clientId] });
+    },
+  });
+}
+
 export function useServices() {
   return useQuery({
     queryKey: servicesKey,
@@ -179,12 +199,43 @@ export function useUpsertDocument() {
 export function useSetDocumentStatus() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (payload: { id: string; status: DocumentStatus }) =>
-      setDocumentStatus({ data: payload }),
+    mutationFn: (payload: {
+      id: string;
+      status: DocumentStatus;
+      paymentMethod?: PaymentMethod;
+    }) => setDocumentStatus({ data: payload }),
     onSuccess: (doc) => {
       qc.invalidateQueries({ queryKey: documentsKey() });
       qc.invalidateQueries({ queryKey: documentsKey(doc.type) });
       qc.invalidateQueries({ queryKey: ["document", doc.id] });
+      qc.invalidateQueries({ queryKey: notificationsKey });
+    },
+  });
+}
+
+export function useSetInvoiceSubscription() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: {
+      id: string;
+      enabled: boolean;
+      dayOfMonth?: number;
+    }) => setInvoiceSubscription({ data }),
+    onSuccess: (doc) => {
+      qc.invalidateQueries({ queryKey: documentsKey() });
+      qc.invalidateQueries({ queryKey: documentsKey("invoice") });
+      qc.invalidateQueries({ queryKey: ["document", doc.id] });
+    },
+  });
+}
+
+export function useProcessDueSubscriptions() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => processDueSubscriptions(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: documentsKey() });
+      qc.invalidateQueries({ queryKey: documentsKey("invoice") });
       qc.invalidateQueries({ queryKey: notificationsKey });
     },
   });

@@ -75,6 +75,10 @@ export function mapClient(row: {
   address: string;
   city: string;
   country: string;
+  ficheCircuitUrl?: string | null;
+  ficheCircuitName?: string | null;
+  ficheStatusUrl?: string | null;
+  ficheStatusName?: string | null;
   createdAt: Date;
 }): Client {
   return {
@@ -91,6 +95,10 @@ export function mapClient(row: {
     address: row.address,
     city: row.city,
     country: row.country,
+    ficheCircuitUrl: row.ficheCircuitUrl ?? null,
+    ficheCircuitName: row.ficheCircuitName ?? null,
+    ficheStatusUrl: row.ficheStatusUrl ?? null,
+    ficheStatusName: row.ficheStatusName ?? null,
     createdAt: row.createdAt.toISOString().slice(0, 10),
   };
 }
@@ -135,6 +143,12 @@ export function mapDocument(row: {
   currency: string;
   notes: string | null;
   paymentTerms: string | null;
+  paymentMethod?: Document["paymentMethod"];
+  isSubscription?: boolean;
+  subscriptionActive?: boolean;
+  subscriptionDay?: number | null;
+  subscriptionNextAt?: Date | null;
+  subscriptionOfId?: string | null;
   validityDays: number | null;
   executionTerms: string | null;
   incoterm: string | null;
@@ -203,6 +217,14 @@ export function mapDocument(row: {
     currency: row.currency,
     notes: row.notes ?? undefined,
     paymentTerms: row.paymentTerms ?? undefined,
+    paymentMethod: row.paymentMethod ?? null,
+    isSubscription: row.isSubscription ?? false,
+    subscriptionActive: row.subscriptionActive ?? false,
+    subscriptionDay: row.subscriptionDay ?? null,
+    subscriptionNextAt: row.subscriptionNextAt
+      ? row.subscriptionNextAt.toISOString().slice(0, 10)
+      : null,
+    subscriptionOfId: row.subscriptionOfId ?? null,
     validityDays: row.validityDays ?? undefined,
     executionTerms: row.executionTerms ?? undefined,
     incoterm: row.incoterm ?? undefined,

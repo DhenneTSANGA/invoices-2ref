@@ -26,6 +26,10 @@ export type Client = {
   address: string;
   city: string;
   country: string;
+  ficheCircuitUrl?: string | null;
+  ficheCircuitName?: string | null;
+  ficheStatusUrl?: string | null;
+  ficheStatusName?: string | null;
   createdAt: string;
 };
 
@@ -70,6 +74,7 @@ export type LineItem = {
 
 export type DocumentType = "quotation" | "invoice" | "proforma" | "letter";
 export type DocumentStatus = "draft" | "sent" | "accepted" | "rejected" | "paid" | "overdue" | "archived" | "cancelled";
+export type PaymentMethod = "cash" | "check" | "bank_transfer";
 
 export type Document = {
   id: string;
@@ -91,6 +96,14 @@ export type Document = {
   currency: string;
   notes?: string;
   paymentTerms?: string;
+  /** Renseigné quand la facture est marquée payée. */
+  paymentMethod?: PaymentMethod | null;
+  /** Modèle d'abonnement mensuel (désignation modifiable). */
+  isSubscription?: boolean;
+  subscriptionActive?: boolean;
+  subscriptionDay?: number | null;
+  subscriptionNextAt?: string | null;
+  subscriptionOfId?: string | null;
   /** Devis */
   validityDays?: number;
   executionTerms?: string;

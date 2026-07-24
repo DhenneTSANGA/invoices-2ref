@@ -42,10 +42,26 @@ export function DocumentEditor({ initial, type }: Props) {
   const [exporting, setExporting] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const totals = useMemo(() => computeTotals(doc.items), [doc.items]);
-  const showTaxColumns = type === "invoice" || type === "quotation";
+  const showTaxColumns = type === "quotation";
   const effectiveClientId = doc.clientId || clients[0]?.id || "";
-  const merged: Document = { ...doc, ...totals, clientId: effectiveClientId };
+  const itemsForTotals =
+    type === "invoice"
+      ? doc.items.map((it) => ({ ...it, tpsRate: 0 }))
+      : doc.items;
+  const totals = useMemo(
+    () => {
+      const t = computeTotals(itemsForTotals);
+      return type === "invoice" ? { ...t, tps: 0 } : t;
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- itemsForTotals dérivé de doc.items + type
+    [doc.items, type],
+  );
+  const merged: Document = {
+    ...doc,
+    ...totals,
+    clientId: effectiveClientId,
+    items: itemsForTotals,
+  };
 
   const updateItem = (id: string, patch: Partial<LineItem>) =>
     setDoc((d) => ({
@@ -160,7 +176,11 @@ export function DocumentEditor({ initial, type }: Props) {
       } else {
         toast.success("Document enregistré", { description: saved.number });
       }
-      void navigate({ to: listPath });
+      if (type === "invoice" && initial && isPersistedId(initial.id)) {
+        void navigate({ to: "/invoices/$id", params: { id: saved.id } });
+      } else {
+        void navigate({ to: listPath });
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Enregistrement impossible");
     } finally {

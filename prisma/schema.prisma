@@ -31,6 +31,12 @@ enum DocumentStatus {
   cancelled
 }
 
+enum PaymentMethod {
+  cash
+  check
+  bank_transfer
+}
+
 enum ActivityKind {
   invoice_paid
   invoice_sent
@@ -136,6 +142,12 @@ model Client {
   address     String
   city        String
   country     String   @default("Gabon")
+  /** URL publique fiche circuit (Storage). */
+  ficheCircuitUrl  String?
+  ficheCircuitName String?
+  /** URL publique fiche status (Storage). */
+  ficheStatusUrl   String?
+  ficheStatusName  String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -186,6 +198,8 @@ model Document {
   currency          String         @default("XAF")
   notes             String?
   paymentTerms      String?
+  /** Moyen de règlement lorsque status = paid. */
+  paymentMethod     PaymentMethod?
   validityDays      Int?
   executionTerms    String?
   incoterm          String?
@@ -197,11 +211,21 @@ model Document {
   closing           String?
   signatoryTitle    String?
   recipientOverride String?
+  /** Facture modèle d'abonnement mensuel. */
+  isSubscription       Boolean   @default(false)
+  subscriptionActive   Boolean   @default(false)
+  /** Jour du mois d'envoi (1–28). */
+  subscriptionDay      Int?
+  subscriptionNextAt   DateTime? @db.Date
+  /** Facture générée depuis un abonnement (id du modèle). */
+  subscriptionOfId     String?
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
 
   client        Client         @relation(fields: [clientId], references: [id], onDelete: Restrict)
   createdBy     StaffMember    @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  subscriptionOf Document?     @relation("SubscriptionGenerations", fields: [subscriptionOfId], references: [id], onDelete: SetNull)
+  subscriptionChildren Document[] @relation("SubscriptionGenerations")
   lines         DocumentLine[]
   notifications Notification[]
 
@@ -212,6 +236,8 @@ model Document {
   @@index([status])
   @@index([type])
   @@index([issueDate])
+  @@index([isSubscription, subscriptionActive, subscriptionNextAt])
+  @@index([subscriptionOfId])
   @@map("documents")
 }
 

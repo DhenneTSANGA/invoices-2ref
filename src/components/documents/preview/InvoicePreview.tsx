@@ -88,7 +88,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
         {doc.paymentTerms && <span>Conditions : <b className="text-[#0F172A]">{doc.paymentTerms}</b></span>}
       </div>
 
-      <ItemsTable doc={doc} headerFrom={accent} headerTo="#3B82F6" showTaxColumns />
+      <ItemsTable doc={doc} headerFrom={accent} headerTo="#3B82F6" showTaxColumns={false} />
 
       <PreviewBottomRow
         left={
@@ -249,8 +249,12 @@ function TotalsBlock({ doc, company, accent }: { doc: Document; company: { bankN
     <div className="w-full space-y-2">
       <div className="overflow-hidden rounded-lg ring-1 ring-[#E2E8F0]">
         <AmountRow label="Sous-total HT" value={number(doc.subtotal)} currency={doc.currency} accent={accent} />
-        <AmountRow label="TPS" value={number(doc.tps ?? 0)} currency={doc.currency} accent={accent} />
-        <AmountRow label="CSS" value={number(doc.css ?? 0)} currency={doc.currency} accent={accent} />
+        {(doc.tps ?? 0) > 0 && (
+          <AmountRow label="TPS" value={number(doc.tps ?? 0)} currency={doc.currency} accent={accent} />
+        )}
+        {(doc.css ?? 0) > 0 && (
+          <AmountRow label="CSS" value={number(doc.css ?? 0)} currency={doc.currency} accent={accent} />
+        )}
         <AmountRow label="TVA (18 %)" value={number(doc.vat)} currency={doc.currency} accent={accent} />
         <AmountRow label="Total TTC" value={number(doc.total)} currency={doc.currency} strong accent={accent} />
       </div>

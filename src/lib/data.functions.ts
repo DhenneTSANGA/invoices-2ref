@@ -3,7 +3,13 @@ import { z } from "zod";
 import type { Cabinet, DocumentType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { mapClient, mapDocument, mapService, mapCompany, mapNotification } from "@/lib/mappers";
-import { clientInputSchema, documentInputSchema, companyInputSchema } from "@/lib/auth-schemas";
+import { clientInputSchema, documentInputSchema, companyInputSchema, clientFicheUploadSchema } from "@/lib/auth-schemas";
+import {
+  CLIENT_FICHES_BUCKET,
+  createStorageAdmin,
+  publicObjectUrl,
+  sanitizeFileName,
+} from "@/lib/client-fiches-storage";
 import { COMPANY_DEFAULTS } from "@/lib/company-defaults";
 import { getCurrentSession, type AppSession } from "@/lib/session.functions";
 import {
@@ -17,6 +23,12 @@ import {
   canWriteDocument,
   isSuperAdmin,
 } from "@/lib/roles";
+import {
+  advanceSubscriptionDate,
+  clampSubscriptionDay,
+  nextSubscriptionDate,
+} from "@/lib/subscription";
+import { sendDocumentEmail } from "@/lib/send-document-email";
 
 const docInclude = {
   lines: { orderBy: { position: "asc" as const } },
@@ -100,7 +112,24 @@ export const createClient = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { activeCabinet } = await requireSession();
     const row = await prisma.client.create({
-      data: { ...data, cabinet: activeCabinet },
+      data: {
+        name: data.name,
+        legalForm: data.legalForm,
+        nif: data.nif,
+        niu: data.niu,
+        rccm: data.rccm,
+        contactName: data.contactName,
+        email: data.email,
+        phone: data.phone,
+        address: data.address,
+        city: data.city,
+        country: data.country,
+        ficheCircuitUrl: data.ficheCircuitUrl ?? null,
+        ficheCircuitName: data.ficheCircuitName ?? null,
+        ficheStatusUrl: data.ficheStatusUrl ?? null,
+        ficheStatusName: data.ficheStatusName ?? null,
+        cabinet: activeCabinet,
+      },
     });
     return mapClient(row);
   });
@@ -114,7 +143,94 @@ export const updateClient = createServerFn({ method: "POST" })
       where: { id, cabinet: activeCabinet },
     });
     if (!existing) throw new Error("Client introuvable");
-    const row = await prisma.client.update({ where: { id }, data: rest });
+    const row = await prisma.client.update({
+      where: { id },
+      data: {
+        name: rest.name,
+        legalForm: rest.legalForm,
+        nif: rest.nif,
+        niu: rest.niu,
+        rccm: rest.rccm,
+        contactName: rest.contactName,
+        email: rest.email,
+        phone: rest.phone,
+        address: rest.address,
+        city: rest.city,
+        country: rest.country,
+        ...(rest.ficheCircuitUrl !== undefined
+          ? { ficheCircuitUrl: rest.ficheCircuitUrl, ficheCircuitName: rest.ficheCircuitName ?? null }
+          : {}),
+        ...(rest.ficheStatusUrl !== undefined
+          ? { ficheStatusUrl: rest.ficheStatusUrl, ficheStatusName: rest.ficheStatusName ?? null }
+          : {}),
+      },
+    });
+    return mapClient(row);
+  });
+
+/** Téléverse une fiche circuit ou status pour un client (Supabase Storage). */
+export const uploadClientFiche = createServerFn({ method: "POST" })
+  .validator(clientFicheUploadSchema)
+  .handler(async ({ data }) => {
+    const session = await requireSession();
+    const existing = await prisma.client.findFirst({
+      where: isSuperAdmin(session.staff.role)
+        ? { id: data.clientId }
+        : { id: data.clientId, cabinet: session.activeCabinet },
+    });
+    if (!existing) throw new Error("Client introuvable");
+
+    const raw = Buffer.from(data.base64, "base64");
+    const maxBytes = 8 * 1024 * 1024;
+    if (raw.byteLength > maxBytes) {
+      throw new Error("Fichier trop volumineux (max 8 Mo)");
+    }
+
+    const allowed = [
+      "application/pdf",
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ];
+    if (!allowed.includes(data.contentType)) {
+      throw new Error("Type de fichier non supporté (PDF, Word ou image)");
+    }
+
+    const ext =
+      data.fileName.includes(".")
+        ? data.fileName.split(".").pop()!.toLowerCase()
+        : data.contentType === "application/pdf"
+          ? "pdf"
+          : "bin";
+    const safeName = sanitizeFileName(data.fileName);
+    const path = `${existing.cabinet}/${existing.id}/${data.kind}-${Date.now()}-${safeName || `fichier.${ext}`}`;
+
+    const supabase = createStorageAdmin();
+    const { error: upErr } = await supabase.storage
+      .from(CLIENT_FICHES_BUCKET)
+      .upload(path, raw, {
+        contentType: data.contentType,
+        upsert: true,
+      });
+
+    if (upErr) {
+      throw new Error(
+        `Upload impossible : ${upErr.message}. Vérifiez que le bucket « ${CLIENT_FICHES_BUCKET} » existe et est public.`,
+      );
+    }
+
+    const url = publicObjectUrl(CLIENT_FICHES_BUCKET, path);
+    const patch =
+      data.kind === "circuit"
+        ? { ficheCircuitUrl: url, ficheCircuitName: data.fileName }
+        : { ficheStatusUrl: url, ficheStatusName: data.fileName };
+
+    const row = await prisma.client.update({
+      where: { id: existing.id },
+      data: patch,
+    });
     return mapClient(row);
   });
 
@@ -212,7 +328,7 @@ export const upsertDocument = createServerFn({ method: "POST" })
       unitPrice: item.unitPrice,
       vatRate: item.vatRate,
       discount: item.discount ?? 0,
-      tpsRate: item.tpsRate ?? 0,
+      tpsRate: data.type === "invoice" ? 0 : (item.tpsRate ?? 0),
       cssRate: item.cssRate ?? 0,
       position,
     }));
@@ -227,10 +343,13 @@ export const upsertDocument = createServerFn({ method: "POST" })
       issueDate: new Date(data.issueDate),
       dueDate: new Date(data.dueDate),
       subtotal: data.subtotal,
-      tps: data.tps ?? 0,
+      tps: data.type === "invoice" ? 0 : (data.tps ?? 0),
       css: data.css ?? 0,
       vat: data.vat,
-      total: data.total,
+      total:
+        data.type === "invoice"
+          ? data.subtotal + (data.css ?? 0) + data.vat
+          : data.total,
       currency: data.currency,
       notes: data.notes ?? null,
       paymentTerms: data.paymentTerms ?? null,
@@ -317,6 +436,7 @@ export const setDocumentStatus = createServerFn({ method: "POST" })
         "archived",
         "cancelled",
       ]),
+      paymentMethod: z.enum(["cash", "check", "bank_transfer"]).optional(),
     }),
   )
   .handler(async ({ data }) => {
@@ -331,9 +451,19 @@ export const setDocumentStatus = createServerFn({ method: "POST" })
     if (!canWriteDocument(staff.role, staff.id, existing.createdById)) {
       throw new Error("Accès refusé — document en lecture seule");
     }
+    if (data.status === "paid" && !data.paymentMethod) {
+      throw new Error(
+        "Indiquez le moyen de paiement (espèces, chèque ou virement)",
+      );
+    }
     const updated = await prisma.document.update({
       where: { id: data.id },
-      data: { status: data.status },
+      data: {
+        status: data.status,
+        ...(data.status === "paid" && data.paymentMethod
+          ? { paymentMethod: data.paymentMethod }
+          : {}),
+      },
       include: docInclude,
     });
     let emailNotice: {
@@ -350,10 +480,171 @@ export const setDocumentStatus = createServerFn({ method: "POST" })
         documentType: updated.type,
         previousStatus: existing.status,
         nextStatus: data.status,
+        paymentMethod: updated.paymentMethod ?? undefined,
       });
     }
     return { ...mapDocument(updated), ...emailNotice };
   });
+
+export const setInvoiceSubscription = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      id: z.string(),
+      enabled: z.boolean(),
+      dayOfMonth: z.number().int().min(1).max(28).optional(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const session = await requireSession();
+    const { staff } = session;
+    const existing = await prisma.document.findFirst({
+      where: isSuperAdmin(staff.role)
+        ? { id: data.id, type: "invoice" }
+        : { id: data.id, type: "invoice", cabinet: session.activeCabinet },
+    });
+    if (!existing) throw new Error("Facture introuvable");
+    if (!canWriteDocument(staff.role, staff.id, existing.createdById)) {
+      throw new Error("Accès refusé — document en lecture seule");
+    }
+
+    if (!data.enabled) {
+      const row = await prisma.document.update({
+        where: { id: existing.id },
+        data: {
+          isSubscription: true,
+          subscriptionActive: false,
+        },
+        include: docInclude,
+      });
+      return mapDocument(row);
+    }
+
+    const day = clampSubscriptionDay(data.dayOfMonth ?? existing.subscriptionDay ?? 1);
+    const nextAt = nextSubscriptionDate(day);
+    const row = await prisma.document.update({
+      where: { id: existing.id },
+      data: {
+        isSubscription: true,
+        subscriptionActive: true,
+        subscriptionDay: day,
+        subscriptionNextAt: nextAt,
+      },
+      include: docInclude,
+    });
+    return mapDocument(row);
+  });
+
+/** Génère et envoie les factures d'abonnement arrivées à échéance. */
+export const processDueSubscriptions = createServerFn({ method: "POST" }).handler(
+  async () => {
+    const session = await requireSession();
+    const today = new Date();
+    const todayUtc = new Date(
+      Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()),
+    );
+
+    const due = await prisma.document.findMany({
+      where: {
+        type: "invoice",
+        isSubscription: true,
+        subscriptionActive: true,
+        subscriptionNextAt: { lte: todayUtc },
+        ...(isSuperAdmin(session.staff.role)
+          ? {}
+          : { cabinet: session.activeCabinet }),
+      },
+      include: { lines: { orderBy: { position: "asc" } } },
+    });
+
+    const generated: string[] = [];
+    const errors: string[] = [];
+
+    for (const template of due) {
+      try {
+        if (!canWriteDocument(session.staff.role, session.staff.id, template.createdById)) {
+          continue;
+        }
+        const year = todayUtc.getUTCFullYear();
+        const number = `FA-${year}-${String(Math.floor(Math.random() * 9000) + 1000)}`;
+        const issueDate = todayUtc;
+        const dueDate = new Date(todayUtc);
+        dueDate.setUTCDate(dueDate.getUTCDate() + 30);
+
+        const lines = template.lines.map((l, position) => ({
+          serviceId: l.serviceId,
+          description: l.description,
+          quantity: l.quantity,
+          unitPrice: l.unitPrice,
+          vatRate: l.vatRate,
+          discount: l.discount,
+          tpsRate: 0,
+          cssRate: l.cssRate,
+          position,
+        }));
+
+        const subtotal = Number(template.subtotal);
+        const css = Number(template.css);
+        const vat = Number(template.vat);
+        const total = subtotal + css + vat;
+
+        const created = await prisma.document.create({
+          data: {
+            cabinet: template.cabinet,
+            type: "invoice",
+            number,
+            clientId: template.clientId,
+            createdById: session.staff.id,
+            status: "draft",
+            issueDate,
+            dueDate,
+            subtotal,
+            tps: 0,
+            css,
+            vat,
+            total,
+            currency: template.currency,
+            notes: template.notes,
+            paymentTerms: template.paymentTerms,
+            subscriptionOfId: template.id,
+            lines: { create: lines },
+          },
+        });
+
+        const day = clampSubscriptionDay(template.subscriptionDay ?? 1);
+        const nextAt = advanceSubscriptionDate(
+          template.subscriptionNextAt ?? todayUtc,
+          day,
+        );
+        // Si encore dans le passé (retard cumulé), avancer jusqu'à ≥ aujourd'hui
+        let safeNext = nextAt;
+        while (safeNext.getTime() <= todayUtc.getTime()) {
+          safeNext = advanceSubscriptionDate(safeNext, day);
+        }
+        await prisma.document.update({
+          where: { id: template.id },
+          data: { subscriptionNextAt: safeNext },
+        });
+
+        try {
+          await sendDocumentEmail({ data: { id: created.id } });
+        } catch (emailErr) {
+          errors.push(
+            `${number}: créée mais e-mail non envoyé — ${
+              emailErr instanceof Error ? emailErr.message : "erreur"
+            }`,
+          );
+        }
+        generated.push(number);
+      } catch (err) {
+        errors.push(
+          `${template.number}: ${err instanceof Error ? err.message : "échec"}`,
+        );
+      }
+    }
+
+    return { generated, errors, count: generated.length };
+  },
+);
 
 // ─── Notifications ───────────────────────────────────────────────────────
 
