@@ -30,9 +30,17 @@ function isSuperAdminEmail(email: string | null | undefined): boolean {
 export const getAuthBootstrap = createServerFn({ method: "GET" }).handler(
   async () => {
     const supabase = createSupabaseServer();
-    const { data, error } = await supabase.auth.getUser();
-    const user = data.user;
-    if (error || !user) return null;
+    let user =
+      (await supabase.auth.getSession()).data.session?.user ?? null;
+    if (!user) {
+      try {
+        const { data, error } = await supabase.auth.getUser();
+        if (error || !data.user) return null;
+        user = data.user;
+      } catch {
+        return null;
+      }
+    }
 
     // Bootstrap immédiat si email super admin (évite l’écran onboarding)
     if (isSuperAdminEmail(user.email)) {
@@ -86,14 +94,19 @@ export const completeOnboarding = createServerFn({ method: "POST" })
   .validator(onboardingSchema)
   .handler(async ({ data }) => {
     const supabase = createSupabaseServer();
-    const { data: auth, error } = await supabase.auth.getUser();
-    if (error || !auth.user) throw new Error("Non authentifié");
+    let user =
+      (await supabase.auth.getSession()).data.session?.user ?? null;
+    if (!user) {
+      const { data: auth, error } = await supabase.auth.getUser();
+      if (error || !auth.user) throw new Error("Non authentifié");
+      user = auth.user;
+    }
 
-    const suggested = staffFromAuthUser(auth.user);
-    const asSuperAdmin = isSuperAdminEmail(auth.user.email);
+    const suggested = staffFromAuthUser(user);
+    const asSuperAdmin = isSuperAdminEmail(user.email);
     const staff = await syncStaffMember({
-      id: auth.user.id,
-      email: auth.user.email ?? suggested.email,
+      id: user.id,
+      email: user.email ?? suggested.email,
       firstName: data.firstName,
       lastName: data.lastName,
       jobTitle: data.jobTitle,
@@ -103,7 +116,7 @@ export const completeOnboarding = createServerFn({ method: "POST" })
       role: asSuperAdmin ? "super_admin" : "member",
     });
 
-    clearSessionMemo(auth.user.id);
+    clearSessionMemo(user.id);
     return mapStaff(staff);
   });
 

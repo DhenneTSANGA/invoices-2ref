@@ -35,7 +35,7 @@ export const allDocumentsKey = ["documents", "all"] as const;
 export const companyKey = ["company"] as const;
 export const notificationsKey = ["notifications"] as const;
 
-const POLL_MS = 5_000;
+const POLL_MS = 30_000;
 
 export function useSession() {
   return useQuery({
@@ -110,8 +110,7 @@ export function useDocuments(
       listDocuments({
         data: { type, ...(cabinetScope ? { cabinetScope } : {}) },
       }),
-    staleTime: 10_000,
-    refetchInterval: POLL_MS,
+    staleTime: 30_000,
   });
 }
 
@@ -127,8 +126,7 @@ export function useAllDocuments(
       listAllDocuments({
         data: { type, ...(cabinetScope ? { cabinetScope } : {}) },
       }),
-    staleTime: 10_000,
-    refetchInterval: POLL_MS,
+    staleTime: 30_000,
   });
 }
 
@@ -137,8 +135,7 @@ export function useDocument(id: string) {
     queryKey: ["document", id],
     queryFn: () => getDocument({ data: { id } }),
     enabled: !!id,
-    staleTime: 10_000,
-    refetchInterval: POLL_MS,
+    staleTime: 30_000,
   });
 }
 
