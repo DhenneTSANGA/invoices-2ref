@@ -17,6 +17,7 @@ import {
 import { documentTypeLabel } from "@/lib/document-status-labels";
 import { canWriteDocument, isSuperAdmin } from "@/lib/roles";
 import type { DocumentType } from "@/store/types";
+import { logOutboundMail } from "@/lib/mail-log";
 
 async function requireSession() {
   const session = await getCurrentSession();
@@ -267,17 +268,32 @@ export const sendDocumentEmail = createServerFn({ method: "POST" })
     }
 
     const resend = getResend();
+    const replyTo = process.env.RESEND_REPLY_TO?.trim() || undefined;
     const { data: sent, error } = await resend.emails.send({
       from,
       to,
       subject,
       html,
+      ...(replyTo ? { replyTo: [replyTo] } : {}),
     });
 
     if (error) {
       console.error("[sendDocumentEmail]", doc.number, to, error);
       throw new Error(resendErrorMessage(error));
     }
+
+    await logOutboundMail({
+      cabinet: doc.cabinet,
+      resendId: sent?.id ?? null,
+      fromEmail: from,
+      toEmail: to,
+      subject,
+      html,
+      documentId: doc.id,
+      clientId: doc.clientId,
+      staffId: staff.id,
+      lastEvent: "sent",
+    });
 
     const previousStatus = doc.status;
     const updated =

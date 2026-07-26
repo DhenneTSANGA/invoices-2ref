@@ -53,6 +53,11 @@ enum NotificationType {
   danger
 }
 
+enum MailDirection {
+  outbound
+  inbound
+}
+
 enum StaffRole {
   member
   admin
@@ -289,4 +294,27 @@ model Notification {
   @@index([staffId, read])
   @@index([staffId, at])
   @@map("notifications")
+}
+
+/** Historique des e-mails envoyés / reçus (espace Mails). */
+model MailMessage {
+  id         String        @id @default(cuid())
+  cabinet    Cabinet?
+  direction  MailDirection
+  resendId   String?       @unique
+  fromEmail  String
+  toEmail    String
+  subject    String
+  preview    String        @default("")
+  htmlBody   String?
+  textBody   String?
+  documentId String?
+  clientId   String?
+  staffId    String?
+  lastEvent  String?
+  createdAt  DateTime      @default(now())
+
+  @@index([cabinet, direction, createdAt])
+  @@index([direction, createdAt])
+  @@map("mail_messages")
 }

@@ -10,6 +10,7 @@ import {
   requireResendConfig,
   resendErrorMessage,
 } from "@/lib/email";
+import { logOutboundMail } from "@/lib/mail-log";
 
 async function requireSession() {
   const session = await getCurrentSession();
@@ -123,11 +124,13 @@ export const sendMailMerge = createServerFn({ method: "POST" })
       });
 
       try {
+        const replyTo = process.env.RESEND_REPLY_TO?.trim() || undefined;
         const { data: sent, error } = await resend.emails.send({
           from,
           to: client.email.trim(),
           subject: personalizedSubject,
           html,
+          ...(replyTo ? { replyTo: [replyTo] } : {}),
         });
         if (error) {
           console.error("[publipostage] Resend error", client.email, error);
@@ -142,6 +145,17 @@ export const sendMailMerge = createServerFn({ method: "POST" })
             clientId: client.id,
             clientName: client.name,
             success: true,
+          });
+          await logOutboundMail({
+            cabinet: activeCabinet,
+            resendId: sent?.id ?? null,
+            fromEmail: from,
+            toEmail: client.email.trim(),
+            subject: personalizedSubject,
+            html,
+            clientId: client.id,
+            staffId: staff.id,
+            lastEvent: "sent",
           });
           if (sent?.id) {
             console.info("[publipostage] sent", client.email, sent.id);

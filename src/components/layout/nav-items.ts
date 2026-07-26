@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Users, FileText, ReceiptText, Package,
-  Files, Archive, Settings, Bell, Search, UserCircle2, FileSignature, FolderOpen, Mail, Shield, Globe,
+  Files, Archive, Settings, Bell, Search, UserCircle2, FileSignature, FolderOpen, Mail, Shield, Globe, Inbox,
 } from "lucide-react";
 import type { AppRole } from "@/lib/roles";
 import { canAccessDashboard, canManageAdminRequests, isMember } from "@/lib/roles";
@@ -22,6 +22,7 @@ export const primaryNav: NavDef[] = [
   { to: "/invoices", label: "Factures", icon: ReceiptText },
   { to: "/proformas", label: "Pro forma", icon: FileSignature },
   { to: "/lettre", label: "Lettres", icon: Mail },
+  { to: "/mails", label: "Mails", icon: Inbox },
   { to: "/templates", label: "Modèles", icon: Files },
   { to: "/archive", label: "Archives", icon: Archive },
   { to: "/users", label: "Équipe", icon: Shield, roles: ["admin", "super_admin"] },

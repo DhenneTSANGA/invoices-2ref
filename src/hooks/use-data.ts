@@ -23,6 +23,7 @@ import {
   setInvoiceSubscription,
   processDueSubscriptions,
 } from "@/lib/data.functions";
+import { listMails, getMail, syncInboundMails } from "@/lib/mail.functions";
 import { sendDocumentEmail } from "@/lib/send-document-email";
 import { getCurrentSession, type AppSession } from "@/lib/session.functions";
 import type { DocumentStatus, DocumentType, NotificationItem, PaymentMethod } from "@/store/types";
@@ -241,6 +242,34 @@ export function useProcessDueSubscriptions() {
   });
 }
 
+export const mailsKey = ["mails"] as const;
+
+export function useMails(direction: "outbound" | "inbound" | "all" = "all") {
+  return useQuery({
+    queryKey: [...mailsKey, direction],
+    queryFn: () => listMails({ data: { direction, limit: 80 } }),
+    staleTime: 30_000,
+  });
+}
+
+export function useMail(id: string | null) {
+  return useQuery({
+    queryKey: [...mailsKey, "detail", id],
+    queryFn: () => getMail({ data: { id: id! } }),
+    enabled: Boolean(id),
+  });
+}
+
+export function useSyncMails() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => syncInboundMails(),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: mailsKey });
+    },
+  });
+}
+
 export function useSendDocumentEmail() {
   const qc = useQueryClient();
   return useMutation({
@@ -250,6 +279,7 @@ export function useSendDocumentEmail() {
       qc.invalidateQueries({ queryKey: documentsKey(res.type) });
       qc.invalidateQueries({ queryKey: ["document", res.documentId] });
       qc.invalidateQueries({ queryKey: notificationsKey });
+      void qc.invalidateQueries({ queryKey: mailsKey });
     },
   });
 }
