@@ -1,9 +1,8 @@
-import { useState } from "react";
 import { Download, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import type { Document } from "@/store/types";
 import { DocumentPreview } from "@/components/documents/DocumentPreview";
-import { downloadDocumentPdf } from "@/lib/pdf/downloadDocumentPdf";
+import { useDownloadDocumentPdf } from "@/hooks/use-data";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,23 +19,24 @@ type Props = {
 };
 
 export function DocumentPreviewModal({ doc, open, onOpenChange }: Props) {
-  const [exporting, setExporting] = useState(false);
+  const downloadPdfMutation = useDownloadDocumentPdf();
 
-  const downloadPdf = async () => {
-    setExporting(true);
+  const downloadPdf = () => {
     const toastId = toast.loading("Génération du PDF…");
-    try {
-      await downloadDocumentPdf(doc);
-      toast.success("PDF téléchargé", { id: toastId, description: `${doc.number}.pdf` });
-    } catch (err) {
-      console.error(err);
-      toast.error("Impossible de générer le PDF", {
-        id: toastId,
-        description: err instanceof Error ? err.message : undefined,
-      });
-    } finally {
-      setExporting(false);
-    }
+    downloadPdfMutation.mutate(doc, {
+      onSuccess: () =>
+        toast.success("PDF téléchargé", {
+          id: toastId,
+          description: `${doc.number}.pdf`,
+        }),
+      onError: (err) => {
+        console.error(err);
+        toast.error("Impossible de générer le PDF", {
+          id: toastId,
+          description: err instanceof Error ? err.message : undefined,
+        });
+      },
+    });
   };
 
   return (
@@ -58,10 +58,10 @@ export function DocumentPreviewModal({ doc, open, onOpenChange }: Props) {
               variant="outline"
               size="sm"
               className="rounded-xl border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white"
-              disabled={exporting}
+              disabled={downloadPdfMutation.isPending}
               onClick={downloadPdf}
             >
-              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              {downloadPdfMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
               PDF
             </Button>
             <Button

@@ -182,7 +182,7 @@ export function DocumentEditor({ initial, type }: Props) {
       };
       const saved = await upsertMutation.mutateAsync(payload);
       if (status === "sent") {
-        const emailed = await sendEmailMutation.mutateAsync(saved.id);
+        const emailed = await sendEmailMutation.mutateAsync(saved);
         toast.success("Document envoyé par email", {
           description: `${saved.number} → ${emailed.to}`,
         });

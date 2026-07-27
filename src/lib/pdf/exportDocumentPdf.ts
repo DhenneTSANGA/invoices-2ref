@@ -7,10 +7,30 @@ function waitForPaint() {
   });
 }
 
+export type BuiltPdf = {
+  fileName: string;
+  /** PDF raw bytes */
+  bytes: Uint8Array;
+  /** Base64 without data-URL prefix */
+  base64: string;
+};
+
+function uint8ToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
 /**
- * Capture un nœud DOM déjà monté et layouté, puis télécharge un PDF A4.
+ * Capture un nœud DOM déjà monté et layouté → bytes PDF A4.
  */
-export async function exportDocumentPdf(element: HTMLElement, filename: string): Promise<void> {
+export async function buildDocumentPdf(
+  element: HTMLElement,
+  filename: string,
+): Promise<BuiltPdf> {
   await waitForPaint();
 
   const width = Math.max(element.scrollWidth, element.offsetWidth, 820);
@@ -40,7 +60,6 @@ export async function exportDocumentPdf(element: HTMLElement, filename: string):
       },
     });
   } catch (err) {
-    // Fallback si html-to-image échoue (ex. couleurs oklch)
     const html2canvas = (await import("html2canvas")).default;
     const canvas = await html2canvas(element, {
       scale: 2,
@@ -90,5 +109,39 @@ export async function exportDocumentPdf(element: HTMLElement, filename: string):
   }
 
   const safeName = filename.replace(/[^\w.\-]+/g, "_");
-  pdf.save(safeName.endsWith(".pdf") ? safeName : `${safeName}.pdf`);
+  const fileName = safeName.endsWith(".pdf") ? safeName : `${safeName}.pdf`;
+  const bytes = pdf.output("arraybuffer");
+  const uint8 = new Uint8Array(bytes);
+
+  return {
+    fileName,
+    bytes: uint8,
+    base64: uint8ToBase64(uint8),
+  };
+}
+
+/** Télécharge un fichier PDF côté navigateur. */
+export function triggerPdfDownload(fileName: string, bytes: Uint8Array) {
+  const blob = new Blob([bytes as BlobPart], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Capture + téléchargement local (compat ancienne API).
+ */
+export async function exportDocumentPdf(
+  element: HTMLElement,
+  filename: string,
+): Promise<BuiltPdf> {
+  const built = await buildDocumentPdf(element, filename);
+  triggerPdfDownload(built.fileName, built.bytes);
+  return built;
 }

@@ -4,12 +4,12 @@ import { ArrowLeft, Download, Send, CheckCircle2, XCircle, Eye, Loader2, FileTex
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { LoadingState } from "@/components/common/LoadingState";
-import { useDocument, useClients, useSetDocumentStatus, useSendDocumentEmail } from "@/hooks/use-data";
+import { useDocument, useClients, useSetDocumentStatus, useSendDocumentEmail, useDownloadDocumentPdf } from "@/hooks/use-data";
 import { DocumentPreview } from "@/components/documents/DocumentPreview";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { DocumentCreatorCard } from "@/components/documents/DocumentCreatorCard";
-import { downloadDocumentPdf } from "@/lib/pdf/downloadDocumentPdf";
+import { DocumentPdfTracesPanel } from "@/components/documents/DocumentPdfTracesPanel";
 import { currency, longDate } from "@/lib/format";
 
 export const Route = createFileRoute("/_app/quotations/$id")({
@@ -24,8 +24,8 @@ function QuotationDetail() {
   const client = clients.find((c) => c.id === doc?.clientId);
   const setStatusMutation = useSetDocumentStatus();
   const sendEmailMutation = useSendDocumentEmail();
+  const downloadPdfMutation = useDownloadDocumentPdf();
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [exporting, setExporting] = useState(false);
 
   if (isLoading) {
     return (
@@ -55,7 +55,7 @@ function QuotationDetail() {
 
   const sendByEmail = () => {
     const toastId = toast.loading("Envoi de l'email…");
-    sendEmailMutation.mutate(doc.id, {
+    sendEmailMutation.mutate(doc, {
       onSuccess: (res) =>
         toast.success("Devis envoyé par email", {
           id: toastId,
@@ -70,21 +70,22 @@ function QuotationDetail() {
     });
   };
 
-  const downloadPdf = async () => {
-    setExporting(true);
+  const downloadPdf = () => {
     const toastId = toast.loading("Génération du PDF…");
-    try {
-      await downloadDocumentPdf(doc);
-      toast.success("PDF téléchargé", { id: toastId, description: `${doc.number}.pdf` });
-    } catch (err) {
-      console.error(err);
-      toast.error("Impossible de générer le PDF", {
-        id: toastId,
-        description: err instanceof Error ? err.message : undefined,
-      });
-    } finally {
-      setExporting(false);
-    }
+    downloadPdfMutation.mutate(doc, {
+      onSuccess: () =>
+        toast.success("PDF téléchargé", {
+          id: toastId,
+          description: `${doc.number}.pdf`,
+        }),
+      onError: (err) => {
+        console.error(err);
+        toast.error("Impossible de générer le PDF", {
+          id: toastId,
+          description: err instanceof Error ? err.message : undefined,
+        });
+      },
+    });
   };
 
   return (
@@ -96,8 +97,8 @@ function QuotationDetail() {
         actions={
           <>
             <button onClick={() => setPreviewOpen(true)} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted"><Eye className="h-4 w-4" /> Aperçu</button>
-            <button onClick={downloadPdf} disabled={exporting} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60">
-              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} PDF
+            <button onClick={downloadPdf} disabled={downloadPdfMutation.isPending} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60">
+              {downloadPdfMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} PDF
             </button>
             <button onClick={sendByEmail} disabled={sendEmailMutation.isPending} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60"><Send className="h-4 w-4" /> {sendEmailMutation.isPending ? "Envoi…" : "Envoyer"}</button>
             <button onClick={() => patchStatus("accepted", "Devis accepté")} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-success px-4 py-2 text-sm font-medium text-success-foreground shadow"><CheckCircle2 className="h-4 w-4" /> Accepter</button>
@@ -126,6 +127,7 @@ function QuotationDetail() {
             <Link to="/invoices/new" className="mt-4 block w-full rounded-xl bg-gradient-primary px-3 py-2 text-center text-sm font-medium text-primary-foreground shadow-glow">Convertir en facture</Link>
           </div>
           <DocumentCreatorCard creator={doc.createdBy} />
+          <DocumentPdfTracesPanel documentId={doc.id} />
         </aside>
         <div>
           <div className="mb-3 flex items-center justify-between">

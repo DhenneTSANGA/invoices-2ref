@@ -49,7 +49,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
     <PreviewShell innerRef={ref} accent={accent} compact={compact} isThumb={isThumb} className={className}>
       <div className="flex items-start justify-between gap-4 border-b-2 pb-5" style={{ borderColor: accent }}>
         <div className="flex min-w-0 items-center gap-3">
-          <PreviewLogo cabinet={doc.cabinet} className="h-24" />
+          <PreviewLogo cabinet={doc.cabinet} className="h-32" />
           <div className="min-w-0">
             <div className="font-display text-xl font-bold tracking-tight leading-tight" style={{ color: accent }}>
               {company.name}
@@ -238,10 +238,10 @@ function ItemsTable({
 
 function StampBox({ accent, label = "Signature & Cachet" }: { accent: string; label?: string }) {
   return (
-    <div className="w-full max-w-[220px] rounded-lg border border-dashed border-[#CBD5E1] p-3.5 text-center">
-      <div className="text-[11px] font-bold uppercase tracking-wider text-[#64748B]">{label}</div>
+    <div className="w-full max-w-[300px] rounded-xl border-2 border-dashed border-[#CBD5E1] px-5 py-5 text-center">
+      <div className="text-[13px] font-bold uppercase tracking-wider text-[#64748B]">{label}</div>
       <div
-        className="mx-auto mt-6 flex h-16 w-36 items-center justify-center rounded-full border-2 border-dashed text-[11px] italic"
+        className="mx-auto mt-8 flex h-28 w-52 items-center justify-center rounded-full border-2 border-dashed text-[13px] italic"
         style={{ borderColor: `${accent}66`, color: `${accent}99` }}
       >
         Cachet

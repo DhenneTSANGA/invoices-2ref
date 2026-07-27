@@ -4,11 +4,16 @@ import { ArrowLeft, Download, Send, Eye, Loader2, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { LoadingState } from "@/components/common/LoadingState";
-import { useDocument, useClients, useSendDocumentEmail } from "@/hooks/use-data";
+import {
+  useDocument,
+  useClients,
+  useSendDocumentEmail,
+  useDownloadDocumentPdf,
+} from "@/hooks/use-data";
 import { DocumentPreview } from "@/components/documents/DocumentPreview";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
+import { DocumentPdfTracesPanel } from "@/components/documents/DocumentPdfTracesPanel";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { downloadDocumentPdf } from "@/lib/pdf/downloadDocumentPdf";
 import { longDate } from "@/lib/format";
 import { LetterEditor } from "@/components/editor/LetterEditor";
 
@@ -23,9 +28,9 @@ function LetterDetail() {
   const { data: clients = [] } = useClients();
   const client = clients.find((c) => c.id === doc?.clientId);
   const sendEmailMutation = useSendDocumentEmail();
+  const downloadPdfMutation = useDownloadDocumentPdf();
   const [previewOpen, setPreviewOpen] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [exporting, setExporting] = useState(false);
 
   if (isLoading) {
     return (
@@ -50,18 +55,19 @@ function LetterDetail() {
     );
   }
 
-  const downloadPdf = async () => {
-    setExporting(true);
+  const downloadPdf = () => {
     const toastId = toast.loading("Génération du PDF…");
-    try {
-      await downloadDocumentPdf(doc);
-      toast.success("PDF téléchargé", { id: toastId, description: `${doc.number}.pdf` });
-    } catch (err) {
-      console.error(err);
-      toast.error("Impossible de générer le PDF", { id: toastId });
-    } finally {
-      setExporting(false);
-    }
+    downloadPdfMutation.mutate(doc, {
+      onSuccess: () =>
+        toast.success("PDF téléchargé", {
+          id: toastId,
+          description: `${doc.number}.pdf`,
+        }),
+      onError: (err) => {
+        console.error(err);
+        toast.error("Impossible de générer le PDF", { id: toastId });
+      },
+    });
   };
 
   return (
@@ -77,15 +83,15 @@ function LetterDetail() {
             <button onClick={() => setPreviewOpen(true)} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted">
               <Eye className="h-4 w-4" /> Aperçu
             </button>
-            <button onClick={downloadPdf} disabled={exporting} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60">
-              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} PDF
+            <button onClick={downloadPdf} disabled={downloadPdfMutation.isPending} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60">
+              {downloadPdfMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} PDF
             </button>
             <button onClick={() => setEditing(true)} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted">
               Modifier
             </button>
             <button onClick={() => {
               const toastId = toast.loading("Envoi de l'email…");
-              sendEmailMutation.mutate(doc.id, {
+              sendEmailMutation.mutate(doc, {
                 onSuccess: (res) =>
                   toast.success("Lettre envoyée par email", {
                     id: toastId,
@@ -108,9 +114,10 @@ function LetterDetail() {
       <div className="mb-3 flex items-center gap-2">
         <StatusBadge status={doc.status} />
       </div>
-      <div className="cursor-pointer" onClick={() => setPreviewOpen(true)}>
+      <div className="mb-6 cursor-pointer" onClick={() => setPreviewOpen(true)}>
         <DocumentPreview doc={doc} />
       </div>
+      <DocumentPdfTracesPanel documentId={doc.id} />
       <DocumentPreviewModal doc={doc} open={previewOpen} onOpenChange={setPreviewOpen} />
     </div>
   );

@@ -796,3 +796,94 @@ export const listArchivedDocuments = createServerFn({ method: "GET" }).handler(
     return rows.map(mapDocument);
   },
 );
+
+// ─── PDF traces ────────────────────────────────────────────────────────────
+
+export const recordDocumentPdf = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      documentId: z.string().min(1),
+      action: z.enum(["download", "email"]),
+      fileName: z.string().min(1),
+      base64: z.string().min(1),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const session = await requireSession();
+    const { staff } = session;
+    const doc = await prisma.document.findFirst({
+      where: isSuperAdmin(staff.role)
+        ? { id: data.documentId }
+        : { id: data.documentId, cabinet: session.activeCabinet },
+    });
+    if (!doc) throw new Error("Document introuvable");
+    if (!canWriteDocument(staff.role, staff.id, doc.createdById)) {
+      throw new Error("Accès refusé");
+    }
+
+    const raw = Buffer.from(data.base64, "base64");
+    if (raw.byteLength > 12 * 1024 * 1024) {
+      throw new Error("PDF trop volumineux (max 12 Mo)");
+    }
+
+    const { uploadDocumentPdfBytes } = await import("@/lib/document-pdf-storage");
+    const uploaded = await uploadDocumentPdfBytes({
+      cabinet: doc.cabinet,
+      documentId: doc.id,
+      action: data.action,
+      fileName: data.fileName,
+      bytes: raw,
+    });
+
+    const trace = await prisma.documentPdfTrace.create({
+      data: {
+        documentId: doc.id,
+        cabinet: doc.cabinet,
+        action: data.action,
+        fileName: data.fileName,
+        fileUrl: uploaded.fileUrl,
+        staffId: staff.id,
+      },
+    });
+
+    return {
+      id: trace.id,
+      fileUrl: trace.fileUrl,
+      fileName: trace.fileName,
+      action: trace.action,
+      createdAt: trace.createdAt.toISOString(),
+    };
+  });
+
+export const listDocumentPdfTraces = createServerFn({ method: "GET" })
+  .validator(z.object({ documentId: z.string() }))
+  .handler(async ({ data }) => {
+    const session = await requireSession();
+    const doc = await prisma.document.findFirst({
+      where: isSuperAdmin(session.staff.role)
+        ? { id: data.documentId }
+        : { id: data.documentId, cabinet: session.activeCabinet },
+      select: { id: true },
+    });
+    if (!doc) throw new Error("Document introuvable");
+
+    const rows = await prisma.documentPdfTrace.findMany({
+      where: { documentId: data.documentId },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      include: {
+        staff: {
+          select: { firstName: true, lastName: true, email: true },
+        },
+      },
+    });
+
+    return rows.map((r) => ({
+      id: r.id,
+      action: r.action as "download" | "email",
+      fileName: r.fileName,
+      fileUrl: r.fileUrl,
+      createdAt: r.createdAt.toISOString(),
+      staffName: `${r.staff.firstName} ${r.staff.lastName}`.trim() || r.staff.email,
+    }));
+  });

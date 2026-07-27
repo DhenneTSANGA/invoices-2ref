@@ -40,7 +40,7 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
       >
         <div className="flex flex-1 items-center gap-3 px-7 py-4 text-white">
           <div className="rounded-xl bg-white p-1.5 shadow-sm">
-            <PreviewLogo cabinet={doc.cabinet} className="h-12" />
+            <PreviewLogo cabinet={doc.cabinet} className="h-32" />
           </div>
           <div className="min-w-0">
             <div className="font-display text-[17px] font-bold tracking-tight">{company.name}</div>
@@ -144,18 +144,18 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
 
       {/* Signature */}
       <div className="mt-10 flex justify-end">
-        <div className="w-56 text-center">
-          <div className="text-[11px] font-bold uppercase tracking-[0.16em]" style={{ color: MUTED }}>
+        <div className="w-72 text-center">
+          <div className="text-[12px] font-bold uppercase tracking-[0.16em]" style={{ color: MUTED }}>
             Pour {company.name}
           </div>
-          <div className="mt-3 text-[14px] font-semibold" style={{ color: INK }}>
+          <div className="mt-3 text-[15px] font-semibold" style={{ color: INK }}>
             Mireille Ndong
           </div>
-          <div className="mt-0.5 text-[12px] font-medium" style={{ color: ACCENT }}>
+          <div className="mt-0.5 text-[13px] font-medium" style={{ color: ACCENT }}>
             {doc.signatoryTitle || "Expert-comptable"}
           </div>
           <div
-            className="mx-auto mt-5 flex h-16 w-36 flex-col items-center justify-center rounded-xl border-2 border-dashed text-[11px] italic"
+            className="mx-auto mt-6 flex h-28 w-52 flex-col items-center justify-center rounded-xl border-2 border-dashed text-[13px] italic"
             style={{ borderColor: `${ACCENT}55`, background: ACCENT_SOFT, color: `${ACCENT}aa` }}
           >
             <span>Signature / Cachet</span>

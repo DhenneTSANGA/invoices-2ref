@@ -22,6 +22,7 @@ import {
   useSetDocumentStatus,
   useSendDocumentEmail,
   useSetInvoiceSubscription,
+  useDownloadDocumentPdf,
 } from "@/hooks/use-data";
 import { DocumentPreview } from "@/components/documents/DocumentPreview";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
@@ -29,7 +30,7 @@ import { MarkAsPaidDialog } from "@/components/documents/MarkAsPaidDialog";
 import { SubscriptionDialog } from "@/components/documents/SubscriptionDialog";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { DocumentCreatorCard } from "@/components/documents/DocumentCreatorCard";
-import { downloadDocumentPdf } from "@/lib/pdf/downloadDocumentPdf";
+import { DocumentPdfTracesPanel } from "@/components/documents/DocumentPdfTracesPanel";
 import { currency, longDate, shortDate } from "@/lib/format";
 import { paymentMethodLabel } from "@/lib/payment-method";
 import type { PaymentMethod } from "@/store/types";
@@ -46,9 +47,9 @@ function InvoiceDetail() {
   const client = clients.find((c) => c.id === doc?.clientId);
   const setStatusMutation = useSetDocumentStatus();
   const sendEmailMutation = useSendDocumentEmail();
+  const downloadPdfMutation = useDownloadDocumentPdf();
   const subscriptionMutation = useSetInvoiceSubscription();
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [exporting, setExporting] = useState(false);
   const [paidOpen, setPaidOpen] = useState(false);
   const [subOpen, setSubOpen] = useState(false);
 
@@ -100,7 +101,7 @@ function InvoiceDetail() {
 
   const sendByEmail = () => {
     const toastId = toast.loading("Envoi de l'email…");
-    sendEmailMutation.mutate(doc.id, {
+    sendEmailMutation.mutate(doc, {
       onSuccess: (res) =>
         toast.success("Facture envoyée par email", {
           id: toastId,
@@ -115,21 +116,22 @@ function InvoiceDetail() {
     });
   };
 
-  const downloadPdf = async () => {
-    setExporting(true);
+  const downloadPdf = () => {
     const toastId = toast.loading("Génération du PDF…");
-    try {
-      await downloadDocumentPdf(doc);
-      toast.success("PDF téléchargé", { id: toastId, description: `${doc.number}.pdf` });
-    } catch (err) {
-      console.error(err);
-      toast.error("Impossible de générer le PDF", {
-        id: toastId,
-        description: err instanceof Error ? err.message : undefined,
-      });
-    } finally {
-      setExporting(false);
-    }
+    downloadPdfMutation.mutate(doc, {
+      onSuccess: () =>
+        toast.success("PDF téléchargé", {
+          id: toastId,
+          description: `${doc.number}.pdf`,
+        }),
+      onError: (err) => {
+        console.error(err);
+        toast.error("Impossible de générer le PDF", {
+          id: toastId,
+          description: err instanceof Error ? err.message : undefined,
+        });
+      },
+    });
   };
 
   const pauseSubscription = () => {
@@ -158,8 +160,8 @@ function InvoiceDetail() {
               <Edit3 className="h-4 w-4" /> Modifier
             </Link>
             <button onClick={() => setPreviewOpen(true)} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted"><Eye className="h-4 w-4" /> Aperçu</button>
-            <button onClick={downloadPdf} disabled={exporting} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60">
-              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} PDF
+            <button onClick={downloadPdf} disabled={downloadPdfMutation.isPending} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60">
+              {downloadPdfMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} PDF
             </button>
             <button onClick={sendByEmail} disabled={sendEmailMutation.isPending} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60"><Send className="h-4 w-4" /> {sendEmailMutation.isPending ? "Envoi…" : "Envoyer"}</button>
             {doc.status !== "paid" && doc.status !== "cancelled" && (
@@ -267,6 +269,7 @@ function InvoiceDetail() {
           </div>
 
           <DocumentCreatorCard creator={doc.createdBy} />
+          <DocumentPdfTracesPanel documentId={doc.id} />
         </aside>
 
         <div>

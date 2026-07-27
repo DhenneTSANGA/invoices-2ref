@@ -3,11 +3,16 @@ import { flushSync } from "react-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Document } from "@/store/types";
 import { DocumentPreview } from "@/components/documents/DocumentPreview";
-import { exportDocumentPdf } from "@/lib/pdf/exportDocumentPdf";
+import {
+  buildDocumentPdf,
+  triggerPdfDownload,
+  type BuiltPdf,
+} from "@/lib/pdf/exportDocumentPdf";
 import {
   getClient,
   getCompanyForCabinet,
   listClients,
+  recordDocumentPdf,
 } from "@/lib/data.functions";
 import { COMPANY_DEFAULTS } from "@/lib/company-defaults";
 import { clientsKey, companyKey } from "@/hooks/use-data";
@@ -38,10 +43,9 @@ async function waitForImages(root: ParentNode) {
 }
 
 /**
- * Rend DocumentPreview hors champ (avec données cabinet/clients),
- * capture le PDF, puis démonte.
+ * Rend DocumentPreview hors champ et construit le PDF (bytes + base64).
  */
-export async function downloadDocumentPdf(doc: Document): Promise<void> {
+export async function buildDocumentPdfFromDoc(doc: Document): Promise<BuiltPdf> {
   const [company, clients, singleClient] = await Promise.all([
     getCompanyForCabinet({ data: { cabinet: doc.cabinet } }).catch(
       () => COMPANY_DEFAULTS[doc.cabinet],
@@ -111,11 +115,41 @@ export async function downloadDocumentPdf(doc: Document): Promise<void> {
       throw new Error("Aperçu introuvable pour l'export PDF.");
     }
 
-    await exportDocumentPdf(preview, `${doc.number}.pdf`);
+    return await buildDocumentPdf(preview, `${doc.number}.pdf`);
   } finally {
     root?.unmount();
     root = null;
     queryClient.clear();
     host.remove();
   }
+}
+
+/**
+ * Génère le PDF, l'enregistre comme trace (Storage + DB), puis télécharge localement.
+ * Les documents non persistés (brouillon tmp) sont seulement téléchargés.
+ */
+export async function downloadDocumentPdf(doc: Document): Promise<void> {
+  const built = await buildDocumentPdfFromDoc(doc);
+  const persisted =
+    Boolean(doc.id) &&
+    !doc.id.startsWith("d-") &&
+    !doc.id.startsWith("tmp-") &&
+    !doc.id.startsWith("tpl-");
+
+  if (persisted) {
+    try {
+      await recordDocumentPdf({
+        data: {
+          documentId: doc.id,
+          action: "download",
+          fileName: built.fileName,
+          base64: built.base64,
+        },
+      });
+    } catch (err) {
+      console.warn("[downloadDocumentPdf] trace non enregistrée", err);
+    }
+  }
+
+  triggerPdfDownload(built.fileName, built.bytes);
 }

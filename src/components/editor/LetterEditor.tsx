@@ -122,7 +122,7 @@ export function LetterEditor({ initial }: Props) {
         total: 0,
       });
       if (status === "sent") {
-        const emailed = await sendEmailMutation.mutateAsync(saved.id);
+        const emailed = await sendEmailMutation.mutateAsync(saved);
         toast.success("Lettre envoyée par email", {
           description: `${saved.number} → ${emailed.to}`,
         });

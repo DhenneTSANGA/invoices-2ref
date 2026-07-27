@@ -57,6 +57,11 @@ enum MailDirection {
   inbound
 }
 
+enum DocumentPdfAction {
+  download
+  email
+}
+
 enum StaffRole {
   member
   admin
@@ -110,6 +115,7 @@ model StaffMember {
   notifications Notification[]
   adminRequests AdminRequest[] @relation("AdminRequestStaff")
   reviewedRequests AdminRequest[] @relation("AdminRequestReviewer")
+  pdfTraces     DocumentPdfTrace[]
 
   @@index([lastName])
   @@index([role])
@@ -234,6 +240,7 @@ model Document {
   subscriptionChildren Document[] @relation("SubscriptionGenerations")
   lines         DocumentLine[]
   notifications Notification[]
+  pdfTraces     DocumentPdfTrace[]
 
   @@unique([cabinet, type, number])
   @@index([cabinet])
@@ -318,4 +325,24 @@ model MailMessage {
   @@index([cabinet, direction, createdAt])
   @@index([direction, createdAt])
   @@map("mail_messages")
+}
+
+/** Trace PDF généré (téléchargement ou envoi e-mail). */
+model DocumentPdfTrace {
+  id         String            @id @default(cuid())
+  documentId String
+  cabinet    Cabinet
+  action     DocumentPdfAction
+  fileName   String
+  fileUrl    String
+  staffId    String
+  createdAt  DateTime          @default(now())
+
+  document Document    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  staff    StaffMember @relation(fields: [staffId], references: [id], onDelete: Restrict)
+
+  @@index([documentId, createdAt])
+  @@index([cabinet, createdAt])
+  @@index([staffId])
+  @@map("document_pdf_traces")
 }

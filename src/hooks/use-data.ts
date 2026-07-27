@@ -22,11 +22,22 @@ import {
   uploadClientFiche,
   setInvoiceSubscription,
   processDueSubscriptions,
+  listDocumentPdfTraces,
 } from "@/lib/data.functions";
 import { listMails, getMail, syncInboundMails } from "@/lib/mail.functions";
 import { sendDocumentEmail } from "@/lib/send-document-email";
+import {
+  buildDocumentPdfFromDoc,
+  downloadDocumentPdf,
+} from "@/lib/pdf/downloadDocumentPdf";
 import { getCurrentSession, type AppSession } from "@/lib/session.functions";
-import type { DocumentStatus, DocumentType, NotificationItem, PaymentMethod } from "@/store/types";
+import type {
+  Document,
+  DocumentStatus,
+  DocumentType,
+  NotificationItem,
+  PaymentMethod,
+} from "@/store/types";
 import type { Cabinet } from "@/lib/cabinets";
 import type { z } from "zod";
 import type { clientInputSchema, documentInputSchema, companyInputSchema } from "@/lib/auth-schemas";
@@ -41,6 +52,8 @@ export const documentsKey = (type?: DocumentType, cabinetScope?: string) =>
 export const allDocumentsKey = ["documents", "all"] as const;
 export const companyKey = ["company"] as const;
 export const notificationsKey = ["notifications"] as const;
+export const documentPdfTracesKey = (documentId: string) =>
+  ["document-pdf-traces", documentId] as const;
 
 const POLL_MS = 30_000;
 
@@ -273,13 +286,46 @@ export function useSyncMails() {
 export function useSendDocumentEmail() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => sendDocumentEmail({ data: { id } }),
+    mutationFn: async (input: string | Document) => {
+      if (typeof input === "string") {
+        return sendDocumentEmail({ data: { id: input } });
+      }
+      const built = await buildDocumentPdfFromDoc(input);
+      return sendDocumentEmail({
+        data: {
+          id: input.id,
+          pdfBase64: built.base64,
+          fileName: built.fileName,
+        },
+      });
+    },
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: documentsKey() });
       qc.invalidateQueries({ queryKey: documentsKey(res.type) });
       qc.invalidateQueries({ queryKey: ["document", res.documentId] });
       qc.invalidateQueries({ queryKey: notificationsKey });
+      qc.invalidateQueries({ queryKey: documentPdfTracesKey(res.documentId) });
       void qc.invalidateQueries({ queryKey: mailsKey });
+    },
+  });
+}
+
+export function useDocumentPdfTraces(documentId: string | undefined) {
+  return useQuery({
+    queryKey: documentPdfTracesKey(documentId ?? ""),
+    queryFn: () => listDocumentPdfTraces({ data: { documentId: documentId! } }),
+    enabled: Boolean(documentId),
+  });
+}
+
+export function useDownloadDocumentPdf() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (doc: Document) => downloadDocumentPdf(doc),
+    onSuccess: (_res, doc) => {
+      if (doc.id) {
+        void qc.invalidateQueries({ queryKey: documentPdfTracesKey(doc.id) });
+      }
     },
   });
 }

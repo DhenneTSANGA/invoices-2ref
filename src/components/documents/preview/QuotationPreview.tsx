@@ -50,7 +50,7 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
     <PreviewShell innerRef={ref} accent={ACCENT} compact={compact} isThumb={isThumb} className={className}>
       <div className="flex items-start justify-between gap-4 border-b-2 pb-5" style={{ borderColor: ACCENT }}>
         <div className="flex min-w-0 items-center gap-3">
-          <PreviewLogo cabinet={doc.cabinet} className="h-24" />
+          <PreviewLogo cabinet={doc.cabinet} className="h-32" />
           <div className="min-w-0">
             <div className="font-display text-xl font-bold tracking-tight leading-tight" style={{ color: ACCENT }}>
               {company.name}

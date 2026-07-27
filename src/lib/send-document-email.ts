@@ -189,7 +189,13 @@ function lineAmount(quantity: number, unitPrice: number, discount: number) {
 }
 
 export const sendDocumentEmail = createServerFn({ method: "POST" })
-  .validator(z.object({ id: z.string() }))
+  .validator(
+    z.object({
+      id: z.string(),
+      pdfBase64: z.string().optional(),
+      fileName: z.string().optional(),
+    }),
+  )
   .handler(async ({ data }) => {
     const session = await requireSession();
     const { staff } = session;
@@ -267,14 +273,63 @@ export const sendDocumentEmail = createServerFn({ method: "POST" })
       });
     }
 
+    const pdfFileName =
+      data.fileName?.trim() ||
+      `${doc.number.replace(/[^\w.\-]+/g, "_")}.pdf`;
+    let pdfTraceUrl: string | null = null;
+
+    if (data.pdfBase64) {
+      try {
+        const raw = Buffer.from(data.pdfBase64, "base64");
+        if (raw.byteLength <= 12 * 1024 * 1024) {
+          const { uploadDocumentPdfBytes } = await import(
+            "@/lib/document-pdf-storage"
+          );
+          const uploaded = await uploadDocumentPdfBytes({
+            cabinet: doc.cabinet,
+            documentId: doc.id,
+            action: "email",
+            fileName: pdfFileName,
+            bytes: raw,
+          });
+          await prisma.documentPdfTrace.create({
+            data: {
+              documentId: doc.id,
+              cabinet: doc.cabinet,
+              action: "email",
+              fileName: pdfFileName,
+              fileUrl: uploaded.fileUrl,
+              staffId: staff.id,
+            },
+          });
+          pdfTraceUrl = uploaded.fileUrl;
+        }
+      } catch (err) {
+        console.warn("[sendDocumentEmail] trace PDF", err);
+      }
+    }
+
     const resend = getResend();
     const replyTo = process.env.RESEND_REPLY_TO?.trim() || undefined;
+    const attachments =
+      data.pdfBase64
+        ? [
+            {
+              filename: pdfFileName.endsWith(".pdf")
+                ? pdfFileName
+                : `${pdfFileName}.pdf`,
+              content: Buffer.from(data.pdfBase64, "base64"),
+            },
+          ]
+        : undefined;
+
     const { data: sent, error } = await resend.emails.send({
       from,
       to,
       subject,
       html,
       ...(replyTo ? { replyTo: [replyTo] } : {}),
+      ...(attachments ? { attachments } : {}),
     });
 
     if (error) {
@@ -329,5 +384,6 @@ export const sendDocumentEmail = createServerFn({ method: "POST" })
       documentId: doc.id,
       number: doc.number,
       type: doc.type as DocumentType,
+      pdfUrl: pdfTraceUrl,
     };
   });

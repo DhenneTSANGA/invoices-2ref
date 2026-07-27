@@ -139,8 +139,9 @@ export function DocumentsList({ type }: { type: DocumentType }) {
       return;
     }
     if (next === "sent") {
+      const target = documents.find((x) => x.id === id);
       const toastId = toast.loading("Envoi de l'email…");
-      sendEmailMutation.mutate(id, {
+      sendEmailMutation.mutate(target ?? id, {
         onSuccess: (res) =>
           toast.success(`Email envoyé — ${number}`, {
             id: toastId,
