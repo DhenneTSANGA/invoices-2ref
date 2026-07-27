@@ -184,12 +184,9 @@ function LandingPage() {
   return (
     <div className="min-h-screen max-w-[100vw] overflow-x-clip bg-background text-foreground">
       <header className="sticky top-0 z-40 border-b border-border/40 bg-background/80 backdrop-blur-xl">
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-2 px-4 sm:h-16 sm:px-6">
-          <Link to="/" className="flex min-w-0 items-center" aria-label="2R — Accueil">
-            <DualCabinetLogos
-              size="sm"
-              className="shrink-0 gap-2.5 [&_img]:h-10 sm:[&_img]:h-11"
-            />
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-2 px-4 sm:h-20 sm:px-6">
+          <Link to="/" className="flex min-w-0 items-center" aria-label="2R Hub — Accueil">
+            <Logo size="nav" className="rounded-md" />
           </Link>
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
             <button
@@ -521,10 +518,7 @@ function LandingPage() {
       <footer className="border-t border-border/40 py-8">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 sm:flex-row sm:px-6">
           <div className="flex items-center">
-            <DualCabinetLogos
-              size="sm"
-              className="gap-2.5 [&_img]:h-10 sm:[&_img]:h-11"
-            />
+            <Logo size="nav" className="rounded-md" />
           </div>
           <p className="text-center text-xs text-muted-foreground sm:text-right">
             © {new Date().getFullYear()} 2R Conseil & 2R Expertise Fiscale —

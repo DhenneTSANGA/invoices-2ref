@@ -1,5 +1,5 @@
 import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
-import { DualCabinetLogos } from "@/components/common/Logo";
+import { Logo } from "@/components/common/Logo";
 import { AuthVisualPanel } from "@/components/auth/AuthVisualPanel";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -100,7 +100,7 @@ function SignupPage() {
           className="glass-panel w-full max-w-lg rounded-3xl p-5 shadow-float sm:p-8"
         >
           <div className="mb-6">
-            <DualCabinetLogos size="sm" className="gap-2.5 [&_img]:h-10" />
+            <Logo size="md" className="rounded-lg" />
             <div className="mt-3 text-xs text-muted-foreground">
               Inscription collaborateur
             </div>

@@ -31,14 +31,10 @@ export function AppSidebar() {
       transition={{ type: "spring", stiffness: 220, damping: 28 }}
       className="glass-sidebar sticky top-4 z-40 ml-4 my-4 hidden lg:flex h-[calc(100vh-2rem)] flex-col rounded-3xl p-3 shadow-float"
     >
-      <div className="relative flex items-center px-3 py-3">
+      <div className="relative flex items-center px-3 py-4">
         {!isSa && (
           <div className="flex min-w-0 flex-1 justify-center pr-8">
-            <Logo
-              size="sm"
-              className="rounded-lg"
-              cabinet={session.activeCabinet}
-            />
+            <Logo size="lg" className="rounded-lg" />
           </div>
         )}
         {isSa && (

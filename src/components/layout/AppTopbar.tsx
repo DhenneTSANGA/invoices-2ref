@@ -72,11 +72,10 @@ export function AppTopbar() {
 
   return (
     <>
-      <header className="glass-topbar sticky top-0 z-30 flex h-14 min-w-0 items-center gap-2 overflow-x-clip px-3 sm:h-16 sm:gap-3 sm:px-4 md:px-6">
+      <header className="glass-topbar sticky top-0 z-30 flex h-16 min-w-0 items-center gap-2 overflow-x-clip px-3 sm:h-[4.5rem] sm:gap-3 sm:px-4 md:px-6">
         <MobileNav />
         <Logo
-          size="xs"
-          cabinet={session.activeCabinet}
+          size="nav"
           className="hidden shrink-0 rounded-md sm:block lg:hidden"
         />
 

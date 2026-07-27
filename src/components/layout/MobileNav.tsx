@@ -52,11 +52,7 @@ export function MobileNav() {
                 2R
               </div>
             ) : (
-              <Logo
-                size="sm"
-                cabinet={session.activeCabinet}
-                className="rounded-lg"
-              />
+              <Logo size="lg" className="rounded-lg" />
             )}
             {isSa && (
               <div className="min-w-0">

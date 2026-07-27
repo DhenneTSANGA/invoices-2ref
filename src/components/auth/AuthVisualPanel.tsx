@@ -1,4 +1,4 @@
-import { DualCabinetLogos } from "@/components/common/Logo";
+import { Logo } from "@/components/common/Logo";
 
 type AuthVisualPanelProps = {
   imageSrc: string;
@@ -26,9 +26,9 @@ export function AuthVisualPanel({
         className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-black/35"
       />
       <div className="relative flex h-full min-h-screen flex-col justify-between p-10 xl:p-12">
-        <DualCabinetLogos
-          size="sm"
-          className="gap-3 [&_img]:h-11 [&_img]:rounded-md [&_img]:bg-white/95 [&_img]:p-1"
+        <Logo
+          size="md"
+          className="rounded-md bg-white/95 p-1"
         />
         <div>
           <h1 className="font-display max-w-md text-3xl font-bold leading-tight text-white xl:text-4xl">
