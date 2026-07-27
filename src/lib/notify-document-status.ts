@@ -28,8 +28,6 @@ function documentPath(type: DocumentType, id: string): string {
       return `/invoices/${id}`;
     case "quotation":
       return `/quotations/${id}`;
-    case "proforma":
-      return `/proformas/${id}`;
     case "letter":
       return `/lettre/${id}`;
     default:

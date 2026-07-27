@@ -5,10 +5,12 @@ import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
 import { LoadingState } from "@/components/common/LoadingState";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { shortDate } from "@/lib/format";
 import { toast } from "sonner";
 import { useClients, useDeleteClient, useDocuments, useSession } from "@/hooks/use-data";
-import { canDeleteClients } from "@/lib/roles";
+import { canDeleteClient } from "@/lib/roles";
+import type { Client } from "@/store/types";
 
 export const Route = createFileRoute("/_app/clients/")({
   head: () => ({ meta: [{ title: "Clients — 2R Expertise Fiscale" }] }),
@@ -20,9 +22,10 @@ function ClientsPage() {
   const { data: documents = [] } = useDocuments();
   const { data: session } = useSession();
   const deleteClient = useDeleteClient();
-  const canDelete = session ? canDeleteClients(session.staff.role) : false;
+  const staff = session?.staff;
   const [q, setQ] = useState("");
   const [city, setCity] = useState<string>("all");
+  const [pendingDelete, setPendingDelete] = useState<Client | null>(null);
 
   const cities = useMemo(
     () => Array.from(new Set(clients.map((c) => c.city))).sort(),
@@ -37,6 +40,17 @@ function ClientsPage() {
           .toLowerCase()
           .includes(q.toLowerCase())),
   );
+
+  const confirmDelete = () => {
+    if (!pendingDelete) return;
+    deleteClient.mutate(pendingDelete.id, {
+      onSuccess: () => {
+        toast.success("Client supprimé", { description: pendingDelete.name });
+        setPendingDelete(null);
+      },
+      onError: (e) => toast.error(e.message),
+    });
+  };
 
   if (isLoading) {
     return (
@@ -146,18 +160,16 @@ function ClientsPage() {
                     >
                       <Pencil className="h-4 w-4" />
                     </Link>
-                    {canDelete && (
-                    <button
-                      onClick={() => {
-                        deleteClient.mutate(c.id, {
-                          onSuccess: () => toast.success("Client supprimé"),
-                          onError: (e) => toast.error(e.message),
-                        });
-                      }}
-                      className="rounded-xl p-1.5 text-muted-foreground hover:bg-danger/10 hover:text-danger"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    {staff &&
+                      canDeleteClient(staff.role, staff.id, c.createdById) && (
+                      <button
+                        type="button"
+                        title="Supprimer le client"
+                        onClick={() => setPendingDelete(c)}
+                        className="rounded-xl p-1.5 text-muted-foreground hover:bg-danger/10 hover:text-danger"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     )}
                   </div>
                 </div>
@@ -195,6 +207,21 @@ function ClientsPage() {
           })}
         </div>
       )}
+
+      <ConfirmDeleteDialog
+        open={!!pendingDelete}
+        onOpenChange={(open) => {
+          if (!open) setPendingDelete(null);
+        }}
+        title="Supprimer ce client ?"
+        description={
+          pendingDelete
+            ? `Vous êtes sur le point de supprimer définitivement « ${pendingDelete.name} ». Cette action est irréversible.`
+            : ""
+        }
+        pending={deleteClient.isPending}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }

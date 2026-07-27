@@ -41,6 +41,16 @@ export function canDeleteClients(role: AppRole): boolean {
   return isAdmin(role);
 }
 
+/** Suppression client : créateur, admin ou super admin. */
+export function canDeleteClient(
+  role: AppRole,
+  staffId: string,
+  createdById: string | null | undefined,
+): boolean {
+  if (isAdmin(role)) return true;
+  return Boolean(createdById && createdById === staffId);
+}
+
 export function canManageCatalog(role: AppRole): boolean {
   return isAdmin(role);
 }

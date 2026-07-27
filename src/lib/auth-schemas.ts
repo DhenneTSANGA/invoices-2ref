@@ -137,7 +137,7 @@ export const lineItemSchema = z.object({
 
 export const documentInputSchema = z.object({
   id: z.string().optional(),
-  type: z.enum(["quotation", "invoice", "proforma", "letter"]),
+  type: z.enum(["quotation", "invoice", "letter"]),
   number: z.string().min(1),
   clientId: z.string().min(1),
   status: z.enum([
@@ -157,9 +157,6 @@ export const documentInputSchema = z.object({
   paymentTerms: z.string().optional().nullable(),
   validityDays: z.number().optional().nullable(),
   executionTerms: z.string().optional().nullable(),
-  incoterm: z.string().optional().nullable(),
-  shippingNotes: z.string().optional().nullable(),
-  disclaimer: z.string().optional().nullable(),
   subject: z.string().optional().nullable(),
   salutation: z.string().optional().nullable(),
   body: z.string().optional().nullable(),

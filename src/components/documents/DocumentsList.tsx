@@ -1,22 +1,24 @@
 import { Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { Eye, FileText, Plus, Search, Send, Banknote, XCircle, CheckCircle2, Ban, Mails, Repeat } from "lucide-react";
+import { Eye, FileText, Plus, Search, Send, Banknote, XCircle, CheckCircle2, Ban, Mails, Repeat, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
 import { LoadingState } from "@/components/common/LoadingState";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { StatusBadge, statusLabel } from "@/components/common/StatusBadge";
 import { CabinetFilter } from "@/components/common/CabinetFilter";
 import { CabinetBadge } from "@/components/common/CabinetBadge";
 import { MarkAsPaidDialog } from "@/components/documents/MarkAsPaidDialog";
 import { documentRowClass, getDocumentRowStyles } from "@/lib/document-row-styles";
+import { documentTypeLabel } from "@/lib/document-status-labels";
 import { currency, shortDate } from "@/lib/format";
 import { paymentMethodLabel } from "@/lib/payment-method";
-import type { DocumentStatus, DocumentType, PaymentMethod } from "@/store/types";
+import type { Document, DocumentStatus, DocumentType, PaymentMethod } from "@/store/types";
 import type { CabinetScope } from "@/lib/cabinets";
 import { cn } from "@/lib/utils";
-import { canSwitchCabinet } from "@/lib/roles";
+import { canSwitchCabinet, canWriteDocument } from "@/lib/roles";
 import {
   useClients,
   useDocuments,
@@ -24,24 +26,22 @@ import {
   useSetDocumentStatus,
   useSendDocumentEmail,
   useProcessDueSubscriptions,
+  useDeleteDocument,
 } from "@/hooks/use-data";
 
 const labels = {
   invoice: { title: "Factures", new: "/invoices/new", detail: "/invoices/$id", subtitle: "Suivi de vos factures émises" },
   quotation: { title: "Devis", new: "/quotations/new", detail: "/quotations/$id", subtitle: "Pipeline de propositions commerciales" },
-  proforma: { title: "Pro forma", new: "/proformas/new", detail: "/proformas/$id", subtitle: "Estimations sans valeur comptable" },
   letter: { title: "Lettres", new: "/lettre/new", detail: "/lettre/$id", subtitle: "Courriers commerciaux" },
 } as const;
 
 const invoiceStatuses: DocumentStatus[] = ["draft", "sent", "paid", "overdue", "cancelled"];
 const quotationStatuses: DocumentStatus[] = ["draft", "sent", "accepted", "rejected", "cancelled"];
-const proformaStatuses: DocumentStatus[] = ["draft", "sent"];
 const letterStatuses: DocumentStatus[] = ["draft", "sent", "cancelled"];
 
 function statusesFor(type: DocumentType): DocumentStatus[] {
   if (type === "invoice") return invoiceStatuses;
   if (type === "quotation") return quotationStatuses;
-  if (type === "proforma") return proformaStatuses;
   return letterStatuses;
 }
 
@@ -59,10 +59,12 @@ export function DocumentsList({ type }: { type: DocumentType }) {
   const { data: clients = [] } = useClients(scope);
   const setStatusMutation = useSetDocumentStatus();
   const sendEmailMutation = useSendDocumentEmail();
+  const deleteDocument = useDeleteDocument();
   const processSubs = useProcessDueSubscriptions();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string>("all");
   const [paidPrompt, setPaidPrompt] = useState<{ id: string; number: string } | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<Document | null>(null);
   const L = labels[type];
   const statusOptions = statusesFor(type);
 
@@ -332,7 +334,7 @@ export function DocumentsList({ type }: { type: DocumentType }) {
                             <XCircle className="h-4 w-4" />
                           </ActionBtn>
                         )}
-                        {type !== "proforma" && d.status !== "cancelled" && (
+                        {d.status !== "cancelled" && (
                           <ActionBtn title="Annuler" onClick={() => setStatusWithToast(d.id, "cancelled", d.number)} className={row.actionBtn}>
                             <Ban className="h-4 w-4" />
                           </ActionBtn>
@@ -348,6 +350,20 @@ export function DocumentsList({ type }: { type: DocumentType }) {
                         >
                           <Eye className="h-4 w-4" />
                         </Link>
+                        {session &&
+                          canWriteDocument(
+                            session.staff.role,
+                            session.staff.id,
+                            d.createdById ?? "",
+                          ) && (
+                          <ActionBtn
+                            title="Supprimer"
+                            onClick={() => setPendingDelete(d)}
+                            className={cn(row.actionBtn, "hover:bg-danger/15 hover:text-danger")}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </ActionBtn>
+                        )}
                       </div>
                     </td>
                   </motion.tr>
@@ -369,6 +385,32 @@ export function DocumentsList({ type }: { type: DocumentType }) {
         onConfirm={(method) => {
           if (!paidPrompt) return;
           applyStatus(paidPrompt.id, "paid", paidPrompt.number, method);
+        }}
+      />
+
+      <ConfirmDeleteDialog
+        open={!!pendingDelete}
+        onOpenChange={(open) => {
+          if (!open) setPendingDelete(null);
+        }}
+        title="Supprimer ce document ?"
+        description={
+          pendingDelete
+            ? `Vous êtes sur le point de supprimer définitivement ${documentTypeLabel(pendingDelete.type).toLowerCase()} « ${pendingDelete.number} ». Cette action est irréversible.`
+            : ""
+        }
+        pending={deleteDocument.isPending}
+        onConfirm={() => {
+          if (!pendingDelete) return;
+          deleteDocument.mutate(pendingDelete.id, {
+            onSuccess: () => {
+              toast.success("Document supprimé", {
+                description: pendingDelete.number,
+              });
+              setPendingDelete(null);
+            },
+            onError: (e) => toast.error(e.message),
+          });
         }}
       />
     </div>

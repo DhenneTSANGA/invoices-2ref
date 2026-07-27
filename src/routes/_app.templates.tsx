@@ -8,10 +8,10 @@ import { DocumentPreview } from "@/components/documents/DocumentPreview";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 import type { Document, DocumentType } from "@/store/types";
 import { computeTotals } from "@/lib/document-math";
-import { useClients } from "@/hooks/use-data";
+import { useClients, useSession } from "@/hooks/use-data";
 
 export const Route = createFileRoute("/_app/templates")({
-  head: () => ({ meta: [{ title: "Modèles de documents — 2R Expertise Fiscale" }] }),
+  head: () => ({ meta: [{ title: "Modèles de documents — 2R" }] }),
   component: Templates,
 });
 
@@ -36,7 +36,7 @@ const META: {
   {
     id: "quotation",
     name: "Devis professionnel",
-    description: "Proposition chiffrée avec validité, conditions de réalisation et bon pour accord. Utilisez aussi ce modèle pour une pro forma.",
+    description: "Proposition chiffrée avec validité, conditions de réalisation et bon pour accord.",
     icon: FileText,
     gradient: "bg-gradient-success",
     to: "/quotations/new",
@@ -128,8 +128,10 @@ function Templates() {
 }
 
 function useSampleDocs(): Record<DocumentType, Document> {
+  const { data: session } = useSession();
   const { data: clients = [] } = useClients();
   const clientId = clients[0]?.id ?? "";
+  const cabinet = session?.activeCabinet ?? "expertise_fiscale";
 
   return useMemo(() => {
     const items = [
@@ -156,7 +158,7 @@ function useSampleDocs(): Record<DocumentType, Document> {
     ];
     const totals = computeTotals(items);
     const base = {
-      cabinet: "expertise_fiscale" as const,
+      cabinet,
       clientId,
       status: "draft" as const,
       issueDate: "2025-11-20",
@@ -185,17 +187,6 @@ function useSampleDocs(): Record<DocumentType, Document> {
         paymentTerms: "Acompte 40 % — solde à livraison.",
         notes: "Proposition commerciale.",
       },
-      proforma: {
-        ...base,
-        id: "tpl-proforma",
-        type: "proforma" as const,
-        number: "PF-2025-0020",
-        incoterm: "CIP Libreville",
-        shippingNotes: "Transport et assurance inclus jusqu'à Libreville (CEMAC).",
-        disclaimer:
-          "Document prévisionnel sans valeur comptable ni fiscale. Ne constitue pas une facture définitive.",
-        paymentTerms: "Virement en XAF sur facture définitive.",
-      },
       letter: {
         ...base,
         id: "tpl-letter",
@@ -215,5 +206,5 @@ function useSampleDocs(): Record<DocumentType, Document> {
         signatoryTitle: "Expert-comptable",
       },
     };
-  }, [clientId]);
+  }, [clientId, cabinet]);
 }

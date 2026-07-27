@@ -18,7 +18,7 @@ import {
 } from "@/lib/notify-document-status";
 import {
   archiveScope,
-  canDeleteClients,
+  canDeleteClient,
   canEditCompanySettings,
   canWriteDocument,
   isSuperAdmin,
@@ -110,7 +110,7 @@ export const getClient = createServerFn({ method: "GET" })
 export const createClient = createServerFn({ method: "POST" })
   .validator(clientInputSchema)
   .handler(async ({ data }) => {
-    const { activeCabinet } = await requireSession();
+    const { staff, activeCabinet } = await requireSession();
     const row = await prisma.client.create({
       data: {
         name: data.name,
@@ -129,6 +129,7 @@ export const createClient = createServerFn({ method: "POST" })
         ficheStatusUrl: data.ficheStatusUrl ?? null,
         ficheStatusName: data.ficheStatusName ?? null,
         cabinet: activeCabinet,
+        createdById: staff.id,
       },
     });
     return mapClient(row);
@@ -238,13 +239,26 @@ export const deleteClient = createServerFn({ method: "POST" })
   .validator(z.object({ id: z.string() }))
   .handler(async ({ data }) => {
     const session = await requireSession();
-    if (!canDeleteClients(session.staff.role)) {
-      throw new Error("Suppression réservée aux administrateurs");
-    }
+    const { staff } = session;
     const existing = await prisma.client.findFirst({
-      where: { id: data.id, cabinet: session.activeCabinet },
+      where: isSuperAdmin(staff.role)
+        ? { id: data.id }
+        : { id: data.id, cabinet: session.activeCabinet },
     });
     if (!existing) throw new Error("Client introuvable");
+    if (!canDeleteClient(staff.role, staff.id, existing.createdById)) {
+      throw new Error("Suppression réservée au créateur, à un admin ou au super admin");
+    }
+
+    const docCount = await prisma.document.count({
+      where: { clientId: data.id },
+    });
+    if (docCount > 0) {
+      throw new Error(
+        `Impossible de supprimer « ${existing.name} » : ${docCount} document${docCount > 1 ? "s" : ""} y ${docCount > 1 ? "sont" : "est"} encore rattaché${docCount > 1 ? "s" : ""}. Archivez ou supprimez d’abord les factures, devis, etc.`,
+      );
+    }
+
     await prisma.client.delete({ where: { id: data.id } });
     return { ok: true };
   });
@@ -265,7 +279,7 @@ export const listServices = createServerFn({ method: "GET" }).handler(async () =
 export const listDocuments = createServerFn({ method: "GET" })
   .validator(
     z.object({
-      type: z.enum(["quotation", "invoice", "proforma", "letter"]).optional(),
+      type: z.enum(["quotation", "invoice", "letter"]).optional(),
       cabinetScope: cabinetScopeSchema,
     }),
   )
@@ -284,7 +298,7 @@ export const listDocuments = createServerFn({ method: "GET" })
 export const listAllDocuments = createServerFn({ method: "GET" })
   .validator(
     z.object({
-      type: z.enum(["quotation", "invoice", "proforma", "letter"]).optional(),
+      type: z.enum(["quotation", "invoice", "letter"]).optional(),
       cabinetScope: cabinetScopeSchema,
     }),
   )
@@ -355,9 +369,6 @@ export const upsertDocument = createServerFn({ method: "POST" })
       paymentTerms: data.paymentTerms ?? null,
       validityDays: data.validityDays ?? null,
       executionTerms: data.executionTerms ?? null,
-      incoterm: data.incoterm ?? null,
-      shippingNotes: data.shippingNotes ?? null,
-      disclaimer: data.disclaimer ?? null,
       subject: data.subject ?? null,
       salutation: data.salutation ?? null,
       body: data.body ?? null,
@@ -699,7 +710,9 @@ export const deleteDocument = createServerFn({ method: "POST" })
     });
     if (!existing) throw new Error("Document introuvable");
     if (!canWriteDocument(staff.role, staff.id, existing.createdById)) {
-      throw new Error("Accès refusé");
+      throw new Error(
+        "Suppression réservée au créateur, à un admin ou au super admin",
+      );
     }
     await prisma.document.delete({ where: { id: data.id } });
     return { ok: true };

@@ -163,7 +163,7 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
         </div>
       </div>
 
-      <LegalFooter {...company} />
+      <LegalFooter {...company} niuLabel={doc.cabinet === "conseil" ? "STAT" : "NIU"} />
     </PreviewShell>
   );
 });

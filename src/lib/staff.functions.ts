@@ -36,7 +36,7 @@ export const listDocumentsForStaff = createServerFn({ method: "GET" })
     z.object({
       staffId: z.string(),
       role: z.enum(["member", "admin", "super_admin"]),
-      type: z.enum(["quotation", "invoice", "proforma", "letter"]).optional(),
+      type: z.enum(["quotation", "invoice", "letter"]).optional(),
       cabinet: z.enum(["conseil", "expertise_fiscale"]).optional(),
     }),
   )

@@ -30,6 +30,7 @@ export type Client = {
   ficheCircuitName?: string | null;
   ficheStatusUrl?: string | null;
   ficheStatusName?: string | null;
+  createdById?: string | null;
   createdAt: string;
 };
 
@@ -72,7 +73,7 @@ export type LineItem = {
   cssRate: number;
 };
 
-export type DocumentType = "quotation" | "invoice" | "proforma" | "letter";
+export type DocumentType = "quotation" | "invoice" | "letter";
 export type DocumentStatus = "draft" | "sent" | "accepted" | "rejected" | "paid" | "overdue" | "archived" | "cancelled";
 export type PaymentMethod = "cash" | "check" | "bank_transfer";
 
@@ -107,10 +108,6 @@ export type Document = {
   /** Devis */
   validityDays?: number;
   executionTerms?: string;
-  /** Pro forma */
-  incoterm?: string;
-  shippingNotes?: string;
-  disclaimer?: string;
   /** Lettre commerciale */
   subject?: string;
   salutation?: string;

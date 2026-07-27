@@ -79,6 +79,7 @@ export function mapClient(row: {
   ficheCircuitName?: string | null;
   ficheStatusUrl?: string | null;
   ficheStatusName?: string | null;
+  createdById?: string | null;
   createdAt: Date;
 }): Client {
   return {
@@ -99,6 +100,7 @@ export function mapClient(row: {
     ficheCircuitName: row.ficheCircuitName ?? null,
     ficheStatusUrl: row.ficheStatusUrl ?? null,
     ficheStatusName: row.ficheStatusName ?? null,
+    createdById: row.createdById ?? null,
     createdAt: row.createdAt.toISOString().slice(0, 10),
   };
 }
@@ -151,9 +153,6 @@ export function mapDocument(row: {
   subscriptionOfId?: string | null;
   validityDays: number | null;
   executionTerms: string | null;
-  incoterm: string | null;
-  shippingNotes: string | null;
-  disclaimer: string | null;
   subject: string | null;
   salutation: string | null;
   body: string | null;
@@ -227,9 +226,6 @@ export function mapDocument(row: {
     subscriptionOfId: row.subscriptionOfId ?? null,
     validityDays: row.validityDays ?? undefined,
     executionTerms: row.executionTerms ?? undefined,
-    incoterm: row.incoterm ?? undefined,
-    shippingNotes: row.shippingNotes ?? undefined,
-    disclaimer: row.disclaimer ?? undefined,
     subject: row.subject ?? undefined,
     salutation: row.salutation ?? undefined,
     body: row.body ?? undefined,

@@ -66,6 +66,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
           lines={emitterLines}
           nif={company.nif}
           niu={company.niu}
+          niuLabel={doc.cabinet === "conseil" ? "STAT" : "NIU"}
           rccm={company.rccm}
           cnss={company.cnss}
           muted
@@ -105,13 +106,13 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
         right={<TotalsBlock doc={doc} company={company} accent={accent} />}
       />
 
-      <LegalFooter {...company} />
+      <LegalFooter {...company} niuLabel={doc.cabinet === "conseil" ? "STAT" : "NIU"} />
     </PreviewShell>
   );
 });
 
 function PartyBlock({
-  title, accent, name, lines, nif, niu, rccm, cnss, muted, bordered,
+  title, accent, name, lines, nif, niu, niuLabel = "NIU", rccm, cnss, muted, bordered,
 }: {
   title: string;
   accent: string;
@@ -119,6 +120,7 @@ function PartyBlock({
   lines?: string[];
   nif?: string;
   niu?: string;
+  niuLabel?: string;
   rccm?: string;
   cnss?: string;
   muted?: boolean;
@@ -126,7 +128,7 @@ function PartyBlock({
 }) {
   const ids = [
     nif && nif !== "—" ? { label: "NIF", value: nif } : null,
-    niu && niu !== "—" ? { label: "NIU", value: niu } : null,
+    niu && niu !== "—" ? { label: niuLabel, value: niu } : null,
     rccm && rccm !== "—" ? { label: "RCCM", value: rccm } : null,
     cnss ? { label: "CNSS", value: cnss } : null,
   ].filter(Boolean) as Array<{ label: string; value: string }>;

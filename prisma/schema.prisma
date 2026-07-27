@@ -16,7 +16,6 @@ enum Cabinet {
 enum DocumentType {
   quotation
   invoice
-  proforma
   letter
 }
 
@@ -107,6 +106,7 @@ model StaffMember {
   updatedAt DateTime  @updatedAt
 
   documents     Document[]
+  clients       Client[]
   notifications Notification[]
   adminRequests AdminRequest[] @relation("AdminRequestStaff")
   reviewedRequests AdminRequest[] @relation("AdminRequestReviewer")
@@ -153,14 +153,18 @@ model Client {
   /** URL publique fiche status (Storage). */
   ficheStatusUrl   String?
   ficheStatusName  String?
+  /** Collaborateur ayant créé la fiche (null = historique). */
+  createdById String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   documents Document[]
+  createdBy StaffMember? @relation(fields: [createdById], references: [id], onDelete: SetNull)
 
   @@index([cabinet])
   @@index([name])
   @@index([city])
+  @@index([createdById])
   @@map("clients")
 }
 
@@ -207,9 +211,6 @@ model Document {
   paymentMethod     PaymentMethod?
   validityDays      Int?
   executionTerms    String?
-  incoterm          String?
-  shippingNotes     String?
-  disclaimer        String?
   subject           String?
   salutation        String?
   body              String?

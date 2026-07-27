@@ -111,6 +111,7 @@ export function LegalFooter({
   phone,
   email,
   website,
+  niuLabel = "NIU",
 }: {
   name: string;
   address: string;
@@ -122,12 +123,14 @@ export function LegalFooter({
   phone: string;
   email: string;
   website: string;
+  /** Libellé de l’identifiant stocké dans `niu` (ex. STAT pour 2R Conseil). */
+  niuLabel?: string;
 }) {
   const legalParts = [
     name,
     [address, city].filter(Boolean).join(", "),
     nif && nif !== "—" && `NIF ${nif}`,
-    niu && niu !== "—" && `NIU ${niu}`,
+    niu && niu !== "—" && `${niuLabel} ${niu}`,
     rccm && rccm !== "—" && `RCCM ${rccm}`,
     cnss && `CNSS ${cnss}`,
   ].filter(Boolean);

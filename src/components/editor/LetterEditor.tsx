@@ -19,13 +19,17 @@ import { DocumentPreview } from "@/components/documents/DocumentPreview";
 import { downloadDocumentPdf } from "@/lib/pdf/downloadDocumentPdf";
 import { Button } from "@/components/ui/button";
 import { LoadingState } from "@/components/common/LoadingState";
-import { useClients, useUpsertDocument, useSendDocumentEmail } from "@/hooks/use-data";
+import { useClients, useUpsertDocument, useSendDocumentEmail, useSession } from "@/hooks/use-data";
+import type { Cabinet } from "@/lib/cabinets";
 import { cn } from "@/lib/utils";
 
 type Props = { initial?: Document };
 
 export function LetterEditor({ initial }: Props) {
   const navigate = useNavigate();
+  const { data: session } = useSession();
+  const activeCabinet: Cabinet =
+    initial?.cabinet ?? session?.activeCabinet ?? "expertise_fiscale";
   const { data: clients = [], isLoading: loadingClients } = useClients();
   const upsertMutation = useUpsertDocument();
   const sendEmailMutation = useSendDocumentEmail();
@@ -33,7 +37,7 @@ export function LetterEditor({ initial }: Props) {
   const [doc, setDoc] = useState<Document>(
     initial ?? {
       id: `d-${Date.now()}`,
-      cabinet: "expertise_fiscale",
+      cabinet: activeCabinet,
       type: "letter",
       number: `LT-2025-${String(10 + Math.floor(Math.random() * 89)).padStart(3, "0")}`,
       clientId: "",
@@ -59,6 +63,13 @@ export function LetterEditor({ initial }: Props) {
 
   const [previewOpen, setPreviewOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+
+  useEffect(() => {
+    if (initial) return;
+    const cabinet = session?.activeCabinet;
+    if (!cabinet) return;
+    setDoc((d) => (d.cabinet === cabinet ? d : { ...d, cabinet }));
+  }, [session?.activeCabinet, initial]);
 
   useEffect(() => {
     if (initial?.clientId) return;

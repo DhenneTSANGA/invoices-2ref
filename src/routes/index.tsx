@@ -6,7 +6,6 @@ import {
   FileText,
   ReceiptText,
   Users,
-  FileSignature,
   ShieldCheck,
   Sparkles,
   RefreshCw,
@@ -75,7 +74,6 @@ const LANDING_PREVIEW: {
 const typeTone: Record<DocumentType, string> = {
   quotation: "bg-accent/15 text-accent-foreground",
   invoice: "bg-primary/15 text-primary",
-  proforma: "bg-muted text-muted-foreground",
   letter: "bg-success/15 text-success",
 };
 
@@ -119,7 +117,7 @@ const features = [
   },
   {
     icon: FileText,
-    title: "Devis & pro forma",
+    title: "Devis",
     description:
       "Proposez des devis prêts à accepter, convertir ou archiver — conformes au format du cabinet actif.",
   },
@@ -130,7 +128,7 @@ const features = [
       "Émettez, suivez et archivez les factures avec statuts, aperçu PDF et envoi par email.",
   },
   {
-    icon: FileSignature,
+    icon: Mail,
     title: "Lettres & publipostage",
     description:
       "Rédigez des courriers au format cabinet et envoyez-les à plusieurs destinataires en quelques clics.",
@@ -256,7 +254,7 @@ function LandingPage() {
               seul flux de travail
             </h1>
             <p className="mt-5 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-lg">
-              Gérez clients, devis, factures, pro forma et lettres pour{" "}
+              Gérez clients, devis, factures et lettres pour{" "}
               <strong className="font-medium text-foreground">2R Conseil</strong>{" "}
               et{" "}
               <strong className="font-medium text-foreground">

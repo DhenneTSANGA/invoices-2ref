@@ -14,7 +14,6 @@ const statusLabels: Record<DocumentStatus, string> = {
 const typeLabels: Record<DocumentType, string> = {
   invoice: "Facture",
   quotation: "Devis",
-  proforma: "Pro forma",
   letter: "Lettre",
 };
 

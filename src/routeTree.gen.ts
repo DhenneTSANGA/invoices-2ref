@@ -33,7 +33,6 @@ import { Route as AppDocumentsRouteImport } from './routes/_app.documents'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppArchiveRouteImport } from './routes/_app.archive'
 import { Route as AppQuotationsIndexRouteImport } from './routes/_app.quotations.index'
-import { Route as AppProformasIndexRouteImport } from './routes/_app.proformas.index'
 import { Route as AppLettreIndexRouteImport } from './routes/_app.lettre.index'
 import { Route as AppLettersIndexRouteImport } from './routes/_app.letters.index'
 import { Route as AppInvoicesIndexRouteImport } from './routes/_app.invoices.index'
@@ -41,8 +40,6 @@ import { Route as AppClientsIndexRouteImport } from './routes/_app.clients.index
 import { Route as ApiStaffSyncRouteImport } from './routes/api/staff.sync'
 import { Route as AppQuotationsNewRouteImport } from './routes/_app.quotations.new'
 import { Route as AppQuotationsIdRouteImport } from './routes/_app.quotations.$id'
-import { Route as AppProformasNewRouteImport } from './routes/_app.proformas.new'
-import { Route as AppProformasIdRouteImport } from './routes/_app.proformas.$id'
 import { Route as AppLettrePublipostageRouteImport } from './routes/_app.lettre.publipostage'
 import { Route as AppLettreNewRouteImport } from './routes/_app.lettre.new'
 import { Route as AppLettreIdRouteImport } from './routes/_app.lettre.$id'
@@ -173,11 +170,6 @@ const AppQuotationsIndexRoute = AppQuotationsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppQuotationsRoute,
 } as any)
-const AppProformasIndexRoute = AppProformasIndexRouteImport.update({
-  id: '/proformas/',
-  path: '/proformas/',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppLettreIndexRoute = AppLettreIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -212,16 +204,6 @@ const AppQuotationsIdRoute = AppQuotationsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
   getParentRoute: () => AppQuotationsRoute,
-} as any)
-const AppProformasNewRoute = AppProformasNewRouteImport.update({
-  id: '/proformas/new',
-  path: '/proformas/new',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppProformasIdRoute = AppProformasIdRouteImport.update({
-  id: '/proformas/$id',
-  path: '/proformas/$id',
-  getParentRoute: () => AppRoute,
 } as any)
 const AppLettrePublipostageRoute = AppLettrePublipostageRouteImport.update({
   id: '/publipostage',
@@ -306,8 +288,6 @@ export interface FileRoutesByFullPath {
   '/lettre/$id': typeof AppLettreIdRoute
   '/lettre/new': typeof AppLettreNewRoute
   '/lettre/publipostage': typeof AppLettrePublipostageRoute
-  '/proformas/$id': typeof AppProformasIdRoute
-  '/proformas/new': typeof AppProformasNewRoute
   '/quotations/$id': typeof AppQuotationsIdRoute
   '/quotations/new': typeof AppQuotationsNewRoute
   '/api/staff/sync': typeof ApiStaffSyncRoute
@@ -315,7 +295,6 @@ export interface FileRoutesByFullPath {
   '/invoices/': typeof AppInvoicesIndexRoute
   '/letters/': typeof AppLettersIndexRoute
   '/lettre/': typeof AppLettreIndexRoute
-  '/proformas/': typeof AppProformasIndexRoute
   '/quotations/': typeof AppQuotationsIndexRoute
   '/invoices/$id/edit': typeof AppInvoicesIdEditRoute
 }
@@ -348,8 +327,6 @@ export interface FileRoutesByTo {
   '/lettre/$id': typeof AppLettreIdRoute
   '/lettre/new': typeof AppLettreNewRoute
   '/lettre/publipostage': typeof AppLettrePublipostageRoute
-  '/proformas/$id': typeof AppProformasIdRoute
-  '/proformas/new': typeof AppProformasNewRoute
   '/quotations/$id': typeof AppQuotationsIdRoute
   '/quotations/new': typeof AppQuotationsNewRoute
   '/api/staff/sync': typeof ApiStaffSyncRoute
@@ -357,7 +334,6 @@ export interface FileRoutesByTo {
   '/invoices': typeof AppInvoicesIndexRoute
   '/letters': typeof AppLettersIndexRoute
   '/lettre': typeof AppLettreIndexRoute
-  '/proformas': typeof AppProformasIndexRoute
   '/quotations': typeof AppQuotationsIndexRoute
   '/invoices/$id/edit': typeof AppInvoicesIdEditRoute
 }
@@ -395,8 +371,6 @@ export interface FileRoutesById {
   '/_app/lettre/$id': typeof AppLettreIdRoute
   '/_app/lettre/new': typeof AppLettreNewRoute
   '/_app/lettre/publipostage': typeof AppLettrePublipostageRoute
-  '/_app/proformas/$id': typeof AppProformasIdRoute
-  '/_app/proformas/new': typeof AppProformasNewRoute
   '/_app/quotations/$id': typeof AppQuotationsIdRoute
   '/_app/quotations/new': typeof AppQuotationsNewRoute
   '/api/staff/sync': typeof ApiStaffSyncRoute
@@ -404,7 +378,6 @@ export interface FileRoutesById {
   '/_app/invoices/': typeof AppInvoicesIndexRoute
   '/_app/letters/': typeof AppLettersIndexRoute
   '/_app/lettre/': typeof AppLettreIndexRoute
-  '/_app/proformas/': typeof AppProformasIndexRoute
   '/_app/quotations/': typeof AppQuotationsIndexRoute
   '/_app/invoices/$id/edit': typeof AppInvoicesIdEditRoute
 }
@@ -442,8 +415,6 @@ export interface FileRouteTypes {
     | '/lettre/$id'
     | '/lettre/new'
     | '/lettre/publipostage'
-    | '/proformas/$id'
-    | '/proformas/new'
     | '/quotations/$id'
     | '/quotations/new'
     | '/api/staff/sync'
@@ -451,7 +422,6 @@ export interface FileRouteTypes {
     | '/invoices/'
     | '/letters/'
     | '/lettre/'
-    | '/proformas/'
     | '/quotations/'
     | '/invoices/$id/edit'
   fileRoutesByTo: FileRoutesByTo
@@ -484,8 +454,6 @@ export interface FileRouteTypes {
     | '/lettre/$id'
     | '/lettre/new'
     | '/lettre/publipostage'
-    | '/proformas/$id'
-    | '/proformas/new'
     | '/quotations/$id'
     | '/quotations/new'
     | '/api/staff/sync'
@@ -493,7 +461,6 @@ export interface FileRouteTypes {
     | '/invoices'
     | '/letters'
     | '/lettre'
-    | '/proformas'
     | '/quotations'
     | '/invoices/$id/edit'
   id:
@@ -530,8 +497,6 @@ export interface FileRouteTypes {
     | '/_app/lettre/$id'
     | '/_app/lettre/new'
     | '/_app/lettre/publipostage'
-    | '/_app/proformas/$id'
-    | '/_app/proformas/new'
     | '/_app/quotations/$id'
     | '/_app/quotations/new'
     | '/api/staff/sync'
@@ -539,7 +504,6 @@ export interface FileRouteTypes {
     | '/_app/invoices/'
     | '/_app/letters/'
     | '/_app/lettre/'
-    | '/_app/proformas/'
     | '/_app/quotations/'
     | '/_app/invoices/$id/edit'
   fileRoutesById: FileRoutesById
@@ -726,13 +690,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppQuotationsIndexRouteImport
       parentRoute: typeof AppQuotationsRoute
     }
-    '/_app/proformas/': {
-      id: '/_app/proformas/'
-      path: '/proformas'
-      fullPath: '/proformas/'
-      preLoaderRoute: typeof AppProformasIndexRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/lettre/': {
       id: '/_app/lettre/'
       path: '/'
@@ -781,20 +738,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/quotations/$id'
       preLoaderRoute: typeof AppQuotationsIdRouteImport
       parentRoute: typeof AppQuotationsRoute
-    }
-    '/_app/proformas/new': {
-      id: '/_app/proformas/new'
-      path: '/proformas/new'
-      fullPath: '/proformas/new'
-      preLoaderRoute: typeof AppProformasNewRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/proformas/$id': {
-      id: '/_app/proformas/$id'
-      path: '/proformas/$id'
-      fullPath: '/proformas/$id'
-      preLoaderRoute: typeof AppProformasIdRouteImport
-      parentRoute: typeof AppRoute
     }
     '/_app/lettre/publipostage': {
       id: '/_app/lettre/publipostage'
@@ -951,11 +894,8 @@ interface AppRouteChildren {
   AppClientsNewRoute: typeof AppClientsNewRoute
   AppLettersIdRoute: typeof AppLettersIdRoute
   AppLettersNewRoute: typeof AppLettersNewRoute
-  AppProformasIdRoute: typeof AppProformasIdRoute
-  AppProformasNewRoute: typeof AppProformasNewRoute
   AppClientsIndexRoute: typeof AppClientsIndexRoute
   AppLettersIndexRoute: typeof AppLettersIndexRoute
-  AppProformasIndexRoute: typeof AppProformasIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -978,11 +918,8 @@ const AppRouteChildren: AppRouteChildren = {
   AppClientsNewRoute: AppClientsNewRoute,
   AppLettersIdRoute: AppLettersIdRoute,
   AppLettersNewRoute: AppLettersNewRoute,
-  AppProformasIdRoute: AppProformasIdRoute,
-  AppProformasNewRoute: AppProformasNewRoute,
   AppClientsIndexRoute: AppClientsIndexRoute,
   AppLettersIndexRoute: AppLettersIndexRoute,
-  AppProformasIndexRoute: AppProformasIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

@@ -9,7 +9,8 @@ import { downloadDocumentPdf } from "@/lib/pdf/downloadDocumentPdf";
 import { number } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { LoadingState } from "@/components/common/LoadingState";
-import { useClients, useServices, useUpsertDocument, useSendDocumentEmail } from "@/hooks/use-data";
+import { useClients, useServices, useUpsertDocument, useSendDocumentEmail, useSession } from "@/hooks/use-data";
+import type { Cabinet } from "@/lib/cabinets";
 
 type Props = { initial?: Document; type: DocumentType };
 
@@ -21,14 +22,25 @@ function isPersistedId(id: string) {
 
 export function DocumentEditor({ initial, type }: Props) {
   const navigate = useNavigate();
+  const { data: session } = useSession();
+  const activeCabinet: Cabinet =
+    initial?.cabinet ?? session?.activeCabinet ?? "expertise_fiscale";
   const { data: clients = [], isLoading: loadingClients } = useClients();
   const { data: services = [] } = useServices();
   const upsertMutation = useUpsertDocument();
   const sendEmailMutation = useSendDocumentEmail();
 
   const [doc, setDoc] = useState<Document>(() =>
-    initial ?? defaultDoc(type, ""),
+    initial ?? defaultDoc(type, "", activeCabinet),
   );
+
+  // Aligner le cabinet du brouillon sur le cabinet actif (logo + infos société).
+  useEffect(() => {
+    if (initial) return;
+    const cabinet = session?.activeCabinet;
+    if (!cabinet) return;
+    setDoc((d) => (d.cabinet === cabinet ? d : { ...d, cabinet }));
+  }, [session?.activeCabinet, initial]);
 
   // Quand les clients arrivent (async), rattacher le 1er client si aucun n'est encore choisi
   useEffect(() => {
@@ -117,9 +129,7 @@ export function DocumentEditor({ initial, type }: Props) {
       ? "/invoices"
       : type === "quotation"
         ? "/quotations"
-        : type === "proforma"
-          ? "/proformas"
-          : "/lettre";
+        : "/lettre";
 
   const save = async (status: Document["status"] = "draft") => {
     if (!merged.clientId) {
@@ -141,9 +151,6 @@ export function DocumentEditor({ initial, type }: Props) {
         paymentTerms: merged.paymentTerms ?? null,
         validityDays: merged.validityDays ?? null,
         executionTerms: merged.executionTerms ?? null,
-        incoterm: merged.incoterm ?? null,
-        shippingNotes: merged.shippingNotes ?? null,
-        disclaimer: merged.disclaimer ?? null,
         subject: merged.subject ?? null,
         salutation: merged.salutation ?? null,
         body: merged.body ?? null,
@@ -285,36 +292,7 @@ export function DocumentEditor({ initial, type }: Props) {
               />
             </>
           )}
-          {type === "proforma" && (
-            <>
-              <Field
-                label="Incoterm"
-                value={doc.incoterm ?? ""}
-                onChange={(v) => setDoc({ ...doc, incoterm: v })}
-              />
-              <Field
-                label="Transport / assurance"
-                value={doc.shippingNotes ?? ""}
-                onChange={(v) => setDoc({ ...doc, shippingNotes: v })}
-              />
-            </>
-          )}
         </div>
-        {type === "proforma" && (
-          <div className="mt-4">
-            <label className="block">
-              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Mention légale pro forma
-              </span>
-              <textarea
-                className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2 text-sm focus:border-primary focus:outline-none"
-                rows={2}
-                value={doc.disclaimer ?? ""}
-                onChange={(e) => setDoc({ ...doc, disclaimer: e.target.value })}
-              />
-            </label>
-          </div>
-        )}
       </div>
 
       <div className="glass-panel rounded-3xl p-5">
@@ -627,12 +605,16 @@ function Total({
   );
 }
 
-function defaultDoc(type: DocumentType, clientId: string): Document {
+function defaultDoc(
+  type: DocumentType,
+  clientId: string,
+  cabinet: Cabinet = "expertise_fiscale",
+): Document {
   const today = new Date().toISOString().slice(0, 10);
   const due = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
   const base = {
     id: `d-${Date.now()}`,
-    cabinet: "expertise_fiscale" as const,
+    cabinet,
     type,
     clientId,
     createdById: "staff-mireille",
@@ -657,18 +639,6 @@ function defaultDoc(type: DocumentType, clientId: string): Document {
       validityDays: 30,
       executionTerms:
         "Délai d'exécution : 15 jours ouvrés après acceptation du devis.",
-    };
-  }
-  if (type === "proforma") {
-    return {
-      ...base,
-      number: `PF-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`,
-      notes: "Montants estimatifs en Francs CFA.",
-      paymentTerms: "Virement bancaire en XAF après facture définitive.",
-      incoterm: "CIP Libreville",
-      shippingNotes: "Transport et assurance selon accord.",
-      disclaimer:
-        "Document prévisionnel sans valeur comptable ni fiscale.",
     };
   }
   return {

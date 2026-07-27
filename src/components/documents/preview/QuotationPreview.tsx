@@ -72,6 +72,7 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
           lines={emitterLines}
           nif={company.nif}
           niu={company.niu}
+          niuLabel={doc.cabinet === "conseil" ? "STAT" : "NIU"}
           rccm={company.rccm}
           cnss={company.cnss}
           muted
@@ -133,7 +134,7 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
         }
       />
 
-      <LegalFooter {...company} />
+      <LegalFooter {...company} niuLabel={doc.cabinet === "conseil" ? "STAT" : "NIU"} />
     </PreviewShell>
   );
 });

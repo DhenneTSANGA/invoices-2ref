@@ -20,7 +20,7 @@ import type { Document, DocumentType } from "@/store/types";
 
 const searchSchema = z.object({
   focus: z.string().optional(),
-  type: z.enum(["all", "invoice", "quotation", "proforma", "letter"]).optional(),
+  type: z.enum(["all", "invoice", "quotation", "letter"]).optional(),
   cabinet: z.enum(["all", "conseil", "expertise_fiscale"]).optional(),
 });
 
@@ -34,12 +34,11 @@ const TYPE_FILTERS: { value: "all" | DocumentType; label: string }[] = [
   { value: "all", label: "Tous les types" },
   { value: "invoice", label: "Factures" },
   { value: "quotation", label: "Devis" },
-  { value: "proforma", label: "Pro forma" },
   { value: "letter", label: "Lettres" },
 ];
 
 function detailLink(doc: Document): {
-  to: "/invoices/$id" | "/quotations/$id" | "/proformas/$id" | "/lettre/$id";
+  to: "/invoices/$id" | "/quotations/$id" | "/lettre/$id";
   params: { id: string };
 } {
   switch (doc.type) {
@@ -47,8 +46,6 @@ function detailLink(doc: Document): {
       return { to: "/invoices/$id", params: { id: doc.id } };
     case "quotation":
       return { to: "/quotations/$id", params: { id: doc.id } };
-    case "proforma":
-      return { to: "/proformas/$id", params: { id: doc.id } };
     case "letter":
       return { to: "/lettre/$id", params: { id: doc.id } };
   }
@@ -172,7 +169,7 @@ function DocumentsHubPage() {
         subtitle={
           showCabinetFilter
             ? "Par défaut : cabinet actif. Choisissez « Tous les cabinets » pour une vue transversale."
-            : "Vue cabinet — factures, devis, pro forma et lettres de tous les collaborateurs."
+            : "Vue cabinet — factures, devis et lettres de tous les collaborateurs."
         }
       />
 
