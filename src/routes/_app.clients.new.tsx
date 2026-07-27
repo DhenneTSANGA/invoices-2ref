@@ -11,7 +11,7 @@ import {
 import type { Client } from "@/store/types";
 
 export const Route = createFileRoute("/_app/clients/new")({
-  head: () => ({ meta: [{ title: "Nouveau client — 2R" }] }),
+  head: () => ({ meta: [{ title: "Nouveau client — 2R Hub" }] }),
   component: NewClient,
 });
 

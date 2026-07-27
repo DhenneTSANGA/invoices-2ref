@@ -6,7 +6,7 @@ import { DocumentEditor } from "@/components/editor/DocumentEditor";
 import { useDocument } from "@/hooks/use-data";
 
 export const Route = createFileRoute("/_app/invoices/$id/edit")({
-  head: () => ({ meta: [{ title: "Modifier la facture — 2R" }] }),
+  head: () => ({ meta: [{ title: "Modifier la facture — 2R Hub" }] }),
   component: EditInvoice,
 });
 

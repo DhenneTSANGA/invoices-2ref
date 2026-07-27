@@ -12,7 +12,7 @@ import { CABINET_LABELS, STAFF_JOB_TITLES } from "@/lib/cabinets";
 import { homePathForRole } from "@/lib/roles";
 
 export const Route = createFileRoute("/onboarding")({
-  head: () => ({ meta: [{ title: "Finaliser le profil — 2R" }] }),
+  head: () => ({ meta: [{ title: "Finaliser le profil — 2R Hub" }] }),
   beforeLoad: async () => {
     const boot = await getAuthBootstrap();
     if (!boot) throw redirect({ to: "/login" });

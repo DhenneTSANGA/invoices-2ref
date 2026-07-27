@@ -26,7 +26,7 @@ const searchSchema = z.object({
 
 export const Route = createFileRoute("/_app/documents")({
   validateSearch: (search) => searchSchema.parse(search),
-  head: () => ({ meta: [{ title: "Documents — 2R" }] }),
+  head: () => ({ meta: [{ title: "Documents — 2R Hub" }] }),
   component: DocumentsHubPage,
 });
 

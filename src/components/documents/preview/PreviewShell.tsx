@@ -159,11 +159,11 @@ export function AmountInWords({
   const words = amountInWords(amount, currency);
   return (
     <div
-      className="rounded-lg border px-3 py-2.5"
+      className="rounded-lg border px-3 py-2.5 text-center"
       style={{ borderColor: `${accent}33`, background: `${accent}08` }}
     >
-      <div className="text-[12px] text-[#64748B]">Arrêté à la somme de</div>
-      <p className="mt-1 break-words text-[12px] font-bold leading-snug text-[#0F172A]">
+      <div className="text-[13px] text-[#64748B]">Arrêté à la somme de</div>
+      <p className="mt-1.5 break-words text-[15px] font-bold leading-snug text-[#0F172A]">
         {words}
       </p>
     </div>

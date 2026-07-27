@@ -5,6 +5,9 @@ export type { Cabinet };
 
 export const CABINETS = ["conseil", "expertise_fiscale"] as const;
 
+/** Nom commercial de la plateforme web. */
+export const APP_NAME = "2R Hub";
+
 export const CABINET_LABELS: Record<Cabinet, string> = {
   conseil: "2R Conseil",
   expertise_fiscale: "2R Expertise Fiscale",

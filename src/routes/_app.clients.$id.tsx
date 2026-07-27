@@ -19,7 +19,7 @@ import { currency, shortDate } from "@/lib/format";
 import type { Client } from "@/store/types";
 
 export const Route = createFileRoute("/_app/clients/$id")({
-  head: () => ({ meta: [{ title: "Fiche client — 2R Expertise Fiscale" }] }),
+  head: () => ({ meta: [{ title: "Fiche client — 2R Hub" }] }),
   component: EditClient,
 });
 

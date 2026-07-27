@@ -16,11 +16,11 @@ import { getAuthBootstrap } from "@/lib/admin.functions";
 export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
-      { title: "Connexion — 2R" },
+      { title: "Connexion — 2R Hub" },
       {
         name: "description",
         content:
-          "Accédez à votre espace collaborateur 2R Conseil ou 2R Expertise Fiscale.",
+          "Connexion collaborateur à 2R Hub (2R Conseil & 2R Expertise Fiscale).",
       },
     ],
   }),
@@ -89,7 +89,7 @@ function LoginPage() {
     <div className="grid min-h-screen lg:grid-cols-2">
       <AuthVisualPanel
         imageSrc="/auth/login-panel2.png"
-        imageAlt="Bureaux 2R Conseil et 2R Expertise Fiscale"
+        imageAlt="Espace collaborateur 2R Hub"
         title="Deux cabinets, un seul espace de travail"
         subtitle="Reprenez vos devis, factures et dossiers clients là où vous les avez laissés."
       />
@@ -107,7 +107,7 @@ function LoginPage() {
           </div>
           <h2 className="font-display text-2xl font-bold">Connexion</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Accédez à votre espace pour 2R Conseil ou 2R Expertise Fiscale.
+            Accédez à 2R Hub pour 2R Conseil ou 2R Expertise Fiscale.
           </p>
 
           <div className="mt-6 space-y-4">

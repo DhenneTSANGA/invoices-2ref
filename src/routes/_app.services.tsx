@@ -8,7 +8,7 @@ import { useServices } from "@/hooks/use-data";
 import { currency } from "@/lib/format";
 
 export const Route = createFileRoute("/_app/services")({
-  head: () => ({ meta: [{ title: "Catalogue des services — 2R Expertise Fiscale" }] }),
+  head: () => ({ meta: [{ title: "Catalogue des services — 2R Hub" }] }),
   component: ServicesPage,
 });
 

@@ -21,7 +21,7 @@ import { sendMailMerge } from "@/lib/mail-merge";
 import type { Client, Document } from "@/store/types";
 
 export const Route = createFileRoute("/_app/lettre/publipostage")({
-  head: () => ({ meta: [{ title: "Publipostage — 2R Expertise Fiscale" }] }),
+  head: () => ({ meta: [{ title: "Publipostage — 2R Hub" }] }),
   component: MailMergePage,
 });
 

@@ -6,7 +6,7 @@ import { LoadingState } from "@/components/common/LoadingState";
 import { useClients, useDocuments, useServices } from "@/hooks/use-data";
 
 export const Route = createFileRoute("/_app/search")({
-  head: () => ({ meta: [{ title: "Recherche globale — 2R Expertise Fiscale" }] }),
+  head: () => ({ meta: [{ title: "Recherche globale — 2R Hub" }] }),
   component: SearchPage,
 });
 

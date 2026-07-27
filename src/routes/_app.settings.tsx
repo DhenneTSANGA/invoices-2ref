@@ -13,7 +13,7 @@ import { canEditCompanySettings } from "@/lib/roles";
 import { getCurrentSession } from "@/lib/session.functions";
 
 export const Route = createFileRoute("/_app/settings")({
-  head: () => ({ meta: [{ title: "Paramètres — 2R Expertise Fiscale" }] }),
+  head: () => ({ meta: [{ title: "Paramètres — 2R Hub" }] }),
   beforeLoad: async () => {
     const session = await getCurrentSession();
     if (session && !canEditCompanySettings(session.staff.role)) {

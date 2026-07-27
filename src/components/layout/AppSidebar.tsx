@@ -40,12 +40,12 @@ export function AppSidebar() {
         {isSa && (
           <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden pr-8">
             {collapsed ? (
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-primary font-display text-sm font-bold text-primary-foreground shadow-glow">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-primary font-display text-[10px] font-bold text-primary-foreground shadow-glow">
                 2R
               </div>
             ) : (
               <div className="min-w-0">
-                <div className="font-display text-lg font-bold leading-none">2R</div>
+                <div className="font-display text-lg font-bold leading-none">2R Hub</div>
                 <div className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground truncate">
                   Multi-cabinets
                 </div>

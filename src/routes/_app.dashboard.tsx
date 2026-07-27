@@ -14,7 +14,7 @@ import { canAccessDashboard } from "@/lib/roles";
 import { getCurrentSession } from "@/lib/session.functions";
 
 export const Route = createFileRoute("/_app/dashboard")({
-  head: () => ({ meta: [{ title: "Tableau de bord — 2R Expertise Fiscale" }, { name: "description", content: "Vue d'ensemble de votre activité." }] }),
+  head: () => ({ meta: [{ title: "Tableau de bord — 2R Hub" }, { name: "description", content: "Vue d'ensemble de votre activité." }] }),
   beforeLoad: async () => {
     const session = await getCurrentSession();
     if (session && !canAccessDashboard(session.staff.role)) {

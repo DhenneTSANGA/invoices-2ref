@@ -13,7 +13,7 @@ import { canDeleteClient } from "@/lib/roles";
 import type { Client } from "@/store/types";
 
 export const Route = createFileRoute("/_app/clients/")({
-  head: () => ({ meta: [{ title: "Clients — 2R Expertise Fiscale" }] }),
+  head: () => ({ meta: [{ title: "Clients — 2R Hub" }] }),
   component: ClientsPage,
 });
 

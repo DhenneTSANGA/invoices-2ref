@@ -36,7 +36,7 @@ import { paymentMethodLabel } from "@/lib/payment-method";
 import type { PaymentMethod } from "@/store/types";
 
 export const Route = createFileRoute("/_app/invoices/$id")({
-  head: () => ({ meta: [{ title: "Détail facture — 2R Expertise Fiscale" }] }),
+  head: () => ({ meta: [{ title: "Détail facture — 2R Hub" }] }),
   component: InvoiceDetail,
 });
 

@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 import type { MailListItem } from "@/lib/mail.functions";
 
 export const Route = createFileRoute("/_app/mails")({
-  head: () => ({ meta: [{ title: "Mails — 2R" }] }),
+  head: () => ({ meta: [{ title: "Mails — 2R Hub" }] }),
   component: MailsPage,
 });
 

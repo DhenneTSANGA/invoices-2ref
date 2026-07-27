@@ -28,7 +28,8 @@ export const primaryNav: NavDef[] = [
 ];
 
 export const secondaryNav: NavDef[] = [
-  { to: "/", label: "Site public", icon: Globe },
+  { to: "https://2ref-expertise.vercel.app/", label: "Vitrine 2REF", icon: Globe },
+  { to: "/", label: "Vitrine 2RC", icon: Globe },
   { to: "/search", label: "Recherche", icon: Search },
   { to: "/notifications", label: "Notifications", icon: Bell },
   { to: "/profile", label: "Profil", icon: UserCircle2 },

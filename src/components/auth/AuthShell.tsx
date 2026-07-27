@@ -75,7 +75,7 @@ export function AuthShell({
         </div>
 
         <div className="relative text-xs text-muted-foreground">
-          © {new Date().getFullYear()} FacturIA. Tous droits réservés.
+          © {new Date().getFullYear()} 2R Hub. Tous droits réservés.
         </div>
       </div>
 

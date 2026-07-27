@@ -9,7 +9,7 @@ export function escapeHtml(text: string): string {
 }
 
 export function formatFrom(displayName: string, email: string): string {
-  const safeName = displayName.replaceAll('"', "").trim() || "2REF";
+  const safeName = displayName.replaceAll('"', "").trim() || "2R Hub";
   return `"${safeName}" <${email}>`;
 }
 

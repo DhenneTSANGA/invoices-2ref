@@ -11,7 +11,7 @@ import { CABINET_LABELS } from "@/lib/cabinets";
 import { getCurrentSession } from "@/lib/session.functions";
 
 export const Route = createFileRoute("/_app/home")({
-  head: () => ({ meta: [{ title: "Accueil — 2R" }] }),
+  head: () => ({ meta: [{ title: "Accueil — 2R Hub" }] }),
   beforeLoad: async () => {
     const session = await getCurrentSession();
     if (session && canAccessDashboard(session.staff.role)) {

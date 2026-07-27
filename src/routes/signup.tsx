@@ -23,7 +23,7 @@ import { CABINET_LABELS, STAFF_JOB_TITLES } from "@/lib/cabinets";
 import { homePathForRole } from "@/lib/roles";
 
 export const Route = createFileRoute("/signup")({
-  head: () => ({ meta: [{ title: "Inscription — 2R" }] }),
+  head: () => ({ meta: [{ title: "Inscription — 2R Hub" }] }),
   beforeLoad: async () => {
     const session = await getCurrentSession();
     if (session) throw redirect({ to: homePathForRole(session.staff.role) });
@@ -89,7 +89,7 @@ function SignupPage() {
     <div className="grid min-h-screen lg:grid-cols-2">
       <AuthVisualPanel
         imageSrc="/auth/signup1.png"
-        imageAlt="Bienvenue chez 2R Conseil et 2R Expertise Fiscale"
+        imageAlt="Bienvenue sur 2R Hub"
         title="Bienvenue dans l’équipe 2R"
         subtitle="Choisissez votre cabinet et votre poste pour démarrer — documents, clients et collaboration au même endroit."
       />

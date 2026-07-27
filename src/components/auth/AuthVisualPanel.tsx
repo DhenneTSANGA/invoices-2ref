@@ -38,7 +38,7 @@ export function AuthVisualPanel({
             {subtitle}
           </p>
           <p className="mt-8 text-xs text-white/50">
-            © {new Date().getFullYear()} 2R Conseil & 2R Expertise Fiscale
+            © {new Date().getFullYear()} 2R Hub
           </p>
         </div>
       </div>

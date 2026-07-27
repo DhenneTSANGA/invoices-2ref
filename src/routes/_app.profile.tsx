@@ -32,7 +32,7 @@ type ProfileForm = {
 };
 
 export const Route = createFileRoute("/_app/profile")({
-  head: () => ({ meta: [{ title: "Mon profil — 2R" }] }),
+  head: () => ({ meta: [{ title: "Mon profil — 2R Hub" }] }),
   component: ProfilePage,
 });
 

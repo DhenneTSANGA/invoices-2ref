@@ -28,7 +28,7 @@ import { getCurrentSession } from "@/lib/session.functions";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/users")({
-  head: () => ({ meta: [{ title: "Équipe — 2R" }] }),
+  head: () => ({ meta: [{ title: "Équipe — 2R Hub" }] }),
   beforeLoad: async () => {
     const session = await getCurrentSession();
     if (!session || !canManageAdminRequests(session.staff.role)) {

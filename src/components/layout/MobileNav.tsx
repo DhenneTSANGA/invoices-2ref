@@ -48,7 +48,7 @@ export function MobileNav() {
         <SheetHeader className="border-b border-border/60 px-5 py-5 text-left">
           <div className="flex items-center justify-center gap-3">
             {isSa ? (
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-primary font-display text-sm font-bold text-primary-foreground shadow-glow">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-primary font-display text-[10px] font-bold text-primary-foreground shadow-glow">
                 2R
               </div>
             ) : (
@@ -57,7 +57,7 @@ export function MobileNav() {
             {isSa && (
               <div className="min-w-0">
                 <SheetTitle className="font-display text-lg font-bold leading-none">
-                  2R
+                  2R Hub
                 </SheetTitle>
                 <SheetDescription className="mt-1 text-[10px] uppercase tracking-wider">
                   Multi-cabinets

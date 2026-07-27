@@ -13,7 +13,7 @@ import { DocumentPdfTracesPanel } from "@/components/documents/DocumentPdfTraces
 import { currency, longDate } from "@/lib/format";
 
 export const Route = createFileRoute("/_app/quotations/$id")({
-  head: () => ({ meta: [{ title: "Détail devis — 2R Expertise Fiscale" }] }),
+  head: () => ({ meta: [{ title: "Détail devis — 2R Hub" }] }),
   component: QuotationDetail,
 });
 

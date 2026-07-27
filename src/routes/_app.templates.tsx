@@ -11,7 +11,7 @@ import { computeTotals } from "@/lib/document-math";
 import { useClients, useSession } from "@/hooks/use-data";
 
 export const Route = createFileRoute("/_app/templates")({
-  head: () => ({ meta: [{ title: "Modèles de documents — 2R" }] }),
+  head: () => ({ meta: [{ title: "Modèles de documents — 2R Hub" }] }),
   component: Templates,
 });
 

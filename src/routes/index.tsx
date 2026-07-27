@@ -86,12 +86,12 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       {
-        title: "2R — Plateforme documentaire multi-cabinet",
+        title: "2R Hub — Plateforme documentaire multi-cabinet",
       },
       {
         name: "description",
         content:
-          "Une seule plateforme pour 2R Conseil et 2R Expertise Fiscale : clients, devis, factures, lettres et suivi d’équipe, sans mélange des dossiers.",
+          "2R Hub réunit 2R Conseil et 2R Expertise Fiscale : clients, devis, factures, lettres et suivi d’équipe, sans mélange des dossiers.",
       },
     ],
   }),
@@ -241,17 +241,16 @@ function LandingPage() {
           >
             <div className="mb-5 inline-flex max-w-full items-center gap-2 rounded-full border border-border/60 bg-surface/70 px-3 py-1 text-xs font-medium text-muted-foreground">
               <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary" />
-              <span className="truncate">
-                2R Conseil · 2R Expertise Fiscale
-              </span>
+              <span className="truncate">2R Hub · Conseil · Audit · Formation</span>
             </div>
             <h1 className="font-display text-[1.85rem] font-bold leading-[1.15] tracking-tight break-words sm:text-5xl lg:text-[3.25rem]">
-              Une plateforme pour{" "}
+              <span className="text-gradient-primary">2R Hub</span>
+              {" — "}une plateforme pour{" "}
               <span className="text-gradient-primary">deux cabinets</span>, un
               seul flux de travail
             </h1>
             <p className="mt-5 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-lg">
-              Gérez clients, devis, factures et lettres pour{" "}
+              Centralisez clients, devis, factures et lettres pour{" "}
               <strong className="font-medium text-foreground">2R Conseil</strong>{" "}
               et{" "}
               <strong className="font-medium text-foreground">
@@ -481,9 +480,10 @@ function LandingPage() {
             Prêt à démarrer ?
           </h2>
           <p className="mx-auto mt-3 max-w-lg text-sm text-muted-foreground sm:text-base">
-            Créez votre compte collaborateur ou connectez-vous pour travailler
-            sur le cabinet qui vous concerne — 2R Conseil ou 2R Expertise
-            Fiscale.
+            Créez votre compte collaborateur ou connectez-vous à{" "}
+            <strong className="font-medium text-foreground">2R Hub</strong> pour
+            travailler sur le cabinet qui vous concerne — 2R Conseil ou 2R
+            Expertise Fiscale.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             {appHome ? (
@@ -521,7 +521,7 @@ function LandingPage() {
             <Logo size="nav" className="rounded-md" />
           </div>
           <p className="text-center text-xs text-muted-foreground sm:text-right">
-            © {new Date().getFullYear()} 2R Conseil & 2R Expertise Fiscale —
+            © {new Date().getFullYear()} 2R Hub —
             Plateforme interne.
           </p>
         </div>
