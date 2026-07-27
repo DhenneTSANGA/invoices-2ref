@@ -334,6 +334,8 @@ export const upsertDocument = createServerFn({ method: "POST" })
     const { staff, activeCabinet } = session;
     await assertClientInCabinet(data.clientId, activeCabinet);
 
+    const commercial = data.type === "invoice" || data.type === "quotation";
+
     const lines = data.items.map((item, position) => ({
       id: item.id,
       serviceId: item.serviceId ?? null,
@@ -342,8 +344,8 @@ export const upsertDocument = createServerFn({ method: "POST" })
       unitPrice: item.unitPrice,
       vatRate: item.vatRate,
       discount: item.discount ?? 0,
-      tpsRate: data.type === "invoice" ? 0 : (item.tpsRate ?? 0),
-      cssRate: item.cssRate ?? 0,
+      tpsRate: commercial ? 0 : (item.tpsRate ?? 0),
+      cssRate: commercial ? (item.cssRate ?? 0) : (item.cssRate ?? 0),
       position,
     }));
 
@@ -357,13 +359,12 @@ export const upsertDocument = createServerFn({ method: "POST" })
       issueDate: new Date(data.issueDate),
       dueDate: new Date(data.dueDate),
       subtotal: data.subtotal,
-      tps: data.type === "invoice" ? 0 : (data.tps ?? 0),
-      css: data.css ?? 0,
+      tps: commercial ? 0 : (data.tps ?? 0),
+      css: commercial ? (data.css ?? 0) : (data.css ?? 0),
       vat: data.vat,
-      total:
-        data.type === "invoice"
-          ? data.subtotal + (data.css ?? 0) + data.vat
-          : data.total,
+      total: commercial
+        ? data.subtotal + (data.css ?? 0) + data.vat
+        : data.total,
       currency: data.currency,
       notes: data.notes ?? null,
       paymentTerms: data.paymentTerms ?? null,

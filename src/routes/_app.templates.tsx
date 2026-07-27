@@ -142,7 +142,7 @@ function useSampleDocs(): Record<DocumentType, Document> {
         unitPrice: 250000,
         vatRate: 18,
         discount: 0,
-        tpsRate: 9.5,
+        tpsRate: 0,
         cssRate: 1,
       },
       {
@@ -152,7 +152,7 @@ function useSampleDocs(): Record<DocumentType, Document> {
         unitPrice: 75000,
         vatRate: 18,
         discount: 0,
-        tpsRate: 9.5,
+        tpsRate: 0,
         cssRate: 1,
       },
     ];

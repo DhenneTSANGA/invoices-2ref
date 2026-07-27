@@ -2,7 +2,15 @@ import { forwardRef } from "react";
 import type { Document } from "@/store/types";
 import { usePreviewData } from "@/hooks/use-preview-data";
 import { number, longDate } from "@/lib/format";
-import { AmountRow, LegalFooter, PreviewLogo, PreviewShell, AmountInWords, PreviewBottomRow } from "./PreviewShell";
+import {
+  AmountRow,
+  LegalFooter,
+  PreviewLogo,
+  PreviewShell,
+  AmountInWords,
+  PreviewBottomRow,
+} from "./PreviewShell";
+import { documentTaxRates } from "@/lib/document-math";
 
 type Props = { doc: Document; compact?: boolean; variant?: "full" | "thumb"; className?: string };
 
@@ -41,7 +49,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
     <PreviewShell innerRef={ref} accent={accent} compact={compact} isThumb={isThumb} className={className}>
       <div className="flex items-start justify-between gap-4 border-b-2 pb-5" style={{ borderColor: accent }}>
         <div className="flex min-w-0 items-center gap-3">
-          <PreviewLogo cabinet={doc.cabinet} />
+          <PreviewLogo cabinet={doc.cabinet} className="h-24" />
           <div className="min-w-0">
             <div className="font-display text-xl font-bold tracking-tight leading-tight" style={{ color: accent }}>
               {company.name}
@@ -89,22 +97,29 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
         {doc.paymentTerms && <span>Conditions : <b className="text-[#0F172A]">{doc.paymentTerms}</b></span>}
       </div>
 
-      <ItemsTable doc={doc} headerFrom={accent} headerTo="#3B82F6" showTaxColumns={false} />
+      <ItemsTable doc={doc} headerFrom={accent} headerTo="#3B82F6" />
 
       <PreviewBottomRow
         left={
-          <div>
-            {doc.notes && (
-              <div className="rounded-lg bg-[#F1F5F9] p-3.5">
-                <div className="text-[11px] font-bold uppercase tracking-wider text-[#64748B]">Notes</div>
-                <p className="mt-1 text-[12px] text-[#334155]">{doc.notes}</p>
-              </div>
-            )}
-            <StampBox accent={accent} />
-          </div>
+          doc.notes ? (
+            <div className="rounded-lg bg-[#F1F5F9] p-3.5">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-[#64748B]">Notes</div>
+              <p className="mt-1 text-[12px] text-[#334155]">{doc.notes}</p>
+            </div>
+          ) : (
+            <div />
+          )
         }
         right={<TotalsBlock doc={doc} company={company} accent={accent} />}
       />
+
+      <div className="mt-4 w-full">
+        <AmountInWords amount={doc.total} currency={doc.currency} accent={accent} />
+      </div>
+
+      <div className="mt-4 flex justify-end">
+        <StampBox accent={accent} />
+      </div>
 
       <LegalFooter {...company} niuLabel={doc.cabinet === "conseil" ? "STAT" : "NIU"} />
     </PreviewShell>
@@ -168,18 +183,18 @@ function PartyBlock({
   );
 }
 
+/** Tableau de lignes — sans CSS/TVA (affichés uniquement dans le bloc totaux). */
 function ItemsTable({
   doc,
   headerFrom,
   headerTo,
-  showTaxColumns = false,
 }: {
   doc: Document;
   headerFrom: string;
   headerTo: string;
+  /** @deprecated Ignoré — taxes uniquement dans les totaux. */
   showTaxColumns?: boolean;
 }) {
-  const colSpan = showTaxColumns ? 8 : 6;
   return (
     <div className="mt-4 overflow-hidden rounded-lg ring-1 ring-[#E2E8F0]">
       <table className="w-full border-collapse text-[12px]">
@@ -189,20 +204,13 @@ function ItemsTable({
             <th className="px-2.5 py-2.5 text-left font-semibold">Désignation</th>
             <th className="px-2.5 py-2.5 text-right font-semibold w-12">Qté</th>
             <th className="px-2.5 py-2.5 text-right font-semibold w-20">P.U. HT</th>
-            {showTaxColumns && (
-              <>
-                <th className="px-2 py-2.5 text-right font-semibold w-12">TPS</th>
-                <th className="px-2 py-2.5 text-right font-semibold w-12">CSS</th>
-              </>
-            )}
-            <th className="px-2 py-2.5 text-right font-semibold w-12">TVA</th>
             <th className="px-2.5 py-2.5 text-right font-semibold w-24">Total HT</th>
           </tr>
         </thead>
         <tbody>
           {doc.items.length === 0 && (
             <tr>
-              <td colSpan={colSpan} className="px-3 py-6 text-center italic text-[#94A3B8]">
+              <td colSpan={5} className="px-3 py-6 text-center italic text-[#94A3B8]">
                 Aucune ligne.
               </td>
             </tr>
@@ -218,13 +226,6 @@ function ItemsTable({
                 </td>
                 <td className="px-2.5 py-2.5 text-right align-top font-mono">{it.quantity}</td>
                 <td className="px-2.5 py-2.5 text-right align-top font-mono">{number(it.unitPrice)}</td>
-                {showTaxColumns && (
-                  <>
-                    <td className="px-2 py-2.5 text-right align-top font-mono">{it.tpsRate ?? 0}%</td>
-                    <td className="px-2 py-2.5 text-right align-top font-mono">{it.cssRate ?? 0}%</td>
-                  </>
-                )}
-                <td className="px-2 py-2.5 text-right align-top font-mono">{it.vatRate}%</td>
                 <td className="px-2.5 py-2.5 text-right align-top font-mono font-semibold">{number(lineTotal)}</td>
               </tr>
             );
@@ -237,30 +238,46 @@ function ItemsTable({
 
 function StampBox({ accent, label = "Signature & Cachet" }: { accent: string; label?: string }) {
   return (
-    <div className="mt-3 rounded-lg border border-dashed border-[#CBD5E1] p-3.5 text-center">
+    <div className="w-full max-w-[220px] rounded-lg border border-dashed border-[#CBD5E1] p-3.5 text-center">
       <div className="text-[11px] font-bold uppercase tracking-wider text-[#64748B]">{label}</div>
-      <div className="mt-6 mx-auto flex h-16 w-36 items-center justify-center rounded-full border-2 border-dashed text-[11px] italic" style={{ borderColor: `${accent}66`, color: `${accent}99` }}>
+      <div
+        className="mx-auto mt-6 flex h-16 w-36 items-center justify-center rounded-full border-2 border-dashed text-[11px] italic"
+        style={{ borderColor: `${accent}66`, color: `${accent}99` }}
+      >
         Cachet
       </div>
     </div>
   );
 }
 
-function TotalsBlock({ doc, company, accent }: { doc: Document; company: { bankName: string; bankAccount: string }; accent: string }) {
+function TotalsBlock({
+  doc,
+  company,
+  accent,
+}: {
+  doc: Document;
+  company: { bankName: string; bankAccount: string };
+  accent: string;
+}) {
+  const { vatRate, cssRate } = documentTaxRates(doc.items);
   return (
     <div className="w-full space-y-2">
       <div className="overflow-hidden rounded-lg ring-1 ring-[#E2E8F0]">
         <AmountRow label="Sous-total HT" value={number(doc.subtotal)} currency={doc.currency} accent={accent} />
-        {(doc.tps ?? 0) > 0 && (
-          <AmountRow label="TPS" value={number(doc.tps ?? 0)} currency={doc.currency} accent={accent} />
-        )}
-        {(doc.css ?? 0) > 0 && (
-          <AmountRow label="CSS" value={number(doc.css ?? 0)} currency={doc.currency} accent={accent} />
-        )}
-        <AmountRow label="TVA (18 %)" value={number(doc.vat)} currency={doc.currency} accent={accent} />
+        <AmountRow
+          label={`CSS (${cssRate} %)`}
+          value={number(doc.css ?? 0)}
+          currency={doc.currency}
+          accent={accent}
+        />
+        <AmountRow
+          label={`TVA (${vatRate} %)`}
+          value={number(doc.vat)}
+          currency={doc.currency}
+          accent={accent}
+        />
         <AmountRow label="Total TTC" value={number(doc.total)} currency={doc.currency} strong accent={accent} />
       </div>
-      <AmountInWords amount={doc.total} currency={doc.currency} accent={accent} />
       {(company.bankName || company.bankAccount) && (
         <div className="rounded-lg bg-[#F1F5F9] p-2.5 text-[11px] text-[#475569]">
           <div><b>Coordonnées bancaires</b></div>

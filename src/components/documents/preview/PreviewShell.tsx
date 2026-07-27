@@ -69,7 +69,7 @@ export function PreviewLogo({
     <img
       src={CABINET_LOGOS[cabinet]}
       alt={CABINET_LABELS[cabinet]}
-      className={cn("h-16 w-auto shrink-0 object-contain", className)}
+      className={cn("h-24 w-auto shrink-0 object-contain", className)}
     />
   );
 }

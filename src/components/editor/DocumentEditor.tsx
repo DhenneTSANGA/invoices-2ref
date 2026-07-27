@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Plus, Trash2, Save, Send, Download, Eye, Loader2, Users } from "lucide-react";
 import { toast } from "sonner";
-import { computeTotals } from "@/lib/document-math";
+import { computeTotals, computeDocumentTotals, documentTaxRates, DEFAULT_VAT_RATE, DEFAULT_CSS_RATE, parseExecutionDays, formatExecutionTerms } from "@/lib/document-math";
 import type { Document, DocumentType, LineItem } from "@/store/types";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 import { downloadDocumentPdf } from "@/lib/pdf/downloadDocumentPdf";
@@ -18,6 +18,12 @@ const newId = () => `tmp-${Math.random().toString(36).slice(2, 9)}`;
 
 function isPersistedId(id: string) {
   return !id.startsWith("d-") && !id.startsWith("tmp-");
+}
+
+function addDaysIso(isoDate: string, days: number) {
+  const d = new Date(`${isoDate}T12:00:00`);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
 }
 
 export function DocumentEditor({ initial, type }: Props) {
@@ -54,25 +60,25 @@ export function DocumentEditor({ initial, type }: Props) {
   const [exporting, setExporting] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const showTaxColumns = type === "quotation";
+  const commercial = type === "invoice" || type === "quotation";
   const effectiveClientId = doc.clientId || clients[0]?.id || "";
-  const itemsForTotals =
-    type === "invoice"
-      ? doc.items.map((it) => ({ ...it, tpsRate: 0 }))
-      : doc.items;
+  const executionDays = parseExecutionDays(doc.executionTerms);
+  const { vatRate, cssRate } = documentTaxRates(doc.items);
+
   const totals = useMemo(
-    () => {
-      const t = computeTotals(itemsForTotals);
-      return type === "invoice" ? { ...t, tps: 0 } : t;
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- itemsForTotals dérivé de doc.items + type
-    [doc.items, type],
+    () =>
+      commercial
+        ? computeDocumentTotals(doc.items)
+        : computeTotals(doc.items),
+    [doc.items, commercial],
   );
   const merged: Document = {
     ...doc,
     ...totals,
     clientId: effectiveClientId,
-    items: itemsForTotals,
+    items: commercial
+      ? doc.items.map((it) => ({ ...it, tpsRate: 0 }))
+      : doc.items,
   };
 
   const updateItem = (id: string, patch: Partial<LineItem>) =>
@@ -91,10 +97,10 @@ export function DocumentEditor({ initial, type }: Props) {
           description: "",
           quantity: 1,
           unitPrice: 0,
-          vatRate: 18,
+          vatRate: DEFAULT_VAT_RATE,
           discount: 0,
           tpsRate: 0,
-          cssRate: 0,
+          cssRate: DEFAULT_CSS_RATE,
         },
       ],
     }));
@@ -112,10 +118,10 @@ export function DocumentEditor({ initial, type }: Props) {
           description: s.name,
           quantity: 1,
           unitPrice: s.unitPrice,
-          vatRate: s.vatRate,
+          vatRate: s.vatRate || DEFAULT_VAT_RATE,
           discount: 0,
           tpsRate: 0,
-          cssRate: 0,
+          cssRate: DEFAULT_CSS_RATE,
         },
       ],
     }));
@@ -148,7 +154,7 @@ export function DocumentEditor({ initial, type }: Props) {
         dueDate: merged.dueDate,
         currency: merged.currency,
         notes: merged.notes ?? null,
-        paymentTerms: merged.paymentTerms ?? null,
+        paymentTerms: type === "quotation" ? null : (merged.paymentTerms ?? null),
         validityDays: merged.validityDays ?? null,
         executionTerms: merged.executionTerms ?? null,
         subject: merged.subject ?? null,
@@ -165,12 +171,12 @@ export function DocumentEditor({ initial, type }: Props) {
           unitPrice: it.unitPrice,
           vatRate: it.vatRate,
           discount: it.discount ?? 0,
-          tpsRate: it.tpsRate ?? 0,
-          cssRate: it.cssRate ?? 0,
+          tpsRate: commercial ? 0 : (it.tpsRate ?? 0),
+          cssRate: commercial ? (it.cssRate ?? DEFAULT_CSS_RATE) : (it.cssRate ?? 0),
         })),
         subtotal: merged.subtotal,
-        tps: merged.tps,
-        css: merged.css,
+        tps: commercial ? 0 : merged.tps,
+        css: commercial ? merged.css : merged.css,
         vat: merged.vat,
         total: merged.total,
       };
@@ -257,33 +263,66 @@ export function DocumentEditor({ initial, type }: Props) {
             label="Date d'émission"
             type="date"
             value={doc.issueDate}
-            onChange={(v) => setDoc({ ...doc, issueDate: v })}
+            onChange={(v) => {
+              const issueDate = v;
+              if (type === "quotation") {
+                const days = doc.validityDays ?? 30;
+                setDoc({
+                  ...doc,
+                  issueDate,
+                  dueDate: addDaysIso(issueDate, days),
+                });
+              } else {
+                setDoc({ ...doc, issueDate });
+              }
+            }}
           />
-          <Field
-            label="Échéance"
-            type="date"
-            value={doc.dueDate}
-            onChange={(v) => setDoc({ ...doc, dueDate: v })}
-          />
-          <Field
-            label="Conditions de paiement"
-            value={doc.paymentTerms ?? ""}
-            onChange={(v) => setDoc({ ...doc, paymentTerms: v })}
-          />
-          <Field
-            label="Devise"
-            value={doc.currency}
-            onChange={(v) => setDoc({ ...doc, currency: v })}
-          />
-          {type === "quotation" && (
+          {type === "invoice" ? (
+            <>
+              <Field
+                label="Échéance"
+                type="date"
+                value={doc.dueDate}
+                onChange={(v) => setDoc({ ...doc, dueDate: v })}
+              />
+              <Field
+                label="Conditions"
+                value={doc.paymentTerms ?? ""}
+                onChange={(v) => setDoc({ ...doc, paymentTerms: v })}
+              />
+            </>
+          ) : (
             <>
               <Field
                 label="Validité (jours)"
                 type="number"
                 value={String(doc.validityDays ?? 30)}
-                onChange={(v) =>
-                  setDoc({ ...doc, validityDays: Number(v) || 30 })
-                }
+                onChange={(v) => {
+                  const days = Math.max(1, Number(v) || 30);
+                  setDoc({
+                    ...doc,
+                    validityDays: days,
+                    dueDate: addDaysIso(doc.issueDate, days),
+                  });
+                }}
+              />
+              <Field
+                label="Validité jusqu'au"
+                type="date"
+                value={doc.dueDate}
+                onChange={(v) => setDoc({ ...doc, dueDate: v })}
+              />
+              <Field
+                label="Délai de réalisation (jours)"
+                type="number"
+                value={String(executionDays)}
+                onChange={(v) => {
+                  const days = Math.max(1, Number(v) || 15);
+                  setDoc({
+                    ...doc,
+                    executionTerms: formatExecutionTerms(days),
+                  });
+                }}
               />
               <Field
                 label="Conditions de réalisation"
@@ -292,6 +331,11 @@ export function DocumentEditor({ initial, type }: Props) {
               />
             </>
           )}
+          <Field
+            label="Devise"
+            value={doc.currency}
+            onChange={(v) => setDoc({ ...doc, currency: v })}
+          />
         </div>
       </div>
 
@@ -332,19 +376,14 @@ export function DocumentEditor({ initial, type }: Props) {
                 <th className="py-2 text-right font-medium w-20">Qté</th>
                 <th className="py-2 text-right font-medium w-28">P.U.</th>
                 <th className="py-2 text-right font-medium w-20">TVA %</th>
-                {showTaxColumns && (
-                  <>
-                    <th className="py-2 text-right font-medium w-20">TPS %</th>
-                    <th className="py-2 text-right font-medium w-20">CSS %</th>
-                  </>
-                )}
+                <th className="py-2 text-right font-medium w-20">CSS %</th>
                 <th className="py-2 text-right font-medium w-20">Rem. %</th>
                 <th className="py-2 text-right font-medium w-28">Total</th>
                 <th className="w-10" />
               </tr>
             </thead>
             <tbody>
-              <AnimateEmpty items={doc.items} colSpan={showTaxColumns ? 9 : 7} />
+              <AnimateEmpty items={doc.items} colSpan={8} />
               {doc.items.map((it) => {
                 const lineTotal =
                   it.quantity * it.unitPrice * (1 - (it.discount || 0) / 100);
@@ -378,22 +417,12 @@ export function DocumentEditor({ initial, type }: Props) {
                         onChange={(v) => updateItem(it.id, { vatRate: v })}
                       />
                     </td>
-                    {showTaxColumns && (
-                      <>
-                        <td className="py-2 px-1">
-                          <NumInput
-                            value={it.tpsRate}
-                            onChange={(v) => updateItem(it.id, { tpsRate: v })}
-                          />
-                        </td>
-                        <td className="py-2 px-1">
-                          <NumInput
-                            value={it.cssRate}
-                            onChange={(v) => updateItem(it.id, { cssRate: v })}
-                          />
-                        </td>
-                      </>
-                    )}
+                    <td className="py-2 px-1">
+                      <NumInput
+                        value={it.cssRate ?? DEFAULT_CSS_RATE}
+                        onChange={(v) => updateItem(it.id, { cssRate: v })}
+                      />
+                    </td>
                     <td className="py-2 px-1">
                       <NumInput
                         value={it.discount}
@@ -421,9 +450,8 @@ export function DocumentEditor({ initial, type }: Props) {
 
         <div className="mt-5 ml-auto w-full max-w-xs space-y-2 rounded-2xl bg-surface-2 p-4">
           <Total label="Sous-total HT" value={totals.subtotal} />
-          {showTaxColumns && totals.tps > 0 && <Total label="TPS" value={totals.tps} />}
-          {showTaxColumns && totals.css > 0 && <Total label="CSS" value={totals.css} />}
-          <Total label="TVA" value={totals.vat} />
+          <Total label={`CSS (${cssRate} %)`} value={totals.css} />
+          <Total label={`TVA (${vatRate} %)`} value={totals.vat} />
           <div className="my-2 h-px bg-border" />
           <Total label="Total TTC" value={totals.total} strong />
         </div>
@@ -635,10 +663,8 @@ function defaultDoc(
       ...base,
       number: `DV-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`,
       notes: "Proposition valable sous réserve d'acceptation écrite.",
-      paymentTerms: "Acompte 40 % à la commande — solde à livraison (XAF).",
       validityDays: 30,
-      executionTerms:
-        "Délai d'exécution : 15 jours ouvrés après acceptation du devis.",
+      executionTerms: formatExecutionTerms(15),
     };
   }
   return {
