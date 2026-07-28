@@ -20,10 +20,26 @@ export function humanAuthError(
 
   const lower = msg.toLowerCase();
 
-  // Déjà en français (heuristique simple) → garder
-  if (/[àâäéèêëïîôùûüçœ]/i.test(msg) || /\b(mot de passe|compte|connexion|e-mail|email)\b/i.test(msg)) {
-    // Sauf si c’est un mélange technique anglais connu
-    if (!/invalid login|email not confirmed|rate limit|user already|weak password/i.test(lower)) {
+  // Messages techniques anglais connus (avant l’heuristique « déjà en français »)
+  if (
+    /email link is invalid|link is invalid or has expired|otp_expired|token has expired|token is (invalid|expired)/i.test(
+      lower,
+    )
+  ) {
+    return "Ce lien de réinitialisation n’est plus valide ou a déjà été utilisé. Demandez-en un nouveau depuis la page de connexion.";
+  }
+
+  // Déjà en français (heuristique) → garder
+  // Ne pas traiter un message anglais contenant le mot « email » comme du français.
+  const looksFrench =
+    /[àâäéèêëïîôùûüçœ]/i.test(msg) ||
+    /\b(mot de passe|compte|connexion|e-mail)\b/i.test(msg);
+  if (looksFrench) {
+    if (
+      !/invalid login|email not confirmed|rate limit|user already|weak password|email link/i.test(
+        lower,
+      )
+    ) {
       return msg;
     }
   }
@@ -64,8 +80,8 @@ export function humanAuthError(
     return "Problème de connexion réseau. Vérifiez votre internet puis réessayez.";
   }
 
-  if (/otp|token|expired|invalid.*link|magic.?link/i.test(lower)) {
-    return "Ce lien n’est plus valide ou a expiré. Demandez un nouvel accès à un administrateur.";
+  if (/otp|token|expired|invalid.*link|link.*invalid|magic.?link|recovery/i.test(lower)) {
+    return "Ce lien n’est plus valide ou a expiré. Demandez-en un nouveau depuis la page de connexion.";
   }
 
   if (/signup.?disabled|signups not allowed|sign ups not allowed/i.test(lower)) {

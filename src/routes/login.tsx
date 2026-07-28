@@ -4,8 +4,12 @@ import { AuthVisualPanel } from "@/components/auth/AuthVisualPanel";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ArrowRight, Mail, Lock, Eye, EyeOff, KeyRound, X } from "lucide-react";
-import { signInWithEmailPassword, signOut } from "@/lib/auth";
-import { loginSchema } from "@/lib/auth-schemas";
+import {
+  requestPasswordReset,
+  signInWithEmailPassword,
+  signOut,
+} from "@/lib/auth";
+import { loginSchema, resetPasswordRequestSchema } from "@/lib/auth-schemas";
 import { syncStaffToDatabase } from "@/lib/staff-client";
 import { staffFromAuthUser } from "@/lib/staff-parse";
 import { getCurrentSession } from "@/lib/session.functions";
@@ -54,6 +58,8 @@ function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [mode, setMode] = useState<"login" | "forgot">("login");
+  const [resetSent, setResetSent] = useState(false);
   const publicSignup = isPublicSelfSignupEnabled();
 
   useEffect(() => {
@@ -67,7 +73,7 @@ function LoginPage() {
     toast.error(message, { duration: 10_000 });
   }, []);
 
-  const submit = async (e: React.FormEvent) => {
+  const submitLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     const parsed = loginSchema.safeParse({ email, password });
     if (!parsed.success) {
@@ -125,6 +131,37 @@ function LoginPage() {
     }
   };
 
+  const submitReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const parsed = resetPasswordRequestSchema.safeParse({ email });
+    if (!parsed.success) {
+      toast.error(parsed.error.issues[0]?.message ?? "Indiquez une adresse e-mail valide.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await requestPasswordReset(parsed.data.email);
+      if (error) throw error;
+      setResetSent(true);
+      toast.success("E-mail envoyé", {
+        description:
+          "Si un compte existe pour cette adresse, vous recevrez un lien sous peu.",
+        duration: 10_000,
+      });
+    } catch (err) {
+      toast.error(
+        humanAuthError(
+          err,
+          "Impossible d’envoyer l’e-mail pour le moment. Réessayez.",
+        ),
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const isForgot = mode === "forgot";
+
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
       <AuthVisualPanel
@@ -136,7 +173,7 @@ function LoginPage() {
 
       <div className="flex items-center justify-center p-6">
         <form
-          onSubmit={submit}
+          onSubmit={isForgot ? submitReset : submitLogin}
           className="glass-panel w-full max-w-md rounded-3xl p-5 shadow-float sm:p-8"
         >
           <div className="mb-6">
@@ -145,32 +182,80 @@ function LoginPage() {
               Connexion collaborateur
             </p>
           </div>
-          <h2 className="font-display text-2xl font-bold">Connexion</h2>
+          <h2 className="font-display text-2xl font-bold">
+            {isForgot ? "Mot de passe oublié" : "Connexion"}
+          </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Accédez à 2R Hub pour 2R Conseil ou 2R Expertise Fiscale.
+            {isForgot
+              ? "Indiquez votre e-mail : nous vous enverrons un lien pour choisir un nouveau mot de passe."
+              : "Accédez à 2R Hub pour 2R Conseil ou 2R Expertise Fiscale."}
           </p>
 
           <div className="mt-6 space-y-4">
             <Field icon={Mail} label="Email" type="email" value={email} onChange={setEmail} />
-            <Field
-              icon={Lock}
-              label="Mot de passe"
-              type="password"
-              value={password}
-              onChange={setPassword}
-            />
+            {!isForgot ? (
+              <Field
+                icon={Lock}
+                label="Mot de passe"
+                type="password"
+                value={password}
+                onChange={setPassword}
+              />
+            ) : null}
           </div>
+
+          {!isForgot ? (
+            <div className="mt-3 flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("forgot");
+                  setResetSent(false);
+                }}
+                className="text-xs font-medium text-primary hover:underline"
+              >
+                Mot de passe oublié ?
+              </button>
+            </div>
+          ) : null}
+
+          {isForgot && resetSent ? (
+            <p className="mt-4 rounded-2xl border border-primary/15 bg-primary/5 px-3.5 py-3 text-xs leading-relaxed text-muted-foreground">
+              Vérifiez votre boîte mail (et les indésirables). Le lien expire
+              après un certain temps — vous pourrez en demander un autre si
+              besoin.
+            </p>
+          ) : null}
 
           <button
             type="submit"
             disabled={loading}
             className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-60"
           >
-            Se connecter
+            {isForgot
+              ? loading
+                ? "Envoi…"
+                : resetSent
+                  ? "Renvoyer le lien"
+                  : "Envoyer le lien"
+              : "Se connecter"}
             <ArrowRight className="h-4 w-4" />
           </button>
 
-          {publicSignup ? (
+          {isForgot ? (
+            <p className="mt-6 text-center text-xs text-muted-foreground">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("login");
+                  setResetSent(false);
+                }}
+                className="font-medium text-primary hover:underline"
+              >
+                Retour à la connexion
+              </button>
+            </p>
+          ) : publicSignup ? (
             <p className="mt-6 text-center text-xs text-muted-foreground">
               Pas de compte ?{" "}
               <Link to="/signup" className="font-medium text-primary hover:underline">

@@ -10,6 +10,8 @@ import {
 } from "@/lib/access-policy";
 import {
   MUST_SET_PASSWORD_KEY,
+  clearPasswordRecoveryPending,
+  hasPasswordRecoveryPending,
   userMustSetPassword,
 } from "@/lib/auth-password";
 import { getAuthBootstrap } from "@/lib/admin.functions";
@@ -23,6 +25,7 @@ import { humanAuthError } from "@/lib/auth-errors";
  * - OAuth / PKCE : ?code=
  * - Invitation / e-mail (templates TokenHash) : ?token_hash=&type=
  * - Ancien flux implicite : #access_token=&refresh_token=
+ * - Mot de passe oublié : type=recovery ou ?next=reset → /auth/reset-password
  *
  * Après invitation → /auth/set-password pour créer le mot de passe.
  */
@@ -53,6 +56,7 @@ function AuthCallbackPage() {
 
     const goHomeOrPassword = async (opts: {
       forcePassword?: boolean;
+      recovery?: boolean;
     }) => {
       const supabase = createClient();
       const {
@@ -60,6 +64,11 @@ function AuthCallbackPage() {
       } = await supabase.auth.getUser();
       if (!user) {
         await fail("Session introuvable après validation");
+        return;
+      }
+
+      if (opts.recovery) {
+        if (!cancelled) void navigate({ to: "/auth/reset-password" });
         return;
       }
 
@@ -134,6 +143,7 @@ function AuthCallbackPage() {
         const code = url.searchParams.get("code");
         const tokenHash = url.searchParams.get("token_hash");
         const typeParam = url.searchParams.get("type");
+        const nextParam = url.searchParams.get("next");
         const oauthError =
           url.searchParams.get("error_description") ??
           url.searchParams.get("error");
@@ -144,59 +154,88 @@ function AuthCallbackPage() {
         }
 
         let inviteFlow = typeParam === "invite";
+        let recoveryFlow =
+          typeParam === "recovery" ||
+          nextParam === "reset" ||
+          hasPasswordRecoveryPending();
 
-        if (code) {
-          setMessage("Échange du code d’autorisation…");
-          const { error } = await supabase.auth.exchangeCodeForSession(code);
-          if (error) {
-            await fail(error.message);
-            return;
-          }
-        } else if (tokenHash && typeParam) {
-          setMessage(
-            typeParam === "invite"
-              ? "Validation de l’invitation…"
-              : "Validation du lien…",
-          );
-          const { error } = await supabase.auth.verifyOtp({
-            token_hash: tokenHash,
-            type: typeParam as EmailOtpType,
-          });
-          if (error) {
-            await fail(error.message);
-            return;
-          }
-          inviteFlow = typeParam === "invite";
-        } else if (url.hash && url.hash.includes("access_token")) {
-          setMessage("Ouverture de la session…");
-          const hash = new URLSearchParams(url.hash.replace(/^#/, ""));
-          const access_token = hash.get("access_token");
-          const refresh_token = hash.get("refresh_token");
-          if (hash.get("type") === "invite") inviteFlow = true;
-          if (!access_token || !refresh_token) {
-            await fail("Lien d’invitation incomplet");
-            return;
-          }
-          const { error } = await supabase.auth.setSession({
-            access_token,
-            refresh_token,
-          });
-          if (error) {
-            await fail(error.message);
-            return;
-          }
-        } else {
-          const { data } = await supabase.auth.getSession();
-          if (!data.session) {
-            await fail(
-              "Lien d’invitation invalide ou expiré. Demandez une nouvelle invitation.",
+        // PKCE / default mail : souvent seulement ?code= — l’événement Auth le confirme
+        let recoveryFromEvent = false;
+        const {
+          data: { subscription },
+        } = supabase.auth.onAuthStateChange((event) => {
+          if (event === "PASSWORD_RECOVERY") recoveryFromEvent = true;
+        });
+
+        try {
+          if (code) {
+            setMessage("Échange du code d’autorisation…");
+            const { error } = await supabase.auth.exchangeCodeForSession(code);
+            if (error) {
+              await fail(error.message);
+              return;
+            }
+          } else if (tokenHash && typeParam) {
+            setMessage(
+              typeParam === "recovery"
+                ? "Validation du lien de réinitialisation…"
+                : typeParam === "invite"
+                  ? "Validation de l’invitation…"
+                  : "Validation du lien…",
             );
-            return;
+            const { error } = await supabase.auth.verifyOtp({
+              token_hash: tokenHash,
+              type: typeParam as EmailOtpType,
+            });
+            if (error) {
+              await fail(error.message);
+              return;
+            }
+            inviteFlow = typeParam === "invite";
+            if (typeParam === "recovery") recoveryFlow = true;
+          } else if (url.hash && url.hash.includes("access_token")) {
+            setMessage("Ouverture de la session…");
+            const hash = new URLSearchParams(url.hash.replace(/^#/, ""));
+            const access_token = hash.get("access_token");
+            const refresh_token = hash.get("refresh_token");
+            const hashType = hash.get("type");
+            if (hashType === "invite") inviteFlow = true;
+            if (hashType === "recovery") recoveryFlow = true;
+            if (!access_token || !refresh_token) {
+              await fail("Lien d’authentification incomplet");
+              return;
+            }
+            const { error } = await supabase.auth.setSession({
+              access_token,
+              refresh_token,
+            });
+            if (error) {
+              await fail(error.message);
+              return;
+            }
+          } else {
+            const { data } = await supabase.auth.getSession();
+            if (!data.session) {
+              await fail(
+                recoveryFlow
+                  ? "Ce lien de réinitialisation n’est plus valide. Demandez-en un nouveau depuis la page de connexion."
+                  : "Lien d’invitation invalide ou expiré. Demandez une nouvelle invitation.",
+              );
+              return;
+            }
           }
+        } finally {
+          subscription.unsubscribe();
         }
 
+        recoveryFlow = recoveryFlow || recoveryFromEvent;
+        if (recoveryFlow) clearPasswordRecoveryPending();
+
         window.history.replaceState({}, document.title, "/auth/callback");
-        await goHomeOrPassword({ forcePassword: inviteFlow });
+        await goHomeOrPassword({
+          forcePassword: inviteFlow && !recoveryFlow,
+          recovery: recoveryFlow,
+        });
       } catch (err) {
         await fail(
           err instanceof Error

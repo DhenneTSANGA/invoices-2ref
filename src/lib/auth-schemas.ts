@@ -11,6 +11,10 @@ export const loginSchema = z.object({
   password: z.string().min(6, "Mot de passe trop court"),
 });
 
+export const resetPasswordRequestSchema = z.object({
+  email: z.string().email("Email invalide"),
+});
+
 /** Première connexion après invitation : définir le mot de passe. */
 export const setPasswordSchema = z
   .object({
@@ -21,6 +25,9 @@ export const setPasswordSchema = z
     message: "Les mots de passe ne correspondent pas",
     path: ["confirmPassword"],
   });
+
+/** Réinitialisation après e-mail « mot de passe oublié ». */
+export const resetPasswordSchema = setPasswordSchema;
 
 export const cabinetSchema = z.enum(["conseil", "expertise_fiscale"], {
   error: "Choisissez votre cabinet",

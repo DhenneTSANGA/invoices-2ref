@@ -17,6 +17,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthSetPasswordRouteImport } from './routes/auth.set-password'
+import { Route as AuthResetPasswordRouteImport } from './routes/auth.reset-password'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AppUsersRouteImport } from './routes/_app.users'
 import { Route as AppTemplatesRouteImport } from './routes/_app.templates'
@@ -89,6 +90,11 @@ const IndexRoute = IndexRouteImport.update({
 const AuthSetPasswordRoute = AuthSetPasswordRouteImport.update({
   id: '/auth/set-password',
   path: '/auth/set-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
+  id: '/auth/reset-password',
+  path: '/auth/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
@@ -285,6 +291,7 @@ export interface FileRoutesByFullPath {
   '/templates': typeof AppTemplatesRoute
   '/users': typeof AppUsersRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/set-password': typeof AuthSetPasswordRoute
   '/clients/$id': typeof AppClientsIdRoute
   '/clients/new': typeof AppClientsNewRoute
@@ -325,6 +332,7 @@ export interface FileRoutesByTo {
   '/templates': typeof AppTemplatesRoute
   '/users': typeof AppUsersRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/set-password': typeof AuthSetPasswordRoute
   '/clients/$id': typeof AppClientsIdRoute
   '/clients/new': typeof AppClientsNewRoute
@@ -370,6 +378,7 @@ export interface FileRoutesById {
   '/_app/templates': typeof AppTemplatesRoute
   '/_app/users': typeof AppUsersRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/set-password': typeof AuthSetPasswordRoute
   '/_app/clients/$id': typeof AppClientsIdRoute
   '/_app/clients/new': typeof AppClientsNewRoute
@@ -415,6 +424,7 @@ export interface FileRouteTypes {
     | '/templates'
     | '/users'
     | '/auth/callback'
+    | '/auth/reset-password'
     | '/auth/set-password'
     | '/clients/$id'
     | '/clients/new'
@@ -455,6 +465,7 @@ export interface FileRouteTypes {
     | '/templates'
     | '/users'
     | '/auth/callback'
+    | '/auth/reset-password'
     | '/auth/set-password'
     | '/clients/$id'
     | '/clients/new'
@@ -499,6 +510,7 @@ export interface FileRouteTypes {
     | '/_app/templates'
     | '/_app/users'
     | '/auth/callback'
+    | '/auth/reset-password'
     | '/auth/set-password'
     | '/_app/clients/$id'
     | '/_app/clients/new'
@@ -529,6 +541,7 @@ export interface RootRouteChildren {
   SignupRoute: typeof SignupRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
+  AuthResetPasswordRoute: typeof AuthResetPasswordRoute
   AuthSetPasswordRoute: typeof AuthSetPasswordRoute
   ApiStaffSyncRoute: typeof ApiStaffSyncRoute
 }
@@ -589,6 +602,13 @@ declare module '@tanstack/react-router' {
       path: '/auth/set-password'
       fullPath: '/auth/set-password'
       preLoaderRoute: typeof AuthSetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/reset-password': {
+      id: '/auth/reset-password'
+      path: '/auth/reset-password'
+      fullPath: '/auth/reset-password'
+      preLoaderRoute: typeof AuthResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/callback': {
@@ -953,6 +973,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignupRoute: SignupRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   AuthCallbackRoute: AuthCallbackRoute,
+  AuthResetPasswordRoute: AuthResetPasswordRoute,
   AuthSetPasswordRoute: AuthSetPasswordRoute,
   ApiStaffSyncRoute: ApiStaffSyncRoute,
 }

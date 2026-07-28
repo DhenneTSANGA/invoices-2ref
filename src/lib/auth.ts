@@ -1,9 +1,21 @@
 import { createClient } from "@/lib/client";
 import type { StaffPayload } from "@/lib/auth-schemas";
+import { markPasswordRecoveryPending } from "@/lib/auth-password";
 
 export function signInWithEmailPassword(email: string, password: string) {
   const supabase = createClient();
   return supabase.auth.signInWithPassword({ email, password });
+}
+
+/** Envoie l’e-mail Supabase de réinitialisation (type recovery). */
+export function requestPasswordReset(email: string) {
+  markPasswordRecoveryPending();
+  const supabase = createClient();
+  return supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+    // Sans query : l’URL doit matcher exactement les Redirect URLs Supabase.
+    // La page reset est choisie via localStorage + événement PASSWORD_RECOVERY.
+    redirectTo: `${window.location.origin}/auth/callback`,
+  });
 }
 
 export function signUpWithStaff(
