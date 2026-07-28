@@ -1,0 +1,70 @@
+<!--
+  ═══════════════════════════════════════════════════════════════
+  SUPABASE — Invite user (Invitation collaborateur)
+  Où coller : Authentication → Email Templates → Invite user
+  ═══════════════════════════════════════════════════════════════
+
+  SUJET :
+  Invitation 2R Hub — activez votre compte
+
+  IMPORTANT :
+  1. Authentication → URL Configuration
+     - Site URL = URL de l’app (ex. https://votre-domaine ou http://localhost:8080)
+     - Redirect URLs : ajouter https://votre-domaine/auth/callback
+       et http://localhost:8080/auth/callback
+
+  2. Dans .env : APP_URL=même URL (sans slash final)
+
+  3. Préférez le lien ci-dessous (token_hash) plutôt que le seul
+     {{ .ConfirmationURL }} si vous voyez l’erreur « missing_code ».
+-->
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Invitation — 2R Hub</title>
+</head>
+<body style="margin:0;padding:0;background:#F1F5F9;font-family:Arial,Helvetica,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding:32px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width:560px;background:#fff;border-radius:16px;border:1px solid #E2E8F0;">
+          <tr>
+            <td style="background:linear-gradient(135deg,#1E40AF,#0F766E);padding:28px;text-align:center;">
+              <p style="margin:0;font-size:22px;font-weight:700;color:#fff;">2R Hub</p>
+              <p style="margin:6px 0 0;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.85);">
+                Invitation collaborateur
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px;">
+              <p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#334155;">
+                Bonjour,
+              </p>
+              <p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#334155;">
+                Vous êtes invité(e) à rejoindre <strong>2R Hub</strong>.
+                Cliquez sur le bouton ci-dessous pour activer votre compte.
+              </p>
+              <p style="text-align:center;margin:0 0 20px;">
+                <!-- Lien compatible callback app (évite missing_code) -->
+                <a
+                  href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=invite"
+                  style="display:inline-block;padding:14px 28px;background:linear-gradient(90deg,#1E40AF,#0F766E);color:#fff;font-weight:700;font-size:14px;text-decoration:none;border-radius:12px;"
+                >
+                  Accepter l’invitation
+                </a>
+              </p>
+              <p style="margin:0;font-size:12px;line-height:1.5;color:#64748B;">
+                Si le bouton ne fonctionne pas, copiez ce lien :<br />
+                {{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=invite
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

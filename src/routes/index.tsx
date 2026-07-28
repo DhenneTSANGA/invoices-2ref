@@ -19,6 +19,7 @@ import { DualCabinetLogos, Logo } from "@/components/common/Logo";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { getCurrentSession } from "@/lib/session.functions";
 import { homePathForRole } from "@/lib/roles";
+import { isPublicSelfSignupEnabled } from "@/lib/access-policy";
 import {
   documentStatusLabel,
   documentTypeLabel,
@@ -180,6 +181,7 @@ function LandingPage() {
   const appHome = landingSession
     ? homePathForRole(landingSession.staff.role)
     : null;
+  const publicSignup = isPublicSelfSignupEnabled();
 
   return (
     <div className="min-h-screen max-w-[100vw] overflow-x-clip bg-background text-foreground">
@@ -217,13 +219,23 @@ function LandingPage() {
                 >
                   Connexion
                 </Link>
-                <Link
-                  to="/signup"
-                  className="inline-flex items-center gap-1.5 rounded-2xl bg-gradient-primary px-3 py-2 text-sm font-semibold text-primary-foreground shadow-glow sm:px-4"
-                >
-                  Commencer
-                  <ArrowRight className="hidden h-4 w-4 sm:block" />
-                </Link>
+                {publicSignup ? (
+                  <Link
+                    to="/signup"
+                    className="inline-flex items-center gap-1.5 rounded-2xl bg-gradient-primary px-3 py-2 text-sm font-semibold text-primary-foreground shadow-glow sm:px-4"
+                  >
+                    Commencer
+                    <ArrowRight className="hidden h-4 w-4 sm:block" />
+                  </Link>
+                ) : (
+                  <Link
+                    to="/login"
+                    className="inline-flex items-center gap-1.5 rounded-2xl bg-gradient-primary px-3 py-2 text-sm font-semibold text-primary-foreground shadow-glow sm:px-4"
+                  >
+                    Accéder
+                    <ArrowRight className="hidden h-4 w-4 sm:block" />
+                  </Link>
+                )}
               </>
             )}
           </div>
@@ -267,7 +279,7 @@ function LandingPage() {
                   Ouvrir l’espace app
                   <ArrowRight className="h-4 w-4" />
                 </Link>
-              ) : (
+              ) : publicSignup ? (
                 <>
                   <Link
                     to="/signup"
@@ -283,6 +295,14 @@ function LandingPage() {
                     Se connecter
                   </Link>
                 </>
+              ) : (
+                <Link
+                  to="/login"
+                  className="inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-glow transition hover:scale-[1.02] active:scale-[0.98] sm:px-5"
+                >
+                  Se connecter
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
               )}
             </div>
             <div className="mt-8 flex items-start gap-2 text-xs text-muted-foreground">
@@ -496,13 +516,15 @@ function LandingPage() {
               </Link>
             ) : (
               <>
-                <Link
-                  to="/signup"
-                  className="inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-glow"
-                >
-                  Commencer
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
+                {publicSignup ? (
+                  <Link
+                    to="/signup"
+                    className="inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-glow"
+                  >
+                    Commencer
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                ) : null}
                 <Link
                   to="/login"
                   className="inline-flex items-center gap-2 rounded-2xl border border-border px-5 py-3 text-sm font-semibold hover:bg-muted"

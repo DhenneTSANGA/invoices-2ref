@@ -1,11 +1,18 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { toast } from "sonner";
 import {
   ArrowDownCircle,
   ArrowUpCircle,
   Check,
+  CheckCircle2,
+  Copy,
+  Eye,
+  EyeOff,
+  Lock,
   Shield,
+  UserPlus,
   UserRound,
   X,
 } from "lucide-react";
@@ -13,19 +20,30 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { LoadingState } from "@/components/common/LoadingState";
 import { useSession } from "@/hooks/use-data";
 import {
+  createStaffWithPassword,
   listAdminRequests,
   listCabinetStaff,
   reviewAdminRequest,
   setStaffAdminRole,
 } from "@/lib/admin.functions";
+import { createStaffWithPasswordSchema } from "@/lib/auth-schemas";
 import {
+  canInviteStaff,
   canManageAdminRequests,
   canPromoteOrDemoteAdmins,
   roleLabel,
 } from "@/lib/roles";
-import { CABINET_LABELS } from "@/lib/cabinets";
+import { CABINET_LABELS, STAFF_JOB_TITLES, jobTitleLabel } from "@/lib/cabinets";
 import { getCurrentSession } from "@/lib/session.functions";
+import { humanAuthError } from "@/lib/auth-errors";
 import { cn } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/_app/users")({
   head: () => ({ meta: [{ title: "Équipe — 2R Hub" }] }),
@@ -45,6 +63,7 @@ function UsersPage() {
   const { data: session } = useSession();
   const qc = useQueryClient();
   const isSuper = session ? canPromoteOrDemoteAdmins(session.staff.role) : false;
+  const canCreate = session ? canInviteStaff(session.staff.role) : false;
 
   const { data: requests = [], isLoading: loadingRequests } = useQuery({
     queryKey: requestsKey,
@@ -90,8 +109,10 @@ function UsersPage() {
     <div>
       <PageHeader
         title="Équipe"
-        subtitle="Collaborateurs du cabinet et demandes d’administration."
+        subtitle="Création d’accès, collaborateurs et demandes d’administration."
       />
+
+      {canCreate ? <CreateStaffCard /> : null}
 
       <div className="glass-panel mb-6 rounded-3xl p-5">
         <h3 className="font-display font-semibold">Demandes admin en attente</h3>
@@ -221,6 +242,419 @@ function UsersPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function CreateStaffCard() {
+  const qc = useQueryClient();
+  const [showPassword, setShowPassword] = useState(false);
+  const [credentials, setCredentials] = useState<{
+    firstName: string;
+    lastName: string;
+    email: string;
+    password: string;
+    cabinet: string;
+    role: string;
+    jobTitle: string;
+  } | null>(null);
+  const [form, setForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    jobTitle: "" as string,
+    cabinet: "" as string,
+    role: "member" as "member" | "admin",
+    password: "",
+    confirmPassword: "",
+  });
+
+  const create = useMutation({
+    mutationFn: () => {
+      const parsed = createStaffWithPasswordSchema.safeParse(form);
+      if (!parsed.success) {
+        throw new Error(parsed.error.issues[0]?.message ?? "Formulaire invalide");
+      }
+      return createStaffWithPassword({ data: parsed.data }).then((res) => ({
+        res,
+        password: parsed.data.password,
+        snapshot: parsed.data,
+      }));
+    },
+    onSuccess: ({ res, password, snapshot }) => {
+      void qc.invalidateQueries({ queryKey: staffKey });
+      setCredentials({
+        firstName: snapshot.firstName,
+        lastName: snapshot.lastName,
+        email: res.staff.email,
+        password,
+        cabinet: CABINET_LABELS[snapshot.cabinet],
+        role: roleLabel(snapshot.role),
+        jobTitle: jobTitleLabel(snapshot.jobTitle),
+      });
+      setForm({
+        firstName: "",
+        lastName: "",
+        email: "",
+        phone: "",
+        jobTitle: "",
+        cabinet: "",
+        role: "member",
+        password: "",
+        confirmPassword: "",
+      });
+    },
+    onError: (e: Error) =>
+      toast.error(humanAuthError(e, "La création du compte a échoué. Réessayez."), {
+        duration: 12_000,
+      }),
+  });
+
+  return (
+    <>
+      <div className="glass-panel mb-6 rounded-3xl p-5">
+        <div className="flex items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/12 text-primary">
+            <UserPlus className="h-5 w-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h3 className="font-display font-semibold">Créer un accès collaborateur</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Aucun e-mail automatique. Définissez l’e-mail et le mot de passe, puis
+              communiquez-les vous-même à l’utilisateur. Il pourra changer son mot de
+              passe dans Profil.
+            </p>
+          </div>
+        </div>
+
+        <form
+          className="mt-4 grid gap-3 sm:grid-cols-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            create.mutate();
+          }}
+        >
+          <Field
+            label="Prénom"
+            value={form.firstName}
+            onChange={(v) => setForm((f) => ({ ...f, firstName: v }))}
+          />
+          <Field
+            label="Nom"
+            value={form.lastName}
+            onChange={(v) => setForm((f) => ({ ...f, lastName: v }))}
+          />
+          <Field
+            label="Email"
+            type="email"
+            value={form.email}
+            onChange={(v) => setForm((f) => ({ ...f, email: v }))}
+          />
+          <Field
+            label="Téléphone (optionnel)"
+            value={form.phone}
+            onChange={(v) => setForm((f) => ({ ...f, phone: v }))}
+          />
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Cabinet
+            </span>
+            <select
+              value={form.cabinet}
+              onChange={(e) => setForm((f) => ({ ...f, cabinet: e.target.value }))}
+              className="w-full rounded-2xl border border-border/60 bg-surface/70 px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25"
+            >
+              <option value="">Choisir…</option>
+              <option value="conseil">{CABINET_LABELS.conseil}</option>
+              <option value="expertise_fiscale">
+                {CABINET_LABELS.expertise_fiscale}
+              </option>
+            </select>
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Poste
+            </span>
+            <select
+              value={form.jobTitle}
+              onChange={(e) => setForm((f) => ({ ...f, jobTitle: e.target.value }))}
+              className="w-full rounded-2xl border border-border/60 bg-surface/70 px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25"
+            >
+              <option value="">Choisir…</option>
+              {STAFF_JOB_TITLES.map((j) => (
+                <option key={j.value} value={j.value}>
+                  {j.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block sm:col-span-2">
+            <span className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Rôle initial
+            </span>
+            <select
+              value={form.role}
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  role: e.target.value as "member" | "admin",
+                }))
+              }
+              className="w-full rounded-2xl border border-border/60 bg-surface/70 px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25 sm:max-w-xs"
+            >
+              <option value="member">Membre</option>
+              <option value="admin">Administrateur</option>
+            </select>
+          </label>
+          <PasswordField
+            label="Mot de passe"
+            value={form.password}
+            onChange={(v) => setForm((f) => ({ ...f, password: v }))}
+            show={showPassword}
+            onToggleShow={() => setShowPassword((v) => !v)}
+          />
+          <PasswordField
+            label="Confirmer le mot de passe"
+            value={form.confirmPassword}
+            onChange={(v) => setForm((f) => ({ ...f, confirmPassword: v }))}
+            show={showPassword}
+            onToggleShow={() => setShowPassword((v) => !v)}
+          />
+
+          <div className="sm:col-span-2">
+            <button
+              type="submit"
+              disabled={create.isPending}
+              className="inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-60"
+            >
+              <UserPlus className="h-4 w-4" />
+              {create.isPending ? "Création…" : "Créer le compte"}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <CredentialsModal
+        open={Boolean(credentials)}
+        credentials={credentials}
+        onClose={() => setCredentials(null)}
+      />
+    </>
+  );
+}
+
+function CredentialsModal({
+  open,
+  credentials,
+  onClose,
+}: {
+  open: boolean;
+  credentials: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    password: string;
+    cabinet: string;
+    role: string;
+    jobTitle: string;
+  } | null;
+  onClose: () => void;
+}) {
+  if (!credentials) return null;
+
+  const summary = [
+    `Nom : ${credentials.firstName} ${credentials.lastName}`,
+    `E-mail : ${credentials.email}`,
+    `Mot de passe : ${credentials.password}`,
+    `Cabinet : ${credentials.cabinet}`,
+    `Poste : ${credentials.jobTitle}`,
+    `Rôle : ${credentials.role}`,
+  ].join("\n");
+
+  const copy = async (value: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success(`${label} copié`);
+    } catch {
+      toast.error("Copie impossible");
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="overflow-hidden border-0 bg-transparent p-0 shadow-none sm:max-w-lg [&>button]:hidden">
+        <div className="overflow-hidden rounded-3xl border border-border/60 bg-background shadow-float">
+          <div className="relative overflow-hidden bg-gradient-primary px-6 py-7 text-primary-foreground">
+            <div className="pointer-events-none absolute -right-8 -top-10 h-36 w-36 rounded-full bg-white/10 blur-2xl" />
+            <div className="pointer-events-none absolute -bottom-12 left-10 h-28 w-28 rounded-full bg-black/10 blur-2xl" />
+            <div className="relative flex items-start gap-3">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25">
+                <CheckCircle2 className="h-6 w-6" />
+              </span>
+              <DialogHeader className="space-y-1 text-left">
+                <DialogTitle className="font-display text-xl text-primary-foreground">
+                  Accès créé
+                </DialogTitle>
+                <DialogDescription className="text-primary-foreground/80">
+                  Copiez ces identifiants et envoyez-les à l’utilisateur. Ils ne
+                  seront plus affichés après fermeture.
+                </DialogDescription>
+              </DialogHeader>
+            </div>
+          </div>
+
+          <div className="space-y-3 p-5 sm:p-6">
+            <div className="rounded-2xl border border-border/60 bg-surface/60 px-4 py-3">
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">
+                Collaborateur
+              </div>
+              <div className="mt-1 font-display text-lg font-semibold">
+                {credentials.firstName} {credentials.lastName}
+              </div>
+              <div className="mt-1 text-sm text-muted-foreground">
+                {credentials.jobTitle} · {credentials.role} · {credentials.cabinet}
+              </div>
+            </div>
+
+            <CredentialRow
+              label="Adresse e-mail"
+              value={credentials.email}
+              onCopy={() => void copy(credentials.email, "E-mail")}
+            />
+            <CredentialRow
+              label="Mot de passe"
+              value={credentials.password}
+              mono
+              onCopy={() => void copy(credentials.password, "Mot de passe")}
+            />
+
+            <button
+              type="button"
+              onClick={() => void copy(summary, "Identifiants")}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2.5 text-sm font-medium hover:bg-muted"
+            >
+              <Copy className="h-4 w-4" />
+              Tout copier
+            </button>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-glow"
+            >
+              J’ai noté les identifiants
+            </button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CredentialRow({
+  label,
+  value,
+  mono,
+  onCopy,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+  onCopy: () => void;
+}) {
+  return (
+    <div className="rounded-2xl border border-border/60 bg-surface/40 px-4 py-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground">
+            {label}
+          </div>
+          <div
+            className={cn(
+              "mt-1 truncate text-sm font-medium",
+              mono && "font-mono tracking-wide",
+            )}
+          >
+            {value}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onCopy}
+          className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-border bg-background px-3 text-xs font-medium hover:bg-muted"
+        >
+          <Copy className="h-3.5 w-3.5" />
+          Copier
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PasswordField({
+  label,
+  value,
+  onChange,
+  show,
+  onToggleShow,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  show: boolean;
+  onToggleShow: () => void;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        {label}
+      </span>
+      <div className="relative">
+        <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type={show ? "text" : "password"}
+          value={value}
+          autoComplete="new-password"
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full rounded-2xl border border-border/60 bg-surface/70 py-2.5 pl-10 pr-11 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25"
+        />
+        <button
+          type="button"
+          tabIndex={-1}
+          onClick={onToggleShow}
+          className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+          aria-label={show ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+        >
+          {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        </button>
+      </div>
+    </label>
+  );
+}
+
+function Field({
+  label,
+  value,
+  onChange,
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        {label}
+      </span>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-2xl border border-border/60 bg-surface/70 px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25"
+      />
+    </label>
   );
 }
 

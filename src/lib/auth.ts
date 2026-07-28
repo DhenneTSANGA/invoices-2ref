@@ -11,6 +11,7 @@ export function signUpWithStaff(
   password: string,
   staff: StaffPayload,
 ) {
+  // Conservé pour réactivation via PUBLIC_SELF_SIGNUP=true
   const supabase = createClient();
   return supabase.auth.signUp({
     email,
@@ -37,6 +38,7 @@ export function signInWithGoogle() {
   });
 }
 
+/** Conservé (non exposé en UI) — réutilisable si besoin. */
 export function signInWithEmailMagicLink(email: string) {
   const supabase = createClient();
   return supabase.auth.signInWithOtp({

@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Save } from "lucide-react";
+import { Eye, EyeOff, Lock, Save } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { StaffAvatar } from "@/components/common/StaffAvatar";
 import { useSession, sessionKey } from "@/hooks/use-data";
@@ -12,7 +12,7 @@ import {
   requestAdminRole,
   updateOwnProfile,
 } from "@/lib/admin.functions";
-import { profileUpdateSchema } from "@/lib/auth-schemas";
+import { changePasswordSchema, profileUpdateSchema } from "@/lib/auth-schemas";
 import {
   CABINET_LABELS,
   STAFF_JOB_TITLES,
@@ -21,6 +21,9 @@ import {
   type StaffJobTitleValue,
 } from "@/lib/cabinets";
 import { roleLabel } from "@/lib/roles";
+import { createClient } from "@/lib/client";
+import { SUGGEST_PASSWORD_CHANGE_KEY } from "@/lib/auth-password";
+import { humanAuthError } from "@/lib/auth-errors";
 import { signOut } from "@/lib/auth";
 import type { z } from "zod";
 
@@ -96,7 +99,7 @@ function ProfilePage() {
       await signOut();
       qc.setQueryData(sessionKey, null);
       toast.success("Compte supprimé");
-      void navigate({ to: "/signup" });
+      void navigate({ to: "/login" });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -238,6 +241,8 @@ function ProfilePage() {
             </div>
           </form>
 
+          <ChangePasswordCard />
+
           {staff?.role === "member" && (
             <div className="glass-panel rounded-3xl p-6">
               <h4 className="font-display font-semibold">Droits administrateur</h4>
@@ -294,6 +299,118 @@ function ProfilePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function ChangePasswordCard() {
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [show, setShow] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const parsed = changePasswordSchema.safeParse({ password, confirmPassword });
+    if (!parsed.success) {
+      toast.error(parsed.error.issues[0]?.message ?? "Formulaire invalide");
+      return;
+    }
+    setLoading(true);
+    try {
+      const supabase = createClient();
+      const { data: userData } = await supabase.auth.getUser();
+      const { error } = await supabase.auth.updateUser({
+        password: parsed.data.password,
+        data: {
+          ...(userData.user?.user_metadata ?? {}),
+          [SUGGEST_PASSWORD_CHANGE_KEY]: false,
+        },
+      });
+      if (error) throw error;
+      toast.success("Mot de passe mis à jour");
+      setPassword("");
+      setConfirmPassword("");
+    } catch (err) {
+      toast.error(
+        humanAuthError(err, "Impossible de changer le mot de passe pour le moment."),
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} className="glass-panel rounded-3xl p-6">
+      <h4 className="font-display font-semibold">Mot de passe</h4>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Changez le mot de passe de votre compte 2R Hub.
+      </p>
+      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <PasswordField
+          label="Nouveau mot de passe"
+          value={password}
+          onChange={setPassword}
+          show={show}
+          onToggleShow={() => setShow((v) => !v)}
+        />
+        <PasswordField
+          label="Confirmer"
+          value={confirmPassword}
+          onChange={setConfirmPassword}
+          show={show}
+          onToggleShow={() => setShow((v) => !v)}
+        />
+      </div>
+      <button
+        type="submit"
+        disabled={loading}
+        className="mt-4 inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60"
+      >
+        <Lock className="h-4 w-4" />
+        {loading ? "Mise à jour…" : "Changer le mot de passe"}
+      </button>
+    </form>
+  );
+}
+
+function PasswordField({
+  label,
+  value,
+  onChange,
+  show,
+  onToggleShow,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  show: boolean;
+  onToggleShow: () => void;
+}) {
+  return (
+    <label className="block">
+      <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        {label}
+      </span>
+      <div className="relative mt-1">
+        <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type={show ? "text" : "password"}
+          value={value}
+          autoComplete="new-password"
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full rounded-xl border border-border/60 bg-transparent py-2.5 pl-10 pr-11 text-sm transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+        />
+        <button
+          type="button"
+          tabIndex={-1}
+          onClick={onToggleShow}
+          className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+          aria-label={show ? "Masquer" : "Afficher"}
+        >
+          {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        </button>
+      </div>
+    </label>
   );
 }
 

@@ -16,13 +16,19 @@ export const Route = createFileRoute("/onboarding")({
   beforeLoad: async () => {
     const boot = await getAuthBootstrap();
     if (!boot) throw redirect({ to: "/login" });
+    if (boot.status === "access_denied") {
+      throw redirect({ href: "/login?error=invite_only" });
+    }
     if (boot.status === "ready") {
       throw redirect({ to: homePathForRole(boot.staff.role) });
     }
   },
   loader: async () => {
     const boot = await getAuthBootstrap();
-    if (!boot || boot.status !== "needs_onboarding") {
+    if (!boot || boot.status === "access_denied") {
+      throw redirect({ href: "/login?error=invite_only" });
+    }
+    if (boot.status !== "needs_onboarding") {
       throw redirect({ to: "/login" });
     }
     return { boot };
@@ -68,7 +74,9 @@ function OnboardingPage() {
       toast.success("Profil complété");
       void navigate({ to: homePathForRole(staff.role) });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Impossible de continuer");
+      toast.error(
+        err instanceof Error ? err.message : "Impossible de continuer pour le moment.",
+      );
     } finally {
       setLoading(false);
     }

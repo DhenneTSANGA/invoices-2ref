@@ -67,6 +67,11 @@ export function canPromoteOrDemoteAdmins(role: AppRole): boolean {
   return isSuperAdmin(role);
 }
 
+/** Invitation de nouveaux collaborateurs (Auth + staff). */
+export function canInviteStaff(role: AppRole): boolean {
+  return isSuperAdmin(role);
+}
+
 export function canSwitchCabinet(role: AppRole): boolean {
   return isSuperAdmin(role);
 }

@@ -3,7 +3,6 @@ import { useEffect } from "react";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { AppTopbar } from "@/components/layout/AppTopbar";
 import { PageTransition } from "@/components/common/PageTransition";
-import { getCurrentSession } from "@/lib/session.functions";
 import { getAuthBootstrap } from "@/lib/admin.functions";
 import {
   sessionKey,
@@ -16,14 +15,23 @@ import { NotificationSync } from "@/components/layout/NotificationSync";
 
 export const Route = createFileRoute("/_app")({
   beforeLoad: async ({ context }) => {
-    const session = await getCurrentSession();
-    if (!session) {
-      const boot = await getAuthBootstrap();
-      if (boot?.status === "needs_onboarding") {
-        throw redirect({ to: "/onboarding" });
-      }
+    const boot = await getAuthBootstrap();
+    if (!boot) throw redirect({ to: "/login" });
+    if (boot.status === "needs_password") {
+      throw redirect({ to: "/auth/set-password" });
+    }
+    if (boot.status === "needs_onboarding") {
+      throw redirect({ to: "/onboarding" });
+    }
+    if (boot.status === "access_denied" || boot.status !== "ready") {
       throw redirect({ to: "/login" });
     }
+
+    const session = {
+      user: boot.user,
+      staff: boot.staff,
+      activeCabinet: boot.activeCabinet,
+    };
     context.queryClient.setQueryData(sessionKey, session);
     return { session };
   },

@@ -21,10 +21,18 @@ import { getCurrentSession } from "@/lib/session.functions";
 import { GoogleIcon } from "@/components/auth/AuthIcons";
 import { CABINET_LABELS, STAFF_JOB_TITLES } from "@/lib/cabinets";
 import { homePathForRole } from "@/lib/roles";
+import { isPublicSelfSignupEnabled } from "@/lib/access-policy";
+import { humanAuthError } from "@/lib/auth-errors";
 
 export const Route = createFileRoute("/signup")({
   head: () => ({ meta: [{ title: "Inscription — 2R Hub" }] }),
   beforeLoad: async () => {
+    // Code conservé : inscription publique masquée / bloquée par défaut
+    if (!isPublicSelfSignupEnabled()) {
+      throw redirect({
+        href: "/login?error=invite_only",
+      });
+    }
     const session = await getCurrentSession();
     if (session) throw redirect({ to: homePathForRole(session.staff.role) });
   },
@@ -79,7 +87,7 @@ function SignupPage() {
       });
       void navigate({ to: data.session ? "/home" : "/login" });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Inscription impossible");
+      toast.error(humanAuthError(err, "L’inscription n’a pas abouti. Réessayez."));
     } finally {
       setLoading(false);
     }

@@ -1,10 +1,10 @@
 import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
 import { Logo } from "@/components/common/Logo";
 import { AuthVisualPanel } from "@/components/auth/AuthVisualPanel";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ArrowRight, Mail, Lock, Eye, EyeOff } from "lucide-react";
-import { signInWithEmailPassword, signInWithGoogle } from "@/lib/auth";
+import { signInWithEmailPassword, signInWithGoogle, signOut } from "@/lib/auth";
 import { loginSchema } from "@/lib/auth-schemas";
 import { syncStaffToDatabase } from "@/lib/staff-client";
 import { staffFromAuthUser } from "@/lib/staff-parse";
@@ -12,6 +12,13 @@ import { getCurrentSession } from "@/lib/session.functions";
 import { GoogleIcon } from "@/components/auth/AuthIcons";
 import { homePathForRole } from "@/lib/roles";
 import { getAuthBootstrap } from "@/lib/admin.functions";
+import {
+  INVITE_ONLY_LOGIN_HINT,
+  isPublicSelfSignupEnabled,
+} from "@/lib/access-policy";
+import { userShouldSuggestPasswordChange } from "@/lib/auth-password";
+import { humanAuthError } from "@/lib/auth-errors";
+import { createClient } from "@/lib/client";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -25,12 +32,16 @@ export const Route = createFileRoute("/login")({
     ],
   }),
   beforeLoad: async () => {
-    const session = await getCurrentSession();
-    if (session) throw redirect({ to: homePathForRole(session.staff.role) });
     const boot = await getAuthBootstrap();
+    if (boot?.status === "access_denied") return;
+    if (boot?.status === "needs_password") {
+      throw redirect({ to: "/auth/set-password" });
+    }
     if (boot?.status === "needs_onboarding") {
       throw redirect({ to: "/onboarding" });
     }
+    const session = await getCurrentSession();
+    if (session) throw redirect({ to: homePathForRole(session.staff.role) });
   },
   component: LoginPage,
 });
@@ -40,12 +51,24 @@ function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const publicSignup = isPublicSelfSignupEnabled();
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const raw = new URLSearchParams(window.location.search).get("error");
+    if (!raw) return;
+    const message =
+      raw === "invite_only"
+        ? INVITE_ONLY_LOGIN_HINT
+        : humanAuthError(decodeURIComponent(raw));
+    toast.error(message, { duration: 10_000 });
+  }, []);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const parsed = loginSchema.safeParse({ email, password });
     if (!parsed.success) {
-      toast.error(parsed.error.issues[0]?.message ?? "Formulaire invalide");
+      toast.error(parsed.error.issues[0]?.message ?? "Vérifiez les champs du formulaire.");
       return;
     }
     setLoading(true);
@@ -59,18 +82,47 @@ function LoginPage() {
       if (user) {
         const payload = staffFromAuthUser(user);
         if (payload.cabinet) {
-          await syncStaffToDatabase({ ...payload, id: user.id });
+          try {
+            await syncStaffToDatabase({ ...payload, id: user.id });
+          } catch (syncErr) {
+            if (!publicSignup) {
+              await signOut();
+              throw syncErr instanceof Error
+                ? syncErr
+                : new Error(INVITE_ONLY_LOGIN_HINT);
+            }
+            throw syncErr;
+          }
         }
       }
       const session = await getCurrentSession();
       if (session) {
         toast.success("Connexion réussie");
+        const authUser =
+          user ??
+          (await createClient().auth.getUser()).data.user;
+        if (userShouldSuggestPasswordChange(authUser)) {
+          toast.message("Mot de passe", {
+            description:
+              "Vous pouvez conserver le mot de passe fourni par l’administrateur, ou le modifier dans Profil.",
+            duration: 14_000,
+            action: {
+              label: "Profil",
+              onClick: () => {
+                void navigate({ to: "/profile" });
+              },
+            },
+          });
+        }
         void navigate({ to: homePathForRole(session.staff.role) });
+      } else if (!publicSignup) {
+        await signOut();
+        toast.error(INVITE_ONLY_LOGIN_HINT, { duration: 10_000 });
       } else {
         void navigate({ to: "/onboarding" });
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Connexion impossible");
+      toast.error(humanAuthError(err, "La connexion n’a pas abouti. Réessayez."));
     } finally {
       setLoading(false);
     }
@@ -80,7 +132,7 @@ function LoginPage() {
     setLoading(true);
     const { error } = await signInWithGoogle();
     if (error) {
-      toast.error(error.message);
+      toast.error(humanAuthError(error, "La connexion Google n’a pas abouti."));
       setLoading(false);
     }
   };
@@ -124,15 +176,10 @@ function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-70"
+            className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-60"
           >
-            {loading ? (
-              "Connexion…"
-            ) : (
-              <>
-                Se connecter <ArrowRight className="h-4 w-4" />
-              </>
-            )}
+            Se connecter
+            <ArrowRight className="h-4 w-4" />
           </button>
 
           <button
@@ -145,12 +192,18 @@ function LoginPage() {
             Continuer avec Google
           </button>
 
-          <p className="mt-6 text-center text-xs text-muted-foreground">
-            Pas de compte ?{" "}
-            <Link to="/signup" className="font-medium text-primary hover:underline">
-              S&apos;inscrire
-            </Link>
-          </p>
+          {publicSignup ? (
+            <p className="mt-6 text-center text-xs text-muted-foreground">
+              Pas de compte ?{" "}
+              <Link to="/signup" className="font-medium text-primary hover:underline">
+                S&apos;inscrire
+              </Link>
+            </p>
+          ) : (
+            <p className="mt-6 text-center text-xs text-muted-foreground">
+              Accès sur invitation uniquement. Contactez un administrateur 2R Hub.
+            </p>
+          )}
         </form>
       </div>
     </div>

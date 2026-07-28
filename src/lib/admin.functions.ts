@@ -2,20 +2,33 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { createSupabaseServer } from "@/lib/supabase-server";
+import { createAuthAdmin, appPublicUrl } from "@/lib/supabase-admin";
 import { mapStaff } from "@/lib/mappers";
 import { syncStaffMember } from "@/lib/staff-sync";
 import { staffFromAuthUser } from "@/lib/staff-parse";
-import { onboardingSchema, profileUpdateSchema } from "@/lib/auth-schemas";
+import {
+  createStaffWithPasswordSchema,
+  inviteStaffSchema,
+  onboardingSchema,
+  profileUpdateSchema,
+} from "@/lib/auth-schemas";
 import {
   clearSessionMemo,
   getCurrentSession,
 } from "@/lib/session.functions";
 import {
+  canInviteStaff,
   canManageAdminRequests,
   canPromoteOrDemoteAdmins,
   isSuperAdmin,
 } from "@/lib/roles";
 import { jobTitleLabel, normalizeJobTitleValue } from "@/lib/cabinets";
+import {
+  INVITE_ONLY_LOGIN_HINT,
+  isPublicSelfSignupEnabled,
+} from "@/lib/access-policy";
+import { humanAuthError } from "@/lib/auth-errors";
+import { userMustSetPassword } from "@/lib/auth-password";
 
 function isSuperAdminEmail(email: string | null | undefined): boolean {
   if (!email) return false;
@@ -53,6 +66,13 @@ export const getAuthBootstrap = createServerFn({ method: "GET" }).handler(
       clearSessionMemo(user.id);
     }
 
+    if (userMustSetPassword(user)) {
+      return {
+        status: "needs_password" as const,
+        user: { id: user.id, email: user.email ?? "" },
+      };
+    }
+
     const session = await getCurrentSession();
     if (session) {
       return {
@@ -66,6 +86,24 @@ export const getAuthBootstrap = createServerFn({ method: "GET" }).handler(
     const existing = await prisma.staffMember.findUnique({
       where: { id: user.id },
     });
+
+    // Mode invitation : pas d’onboarding libre pour les comptes Auth non provisionnés
+    if (
+      !isPublicSelfSignupEnabled() &&
+      !isSuperAdminEmail(user.email) &&
+      !existing
+    ) {
+      try {
+        await supabase.auth.signOut();
+      } catch {
+        // ignore
+      }
+      return {
+        status: "access_denied" as const,
+        message: INVITE_ONLY_LOGIN_HINT,
+      };
+    }
+
     const suggested = staffFromAuthUser(user);
     const existingJob =
       existing?.jobTitle != null
@@ -102,6 +140,15 @@ export const completeOnboarding = createServerFn({ method: "POST" })
       user = auth.user;
     }
 
+    if (!isPublicSelfSignupEnabled() && !isSuperAdminEmail(user.email)) {
+      const existing = await prisma.staffMember.findUnique({
+        where: { id: user.id },
+      });
+      if (!existing) {
+        throw new Error(INVITE_ONLY_LOGIN_HINT);
+      }
+    }
+
     const suggested = staffFromAuthUser(user);
     const asSuperAdmin = isSuperAdminEmail(user.email);
     const staff = await syncStaffMember({
@@ -118,6 +165,176 @@ export const completeOnboarding = createServerFn({ method: "POST" })
 
     clearSessionMemo(user.id);
     return mapStaff(staff);
+  });
+
+/** Création de compte sans e-mail Supabase (mot de passe défini par le super admin). */
+export const createStaffWithPassword = createServerFn({ method: "POST" })
+  .validator(createStaffWithPasswordSchema)
+  .handler(async ({ data }) => {
+    const session = await getCurrentSession();
+    if (!session) throw new Error("Non authentifié");
+    if (!canInviteStaff(session.staff.role)) {
+      throw new Error("Réservé au super administrateur");
+    }
+
+    const email = data.email.trim().toLowerCase();
+    const existingStaff = await prisma.staffMember.findFirst({
+      where: { email: { equals: email, mode: "insensitive" } },
+    });
+    if (existingStaff) {
+      throw new Error("Un collaborateur avec cet e-mail existe déjà");
+    }
+
+    const admin = createAuthAdmin();
+    const staffMeta = {
+      firstName: data.firstName.trim(),
+      lastName: data.lastName.trim(),
+      jobTitle: data.jobTitle,
+      email,
+      phone: data.phone?.trim() || null,
+      cabinet: data.cabinet,
+    };
+
+    const { data: created, error } = await admin.auth.admin.createUser({
+      email,
+      password: data.password,
+      email_confirm: true,
+      user_metadata: {
+        staff: staffMeta,
+        first_name: staffMeta.firstName,
+        last_name: staffMeta.lastName,
+        full_name: `${staffMeta.firstName} ${staffMeta.lastName}`,
+        job_title: staffMeta.jobTitle,
+        phone: staffMeta.phone,
+        cabinet: staffMeta.cabinet,
+        invited_role: data.role,
+        must_set_password: false,
+        suggest_password_change: true,
+      },
+    });
+
+    if (error || !created.user) {
+      throw new Error(
+        humanAuthError(
+          error?.message ?? "Impossible de créer le compte",
+          "Impossible de créer ce compte. Vérifiez l’e-mail et réessayez.",
+        ),
+      );
+    }
+
+    try {
+      const staff = await syncStaffMember({
+        id: created.user.id,
+        email,
+        firstName: staffMeta.firstName,
+        lastName: staffMeta.lastName,
+        jobTitle: staffMeta.jobTitle,
+        phone: staffMeta.phone,
+        cabinet: data.cabinet,
+        role: data.role,
+      });
+
+      return {
+        ok: true as const,
+        staff: {
+          ...mapStaff(staff),
+          jobTitleLabel: jobTitleLabel(staff.jobTitle),
+        },
+      };
+    } catch (err) {
+      try {
+        await admin.auth.admin.deleteUser(created.user.id);
+      } catch (cleanupErr) {
+        console.error("[createStaffWithPassword] cleanup auth user", cleanupErr);
+      }
+      throw err;
+    }
+  });
+
+/** Conservé : invitation par e-mail Supabase (non exposée dans l’UI par défaut). */
+export const inviteStaffMember = createServerFn({ method: "POST" })
+  .validator(inviteStaffSchema)
+  .handler(async ({ data }) => {
+    const session = await getCurrentSession();
+    if (!session) throw new Error("Non authentifié");
+    if (!canInviteStaff(session.staff.role)) {
+      throw new Error("Réservé au super administrateur");
+    }
+
+    const email = data.email.trim().toLowerCase();
+    const existingStaff = await prisma.staffMember.findFirst({
+      where: { email: { equals: email, mode: "insensitive" } },
+    });
+    if (existingStaff) {
+      throw new Error("Un collaborateur avec cet e-mail existe déjà");
+    }
+
+    const admin = createAuthAdmin();
+    const redirectTo = `${appPublicUrl()}/auth/callback`;
+    const staffMeta = {
+      firstName: data.firstName.trim(),
+      lastName: data.lastName.trim(),
+      jobTitle: data.jobTitle,
+      email,
+      phone: data.phone?.trim() || null,
+      cabinet: data.cabinet,
+    };
+
+    // redirectTo doit être dans Authentication → URL Configuration → Redirect URLs
+    const { data: invited, error } = await admin.auth.admin.inviteUserByEmail(
+      email,
+      {
+        redirectTo,
+        data: {
+          staff: staffMeta,
+          first_name: staffMeta.firstName,
+          last_name: staffMeta.lastName,
+          full_name: `${staffMeta.firstName} ${staffMeta.lastName}`,
+          job_title: staffMeta.jobTitle,
+          phone: staffMeta.phone,
+          cabinet: staffMeta.cabinet,
+          invited_role: data.role,
+          must_set_password: true,
+        },
+      },
+    );
+
+    if (error || !invited.user) {
+      throw new Error(
+        humanAuthError(
+          error?.message ?? "Impossible d’envoyer l’invitation",
+          "Impossible d’envoyer l’invitation. Vérifiez l’e-mail et réessayez.",
+        ),
+      );
+    }
+
+    try {
+      const staff = await syncStaffMember({
+        id: invited.user.id,
+        email,
+        firstName: staffMeta.firstName,
+        lastName: staffMeta.lastName,
+        jobTitle: staffMeta.jobTitle,
+        phone: staffMeta.phone,
+        cabinet: data.cabinet,
+        role: data.role,
+      });
+
+      return {
+        ok: true as const,
+        staff: {
+          ...mapStaff(staff),
+          jobTitleLabel: jobTitleLabel(staff.jobTitle),
+        },
+      };
+    } catch (err) {
+      try {
+        await admin.auth.admin.deleteUser(invited.user.id);
+      } catch (cleanupErr) {
+        console.error("[inviteStaffMember] cleanup auth user", cleanupErr);
+      }
+      throw err;
+    }
   });
 
 export const listCabinetStaff = createServerFn({ method: "GET" }).handler(
@@ -288,18 +505,8 @@ export const deleteOwnAccount = createServerFn({ method: "POST" }).handler(
 
     // Best-effort : suppression Auth (nécessite service role)
     try {
-      const { createClient } = await import("@supabase/supabase-js");
-      const url = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL ?? "";
-      const key =
-        process.env.SUPABASE_SECRET_KEY ??
-        process.env.SUPABASE_SERVICE_ROLE_KEY ??
-        "";
-      if (url && key) {
-        const admin = createClient(url, key, {
-          auth: { autoRefreshToken: false, persistSession: false },
-        });
-        await admin.auth.admin.deleteUser(userId);
-      }
+      const admin = createAuthAdmin();
+      await admin.auth.admin.deleteUser(userId);
     } catch (err) {
       console.error("[deleteOwnAccount] auth delete", err);
     }

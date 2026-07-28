@@ -11,6 +11,17 @@ export const loginSchema = z.object({
   password: z.string().min(6, "Mot de passe trop court"),
 });
 
+/** Première connexion après invitation : définir le mot de passe. */
+export const setPasswordSchema = z
+  .object({
+    password: z.string().min(8, "8 caractères minimum"),
+    confirmPassword: z.string(),
+  })
+  .refine((d) => d.password === d.confirmPassword, {
+    message: "Les mots de passe ne correspondent pas",
+    path: ["confirmPassword"],
+  });
+
 export const cabinetSchema = z.enum(["conseil", "expertise_fiscale"], {
   error: "Choisissez votre cabinet",
 });
@@ -43,6 +54,36 @@ export const onboardingSchema = z.object({
       message: "Téléphone trop court (8 caractères min)",
     }),
 });
+
+/** Invitation collaborateur (super admin) — e-mail Supabase (conservé, non exposé par défaut). */
+export const inviteStaffSchema = z.object({
+  firstName: z.string().min(1, "Prénom requis"),
+  lastName: z.string().min(1, "Nom requis"),
+  jobTitle: z.enum(jobTitleValues, { error: "Choisissez un poste" }),
+  cabinet: cabinetSchema,
+  email: z.string().email("Email invalide"),
+  phone: z
+    .string()
+    .default("")
+    .refine((v) => v.trim() === "" || v.trim().length >= 8, {
+      message: "Téléphone trop court (8 caractères min)",
+    }),
+  role: z.enum(["member", "admin"]).default("member"),
+});
+
+/** Création directe d’un accès (super admin) — e-mail + mot de passe, sans e-mail Supabase. */
+export const createStaffWithPasswordSchema = inviteStaffSchema
+  .extend({
+    password: z.string().min(8, "8 caractères minimum"),
+    confirmPassword: z.string(),
+  })
+  .refine((d) => d.password === d.confirmPassword, {
+    message: "Les mots de passe ne correspondent pas",
+    path: ["confirmPassword"],
+  });
+
+/** Changement de mot de passe depuis /profile. */
+export const changePasswordSchema = setPasswordSchema;
 
 /** Mise à jour du profil collaborateur (hors email / cabinet / rôle). */
 export const profileUpdateSchema = z.object({
