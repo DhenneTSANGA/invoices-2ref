@@ -3,22 +3,25 @@ import { Logo } from "@/components/common/Logo";
 import { AuthVisualPanel } from "@/components/auth/AuthVisualPanel";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ArrowRight, Mail, Lock, Eye, EyeOff } from "lucide-react";
-import { signInWithEmailPassword, signInWithGoogle, signOut } from "@/lib/auth";
+import { ArrowRight, Mail, Lock, Eye, EyeOff, KeyRound, X } from "lucide-react";
+import { signInWithEmailPassword, signOut } from "@/lib/auth";
 import { loginSchema } from "@/lib/auth-schemas";
 import { syncStaffToDatabase } from "@/lib/staff-client";
 import { staffFromAuthUser } from "@/lib/staff-parse";
 import { getCurrentSession } from "@/lib/session.functions";
-import { GoogleIcon } from "@/components/auth/AuthIcons";
 import { homePathForRole } from "@/lib/roles";
 import { getAuthBootstrap } from "@/lib/admin.functions";
 import {
   INVITE_ONLY_LOGIN_HINT,
   isPublicSelfSignupEnabled,
 } from "@/lib/access-policy";
-import { userShouldSuggestPasswordChange } from "@/lib/auth-password";
+import {
+  SUGGEST_PASSWORD_CHANGE_KEY,
+  userShouldSuggestPasswordChange,
+} from "@/lib/auth-password";
 import { humanAuthError } from "@/lib/auth-errors";
 import { createClient } from "@/lib/client";
+import type { User } from "@supabase/supabase-js";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -97,22 +100,16 @@ function LoginPage() {
       }
       const session = await getCurrentSession();
       if (session) {
-        toast.success("Connexion réussie");
         const authUser =
           user ??
           (await createClient().auth.getUser()).data.user;
         if (userShouldSuggestPasswordChange(authUser)) {
-          toast.message("Mot de passe", {
-            description:
-              "Vous pouvez conserver le mot de passe fourni par l’administrateur, ou le modifier dans Profil.",
-            duration: 14_000,
-            action: {
-              label: "Profil",
-              onClick: () => {
-                void navigate({ to: "/profile" });
-              },
-            },
+          showFirstLoginPasswordToast(() => {
+            void navigate({ to: "/profile" });
           });
+          void clearSuggestPasswordChange(authUser);
+        } else {
+          toast.success("Connexion réussie");
         }
         void navigate({ to: homePathForRole(session.staff.role) });
       } else if (!publicSignup) {
@@ -124,15 +121,6 @@ function LoginPage() {
     } catch (err) {
       toast.error(humanAuthError(err, "La connexion n’a pas abouti. Réessayez."));
     } finally {
-      setLoading(false);
-    }
-  };
-
-  const google = async () => {
-    setLoading(true);
-    const { error } = await signInWithGoogle();
-    if (error) {
-      toast.error(humanAuthError(error, "La connexion Google n’a pas abouti."));
       setLoading(false);
     }
   };
@@ -182,16 +170,6 @@ function LoginPage() {
             <ArrowRight className="h-4 w-4" />
           </button>
 
-          <button
-            type="button"
-            onClick={google}
-            disabled={loading}
-            className="mt-3 inline-flex w-full items-center justify-center gap-2.5 rounded-2xl border border-border/80 bg-surface px-3 py-3 text-sm font-medium transition hover:bg-muted/80 disabled:opacity-60"
-          >
-            <GoogleIcon className="h-5 w-5 shrink-0" />
-            Continuer avec Google
-          </button>
-
           {publicSignup ? (
             <p className="mt-6 text-center text-xs text-muted-foreground">
               Pas de compte ?{" "}
@@ -207,6 +185,74 @@ function LoginPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+async function clearSuggestPasswordChange(user: User | null | undefined) {
+  if (!user) return;
+  try {
+    await createClient().auth.updateUser({
+      data: {
+        ...(user.user_metadata ?? {}),
+        [SUGGEST_PASSWORD_CHANGE_KEY]: false,
+      },
+    });
+  } catch {
+    // Le toast a déjà été montré ; on ne bloque pas la navigation.
+  }
+}
+
+function showFirstLoginPasswordToast(onGoToProfile: () => void) {
+  toast.custom(
+    (id) => (
+      <div className="pointer-events-auto w-[min(100vw-2rem,22rem)] overflow-hidden rounded-2xl border border-primary/20 bg-card text-card-foreground shadow-glow">
+        <div className="h-1 w-full bg-gradient-primary" />
+        <div className="relative p-4">
+          <button
+            type="button"
+            onClick={() => toast.dismiss(id)}
+            className="absolute right-2.5 top-2.5 rounded-lg p-1 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            aria-label="Fermer"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+          <div className="flex gap-3 pr-6">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-primary text-primary-foreground shadow-glow">
+              <KeyRound className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold leading-snug">
+                Bienvenue sur 2R Hub
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                Pour votre sécurité, pensez à remplacer le mot de passe temporaire
+                reçu de l’administrateur — une fois suffit.
+              </p>
+            </div>
+          </div>
+          <div className="mt-3.5 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                toast.dismiss(id);
+                onGoToProfile();
+              }}
+              className="inline-flex flex-1 items-center justify-center rounded-xl bg-gradient-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-glow transition hover:opacity-95"
+            >
+              Changer mon mot de passe
+            </button>
+            <button
+              type="button"
+              onClick={() => toast.dismiss(id)}
+              className="rounded-xl px-3 py-2 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            >
+              Plus tard
+            </button>
+          </div>
+        </div>
+      </div>
+    ),
+    { duration: 16_000, className: "!bg-transparent !border-0 !shadow-none !p-0" },
   );
 }
 
