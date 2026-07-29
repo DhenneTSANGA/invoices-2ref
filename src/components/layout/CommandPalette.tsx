@@ -17,7 +17,6 @@ import {
   ReceiptText,
   Users,
   LayoutDashboard,
-  Settings,
   Archive,
   Package,
   Mails,
@@ -106,7 +105,6 @@ const NAV_ACTIONS: NavAction[] = [
   { label: "Clients", path: "/clients", icon: Users },
   { label: "Catalogue", path: "/services", icon: Package },
   { label: "Archives", path: "/archive", icon: Archive },
-  { label: "Paramètres", path: "/settings", icon: Settings },
 ];
 
 function docPath(doc: Document) {

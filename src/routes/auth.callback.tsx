@@ -25,7 +25,7 @@ import { humanAuthError } from "@/lib/auth-errors";
  * - OAuth / PKCE : ?code=
  * - Invitation / e-mail (templates TokenHash) : ?token_hash=&type=
  * - Ancien flux implicite : #access_token=&refresh_token=
- * - Mot de passe oublié : type=recovery ou ?next=reset → /auth/reset-password
+ * - Mot de passe oublié : type=recovery ou localStorage flag → /auth/reset-password
  *
  * Après invitation → /auth/set-password pour créer le mot de passe.
  */
@@ -76,7 +76,6 @@ function AuthCallbackPage() {
         opts.forcePassword || userMustSetPassword(user);
 
       if (needsPassword) {
-        // Garantit le flag même si l’invitation date d’avant cette feature
         if (!userMustSetPassword(user)) {
           await supabase.auth.updateUser({
             data: {
@@ -159,7 +158,6 @@ function AuthCallbackPage() {
           nextParam === "reset" ||
           hasPasswordRecoveryPending();
 
-        // PKCE / default mail : souvent seulement ?code= — l’événement Auth le confirme
         let recoveryFromEvent = false;
         const {
           data: { subscription },
@@ -167,20 +165,37 @@ function AuthCallbackPage() {
           if (event === "PASSWORD_RECOVERY") recoveryFromEvent = true;
         });
 
+        // Attend que PASSWORD_RECOVERY arrive (max 1.5s) après échange de session
+        const waitForRecoveryEvent = () =>
+          new Promise<void>((resolve) => {
+            if (recoveryFromEvent) { resolve(); return; }
+            const timeout = setTimeout(resolve, 1500);
+            const poll = setInterval(() => {
+              if (recoveryFromEvent) {
+                clearTimeout(timeout);
+                clearInterval(poll);
+                resolve();
+              }
+            }, 100);
+          });
+
         try {
           if (code) {
-            setMessage("Échange du code d’autorisation…");
+            setMessage("Échange du code d'autorisation…");
             const { error } = await supabase.auth.exchangeCodeForSession(code);
             if (error) {
               await fail(error.message);
               return;
             }
+            // En PKCE, le type (recovery/invite) n'est pas dans l'URL.
+            // On attend un peu pour laisser Supabase émettre PASSWORD_RECOVERY.
+            await waitForRecoveryEvent();
           } else if (tokenHash && typeParam) {
             setMessage(
               typeParam === "recovery"
                 ? "Validation du lien de réinitialisation…"
                 : typeParam === "invite"
-                  ? "Validation de l’invitation…"
+                  ? "Validation de l'invitation…"
                   : "Validation du lien…",
             );
             const { error } = await supabase.auth.verifyOtp({
@@ -202,7 +217,7 @@ function AuthCallbackPage() {
             if (hashType === "invite") inviteFlow = true;
             if (hashType === "recovery") recoveryFlow = true;
             if (!access_token || !refresh_token) {
-              await fail("Lien d’authentification incomplet");
+              await fail("Lien d'authentification incomplet");
               return;
             }
             const { error } = await supabase.auth.setSession({
@@ -218,8 +233,8 @@ function AuthCallbackPage() {
             if (!data.session) {
               await fail(
                 recoveryFlow
-                  ? "Ce lien de réinitialisation n’est plus valide. Demandez-en un nouveau depuis la page de connexion."
-                  : "Lien d’invitation invalide ou expiré. Demandez une nouvelle invitation.",
+                  ? "Ce lien de réinitialisation n'est plus valide. Demandez-en un nouveau depuis la page de connexion."
+                  : "Lien d'invitation invalide ou expiré. Demandez une nouvelle invitation.",
               );
               return;
             }

@@ -12,6 +12,7 @@ import {
   EyeOff,
   Lock,
   Shield,
+  Trash2,
   UserPlus,
   UserRound,
   X,
@@ -21,6 +22,7 @@ import { LoadingState } from "@/components/common/LoadingState";
 import { useSession } from "@/hooks/use-data";
 import {
   createStaffWithPassword,
+  deleteStaffMember,
   listAdminRequests,
   listCabinetStaff,
   reviewAdminRequest,
@@ -95,6 +97,24 @@ function UsersPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const removeMember = useMutation({
+    mutationFn: (staffId: string) => deleteStaffMember({ data: { staffId } }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: staffKey });
+      toast.success("Collaborateur supprimé");
+      setDeleteTarget(null);
+    },
+    onError: (e: Error) => {
+      toast.error(humanAuthError(e, "Impossible de supprimer ce collaborateur."));
+      setDeleteTarget(null);
+    },
+  });
+
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+
   if (loadingRequests || loadingStaff) {
     return (
       <LoadingState
@@ -113,6 +133,16 @@ function UsersPage() {
       />
 
       {canCreate ? <CreateStaffCard /> : null}
+
+      <DeleteConfirmDialog
+        open={Boolean(deleteTarget)}
+        name={deleteTarget?.name ?? ""}
+        loading={removeMember.isPending}
+        onConfirm={() => {
+          if (deleteTarget) removeMember.mutate(deleteTarget.id);
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
 
       <div className="glass-panel mb-6 rounded-3xl p-5">
         <h3 className="font-display font-semibold">Demandes admin en attente</h3>
@@ -208,7 +238,7 @@ function UsersPage() {
                   </td>
                   {isSuper && (
                     <td className="px-2 py-2.5">
-                      <div className="flex justify-end">
+                      <div className="flex justify-end gap-2">
                         {s.role === "admin" ? (
                           <ActionButton
                             variant="muted"
@@ -230,6 +260,21 @@ function UsersPage() {
                             disabled={setRole.isPending}
                           >
                             Promouvoir admin
+                          </ActionButton>
+                        )}
+                        {s.role !== "super_admin" && (
+                          <ActionButton
+                            variant="danger"
+                            icon={Trash2}
+                            onClick={() =>
+                              setDeleteTarget({
+                                id: s.id,
+                                name: `${s.firstName} ${s.lastName}`,
+                              })
+                            }
+                            disabled={removeMember.isPending}
+                          >
+                            Supprimer
                           </ActionButton>
                         )}
                       </div>
@@ -655,6 +700,54 @@ function Field({
         className="w-full rounded-2xl border border-border/60 bg-surface/70 px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25"
       />
     </label>
+  );
+}
+
+function DeleteConfirmDialog({
+  open,
+  name,
+  loading,
+  onConfirm,
+  onCancel,
+}: {
+  open: boolean;
+  name: string;
+  loading: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onCancel()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Supprimer le collaborateur</DialogTitle>
+          <DialogDescription>
+            Êtes-vous sûr de vouloir supprimer <strong>{name}</strong> ?
+            Son compte sera définitivement supprimé de la plateforme et de
+            l'authentification. Cette action est irréversible.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="mt-4 flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={loading}
+            className="rounded-xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60"
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={loading}
+            className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-700 disabled:opacity-60"
+          >
+            <Trash2 className="h-4 w-4" />
+            {loading ? "Suppression…" : "Supprimer"}
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

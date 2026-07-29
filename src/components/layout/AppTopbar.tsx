@@ -1,6 +1,6 @@
 import { Link, useNavigate, useRouteContext } from "@tanstack/react-router";
 import { Logo } from "@/components/common/Logo";
-import { Bell, Moon, Search, Sun, Plus, ChevronDown, Globe } from "lucide-react";
+import { Bell, Moon, Search, Sun, Plus, ChevronDown } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { CommandPalette } from "./CommandPalette";
@@ -207,12 +207,7 @@ export function AppTopbar() {
                     <div className="text-xs text-muted-foreground">{staff.jobTitle}</div>
                   </div>
                   <div className="my-1 h-px bg-border" />
-                  <Link to="/" onClick={() => setProfileOpen(false)} className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm hover:bg-muted">
-                    <Globe className="h-3.5 w-3.5 text-muted-foreground" />
-                    Site public
-                  </Link>
                   <Link to="/profile" onClick={() => setProfileOpen(false)} className="block rounded-xl px-3 py-2 text-sm hover:bg-muted">Mon profil</Link>
-                  <Link to="/settings" onClick={() => setProfileOpen(false)} className="block rounded-xl px-3 py-2 text-sm hover:bg-muted">Paramètres</Link>
                   <button type="button" onClick={logout} className="w-full text-left rounded-xl px-3 py-2 text-sm text-danger hover:bg-danger/10">Se déconnecter</button>
                 </motion.div>
               )}

@@ -345,9 +345,7 @@ export const listCabinetStaff = createServerFn({ method: "GET" }).handler(
       throw new Error("Accès réservé aux administrateurs");
     }
 
-    const where = isSuperAdmin(session.staff.role)
-      ? {}
-      : { cabinet: session.activeCabinet };
+    const where = { cabinet: session.activeCabinet };
 
     const rows = await prisma.staffMember.findMany({
       where: {
@@ -486,6 +484,39 @@ export const setStaffAdminRole = createServerFn({ method: "POST" })
       data: { role: data.role },
     });
     clearSessionMemo(data.staffId);
+    return { ok: true };
+  });
+
+export const deleteStaffMember = createServerFn({ method: "POST" })
+  .validator(z.object({ staffId: z.string() }))
+  .handler(async ({ data }) => {
+    const session = await getCurrentSession();
+    if (!session) throw new Error("Non authentifié");
+    if (!isSuperAdmin(session.staff.role)) {
+      throw new Error("Réservé au super administrateur");
+    }
+
+    const target = await prisma.staffMember.findUnique({
+      where: { id: data.staffId },
+    });
+    if (!target) throw new Error("Collaborateur introuvable");
+    if (target.role === "super_admin") {
+      throw new Error("Impossible de supprimer un super administrateur");
+    }
+    if (target.id === session.staff.id) {
+      throw new Error("Vous ne pouvez pas supprimer votre propre compte ici");
+    }
+
+    await prisma.staffMember.delete({ where: { id: data.staffId } });
+    clearSessionMemo(data.staffId);
+
+    try {
+      const admin = createAuthAdmin();
+      await admin.auth.admin.deleteUser(data.staffId);
+    } catch (err) {
+      console.error("[deleteStaffMember] auth delete", err);
+    }
+
     return { ok: true };
   });
 
