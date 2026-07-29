@@ -171,6 +171,17 @@ export const clientFicheUploadSchema = z.object({
   base64: z.string().min(1),
 });
 
+export const serviceInputSchema = z.object({
+  id: z.string().optional(),
+  code: z.string().min(1, "Code requis"),
+  name: z.string().min(1, "Nom requis"),
+  description: z.string().default(""),
+  unit: z.string().min(1, "Unité requise"),
+  unitPrice: z.number().min(0, "Prix invalide"),
+  vatRate: z.number().min(0).max(100).default(19.25),
+  category: z.string().min(1, "Catégorie requise"),
+});
+
 export const lineItemSchema = z.object({
   id: z.string().optional(),
   serviceId: z.string().optional().nullable(),

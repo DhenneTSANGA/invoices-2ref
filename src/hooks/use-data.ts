@@ -7,6 +7,8 @@ import {
   updateClient,
   deleteClient,
   listServices,
+  upsertService,
+  deleteService,
   listDocuments,
   listAllDocuments,
   getDocument,
@@ -40,7 +42,7 @@ import type {
 } from "@/store/types";
 import type { Cabinet } from "@/lib/cabinets";
 import type { z } from "zod";
-import type { clientInputSchema, documentInputSchema, companyInputSchema } from "@/lib/auth-schemas";
+import type { clientInputSchema, documentInputSchema, companyInputSchema, serviceInputSchema } from "@/lib/auth-schemas";
 
 export const sessionKey = ["session"] as const;
 export const clientsKey = ["clients"] as const;
@@ -154,6 +156,23 @@ export function useServices() {
     queryKey: servicesKey,
     queryFn: () => listServices(),
     staleTime: 5 * 60_000,
+  });
+}
+
+export function useUpsertService() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: z.infer<typeof serviceInputSchema>) =>
+      upsertService({ data }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: servicesKey }),
+  });
+}
+
+export function useDeleteService() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteService({ data: { id } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: servicesKey }),
   });
 }
 

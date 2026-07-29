@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { Cabinet, DocumentType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { mapClient, mapDocument, mapService, mapCompany, mapNotification } from "@/lib/mappers";
-import { clientInputSchema, documentInputSchema, companyInputSchema, clientFicheUploadSchema } from "@/lib/auth-schemas";
+import { clientInputSchema, documentInputSchema, companyInputSchema, clientFicheUploadSchema, serviceInputSchema } from "@/lib/auth-schemas";
 import {
   CLIENT_FICHES_BUCKET,
   createStorageAdmin,
@@ -21,6 +21,7 @@ import {
   canDeleteClient,
   canEditCompanySettings,
   canWriteDocument,
+  canManageCatalog,
   isSuperAdmin,
 } from "@/lib/roles";
 import {
@@ -273,6 +274,85 @@ export const listServices = createServerFn({ method: "GET" }).handler(async () =
   });
   return rows.map(mapService);
 });
+
+export const upsertService = createServerFn({ method: "POST" })
+  .validator(serviceInputSchema)
+  .handler(async ({ data }) => {
+    const { staff, activeCabinet } = await requireSession();
+    if (!canManageCatalog(staff.role)) {
+      throw new Error("Réservé aux administrateurs");
+    }
+
+    if (data.id) {
+      const existing = await prisma.service.findFirst({
+        where: { id: data.id, cabinet: activeCabinet },
+      });
+      if (!existing) throw new Error("Service introuvable");
+
+      const dup = await prisma.service.findFirst({
+        where: { cabinet: activeCabinet, code: data.code, id: { not: data.id } },
+      });
+      if (dup) throw new Error(`Le code « ${data.code} » est déjà utilisé`);
+
+      const row = await prisma.service.update({
+        where: { id: data.id },
+        data: {
+          code: data.code,
+          name: data.name,
+          description: data.description,
+          unit: data.unit,
+          unitPrice: data.unitPrice,
+          vatRate: data.vatRate,
+          category: data.category,
+        },
+      });
+      return mapService(row);
+    }
+
+    const dup = await prisma.service.findFirst({
+      where: { cabinet: activeCabinet, code: data.code },
+    });
+    if (dup) throw new Error(`Le code « ${data.code} » est déjà utilisé`);
+
+    const row = await prisma.service.create({
+      data: {
+        cabinet: activeCabinet,
+        code: data.code,
+        name: data.name,
+        description: data.description,
+        unit: data.unit,
+        unitPrice: data.unitPrice,
+        vatRate: data.vatRate,
+        category: data.category,
+      },
+    });
+    return mapService(row);
+  });
+
+export const deleteService = createServerFn({ method: "POST" })
+  .validator(z.object({ id: z.string() }))
+  .handler(async ({ data }) => {
+    const { staff, activeCabinet } = await requireSession();
+    if (!canManageCatalog(staff.role)) {
+      throw new Error("Réservé aux administrateurs");
+    }
+    const existing = await prisma.service.findFirst({
+      where: { id: data.id, cabinet: activeCabinet },
+    });
+    if (!existing) throw new Error("Service introuvable");
+
+    const lineCount = await prisma.documentLine.count({
+      where: { serviceId: data.id },
+    });
+    if (lineCount > 0) {
+      throw new Error(
+        `Ce service est utilisé dans ${lineCount} ligne(s) de documents. Supprimez d'abord ces références.`,
+      );
+    }
+
+    await prisma.service.delete({ where: { id: data.id } });
+    return { ok: true };
+  });
 
 // ─── Documents ───────────────────────────────────────────────────────────
 

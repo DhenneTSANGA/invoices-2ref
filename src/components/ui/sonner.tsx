@@ -10,7 +10,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
       toastOptions={{
         classNames: {
           toast:
-            "group toast !border-0 !shadow-lg !rounded-2xl !font-medium",
+            "group toast toast-with-timer !relative !overflow-hidden !border-0 !shadow-lg !rounded-2xl !font-medium",
           title: "!font-semibold",
           description: "!opacity-90",
           actionButton: "!bg-white/20 !text-inherit",
