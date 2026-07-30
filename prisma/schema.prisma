@@ -21,6 +21,7 @@ enum DocumentType {
 
 enum DocumentStatus {
   draft
+  signed
   sent
   accepted
   rejected
@@ -74,6 +75,12 @@ enum AdminRequestStatus {
   rejected
 }
 
+enum MailMergeStatus {
+  draft
+  signed
+  sent
+}
+
 model Company {
   id          String   @id @default(cuid())
   cabinet     Cabinet  @unique
@@ -90,6 +97,10 @@ model Company {
   website     String?
   bankName    String?
   bankAccount String?
+  /** Nom du gérant (signataire des lettres). */
+  managerName String?
+  /** URL publique du cachet / tampon (Storage ou asset). */
+  stampUrl    String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -116,6 +127,8 @@ model StaffMember {
   adminRequests AdminRequest[] @relation("AdminRequestStaff")
   reviewedRequests AdminRequest[] @relation("AdminRequestReviewer")
   pdfTraces     DocumentPdfTrace[]
+  mailMergeCampaigns MailMergeCampaign[] @relation("MailMergeCreator")
+  mailMergeSigned    MailMergeCampaign[] @relation("MailMergeSigner")
 
   @@index([lastName])
   @@index([role])
@@ -231,6 +244,8 @@ model Document {
   subscriptionNextAt   DateTime? @db.Date
   /** Facture générée depuis un abonnement (id du modèle). */
   subscriptionOfId     String?
+  /** Campagne de publipostage (lettres groupées). */
+  mailMergeCampaignId  String?
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
 
@@ -238,6 +253,7 @@ model Document {
   createdBy     StaffMember    @relation(fields: [createdById], references: [id], onDelete: Restrict)
   subscriptionOf Document?     @relation("SubscriptionGenerations", fields: [subscriptionOfId], references: [id], onDelete: SetNull)
   subscriptionChildren Document[] @relation("SubscriptionGenerations")
+  mailMergeCampaign MailMergeCampaign? @relation(fields: [mailMergeCampaignId], references: [id], onDelete: SetNull)
   lines         DocumentLine[]
   notifications Notification[]
   pdfTraces     DocumentPdfTrace[]
@@ -251,6 +267,7 @@ model Document {
   @@index([issueDate])
   @@index([isSubscription, subscriptionActive, subscriptionNextAt])
   @@index([subscriptionOfId])
+  @@index([mailMergeCampaignId])
   @@map("documents")
 }
 
@@ -302,6 +319,34 @@ model Notification {
   @@index([staffId, read])
   @@index([staffId, at])
   @@map("notifications")
+}
+
+/** Campagne de publipostage lettres (création → signature → envoi). */
+model MailMergeCampaign {
+  id             String          @id @default(cuid())
+  cabinet        Cabinet
+  createdById    String
+  status         MailMergeStatus @default(draft)
+  subject        String
+  salutation     String          @default("")
+  body           String
+  closing        String          @default("")
+  signatoryTitle String          @default("Le Gérant")
+  issueDate      DateTime        @db.Date
+  signedAt       DateTime?
+  signedById     String?
+  sentAt         DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  createdBy StaffMember  @relation("MailMergeCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  signedBy  StaffMember? @relation("MailMergeSigner", fields: [signedById], references: [id], onDelete: SetNull)
+  documents Document[]
+
+  @@index([cabinet, createdAt])
+  @@index([status])
+  @@index([createdById])
+  @@map("mail_merge_campaigns")
 }
 
 /** Historique des e-mails envoyés / reçus (espace Mails). */

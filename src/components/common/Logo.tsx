@@ -2,8 +2,8 @@ import { cn } from "@/lib/utils";
 import { CABINET_LOGOS, type Cabinet } from "@/lib/cabinets";
 
 /** Logo plateforme 2R Hub (chrome app, favicon, auth). */
-export const LOGO_SRC = "/log1.png";
-export const LOGO_CONSEIL_SRC = "/logo-2r-conseil.png";
+export const LOGO_SRC = "/optimized/log1.webp";
+export const LOGO_CONSEIL_SRC = "/optimized/logo-2r-conseil.webp";
 
 const sizeClass = {
   xs: "h-8",

@@ -520,6 +520,7 @@ export const setDocumentStatus = createServerFn({ method: "POST" })
       id: z.string(),
       status: z.enum([
         "draft",
+        "signed",
         "sent",
         "accepted",
         "rejected",
@@ -846,6 +847,8 @@ export const updateCompany = createServerFn({ method: "POST" })
       website: data.website ?? null,
       bankName: data.bankName ?? null,
       bankAccount: data.bankAccount ?? null,
+      managerName: data.managerName?.trim() || null,
+      stampUrl: data.stampUrl?.trim() || null,
     };
     const row = await prisma.company.upsert({
       where: { cabinet: activeCabinet },

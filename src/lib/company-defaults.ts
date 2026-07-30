@@ -21,6 +21,8 @@ export function companyForPreview(
     website: string | null;
     bankName: string | null;
     bankAccount: string | null;
+    managerName?: string | null;
+    stampUrl?: string | null;
   } | null | undefined,
   cabinet: Cabinet = "expertise_fiscale",
 ): CompanyInfo {
@@ -40,5 +42,7 @@ export function companyForPreview(
     website: row.website ?? "",
     bankName: row.bankName ?? "",
     bankAccount: row.bankAccount ?? "",
+    managerName: row.managerName ?? fallback.managerName ?? "",
+    stampUrl: row.stampUrl ?? fallback.stampUrl ?? "",
   };
 }

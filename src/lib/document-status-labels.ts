@@ -2,6 +2,7 @@ import type { DocumentStatus, DocumentType, NotificationItem } from "@/store/typ
 
 const statusLabels: Record<DocumentStatus, string> = {
   draft: "Brouillon",
+  signed: "Signé",
   sent: "Envoyé",
   accepted: "Accepté",
   rejected: "Refusé",

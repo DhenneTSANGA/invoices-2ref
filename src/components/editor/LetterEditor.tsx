@@ -51,13 +51,11 @@ export function LetterEditor({ initial }: Props) {
       vat: 0,
       total: 0,
       currency: "XAF",
-      subject: "Relance de paiement — facture en souffrance",
-      salutation: "Madame, Monsieur,",
-      body:
-        "Nous nous permettons de vous rappeler que la facture mentionnée en référence demeure impayée à ce jour.\n\nSauf erreur de notre part, aucun règlement n'a été porté à notre connaissance. Nous vous serions reconnaissants de bien vouloir procéder au paiement dans les meilleurs délais, ou de nous informer de toute difficulté éventuelle.\n\nNous restons à votre entière disposition pour tout échange utile.",
-      closing:
-        "Veuillez agréer, Madame, Monsieur, l'expression de nos salutations distinguées.",
-      signatoryTitle: "Expert-comptable",
+      subject: "",
+      salutation: "",
+      body: "",
+      closing: "",
+      signatoryTitle: "Le Gérant",
     },
   );
 

@@ -87,6 +87,17 @@ function SettingsPage() {
               <F label="Téléphone" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} />
               <F label="Email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} />
               <F label="Site web" value={form.website} onChange={(v) => setForm({ ...form, website: v })} />
+              <F
+                label="Nom du gérant (signataire des lettres)"
+                value={form.managerName ?? ""}
+                onChange={(v) => setForm({ ...form, managerName: v })}
+              />
+              <F
+                label="URL du cachet (image)"
+                value={form.stampUrl ?? ""}
+                onChange={(v) => setForm({ ...form, stampUrl: v })}
+                colSpan
+              />
             </div>
           )}
           {tab === "fiscal" && (

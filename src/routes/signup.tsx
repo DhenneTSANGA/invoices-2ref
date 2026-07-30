@@ -96,7 +96,7 @@ function SignupPage() {
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
       <AuthVisualPanel
-        imageSrc="/auth/signup1.png"
+        imageSrc="/optimized/auth/signup1.webp"
         imageAlt="Bienvenue sur 2R Hub"
         title="Bienvenue dans l’équipe 2R"
         subtitle="Choisissez votre cabinet et votre poste pour démarrer — documents, clients et collaboration au même endroit."

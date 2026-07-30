@@ -15,7 +15,7 @@ import {
   staffDisplayName,
 } from "@/lib/notify-document-status";
 import { documentTypeLabel } from "@/lib/document-status-labels";
-import { canWriteDocument, isSuperAdmin } from "@/lib/roles";
+import { canWriteDocument, isAdmin, isSuperAdmin } from "@/lib/roles";
 import type { DocumentType } from "@/store/types";
 import { logOutboundMail } from "@/lib/mail-log";
 
@@ -213,6 +213,14 @@ export const sendDocumentEmail = createServerFn({ method: "POST" })
     if (!doc) throw new Error("Document introuvable");
     if (!canWriteDocument(staff.role, staff.id, doc.createdById)) {
       throw new Error("Accès refusé — document en lecture seule");
+    }
+    if (doc.mailMergeCampaignId) {
+      if (!isAdmin(staff.role)) {
+        throw new Error("Envoi du publipostage réservé aux administrateurs");
+      }
+      if (doc.status !== "signed" && doc.status !== "sent") {
+        throw new Error("La lettre doit être signée avant l'envoi");
+      }
     }
     if (!doc.client) throw new Error("Client introuvable");
     if (!doc.client.email?.trim()) {

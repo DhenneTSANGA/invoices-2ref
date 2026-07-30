@@ -14,8 +14,8 @@ export const CABINET_LABELS: Record<Cabinet, string> = {
 };
 
 export const CABINET_LOGOS: Record<Cabinet, string> = {
-  conseil: "/logo-2r-conseil.png",
-  expertise_fiscale: "/logo-2ref.png",
+  conseil: "/optimized/logo-2r-conseil.webp",
+  expertise_fiscale: "/optimized/logo-2ref.webp",
 };
 
 export type CabinetScope = "all" | Cabinet;
@@ -77,6 +77,8 @@ export const COMPANY_DEFAULTS: Record<Cabinet, CompanyInfo> = {
     website: "www.2ref.ga",
     bankName: "",
     bankAccount: "",
+    managerName: "",
+    stampUrl: "",
   },
   conseil: {
     name: "2R Conseil",
@@ -92,6 +94,8 @@ export const COMPANY_DEFAULTS: Record<Cabinet, CompanyInfo> = {
     website: "www.2rconseil.ga",
     bankName: "",
     bankAccount: "",
+    managerName: "",
+    stampUrl: "",
   },
 };
 

@@ -55,6 +55,8 @@ export function mapCompany(
     website: string | null;
     bankName: string | null;
     bankAccount: string | null;
+    managerName?: string | null;
+    stampUrl?: string | null;
   },
   cabinet?: "conseil" | "expertise_fiscale",
 ): CompanyInfo {
@@ -151,6 +153,7 @@ export function mapDocument(row: {
   subscriptionDay?: number | null;
   subscriptionNextAt?: Date | null;
   subscriptionOfId?: string | null;
+  mailMergeCampaignId?: string | null;
   validityDays: number | null;
   executionTerms: string | null;
   subject: string | null;
@@ -232,6 +235,7 @@ export function mapDocument(row: {
       ? row.subscriptionNextAt.toISOString().slice(0, 10)
       : null,
     subscriptionOfId: row.subscriptionOfId ?? null,
+    mailMergeCampaignId: row.mailMergeCampaignId ?? null,
     validityDays: row.validityDays ?? undefined,
     executionTerms: row.executionTerms ?? undefined,
     subject: row.subject ?? undefined,

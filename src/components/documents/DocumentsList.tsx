@@ -37,7 +37,7 @@ const labels = {
 
 const invoiceStatuses: DocumentStatus[] = ["draft", "sent", "paid", "overdue", "cancelled"];
 const quotationStatuses: DocumentStatus[] = ["draft", "sent", "accepted", "rejected", "cancelled"];
-const letterStatuses: DocumentStatus[] = ["draft", "sent", "cancelled"];
+const letterStatuses: DocumentStatus[] = ["draft", "signed", "sent", "cancelled"];
 
 function statusesFor(type: DocumentType): DocumentStatus[] {
   if (type === "invoice") return invoiceStatuses;
@@ -210,7 +210,7 @@ export function DocumentsList({ type }: { type: DocumentType }) {
       <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3">
         <Kpi label="Total documents" value={String(filtered.length)} />
         <Kpi label="Montant cumulé" value={currency(total)} />
-        <Kpi label="En attente" value={String(filtered.filter((d) => d.status === "sent" || d.status === "draft").length)} />
+        <Kpi label="En attente" value={String(filtered.filter((d) => d.status === "sent" || d.status === "draft" || d.status === "signed").length)} />
       </div>
 
       <div className="glass-panel mb-4 flex flex-col gap-3 rounded-2xl p-3 sm:flex-row sm:flex-wrap sm:items-center">

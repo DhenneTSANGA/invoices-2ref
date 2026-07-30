@@ -142,6 +142,8 @@ export const companyInputSchema = z.object({
   website: z.string().optional().nullable(),
   bankName: z.string().optional().nullable(),
   bankAccount: z.string().optional().nullable(),
+  managerName: z.string().optional().nullable(),
+  stampUrl: z.string().optional().nullable(),
 });
 
 export const clientInputSchema = z.object({
@@ -201,6 +203,7 @@ export const documentInputSchema = z.object({
   clientId: z.string().min(1),
   status: z.enum([
     "draft",
+    "signed",
     "sent",
     "accepted",
     "rejected",

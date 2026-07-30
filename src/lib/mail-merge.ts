@@ -2,31 +2,15 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session.functions";
-import { getResend } from "@/lib/resend";
-import { COMPANY_DEFAULTS } from "@/lib/company-defaults";
-import {
-  escapeHtml,
-  formatFrom,
-  requireResendConfig,
-  resendErrorMessage,
-} from "@/lib/email";
-import { logOutboundMail } from "@/lib/mail-log";
+import { mapDocument } from "@/lib/mappers";
+import { isAdmin } from "@/lib/roles";
+import type { MailMergeCampaign } from "@/store/types";
 
 async function requireSession() {
   const session = await getCurrentSession();
   if (!session) throw new Error("Non authentifié");
   return session;
 }
-
-const mailMergeSchema = z.object({
-  clientIds: z.array(z.string()).min(1, "Sélectionnez au moins un destinataire"),
-  subject: z.string().min(1, "L'objet est requis"),
-  body: z.string().min(1, "Le corps est requis"),
-  closing: z.string().default(""),
-  signatoryTitle: z.string().default(""),
-});
-
-export type MailMergePayload = z.infer<typeof mailMergeSchema>;
 
 function interpolate(template: string, vars: Record<string, string>): string {
   let result = template;
@@ -36,146 +20,334 @@ function interpolate(template: string, vars: Record<string, string>): string {
   return result;
 }
 
-function buildHtml(params: {
-  body: string;
-  closing: string;
-  signatoryTitle: string;
-  companyName: string;
-}): string {
-  const body = escapeHtml(params.body);
-  const closing = escapeHtml(params.closing);
-  const signatoryTitle = escapeHtml(params.signatoryTitle);
-  const companyName = escapeHtml(params.companyName);
-
-  return `
-<!DOCTYPE html>
-<html lang="fr">
-<head><meta charset="utf-8" /></head>
-<body style="font-family: 'Segoe UI', Tahoma, sans-serif; color: #1e293b; max-width: 640px; margin: 0 auto; padding: 32px 24px;">
-  <div style="border-bottom: 2px solid #B45309; padding-bottom: 16px; margin-bottom: 24px;">
-    <strong style="font-size: 18px; color: #B45309;">${companyName}</strong>
-  </div>
-  <div style="white-space: pre-line; line-height: 1.8; font-size: 14px;">
-${body}
-  </div>
-  ${closing ? `<div style="margin-top: 32px; white-space: pre-line; font-size: 14px;">${closing}</div>` : ""}
-  ${signatoryTitle ? `<div style="margin-top: 24px; font-size: 13px; color: #B45309;">${signatoryTitle}</div>` : ""}
-  <div style="margin-top: 48px; border-top: 1px solid #e2e8f0; padding-top: 12px; font-size: 11px; color: #94a3b8;">
-    ${companyName} — Document conforme aux usages OHADA / zone CEMAC
-  </div>
-</body>
-</html>`.trim();
+function clientVars(client: {
+  name: string;
+  contactName: string;
+  address: string;
+  city: string;
+  country: string;
+}): Record<string, string> {
+  return {
+    nom: client.name,
+    contact: client.contactName || client.name,
+    adresse: client.address,
+    ville: client.city,
+    pays: client.country,
+  };
 }
 
-export const sendMailMerge = createServerFn({ method: "POST" })
-  .validator(mailMergeSchema)
+const createCampaignSchema = z.object({
+  clientIds: z.array(z.string()).min(1, "Sélectionnez au moins un destinataire"),
+  subject: z.string().min(1, "L'objet est requis"),
+  salutation: z.string().default(""),
+  body: z.string().min(1, "Le corps est requis"),
+  closing: z.string().default(""),
+  signatoryTitle: z.string().default("Le Gérant"),
+  issueDate: z.string().optional(),
+});
+
+function mapCampaign(
+  row: {
+    id: string;
+    cabinet: MailMergeCampaign["cabinet"];
+    createdById: string;
+    status: MailMergeCampaign["status"];
+    subject: string;
+    salutation: string;
+    body: string;
+    closing: string;
+    signatoryTitle: string;
+    issueDate: Date;
+    signedAt: Date | null;
+    signedById: string | null;
+    sentAt: Date | null;
+    createdAt: Date;
+    _count?: { documents: number };
+    documents?: Parameters<typeof mapDocument>[0][];
+  },
+): MailMergeCampaign {
+  return {
+    id: row.id,
+    cabinet: row.cabinet,
+    createdById: row.createdById,
+    status: row.status,
+    subject: row.subject,
+    salutation: row.salutation,
+    body: row.body,
+    closing: row.closing,
+    signatoryTitle: row.signatoryTitle,
+    issueDate: row.issueDate.toISOString().slice(0, 10),
+    signedAt: row.signedAt?.toISOString() ?? null,
+    signedById: row.signedById,
+    sentAt: row.sentAt?.toISOString() ?? null,
+    createdAt: row.createdAt.toISOString(),
+    documentCount: row._count?.documents ?? row.documents?.length ?? 0,
+    documents: row.documents?.map(mapDocument),
+  };
+}
+
+async function nextLetterNumber(cabinet: "conseil" | "expertise_fiscale") {
+  const year = new Date().getFullYear();
+  const prefix = `LT-${year}-`;
+  const last = await prisma.document.findFirst({
+    where: { cabinet, type: "letter", number: { startsWith: prefix } },
+    orderBy: { number: "desc" },
+    select: { number: true },
+  });
+  let seq = 1;
+  if (last?.number) {
+    const part = last.number.slice(prefix.length);
+    const n = Number.parseInt(part, 10);
+    if (Number.isFinite(n)) seq = n + 1;
+  }
+  return `${prefix}${String(seq).padStart(3, "0")}`;
+}
+
+export const listMailMergeCampaigns = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const { activeCabinet } = await requireSession();
+    const rows = await prisma.mailMergeCampaign.findMany({
+      where: { cabinet: activeCabinet },
+      include: { _count: { select: { documents: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    });
+    return rows.map(mapCampaign);
+  },
+);
+
+export const getMailMergeCampaign = createServerFn({ method: "GET" })
+  .validator(z.object({ id: z.string() }))
+  .handler(async ({ data }) => {
+    const session = await requireSession();
+    const row = await prisma.mailMergeCampaign.findFirst({
+      where: { id: data.id, cabinet: session.activeCabinet },
+      include: {
+        _count: { select: { documents: true } },
+        documents: {
+          include: {
+            lines: { orderBy: { position: "asc" as const } },
+            createdBy: true,
+            client: true,
+          },
+          orderBy: { number: "asc" },
+        },
+      },
+    });
+    if (!row) throw new Error("Campagne introuvable");
+    return mapCampaign(row);
+  });
+
+export const createMailMergeCampaign = createServerFn({ method: "POST" })
+  .validator(createCampaignSchema)
   .handler(async ({ data }) => {
     const session = await requireSession();
     const { staff, activeCabinet } = session;
-    const { fromEmail } = requireResendConfig();
 
     const clients = await prisma.client.findMany({
       where: { id: { in: data.clientIds }, cabinet: activeCabinet },
     });
-
     if (clients.length === 0) throw new Error("Aucun client trouvé");
 
-    const companyRow = await prisma.company.findUnique({
-      where: { cabinet: activeCabinet },
-    });
-    const company = companyRow ?? COMPANY_DEFAULTS[activeCabinet];
-    const resend = getResend();
-    const from = formatFrom(company.name, fromEmail);
+    const issueDate = data.issueDate
+      ? new Date(`${data.issueDate}T12:00:00.000Z`)
+      : new Date();
+    const dueDate = issueDate;
 
-    const results: {
-      clientId: string;
-      clientName: string;
-      success: boolean;
-      error?: string;
-    }[] = [];
+    const campaign = await prisma.mailMergeCampaign.create({
+      data: {
+        cabinet: activeCabinet,
+        createdById: staff.id,
+        status: "draft",
+        subject: data.subject.trim(),
+        salutation: data.salutation.trim(),
+        body: data.body.trim(),
+        closing: data.closing.trim(),
+        signatoryTitle: data.signatoryTitle.trim() || "Le Gérant",
+        issueDate,
+      },
+    });
+
+    let nextNumber = await nextLetterNumber(activeCabinet);
 
     for (const client of clients) {
-      if (!client.email?.trim()) {
-        results.push({
+      const vars = clientVars(client);
+      const number = nextNumber;
+      const seq = Number.parseInt(number.split("-").pop() ?? "1", 10);
+      nextNumber = `LT-${new Date().getFullYear()}-${String(seq + 1).padStart(3, "0")}`;
+
+      const recipientOverride = [
+        client.contactName ? "À" : "",
+        client.contactName || "",
+        client.name ? `De ${client.name}` : "",
+        [client.address, client.city, client.country].filter(Boolean).join(" — "),
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      await prisma.document.create({
+        data: {
+          cabinet: activeCabinet,
+          type: "letter",
+          number,
           clientId: client.id,
-          clientName: client.name,
-          success: false,
-          error: "Pas d'email",
-        });
-        continue;
-      }
-
-      const vars: Record<string, string> = {
-        nom: client.name,
-        contact: client.contactName || client.name,
-        adresse: client.address,
-        ville: client.city,
-        pays: client.country,
-      };
-
-      const personalizedBody = interpolate(data.body, vars);
-      const personalizedSubject = interpolate(data.subject, vars);
-
-      const html = buildHtml({
-        body: personalizedBody,
-        closing: data.closing,
-        signatoryTitle: data.signatoryTitle || staff.jobTitle,
-        companyName: company.name,
+          createdById: staff.id,
+          status: "draft",
+          issueDate,
+          dueDate,
+          subtotal: 0,
+          tps: 0,
+          css: 0,
+          vat: 0,
+          total: 0,
+          currency: "XAF",
+          subject: interpolate(data.subject, vars),
+          salutation: interpolate(data.salutation, vars),
+          body: interpolate(data.body, vars),
+          closing: interpolate(data.closing, vars),
+          signatoryTitle: data.signatoryTitle.trim() || "Le Gérant",
+          recipientOverride,
+          mailMergeCampaignId: campaign.id,
+        },
       });
-
-      try {
-        const replyTo = process.env.RESEND_REPLY_TO?.trim() || undefined;
-        const { data: sent, error } = await resend.emails.send({
-          from,
-          to: client.email.trim(),
-          subject: personalizedSubject,
-          html,
-          ...(replyTo ? { replyTo: [replyTo] } : {}),
-        });
-        if (error) {
-          console.error("[publipostage] Resend error", client.email, error);
-          results.push({
-            clientId: client.id,
-            clientName: client.name,
-            success: false,
-            error: resendErrorMessage(error),
-          });
-        } else {
-          results.push({
-            clientId: client.id,
-            clientName: client.name,
-            success: true,
-          });
-          await logOutboundMail({
-            cabinet: activeCabinet,
-            resendId: sent?.id ?? null,
-            fromEmail: from,
-            toEmail: client.email.trim(),
-            subject: personalizedSubject,
-            html,
-            clientId: client.id,
-            staffId: staff.id,
-            lastEvent: "sent",
-          });
-          if (sent?.id) {
-            console.info("[publipostage] sent", client.email, sent.id);
-          }
-        }
-      } catch (err) {
-        console.error("[publipostage] exception", client.email, err);
-        results.push({
-          clientId: client.id,
-          clientName: client.name,
-          success: false,
-          error: resendErrorMessage(err),
-        });
-      }
     }
 
-    return {
-      sent: results.filter((r) => r.success).length,
-      failed: results.filter((r) => !r.success).length,
-      from,
-      details: results,
-    };
+    const full = await prisma.mailMergeCampaign.findUniqueOrThrow({
+      where: { id: campaign.id },
+      include: {
+        _count: { select: { documents: true } },
+        documents: {
+          include: {
+            lines: { orderBy: { position: "asc" as const } },
+            createdBy: true,
+            client: true,
+          },
+          orderBy: { number: "asc" },
+        },
+      },
+    });
+    return mapCampaign(full);
+  });
+
+export const signMailMergeCampaign = createServerFn({ method: "POST" })
+  .validator(z.object({ id: z.string() }))
+  .handler(async ({ data }) => {
+    const session = await requireSession();
+    const { staff, activeCabinet } = session;
+    if (!isAdmin(staff.role)) {
+      throw new Error("Seuls les administrateurs peuvent signer les courriers");
+    }
+
+    const campaign = await prisma.mailMergeCampaign.findFirst({
+      where: { id: data.id, cabinet: activeCabinet },
+    });
+    if (!campaign) throw new Error("Campagne introuvable");
+    if (campaign.status === "sent") {
+      throw new Error("Cette campagne a déjà été envoyée");
+    }
+    if (campaign.status === "signed") {
+      throw new Error("Cette campagne est déjà signée");
+    }
+
+    const company = await prisma.company.findUnique({
+      where: { cabinet: activeCabinet },
+    });
+    if (!company?.managerName?.trim()) {
+      throw new Error(
+        "Configurez le nom du gérant dans les paramètres du cabinet avant de signer.",
+      );
+    }
+
+    await prisma.$transaction([
+      prisma.mailMergeCampaign.update({
+        where: { id: campaign.id },
+        data: {
+          status: "signed",
+          signedAt: new Date(),
+          signedById: staff.id,
+        },
+      }),
+      prisma.document.updateMany({
+        where: { mailMergeCampaignId: campaign.id },
+        data: { status: "signed" },
+      }),
+    ]);
+
+    const full = await prisma.mailMergeCampaign.findUniqueOrThrow({
+      where: { id: campaign.id },
+      include: {
+        _count: { select: { documents: true } },
+        documents: {
+          include: {
+            lines: { orderBy: { position: "asc" as const } },
+            createdBy: true,
+            client: true,
+          },
+          orderBy: { number: "asc" },
+        },
+      },
+    });
+    return mapCampaign(full);
+  });
+
+/** Marque la campagne comme envoyée après envoi réussi des lettres (côté client). */
+export const markMailMergeCampaignSent = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      id: z.string(),
+      /** IDs de documents effectivement envoyés. */
+      sentDocumentIds: z.array(z.string()).default([]),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const session = await requireSession();
+    const { staff, activeCabinet } = session;
+    if (!isAdmin(staff.role)) {
+      throw new Error("Seuls les administrateurs peuvent envoyer les courriers");
+    }
+
+    const campaign = await prisma.mailMergeCampaign.findFirst({
+      where: { id: data.id, cabinet: activeCabinet },
+    });
+    if (!campaign) throw new Error("Campagne introuvable");
+    if (campaign.status !== "signed" && campaign.status !== "sent") {
+      throw new Error("La campagne doit être signée avant l'envoi");
+    }
+
+    if (data.sentDocumentIds.length > 0) {
+      await prisma.document.updateMany({
+        where: {
+          mailMergeCampaignId: campaign.id,
+          id: { in: data.sentDocumentIds },
+        },
+        data: { status: "sent" },
+      });
+    }
+
+    const pending = await prisma.document.count({
+      where: {
+        mailMergeCampaignId: campaign.id,
+        status: { not: "sent" },
+      },
+    });
+
+    const full = await prisma.mailMergeCampaign.update({
+      where: { id: campaign.id },
+      data: {
+        status: pending === 0 ? "sent" : "signed",
+        sentAt: pending === 0 ? new Date() : campaign.sentAt,
+      },
+      include: {
+        _count: { select: { documents: true } },
+        documents: {
+          include: {
+            lines: { orderBy: { position: "asc" as const } },
+            createdBy: true,
+            client: true,
+          },
+          orderBy: { number: "asc" },
+        },
+      },
+    });
+    return mapCampaign(full);
   });

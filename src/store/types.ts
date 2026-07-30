@@ -48,6 +48,10 @@ export type CompanyInfo = {
   website: string;
   bankName: string;
   bankAccount: string;
+  /** Nom du gérant (signataire). Vide jusqu'à configuration. */
+  managerName?: string;
+  /** URL du cachet. Vide jusqu'à configuration. */
+  stampUrl?: string;
 };
 
 export type Service = {
@@ -74,8 +78,9 @@ export type LineItem = {
 };
 
 export type DocumentType = "quotation" | "invoice" | "letter";
-export type DocumentStatus = "draft" | "sent" | "accepted" | "rejected" | "paid" | "overdue" | "archived" | "cancelled";
+export type DocumentStatus = "draft" | "signed" | "sent" | "accepted" | "rejected" | "paid" | "overdue" | "archived" | "cancelled";
 export type PaymentMethod = "cash" | "check" | "bank_transfer";
+export type MailMergeStatus = "draft" | "signed" | "sent";
 
 export type Document = {
   id: string;
@@ -105,6 +110,7 @@ export type Document = {
   subscriptionDay?: number | null;
   subscriptionNextAt?: string | null;
   subscriptionOfId?: string | null;
+  mailMergeCampaignId?: string | null;
   /** Devis */
   validityDays?: number;
   executionTerms?: string;
@@ -115,6 +121,25 @@ export type Document = {
   closing?: string;
   signatoryTitle?: string;
   recipientOverride?: string;
+};
+
+export type MailMergeCampaign = {
+  id: string;
+  cabinet: Cabinet;
+  createdById: string;
+  status: MailMergeStatus;
+  subject: string;
+  salutation: string;
+  body: string;
+  closing: string;
+  signatoryTitle: string;
+  issueDate: string;
+  signedAt?: string | null;
+  signedById?: string | null;
+  sentAt?: string | null;
+  createdAt: string;
+  documentCount: number;
+  documents?: Document[];
 };
 
 export type Activity = {

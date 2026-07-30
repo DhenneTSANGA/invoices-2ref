@@ -165,7 +165,7 @@ function LoginPage() {
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
       <AuthVisualPanel
-        imageSrc="/auth/login-panel2.png"
+        imageSrc="/optimized/auth/login-panel2.webp"
         imageAlt="Espace collaborateur 2R Hub"
         title="Deux cabinets, un seul espace de travail"
         subtitle="Reprenez vos devis, factures et dossiers clients là où vous les avez laissés."
