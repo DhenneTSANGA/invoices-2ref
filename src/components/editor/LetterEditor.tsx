@@ -15,7 +15,6 @@ import {
 import { toast } from "sonner";
 import type { Document } from "@/store/types";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
-import { DocumentPreview } from "@/components/documents/DocumentPreview";
 import { downloadDocumentPdf } from "@/lib/pdf/downloadDocumentPdf";
 import { Button } from "@/components/ui/button";
 import { LoadingState } from "@/components/common/LoadingState";
@@ -151,10 +150,8 @@ export function LetterEditor({ initial }: Props) {
   };
 
   return (
-    <div className="space-y-5">
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.95fr)]">
-        {/* Formulaire */}
-        <div className="space-y-4">
+    <div className="mx-auto w-full max-w-3xl space-y-5">
+      <div className="space-y-4">
           <Section
             icon={<FileText className="h-4 w-4" />}
             title="Identification"
@@ -295,39 +292,6 @@ export function LetterEditor({ initial }: Props) {
               <Send className="h-4 w-4" /> Envoyer
             </Button>
           </div>
-        </div>
-
-        {/* Aperçu live */}
-        <aside className="hidden xl:block">
-          <div className="sticky top-6 space-y-3">
-            <div className="flex items-center justify-between px-1">
-              <div>
-                <div className="text-sm font-semibold">Aperçu en direct</div>
-                <div className="text-xs text-muted-foreground">Mise à jour à chaque saisie</div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setPreviewOpen(true)}
-                className="text-xs font-medium text-primary hover:underline"
-              >
-                Agrandir
-              </button>
-            </div>
-            <div
-              className="overflow-hidden rounded-3xl border border-border/60 bg-muted/40 p-3 shadow-inner"
-              onClick={() => setPreviewOpen(true)}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") setPreviewOpen(true);
-              }}
-            >
-              <div className="origin-top scale-[0.72] cursor-zoom-in" style={{ width: "138.9%" }}>
-                <DocumentPreview doc={previewDoc} compact />
-              </div>
-            </div>
-          </div>
-        </aside>
       </div>
 
       <DocumentPreviewModal doc={previewDoc} open={previewOpen} onOpenChange={setPreviewOpen} />
