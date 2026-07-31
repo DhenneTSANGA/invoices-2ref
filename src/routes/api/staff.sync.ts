@@ -1,12 +1,14 @@
+import {
+  ACCOUNT_REMOVED_HINT,
+  INVITE_ONLY_LOGIN_HINT,
+  isPublicSelfSignupEnabled,
+} from "@/lib/access-policy";
+import { isAccountRevoked } from "@/lib/revoked-accounts";
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { syncStaffMember } from "@/lib/staff-sync";
 import { createSupabaseServer } from "@/lib/supabase-server";
 import { prisma } from "@/lib/prisma";
-import {
-  INVITE_ONLY_LOGIN_HINT,
-  isPublicSelfSignupEnabled,
-} from "@/lib/access-policy";
 
 const bodySchema = z.object({
   id: z.string().uuid(),
@@ -59,6 +61,18 @@ export const Route = createFileRoute("/api/staff/sync")({
           if (authUser.id !== parsed.data.id) {
             return Response.json(
               { error: "Accès refusé" },
+              { status: 403 },
+            );
+          }
+
+          if (
+            await isAccountRevoked({
+              email: authUser.email ?? parsed.data.email,
+              authUserId: authUser.id,
+            })
+          ) {
+            return Response.json(
+              { error: ACCOUNT_REMOVED_HINT },
               { status: 403 },
             );
           }

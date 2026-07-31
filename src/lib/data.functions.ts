@@ -21,7 +21,7 @@ import {
   canDeleteClient,
   canEditCompanySettings,
   canWriteDocument,
-  canManageCatalog,
+  canWriteService,
   isSuperAdmin,
 } from "@/lib/roles";
 import {
@@ -29,6 +29,11 @@ import {
   clampSubscriptionDay,
   nextSubscriptionDate,
 } from "@/lib/subscription";
+import {
+  buildNextCommercialNumber,
+  isCommercialDocType,
+  type CommercialDocType,
+} from "@/lib/document-number";
 import { sendDocumentEmail } from "@/lib/send-document-email";
 
 const docInclude = {
@@ -36,6 +41,23 @@ const docInclude = {
   createdBy: true,
   client: true,
 };
+
+async function allocateCommercialNumber(
+  cabinet: Cabinet,
+  type: CommercialDocType,
+  issueDate: string | Date,
+): Promise<string> {
+  const rows = await prisma.document.findMany({
+    where: { cabinet, type },
+    select: { number: true },
+  });
+  return buildNextCommercialNumber({
+    cabinet,
+    type,
+    issueDate,
+    existingNumbers: rows.map((r) => r.number),
+  });
+}
 
 const cabinetScopeSchema = z.enum(["all", "conseil", "expertise_fiscale"]).optional();
 
@@ -279,15 +301,15 @@ export const upsertService = createServerFn({ method: "POST" })
   .validator(serviceInputSchema)
   .handler(async ({ data }) => {
     const { staff, activeCabinet } = await requireSession();
-    if (!canManageCatalog(staff.role)) {
-      throw new Error("Réservé aux administrateurs");
-    }
 
     if (data.id) {
       const existing = await prisma.service.findFirst({
         where: { id: data.id, cabinet: activeCabinet },
       });
       if (!existing) throw new Error("Service introuvable");
+      if (!canWriteService(staff.role, staff.id, existing.createdById)) {
+        throw new Error("Accès refusé — service en lecture seule");
+      }
 
       const dup = await prisma.service.findFirst({
         where: { cabinet: activeCabinet, code: data.code, id: { not: data.id } },
@@ -324,6 +346,7 @@ export const upsertService = createServerFn({ method: "POST" })
         unitPrice: data.unitPrice,
         vatRate: data.vatRate,
         category: data.category,
+        createdById: staff.id,
       },
     });
     return mapService(row);
@@ -333,13 +356,15 @@ export const deleteService = createServerFn({ method: "POST" })
   .validator(z.object({ id: z.string() }))
   .handler(async ({ data }) => {
     const { staff, activeCabinet } = await requireSession();
-    if (!canManageCatalog(staff.role)) {
-      throw new Error("Réservé aux administrateurs");
-    }
     const existing = await prisma.service.findFirst({
       where: { id: data.id, cabinet: activeCabinet },
     });
     if (!existing) throw new Error("Service introuvable");
+    if (!canWriteService(staff.role, staff.id, existing.createdById)) {
+      throw new Error(
+        "Suppression réservée au créateur, à un admin ou au super admin",
+      );
+    }
 
     const lineCount = await prisma.documentLine.count({
       where: { serviceId: data.id },
@@ -407,6 +432,24 @@ export const getDocument = createServerFn({ method: "GET" })
     return mapDocument(row);
   });
 
+/** Aperçu du prochain numéro chronologique (facture / devis). */
+export const peekNextDocumentNumber = createServerFn({ method: "GET" })
+  .validator(
+    z.object({
+      type: z.enum(["invoice", "quotation"]),
+      issueDate: z.string().min(1),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const { activeCabinet } = await requireSession();
+    const number = await allocateCommercialNumber(
+      activeCabinet,
+      data.type,
+      data.issueDate,
+    );
+    return { number };
+  });
+
 export const upsertDocument = createServerFn({ method: "POST" })
   .validator(documentInputSchema)
   .handler(async ({ data }) => {
@@ -429,10 +472,19 @@ export const upsertDocument = createServerFn({ method: "POST" })
       position,
     }));
 
+    let number = data.number;
+    if (!data.id && isCommercialDocType(data.type)) {
+      number = await allocateCommercialNumber(
+        activeCabinet,
+        data.type,
+        data.issueDate,
+      );
+    }
+
     const docData = {
       cabinet: activeCabinet,
       type: data.type,
-      number: data.number,
+      number,
       clientId: data.clientId,
       createdById: staff.id,
       status: data.status,
@@ -657,9 +709,12 @@ export const processDueSubscriptions = createServerFn({ method: "POST" }).handle
         if (!canWriteDocument(session.staff.role, session.staff.id, template.createdById)) {
           continue;
         }
-        const year = todayUtc.getUTCFullYear();
-        const number = `FA-${year}-${String(Math.floor(Math.random() * 9000) + 1000)}`;
         const issueDate = todayUtc;
+        const number = await allocateCommercialNumber(
+          template.cabinet,
+          "invoice",
+          issueDate,
+        );
         const dueDate = new Date(todayUtc);
         dueDate.setUTCDate(dueDate.getUTCDate() + 30);
 

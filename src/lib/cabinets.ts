@@ -18,6 +18,20 @@ export const CABINET_LOGOS: Record<Cabinet, string> = {
   expertise_fiscale: "/optimized/logo-2ref.webp",
 };
 
+/** Couleurs documents (charte 2R Conseil : bleu marine + vert). */
+export const DOCUMENT_COLORS = {
+  invoice: {
+    accent: "#01004C",
+    accentTo: "#1A1860",
+  },
+  quotation: {
+    /** Vert un peu plus soutenu pour le contraste texte blanc / en-têtes. */
+    accent: "#5C9A35",
+    /** Vert charte (#8BC163). */
+    accentTo: "#8BC163",
+  },
+} as const;
+
 export type CabinetScope = "all" | Cabinet;
 
 export const CABINET_SCOPE_OPTIONS: { value: CabinetScope; label: string }[] = [
@@ -75,8 +89,8 @@ export const COMPANY_DEFAULTS: Record<Cabinet, CompanyInfo> = {
     phone: "011 44 39 64 / 065 10 99 10",
     email: "expertise.fiscale@2ref.ga",
     website: "www.2ref.ga",
-    bankName: "",
-    bankAccount: "",
+    bankName: "Orabank Gabon",
+    bankAccount: "40021 01002 25911900201 45",
     managerName: "",
     stampUrl: "",
   },
@@ -92,8 +106,8 @@ export const COMPANY_DEFAULTS: Record<Cabinet, CompanyInfo> = {
     phone: "077 52 24 / 011 44 39 64",
     email: "contact@2rconseil.ga",
     website: "www.2rconseil.ga",
-    bankName: "",
-    bankAccount: "",
+    bankName: "Orabank Gabon",
+    bankAccount: "40003 04130 41051542011 61",
     managerName: "",
     stampUrl: "",
   },

@@ -123,6 +123,7 @@ model StaffMember {
 
   documents     Document[]
   clients       Client[]
+  services      Service[]
   notifications Notification[]
   adminRequests AdminRequest[] @relation("AdminRequestStaff")
   reviewedRequests AdminRequest[] @relation("AdminRequestReviewer")
@@ -134,6 +135,18 @@ model StaffMember {
   @@index([role])
   @@index([cabinet])
   @@map("staff_members")
+}
+
+/** Comptes retirés de la plateforme (login → page « compte supprimé »). */
+model RevokedAccount {
+  id         String   @id @default(cuid())
+  email      String   @unique
+  authUserId String?
+  revokedAt  DateTime @default(now())
+  revokedById String?
+
+  @@index([authUserId])
+  @@map("revoked_accounts")
 }
 
 model AdminRequest {
@@ -197,14 +210,18 @@ model Service {
   unitPrice   Decimal  @db.Decimal(18, 2)
   vatRate     Decimal  @db.Decimal(5, 2)
   category    String
+  /** Collaborateur ayant créé la prestation (null = historique / seed). */
+  createdById String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  lines DocumentLine[]
+  lines     DocumentLine[]
+  createdBy StaffMember?   @relation(fields: [createdById], references: [id], onDelete: SetNull)
 
   @@unique([cabinet, code])
   @@index([cabinet])
   @@index([category])
+  @@index([createdById])
   @@map("services")
 }
 

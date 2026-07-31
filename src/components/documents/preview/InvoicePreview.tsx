@@ -11,6 +11,7 @@ import {
   PreviewBottomRow,
 } from "./PreviewShell";
 import { documentTaxRates } from "@/lib/document-math";
+import { DOCUMENT_COLORS } from "@/lib/cabinets";
 
 type Props = { doc: Document; compact?: boolean; variant?: "full" | "thumb"; className?: string };
 
@@ -28,7 +29,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
 ) {
   const { company, client } = usePreviewData(doc);
   const isThumb = variant === "thumb";
-  const accent = "#1E40AF";
+  const { accent, accentTo } = DOCUMENT_COLORS.invoice;
 
   const emitterLines = partyAddressLines([
     company.address,
@@ -97,20 +98,33 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
         {doc.paymentTerms && <span>Conditions : <b className="text-[#0F172A]">{doc.paymentTerms}</b></span>}
       </div>
 
-      <ItemsTable doc={doc} headerFrom={accent} headerTo="#3B82F6" />
+      <ItemsTable doc={doc} headerFrom={accent} headerTo={accentTo} />
 
       <PreviewBottomRow
         left={
-          doc.notes ? (
+          company.bankName || company.bankAccount ? (
             <div className="rounded-lg bg-[#F1F5F9] p-3.5">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-[#64748B]">Notes</div>
-              <p className="mt-1 text-[12px] text-[#334155]">{doc.notes}</p>
+              <div className="text-[11px] font-bold uppercase tracking-wider text-[#64748B]">
+                RIB pour le règlement
+              </div>
+              {company.bankName ? (
+                <div className="mt-1 text-[12px] text-[#334155]">
+                  <span className="text-[#64748B]">Banque : </span>
+                  {company.bankName}
+                </div>
+              ) : null}
+              {company.bankAccount ? (
+                <div className="mt-0.5 break-words text-[12px] text-[#334155]">
+                  <span className="text-[#64748B]">RIB : </span>
+                  {company.bankAccount}
+                </div>
+              ) : null}
             </div>
           ) : (
             <div />
           )
         }
-        right={<TotalsBlock doc={doc} company={company} accent={accent} />}
+        right={<TotalsBlock doc={doc} accent={accent} />}
       />
 
       <div className="mt-4 w-full">
@@ -252,11 +266,9 @@ function StampBox({ accent, label = "Signature & Cachet" }: { accent: string; la
 
 function TotalsBlock({
   doc,
-  company,
   accent,
 }: {
   doc: Document;
-  company: { bankName: string; bankAccount: string };
   accent: string;
 }) {
   const { vatRate, cssRate } = documentTaxRates(doc.items);
@@ -278,12 +290,6 @@ function TotalsBlock({
         />
         <AmountRow label="Total TTC" value={number(doc.total)} currency={doc.currency} strong accent={accent} />
       </div>
-      {(company.bankName || company.bankAccount) && (
-        <div className="rounded-lg bg-[#F1F5F9] p-2.5 text-[11px] text-[#475569]">
-          <div><b>Coordonnées bancaires</b></div>
-          <div className="break-words">{[company.bankName, company.bankAccount].filter(Boolean).join(" — ")}</div>
-        </div>
-      )}
     </div>
   );
 }

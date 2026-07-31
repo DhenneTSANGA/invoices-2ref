@@ -63,6 +63,7 @@ export type Service = {
   unitPrice: number;
   vatRate: number;
   category: string;
+  createdById?: string | null;
 };
 
 export type LineItem = {

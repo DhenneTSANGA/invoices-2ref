@@ -116,6 +116,7 @@ export function mapService(row: {
   unitPrice: Decimal;
   vatRate: Decimal;
   category: string;
+  createdById?: string | null;
 }): Service {
   return {
     id: row.id,
@@ -126,6 +127,7 @@ export function mapService(row: {
     unitPrice: decimalToNumber(row.unitPrice),
     vatRate: decimalToNumber(row.vatRate),
     category: row.category,
+    createdById: row.createdById ?? null,
   };
 }
 

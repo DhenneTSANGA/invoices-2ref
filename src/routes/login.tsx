@@ -14,8 +14,12 @@ import { syncStaffToDatabase } from "@/lib/staff-client";
 import { staffFromAuthUser } from "@/lib/staff-parse";
 import { getCurrentSession } from "@/lib/session.functions";
 import { homePathForRole } from "@/lib/roles";
-import { getAuthBootstrap } from "@/lib/admin.functions";
 import {
+  checkAccountRemoved,
+  getAuthBootstrap,
+} from "@/lib/admin.functions";
+import {
+  ACCOUNT_REMOVED_HINT,
   INVITE_ONLY_LOGIN_HINT,
   isPublicSelfSignupEnabled,
 } from "@/lib/access-policy";
@@ -40,6 +44,9 @@ export const Route = createFileRoute("/login")({
   }),
   beforeLoad: async () => {
     const boot = await getAuthBootstrap();
+    if (boot?.status === "account_removed") {
+      throw redirect({ to: "/compte-supprime" });
+    }
     if (boot?.status === "access_denied") return;
     if (boot?.status === "needs_password") {
       throw redirect({ to: "/auth/set-password" });
@@ -66,12 +73,16 @@ function LoginPage() {
     if (typeof window === "undefined") return;
     const raw = new URLSearchParams(window.location.search).get("error");
     if (!raw) return;
+    if (raw === "account_removed") {
+      void navigate({ to: "/compte-supprime" });
+      return;
+    }
     const message =
       raw === "invite_only"
         ? INVITE_ONLY_LOGIN_HINT
         : humanAuthError(decodeURIComponent(raw));
     toast.error(message, { duration: 10_000 });
-  }, []);
+  }, [navigate]);
 
   const submitLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,9 +97,23 @@ function LoginPage() {
         parsed.data.email,
         parsed.data.password,
       );
-      if (error) throw error;
+      if (error) {
+        const check = await checkAccountRemoved({
+          data: { email: parsed.data.email },
+        });
+        if (check.removed) {
+          void navigate({ to: "/compte-supprime" });
+          return;
+        }
+        throw error;
+      }
       const user = data.user ?? data.session?.user;
       if (user) {
+        const boot = await getAuthBootstrap();
+        if (boot?.status === "account_removed") {
+          void navigate({ to: "/compte-supprime" });
+          return;
+        }
         const payload = staffFromAuthUser(user);
         if (payload.cabinet) {
           try {
@@ -96,6 +121,12 @@ function LoginPage() {
           } catch (syncErr) {
             if (!publicSignup) {
               await signOut();
+              const msg =
+                syncErr instanceof Error ? syncErr.message : INVITE_ONLY_LOGIN_HINT;
+              if (msg === ACCOUNT_REMOVED_HINT) {
+                void navigate({ to: "/compte-supprime" });
+                return;
+              }
               throw syncErr instanceof Error
                 ? syncErr
                 : new Error(INVITE_ONLY_LOGIN_HINT);
@@ -119,6 +150,18 @@ function LoginPage() {
         }
         void navigate({ to: homePathForRole(session.staff.role) });
       } else if (!publicSignup) {
+        const boot = await getAuthBootstrap();
+        if (boot?.status === "account_removed") {
+          void navigate({ to: "/compte-supprime" });
+          return;
+        }
+        const check = await checkAccountRemoved({
+          data: { email: parsed.data.email },
+        });
+        if (check.removed) {
+          void navigate({ to: "/compte-supprime" });
+          return;
+        }
         await signOut();
         toast.error(INVITE_ONLY_LOGIN_HINT, { duration: 10_000 });
       } else {

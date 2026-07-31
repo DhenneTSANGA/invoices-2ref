@@ -55,6 +55,21 @@ export function canManageCatalog(role: AppRole): boolean {
   return isAdmin(role);
 }
 
+/** Création catalogue : tout collaborateur connecté. */
+export function canCreateService(_role: AppRole): boolean {
+  return true;
+}
+
+/** Édition / suppression catalogue : créateur, admin ou super admin. */
+export function canWriteService(
+  role: AppRole,
+  staffId: string,
+  createdById: string | null | undefined,
+): boolean {
+  if (isAdmin(role)) return true;
+  return Boolean(createdById && createdById === staffId);
+}
+
 export function canEditCompanySettings(role: AppRole): boolean {
   return isAdmin(role);
 }

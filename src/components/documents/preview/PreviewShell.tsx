@@ -19,7 +19,7 @@ type ShellProps = {
 export function PreviewShell({
   children,
   className,
-  accent = "#1E40AF",
+  accent = "#01004C",
   compact,
   isThumb,
   innerRef,
@@ -79,7 +79,7 @@ export function AmountRow({
   value,
   currency,
   strong,
-  accent = "#1E40AF",
+  accent = "#01004C",
 }: {
   label: string;
   value: string;
@@ -150,7 +150,7 @@ export function LegalFooter({
 export function AmountInWords({
   amount,
   currency = "XAF",
-  accent = "#1E40AF",
+  accent = "#01004C",
 }: {
   amount: number;
   currency?: string;

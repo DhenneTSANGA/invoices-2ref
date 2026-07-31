@@ -14,6 +14,8 @@ import { Route as SignupRouteImport } from './routes/signup'
 import { Route as QuotasRouteImport } from './routes/quotas'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as EquipeRouteImport } from './routes/equipe'
+import { Route as CompteSupprimeRouteImport } from './routes/compte-supprime'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthSetPasswordRouteImport } from './routes/auth.set-password'
@@ -76,6 +78,16 @@ const OnboardingRoute = OnboardingRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EquipeRoute = EquipeRouteImport.update({
+  id: '/equipe',
+  path: '/equipe',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CompteSupprimeRoute = CompteSupprimeRouteImport.update({
+  id: '/compte-supprime',
+  path: '/compte-supprime',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppRoute = AppRouteImport.update({
@@ -270,6 +282,8 @@ const AppInvoicesIdEditRoute = AppInvoicesIdEditRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/compte-supprime': typeof CompteSupprimeRoute
+  '/equipe': typeof EquipeRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/quotas': typeof QuotasRoute
@@ -314,6 +328,8 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/compte-supprime': typeof CompteSupprimeRoute
+  '/equipe': typeof EquipeRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/quotas': typeof QuotasRoute
@@ -357,6 +373,8 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
+  '/compte-supprime': typeof CompteSupprimeRoute
+  '/equipe': typeof EquipeRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/quotas': typeof QuotasRoute
@@ -403,6 +421,8 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/compte-supprime'
+    | '/equipe'
     | '/login'
     | '/onboarding'
     | '/quotas'
@@ -447,6 +467,8 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/compte-supprime'
+    | '/equipe'
     | '/login'
     | '/onboarding'
     | '/quotas'
@@ -489,6 +511,8 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_app'
+    | '/compte-supprime'
+    | '/equipe'
     | '/login'
     | '/onboarding'
     | '/quotas'
@@ -535,6 +559,8 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
+  CompteSupprimeRoute: typeof CompteSupprimeRoute
+  EquipeRoute: typeof EquipeRoute
   LoginRoute: typeof LoginRoute
   OnboardingRoute: typeof OnboardingRoute
   QuotasRoute: typeof QuotasRoute
@@ -581,6 +607,20 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/equipe': {
+      id: '/equipe'
+      path: '/equipe'
+      fullPath: '/equipe'
+      preLoaderRoute: typeof EquipeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/compte-supprime': {
+      id: '/compte-supprime'
+      path: '/compte-supprime'
+      fullPath: '/compte-supprime'
+      preLoaderRoute: typeof CompteSupprimeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app': {
@@ -967,6 +1007,8 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
+  CompteSupprimeRoute: CompteSupprimeRoute,
+  EquipeRoute: EquipeRoute,
   LoginRoute: LoginRoute,
   OnboardingRoute: OnboardingRoute,
   QuotasRoute: QuotasRoute,

@@ -9,7 +9,7 @@ import { downloadDocumentPdf } from "@/lib/pdf/downloadDocumentPdf";
 import { number } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { LoadingState } from "@/components/common/LoadingState";
-import { useClients, useServices, useUpsertDocument, useSendDocumentEmail, useSession } from "@/hooks/use-data";
+import { useClients, useServices, useUpsertDocument, useSendDocumentEmail, useSession, usePeekNextDocumentNumber } from "@/hooks/use-data";
 import type { Cabinet } from "@/lib/cabinets";
 
 type Props = { initial?: Document; type: DocumentType };
@@ -36,8 +36,17 @@ export function DocumentEditor({ initial, type }: Props) {
   const upsertMutation = useUpsertDocument();
   const sendEmailMutation = useSendDocumentEmail();
 
+  const isNew = !initial;
+  const commercial = type === "invoice" || type === "quotation";
+
   const [doc, setDoc] = useState<Document>(() =>
     initial ?? defaultDoc(type, "", activeCabinet),
+  );
+
+  const { data: peekedNumber } = usePeekNextDocumentNumber(
+    commercial ? type : undefined,
+    doc.issueDate,
+    isNew && commercial,
   );
 
   // Aligner le cabinet du brouillon sur le cabinet actif (logo + infos société).
@@ -56,11 +65,18 @@ export function DocumentEditor({ initial, type }: Props) {
     setDoc((d) => (d.clientId ? d : { ...d, clientId: firstId }));
   }, [clients, initial?.clientId]);
 
+  // Numéro chronologique FA{n}-JJ-MM-AAAA / DV… (aperçu ; allocation définitive à l'enregistrement)
+  useEffect(() => {
+    if (!isNew || !commercial || !peekedNumber?.number) return;
+    setDoc((d) =>
+      d.number === peekedNumber.number ? d : { ...d, number: peekedNumber.number },
+    );
+  }, [isNew, commercial, peekedNumber?.number]);
+
   const [previewOpen, setPreviewOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const commercial = type === "invoice" || type === "quotation";
   const effectiveClientId = doc.clientId || clients[0]?.id || "";
   const executionDays = parseExecutionDays(doc.executionTerms);
   const { vatRate, cssRate } = documentTaxRates(doc.items);
@@ -252,6 +268,7 @@ export function DocumentEditor({ initial, type }: Props) {
             label="Numéro"
             value={doc.number}
             onChange={(v) => setDoc({ ...doc, number: v })}
+            readOnly={commercial}
           />
           <Select
             label="Client"
@@ -532,11 +549,13 @@ function Field({
   value,
   onChange,
   type = "text",
+  readOnly = false,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   type?: string;
+  readOnly?: boolean;
 }) {
   return (
     <label className="block">
@@ -545,7 +564,10 @@ function Field({
       </span>
       <input
         type={type}
-        className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
+        readOnly={readOnly}
+        className={`mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition ${
+          readOnly ? "cursor-default text-muted-foreground" : ""
+        }`}
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />
@@ -661,7 +683,7 @@ function defaultDoc(
   if (type === "quotation") {
     return {
       ...base,
-      number: `DV-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`,
+      number: "…",
       notes: "Proposition valable sous réserve d'acceptation écrite.",
       validityDays: 30,
       executionTerms: formatExecutionTerms(15),
@@ -669,7 +691,7 @@ function defaultDoc(
   }
   return {
     ...base,
-    number: `FA-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`,
+    number: "…",
     notes: "Règlement par virement bancaire.",
     paymentTerms: "30 jours fin de mois",
   };

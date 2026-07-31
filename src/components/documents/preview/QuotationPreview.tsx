@@ -17,11 +17,11 @@ import {
   partyAddressLines,
   partyContactLine,
 } from "./InvoicePreview";
+import { DOCUMENT_COLORS } from "@/lib/cabinets";
 
 type Props = { doc: Document; compact?: boolean; variant?: "full" | "thumb"; className?: string };
 
-const ACCENT = "#0F766E";
-const ACCENT_TO = "#14B8A6";
+const { accent: ACCENT, accentTo: ACCENT_TO } = DOCUMENT_COLORS.quotation;
 
 export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function QuotationPreview(
   { doc, compact, variant = "full", className },
@@ -68,8 +68,12 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
       </div>
 
       <div
-        className="mt-4 rounded-xl px-3.5 py-2.5 text-[12px] font-medium text-[#0F766E]"
-        style={{ background: "#F0FDFA", border: "1px solid #99F6E4" }}
+        className="mt-4 rounded-xl px-3.5 py-2.5 text-[12px] font-medium"
+        style={{
+          color: ACCENT,
+          background: `${ACCENT_TO}22`,
+          border: `1px solid ${ACCENT_TO}88`,
+        }}
       >
         Proposition commerciale valable <b>{validity} jours</b> à compter de la date d'émission — acceptation écrite requise (OHADA / Gabon).
       </div>
@@ -109,17 +113,26 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
       <PreviewBottomRow
         left={
           doc.executionTerms || doc.notes ? (
-            <div className="rounded-lg bg-[#F0FDFA] p-3.5 ring-1 ring-[#99F6E4]">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-[#0F766E]">
+            <div
+              className="rounded-lg p-3.5"
+              style={{
+                background: `${ACCENT_TO}18`,
+                boxShadow: `inset 0 0 0 1px ${ACCENT_TO}88`,
+              }}
+            >
+              <div
+                className="text-[11px] font-bold uppercase tracking-wider"
+                style={{ color: ACCENT }}
+              >
                 Conditions de réalisation
               </div>
-              <p className="mt-1 text-[12px] text-[#134E4A]">{doc.executionTerms || doc.notes}</p>
+              <p className="mt-1 text-[12px] text-[#334155]">{doc.executionTerms || doc.notes}</p>
             </div>
           ) : (
             <div />
           )
         }
-        right={<TotalsBlock doc={doc} company={company} accent={ACCENT} />}
+        right={<TotalsBlock doc={doc} accent={ACCENT} />}
       />
 
       <div className="mt-4 w-full">

@@ -16,6 +16,9 @@ export const Route = createFileRoute("/onboarding")({
   beforeLoad: async () => {
     const boot = await getAuthBootstrap();
     if (!boot) throw redirect({ to: "/login" });
+    if (boot.status === "account_removed") {
+      throw redirect({ to: "/compte-supprime" });
+    }
     if (boot.status === "access_denied") {
       throw redirect({ href: "/login?error=invite_only" });
     }
@@ -27,6 +30,9 @@ export const Route = createFileRoute("/onboarding")({
     const boot = await getAuthBootstrap();
     if (!boot || boot.status === "access_denied") {
       throw redirect({ href: "/login?error=invite_only" });
+    }
+    if (boot.status === "account_removed") {
+      throw redirect({ to: "/compte-supprime" });
     }
     if (boot.status !== "needs_onboarding") {
       throw redirect({ to: "/login" });

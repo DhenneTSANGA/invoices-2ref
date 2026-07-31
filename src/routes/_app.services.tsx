@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { LoadingState } from "@/components/common/LoadingState";
 import { useServices, useSession, useUpsertService, useDeleteService } from "@/hooks/use-data";
-import { canManageCatalog } from "@/lib/roles";
+import { canWriteService } from "@/lib/roles";
 import { currency } from "@/lib/format";
 import { serviceInputSchema } from "@/lib/auth-schemas";
 import { humanAuthError } from "@/lib/auth-errors";
@@ -28,6 +28,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_app/services")({
   head: () => ({ meta: [{ title: "Catalogue des services — 2R Hub" }] }),
@@ -52,7 +53,10 @@ function ServicesPage() {
   const upsert = useUpsertService();
   const remove = useDeleteService();
 
-  const canManage = session ? canManageCatalog(session.staff.role) : false;
+  const staff = session?.staff;
+  const canCreate = Boolean(staff);
+  const canEdit = (s: Service) =>
+    staff ? canWriteService(staff.role, staff.id, s.createdById) : false;
 
   const [q, setQ] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -146,7 +150,7 @@ function ServicesPage() {
             className="w-full rounded-xl border border-border/60 bg-transparent pl-10 pr-3 py-2 text-sm focus:border-primary focus:outline-none"
           />
         </div>
-        {canManage && (
+        {canCreate && (
           <button
             onClick={openCreate}
             className="flex items-center gap-2 rounded-xl bg-gradient-accent px-4 py-2 text-sm font-medium text-accent-foreground shadow-sm hover:opacity-90 transition-opacity"
@@ -159,9 +163,22 @@ function ServicesPage() {
 
       {filtered.length === 0 ? (
         <div className="glass-panel rounded-3xl p-8 text-center text-sm text-muted-foreground">
-          {services.length === 0
-            ? "Aucun service dans le catalogue. Cliquez sur « Ajouter » pour en créer un."
-            : "Aucun résultat pour cette recherche."}
+          {services.length === 0 ? (
+            <div className="space-y-4">
+              <p>Aucun service dans le catalogue pour ce cabinet.</p>
+              {canCreate && (
+                <Button
+                  onClick={openCreate}
+                  className="rounded-xl bg-gradient-accent text-accent-foreground"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Créer le premier service
+                </Button>
+              )}
+            </div>
+          ) : (
+            "Aucun résultat pour cette recherche."
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -174,15 +191,17 @@ function ServicesPage() {
               whileHover={{ y: -3 }}
               className="glass-panel group relative rounded-3xl p-5 hover:shadow-glow transition-shadow"
             >
-              {canManage && (
+              {canEdit(s) && (
                 <div className="absolute right-3 top-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
+                    type="button"
                     onClick={() => openEdit(s)}
                     className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                   >
                     <Pencil className="h-3.5 w-3.5" />
                   </button>
                   <button
+                    type="button"
                     onClick={() => setDeleteTarget(s)}
                     className="rounded-lg p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
                   >

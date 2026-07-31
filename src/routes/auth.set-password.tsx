@@ -15,6 +15,9 @@ export const Route = createFileRoute("/auth/set-password")({
   beforeLoad: async () => {
     const boot = await getAuthBootstrap();
     if (!boot) throw redirect({ to: "/login" });
+    if (boot.status === "account_removed") {
+      throw redirect({ to: "/compte-supprime" });
+    }
     if (boot.status === "access_denied") {
       throw redirect({ href: "/login?error=invite_only" });
     }

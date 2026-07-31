@@ -23,6 +23,9 @@ export const Route = createFileRoute("/_app")({
     if (boot.status === "needs_onboarding") {
       throw redirect({ to: "/onboarding" });
     }
+    if (boot.status === "account_removed") {
+      throw redirect({ to: "/compte-supprime" });
+    }
     if (boot.status === "access_denied" || boot.status !== "ready") {
       throw redirect({ to: "/login" });
     }

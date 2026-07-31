@@ -107,7 +107,7 @@ function SettingsPage() {
               <F label="RCCM" value={form.rccm} onChange={(v) => setForm({ ...form, rccm: v })} colSpan />
               <F label="CNSS" value={form.cnss} onChange={(v) => setForm({ ...form, cnss: v })} />
               <F label="Banque" value={form.bankName} onChange={(v) => setForm({ ...form, bankName: v })} />
-              <F label="N° de compte" value={form.bankAccount} onChange={(v) => setForm({ ...form, bankAccount: v })} colSpan />
+              <F label="RIB" value={form.bankAccount} onChange={(v) => setForm({ ...form, bankAccount: v })} colSpan />
             </div>
           )}
           {tab === "branding" && (

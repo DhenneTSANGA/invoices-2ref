@@ -12,6 +12,7 @@ import {
   listDocuments,
   listAllDocuments,
   getDocument,
+  peekNextDocumentNumber,
   upsertDocument,
   setDocumentStatus,
   deleteDocument,
@@ -215,6 +216,23 @@ export function useDocument(id: string) {
   });
 }
 
+/** Aperçu du prochain numéro FA/DV (création uniquement). */
+export function usePeekNextDocumentNumber(
+  type: "invoice" | "quotation" | undefined,
+  issueDate: string,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: ["peek-document-number", type, issueDate],
+    queryFn: () =>
+      peekNextDocumentNumber({
+        data: { type: type!, issueDate },
+      }),
+    enabled: enabled && !!type && !!issueDate,
+    staleTime: 5_000,
+  });
+}
+
 export function useUpsertDocument() {
   const qc = useQueryClient();
   return useMutation({
@@ -225,6 +243,7 @@ export function useUpsertDocument() {
       qc.invalidateQueries({ queryKey: documentsKey(doc.type) });
       qc.invalidateQueries({ queryKey: ["document", doc.id] });
       qc.invalidateQueries({ queryKey: notificationsKey });
+      qc.invalidateQueries({ queryKey: ["peek-document-number"] });
     },
   });
 }

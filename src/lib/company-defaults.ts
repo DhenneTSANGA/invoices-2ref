@@ -40,8 +40,8 @@ export function companyForPreview(
     phone: row.phone,
     email: row.email,
     website: row.website ?? "",
-    bankName: row.bankName ?? "",
-    bankAccount: row.bankAccount ?? "",
+    bankName: row.bankName?.trim() || fallback.bankName,
+    bankAccount: row.bankAccount?.trim() || fallback.bankAccount,
     managerName: row.managerName ?? fallback.managerName ?? "",
     stampUrl: row.stampUrl ?? fallback.stampUrl ?? "",
   };

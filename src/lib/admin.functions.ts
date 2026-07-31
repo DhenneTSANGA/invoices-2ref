@@ -24,11 +24,18 @@ import {
 } from "@/lib/roles";
 import { jobTitleLabel, normalizeJobTitleValue } from "@/lib/cabinets";
 import {
+  ACCOUNT_REMOVED_HINT,
+  ACCOUNT_REVOKED_META_KEY,
   INVITE_ONLY_LOGIN_HINT,
   isPublicSelfSignupEnabled,
 } from "@/lib/access-policy";
 import { humanAuthError } from "@/lib/auth-errors";
 import { userMustSetPassword } from "@/lib/auth-password";
+import {
+  clearRevokedAccount,
+  isAccountRevoked,
+  recordRevokedAccount,
+} from "@/lib/revoked-accounts";
 
 function isSuperAdminEmail(email: string | null | undefined): boolean {
   if (!email) return false;
@@ -38,6 +45,18 @@ function isSuperAdminEmail(email: string | null | undefined): boolean {
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);
   return allowed.includes(email.trim().toLowerCase());
+}
+
+async function markAuthUserRevoked(userId: string): Promise<void> {
+  try {
+    const admin = createAuthAdmin();
+    const { data } = await admin.auth.admin.getUserById(userId);
+    const meta = { ...(data.user?.user_metadata ?? {}) };
+    meta[ACCOUNT_REVOKED_META_KEY] = true;
+    await admin.auth.admin.updateUserById(userId, { user_metadata: meta });
+  } catch (err) {
+    console.error("[markAuthUserRevoked]", err);
+  }
 }
 
 export const getAuthBootstrap = createServerFn({ method: "GET" }).handler(
@@ -53,6 +72,21 @@ export const getAuthBootstrap = createServerFn({ method: "GET" }).handler(
       } catch {
         return null;
       }
+    }
+
+    const revoked =
+      user.user_metadata?.[ACCOUNT_REVOKED_META_KEY] === true ||
+      (await isAccountRevoked({
+        email: user.email,
+        authUserId: user.id,
+      }));
+
+    if (revoked && !isSuperAdminEmail(user.email)) {
+      return {
+        status: "account_removed" as const,
+        message: ACCOUNT_REMOVED_HINT,
+        user: { id: user.id, email: user.email ?? "" },
+      };
     }
 
     // Bootstrap immédiat si email super admin (évite l’écran onboarding)
@@ -93,6 +127,14 @@ export const getAuthBootstrap = createServerFn({ method: "GET" }).handler(
       !isSuperAdminEmail(user.email) &&
       !existing
     ) {
+      // Compte Auth sans fiche staff : révocation silencieuse ou jamais invité
+      if (await isAccountRevoked({ email: user.email, authUserId: user.id })) {
+        return {
+          status: "account_removed" as const,
+          message: ACCOUNT_REMOVED_HINT,
+          user: { id: user.id, email: user.email ?? "" },
+        };
+      }
       try {
         await supabase.auth.signOut();
       } catch {
@@ -234,6 +276,8 @@ export const createStaffWithPassword = createServerFn({ method: "POST" })
         role: data.role,
       });
 
+      await clearRevokedAccount(email);
+
       return {
         ok: true as const,
         staff: {
@@ -319,6 +363,8 @@ export const inviteStaffMember = createServerFn({ method: "POST" })
         cabinet: data.cabinet,
         role: data.role,
       });
+
+      await clearRevokedAccount(email);
 
       return {
         ok: true as const,
@@ -507,15 +553,17 @@ export const deleteStaffMember = createServerFn({ method: "POST" })
       throw new Error("Vous ne pouvez pas supprimer votre propre compte ici");
     }
 
+    await recordRevokedAccount({
+      email: target.email,
+      authUserId: target.id,
+      revokedById: session.staff.id,
+    });
     await prisma.staffMember.delete({ where: { id: data.staffId } });
     clearSessionMemo(data.staffId);
 
-    try {
-      const admin = createAuthAdmin();
-      await admin.auth.admin.deleteUser(data.staffId);
-    } catch (err) {
-      console.error("[deleteStaffMember] auth delete", err);
-    }
+    // On conserve le compte Auth (marqué révoqué) pour qu’un login
+    // avec les identifiants mène à la page « compte supprimé ».
+    await markAuthUserRevoked(data.staffId);
 
     return { ok: true };
   });
@@ -531,18 +579,71 @@ export const deleteOwnAccount = createServerFn({ method: "POST" }).handler(
     const supabase = createSupabaseServer();
     const userId = session.user.id;
 
+    await recordRevokedAccount({
+      email: session.staff.email,
+      authUserId: userId,
+      revokedById: userId,
+    });
     await prisma.staffMember.delete({ where: { id: userId } });
     clearSessionMemo(userId);
-
-    // Best-effort : suppression Auth (nécessite service role)
-    try {
-      const admin = createAuthAdmin();
-      await admin.auth.admin.deleteUser(userId);
-    } catch (err) {
-      console.error("[deleteOwnAccount] auth delete", err);
-    }
+    await markAuthUserRevoked(userId);
 
     await supabase.auth.signOut();
+    return { ok: true };
+  },
+);
+
+/** Vérifie si un e-mail correspond à un compte déjà retiré (login échoué ou réussi). */
+export const checkAccountRemoved = createServerFn({ method: "GET" })
+  .validator(z.object({ email: z.string().email() }))
+  .handler(async ({ data }) => {
+    const removed = await isAccountRevoked({ email: data.email });
+    return {
+      removed,
+      message: removed ? ACCOUNT_REMOVED_HINT : null,
+    };
+  });
+
+/**
+ * Après affichage de la page « compte supprimé » : purge Auth + déconnexion.
+ * Le tombstone DB reste pour les tentatives suivantes.
+ */
+export const finalizeAccountRemoval = createServerFn({ method: "POST" }).handler(
+  async () => {
+    const supabase = createSupabaseServer();
+    let user =
+      (await supabase.auth.getSession()).data.session?.user ?? null;
+    if (!user) {
+      try {
+        const { data, error } = await supabase.auth.getUser();
+        if (!error && data.user) user = data.user;
+      } catch {
+        // ignore
+      }
+    }
+
+    if (user) {
+      const revoked = await isAccountRevoked({
+        email: user.email,
+        authUserId: user.id,
+      });
+      const metaRevoked =
+        user.user_metadata?.[ACCOUNT_REVOKED_META_KEY] === true;
+      if (revoked || metaRevoked) {
+        try {
+          const admin = createAuthAdmin();
+          await admin.auth.admin.deleteUser(user.id);
+        } catch (err) {
+          console.error("[finalizeAccountRemoval] auth delete", err);
+        }
+      }
+    }
+
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      // ignore
+    }
     return { ok: true };
   },
 );

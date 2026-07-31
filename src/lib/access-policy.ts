@@ -33,3 +33,9 @@ export function isPublicSelfSignupEnabled(): boolean {
 
 export const INVITE_ONLY_LOGIN_HINT =
   "Accès réservé aux collaborateurs invités. Contactez un administrateur 2R Hub.";
+
+export const ACCOUNT_REMOVED_HINT =
+  "Votre compte collaborateur a été supprimé. Vous n’avez plus accès à 2R Hub. Contactez un administrateur si vous pensez qu’il s’agit d’une erreur.";
+
+/** Clé user_metadata Auth pour les comptes révoqués encore présents dans Auth. */
+export const ACCOUNT_REVOKED_META_KEY = "account_revoked";

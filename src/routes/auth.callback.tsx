@@ -89,6 +89,10 @@ function AuthCallbackPage() {
       }
 
       const boot = await getAuthBootstrap();
+      if (boot?.status === "account_removed") {
+        if (!cancelled) void navigate({ to: "/compte-supprime" });
+        return;
+      }
       if (boot?.status === "access_denied") {
         await fail(boot.message ?? INVITE_ONLY_LOGIN_HINT);
         return;
