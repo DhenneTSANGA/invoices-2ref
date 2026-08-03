@@ -55,6 +55,8 @@ export function mapCompany(
     website: string | null;
     bankName: string | null;
     bankAccount: string | null;
+    mailFromEmail?: string | null;
+    mailReplyTo?: string | null;
     managerName?: string | null;
     stampUrl?: string | null;
   },

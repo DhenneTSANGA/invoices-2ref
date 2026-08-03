@@ -142,6 +142,14 @@ export const companyInputSchema = z.object({
   website: z.string().optional().nullable(),
   bankName: z.string().optional().nullable(),
   bankAccount: z.string().optional().nullable(),
+  mailFromEmail: z
+    .union([z.string().email("Adresse d’envoi invalide"), z.literal("")])
+    .optional()
+    .nullable(),
+  mailReplyTo: z
+    .union([z.string().email("Adresse de réponse invalide"), z.literal("")])
+    .optional()
+    .nullable(),
   managerName: z.string().optional().nullable(),
   stampUrl: z.string().optional().nullable(),
 });

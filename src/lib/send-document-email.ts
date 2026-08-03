@@ -6,8 +6,8 @@ import { getResend } from "@/lib/resend";
 import { COMPANY_DEFAULTS } from "@/lib/company-defaults";
 import {
   escapeHtml,
-  formatFrom,
-  requireResendConfig,
+  requireResendApiKey,
+  resolveCabinetMailAddresses,
   resendErrorMessage,
 } from "@/lib/email";
 import {
@@ -199,7 +199,7 @@ export const sendDocumentEmail = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const session = await requireSession();
     const { staff } = session;
-    const { fromEmail } = requireResendConfig();
+    requireResendApiKey();
 
     const doc = await prisma.document.findFirst({
       where: isSuperAdmin(staff.role)
@@ -230,9 +230,16 @@ export const sendDocumentEmail = createServerFn({ method: "POST" })
     const companyRow = await prisma.company.findUnique({
       where: { cabinet: doc.cabinet },
     });
-    const company = companyRow ?? COMPANY_DEFAULTS[doc.cabinet];
+    const company = companyRow
+      ? {
+          name: companyRow.name,
+          email: companyRow.email,
+          mailFromEmail: companyRow.mailFromEmail,
+          mailReplyTo: companyRow.mailReplyTo,
+        }
+      : COMPANY_DEFAULTS[doc.cabinet];
+    const { from, replyTo } = resolveCabinetMailAddresses(company);
     const typeLabel = documentTypeLabel(doc.type as DocumentType);
-    const from = formatFrom(company.name, fromEmail);
     const to = doc.client.email.trim();
 
     let subject: string;
@@ -318,7 +325,6 @@ export const sendDocumentEmail = createServerFn({ method: "POST" })
     }
 
     const resend = getResend();
-    const replyTo = process.env.RESEND_REPLY_TO?.trim() || undefined;
     const attachments =
       data.pdfBase64
         ? [

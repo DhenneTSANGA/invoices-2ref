@@ -27,6 +27,55 @@ export function computeDocumentTotals(items: LineItem[]) {
   return { subtotal, tps: 0, css, vat, total: subtotal + css + vat };
 }
 
+/** Facteur TTC = HT × (1 + CSS% + TVA%). */
+export function commercialTaxFactor(
+  vatRate = DEFAULT_VAT_RATE,
+  cssRate = DEFAULT_CSS_RATE,
+): number {
+  return 1 + (Math.max(0, cssRate) + Math.max(0, vatRate)) / 100;
+}
+
+/** TTC → HT (arrondi à l’unité XAF). */
+export function htFromTtc(
+  ttc: number,
+  vatRate = DEFAULT_VAT_RATE,
+  cssRate = DEFAULT_CSS_RATE,
+): number {
+  const factor = commercialTaxFactor(vatRate, cssRate);
+  if (!Number.isFinite(ttc) || ttc === 0) return 0;
+  if (factor <= 0) return Math.round(ttc);
+  return Math.round(ttc / factor);
+}
+
+/** HT → TTC (arrondi à l’unité XAF). */
+export function ttcFromHt(
+  ht: number,
+  vatRate = DEFAULT_VAT_RATE,
+  cssRate = DEFAULT_CSS_RATE,
+): number {
+  if (!Number.isFinite(ht) || ht === 0) return 0;
+  return Math.round(ht * commercialTaxFactor(vatRate, cssRate));
+}
+
+/** Décomposition d’un montant TTC (ligne ou total). */
+export function breakdownFromTtc(
+  ttc: number,
+  vatRate = DEFAULT_VAT_RATE,
+  cssRate = DEFAULT_CSS_RATE,
+) {
+  const subtotal = htFromTtc(ttc, vatRate, cssRate);
+  const css = Math.round(subtotal * (Math.max(0, cssRate) / 100));
+  const vat = Math.round(subtotal * (Math.max(0, vatRate) / 100));
+  const computed = subtotal + css + vat;
+  const drift = Math.round(ttc) - computed;
+  return {
+    subtotal,
+    css,
+    vat: vat + drift,
+    total: Math.round(ttc),
+  };
+}
+
 /** @deprecated Utiliser {@link computeDocumentTotals} */
 export const computeVatOnlyTotals = computeDocumentTotals;
 /** @deprecated Utiliser {@link computeDocumentTotals} */

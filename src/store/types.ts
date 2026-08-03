@@ -48,6 +48,10 @@ export type CompanyInfo = {
   website: string;
   bankName: string;
   bankAccount: string;
+  /** Adresse From Resend (domaine vérifié du cabinet). */
+  mailFromEmail?: string;
+  /** Reply-To (réponses clients). */
+  mailReplyTo?: string;
   /** Nom du gérant (signataire). Vide jusqu'à configuration. */
   managerName?: string;
   /** URL du cachet. Vide jusqu'à configuration. */

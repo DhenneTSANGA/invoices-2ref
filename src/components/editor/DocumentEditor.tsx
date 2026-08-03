@@ -2,7 +2,16 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Plus, Trash2, Save, Send, Download, Eye, Loader2, Users } from "lucide-react";
 import { toast } from "sonner";
-import { computeTotals, computeDocumentTotals, documentTaxRates, DEFAULT_VAT_RATE, DEFAULT_CSS_RATE, parseExecutionDays, formatExecutionTerms } from "@/lib/document-math";
+import {
+  computeTotals,
+  computeDocumentTotals,
+  documentTaxRates,
+  DEFAULT_VAT_RATE,
+  DEFAULT_CSS_RATE,
+  parseExecutionDays,
+  formatExecutionTerms,
+  breakdownFromTtc,
+} from "@/lib/document-math";
 import type { Document, DocumentType, LineItem } from "@/store/types";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 import { downloadDocumentPdf } from "@/lib/pdf/downloadDocumentPdf";
@@ -76,10 +85,89 @@ export function DocumentEditor({ initial, type }: Props) {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [saving, setSaving] = useState(false);
+  /** Choix avant saisie : lignes HT classiques, ou montant TTC global. */
+  const [amountMode, setAmountMode] = useState<"ht" | "ttc">("ht");
+  const [ttcInput, setTtcInput] = useState("");
+  const [ttcVatRate, setTtcVatRate] = useState(DEFAULT_VAT_RATE);
+  const [ttcCssRate, setTtcCssRate] = useState(DEFAULT_CSS_RATE);
+  const [ttcDescription, setTtcDescription] = useState("Prestation");
 
   const effectiveClientId = doc.clientId || clients[0]?.id || "";
   const executionDays = parseExecutionDays(doc.executionTerms);
   const { vatRate, cssRate } = documentTaxRates(doc.items);
+
+  const ttcAmount = Number(ttcInput.replace(/\s/g, "").replace(",", ".")) || 0;
+  const ttcBreakdown = useMemo(
+    () =>
+      ttcAmount > 0
+        ? breakdownFromTtc(ttcAmount, ttcVatRate, ttcCssRate)
+        : null,
+    [ttcAmount, ttcVatRate, ttcCssRate],
+  );
+
+  const applyTtcToDoc = (
+    breakdown: NonNullable<typeof ttcBreakdown>,
+    vat: number,
+    css: number,
+    description: string,
+  ) => {
+    setDoc((d) => ({
+      ...d,
+      items: [
+        {
+          id: d.items.length === 1 ? d.items[0]!.id : newId(),
+          description: description.trim() || "Prestation",
+          quantity: 1,
+          unitPrice: breakdown.subtotal,
+          vatRate: vat,
+          cssRate: css,
+          discount: 0,
+          tpsRate: 0,
+        },
+      ],
+    }));
+  };
+
+  const syncFromTtc = (
+    rawTtc: string,
+    vat: number,
+    css: number,
+    description: string,
+  ) => {
+    const amount = Number(rawTtc.replace(/\s/g, "").replace(",", ".")) || 0;
+    if (amount <= 0) {
+      setDoc((d) => ({ ...d, items: [] }));
+      return;
+    }
+    applyTtcToDoc(breakdownFromTtc(amount, vat, css), vat, css, description);
+  };
+
+  const selectAmountMode = (mode: "ht" | "ttc") => {
+    if (mode === amountMode) return;
+    if (mode === "ttc") {
+      const rates = documentTaxRates(doc.items);
+      setTtcVatRate(rates.vatRate);
+      setTtcCssRate(rates.cssRate);
+      if (doc.items.length === 1 && doc.items[0]?.description) {
+        setTtcDescription(doc.items[0].description);
+      }
+      const currentTotal = computeDocumentTotals(doc.items).total;
+      const nextInput =
+        currentTotal > 0 ? String(Math.round(currentTotal)) : ttcInput;
+      if (currentTotal > 0) setTtcInput(nextInput);
+      if (nextInput) {
+        syncFromTtc(
+          nextInput,
+          rates.vatRate,
+          rates.cssRate,
+          doc.items.length === 1 && doc.items[0]?.description
+            ? doc.items[0].description
+            : ttcDescription,
+        );
+      }
+    }
+    setAmountMode(mode);
+  };
 
   const totals = useMemo(
     () =>
@@ -356,6 +444,167 @@ export function DocumentEditor({ initial, type }: Props) {
         </div>
       </div>
 
+      {commercial ? (
+        <div className="glass-panel rounded-3xl p-5">
+          <h3 className="font-display font-semibold">Mode de saisie des montants</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Choisissez d’abord comment vous allez renseigner les montants.
+          </p>
+          <div className="mt-4 inline-flex rounded-2xl border border-border bg-surface p-1 text-sm font-medium">
+            <button
+              type="button"
+              onClick={() => selectAmountMode("ht")}
+              className={
+                amountMode === "ht"
+                  ? "rounded-xl bg-gradient-primary px-4 py-2.5 text-primary-foreground shadow-glow"
+                  : "rounded-xl px-4 py-2.5 text-muted-foreground hover:text-foreground"
+              }
+            >
+              Saisie HT
+            </button>
+            <button
+              type="button"
+              onClick={() => selectAmountMode("ttc")}
+              className={
+                amountMode === "ttc"
+                  ? "rounded-xl bg-gradient-primary px-4 py-2.5 text-primary-foreground shadow-glow"
+                  : "rounded-xl px-4 py-2.5 text-muted-foreground hover:text-foreground"
+              }
+            >
+              Saisie TTC
+            </button>
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">
+            {amountMode === "ht"
+              ? "Mode classique : vous saisissez les lignes en HT, puis CSS et TVA sont calculées."
+              : "Mode client TTC : vous saisissez le montant TTC, HT / CSS / TVA sont déduits automatiquement."}
+          </p>
+        </div>
+      ) : null}
+
+      {commercial && amountMode === "ttc" ? (
+        <div className="glass-panel rounded-3xl p-5">
+          <h3 className="font-display font-semibold">Montant TTC</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Indiquez le total TTC communiqué par le client. Les montants HT, CSS
+            et TVA sont calculés et appliqués tout de suite.
+          </p>
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label className="block sm:col-span-2">
+              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Description
+              </span>
+              <input
+                type="text"
+                value={ttcDescription}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setTtcDescription(v);
+                  if (ttcBreakdown) {
+                    syncFromTtc(ttcInput, ttcVatRate, ttcCssRate, v);
+                  }
+                }}
+                className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </label>
+            <label className="block sm:col-span-2">
+              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Montant TTC
+              </span>
+              <input
+                type="number"
+                min={0}
+                step={1}
+                value={ttcInput}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setTtcInput(v);
+                  syncFromTtc(v, ttcVatRate, ttcCssRate, ttcDescription);
+                }}
+                placeholder="Ex. 1190000"
+                className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm font-numeric focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                TVA %
+              </span>
+              <input
+                type="number"
+                min={0}
+                step={0.1}
+                value={ttcVatRate}
+                onChange={(e) => {
+                  const v = Number(e.target.value) || 0;
+                  setTtcVatRate(v);
+                  syncFromTtc(ttcInput, v, ttcCssRate, ttcDescription);
+                }}
+                className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm font-numeric focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                CSS %
+              </span>
+              <input
+                type="number"
+                min={0}
+                step={0.1}
+                value={ttcCssRate}
+                onChange={(e) => {
+                  const v = Number(e.target.value) || 0;
+                  setTtcCssRate(v);
+                  syncFromTtc(ttcInput, ttcVatRate, v, ttcDescription);
+                }}
+                className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm font-numeric focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </label>
+          </div>
+
+          {ttcBreakdown ? (
+            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div className="rounded-2xl bg-surface-2 px-3 py-2.5">
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  HT
+                </div>
+                <div className="mt-0.5 font-numeric text-sm font-semibold">
+                  {number(ttcBreakdown.subtotal)}
+                </div>
+              </div>
+              <div className="rounded-2xl bg-surface-2 px-3 py-2.5">
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  CSS ({ttcCssRate} %)
+                </div>
+                <div className="mt-0.5 font-numeric text-sm font-semibold">
+                  {number(ttcBreakdown.css)}
+                </div>
+              </div>
+              <div className="rounded-2xl bg-surface-2 px-3 py-2.5">
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  TVA ({ttcVatRate} %)
+                </div>
+                <div className="mt-0.5 font-numeric text-sm font-semibold">
+                  {number(ttcBreakdown.vat)}
+                </div>
+              </div>
+              <div className="rounded-2xl bg-surface-2 px-3 py-2.5">
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  TTC
+                </div>
+                <div className="mt-0.5 font-numeric text-sm font-bold text-gradient-primary">
+                  {number(ttcBreakdown.total)}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="mt-4 text-sm italic text-muted-foreground">
+              Saisissez un montant TTC pour voir la décomposition.
+            </p>
+          )}
+        </div>
+      ) : null}
+
+      {(!commercial || amountMode === "ht") ? (
       <div className="glass-panel rounded-3xl p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="font-display font-semibold">Lignes de prestation</h3>
@@ -391,11 +640,11 @@ export function DocumentEditor({ initial, type }: Props) {
               <tr className="border-b border-border/60">
                 <th className="py-2 text-left font-medium">Description</th>
                 <th className="py-2 text-right font-medium w-20">Qté</th>
-                <th className="py-2 text-right font-medium w-28">P.U.</th>
+                <th className="py-2 text-right font-medium w-28">P.U. HT</th>
                 <th className="py-2 text-right font-medium w-20">TVA %</th>
                 <th className="py-2 text-right font-medium w-20">CSS %</th>
                 <th className="py-2 text-right font-medium w-20">Rem. %</th>
-                <th className="py-2 text-right font-medium w-28">Total</th>
+                <th className="py-2 text-right font-medium w-28">Total HT</th>
                 <th className="w-10" />
               </tr>
             </thead>
@@ -473,6 +722,17 @@ export function DocumentEditor({ initial, type }: Props) {
           <Total label="Total TTC" value={totals.total} strong />
         </div>
       </div>
+      ) : (
+        <div className="glass-panel rounded-3xl p-5">
+          <div className="ml-auto w-full max-w-xs space-y-2 rounded-2xl bg-surface-2 p-4">
+            <Total label="Sous-total HT" value={totals.subtotal} />
+            <Total label={`CSS (${cssRate} %)`} value={totals.css} />
+            <Total label={`TVA (${vatRate} %)`} value={totals.vat} />
+            <div className="my-2 h-px bg-border" />
+            <Total label="Total TTC" value={totals.total} strong />
+          </div>
+        </div>
+      )}
 
       <div className="glass-panel rounded-3xl p-5">
         <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">

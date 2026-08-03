@@ -85,8 +85,23 @@ function SettingsPage() {
               <F label="Adresse" value={form.address} onChange={(v) => setForm({ ...form, address: v })} colSpan />
               <F label="Ville" value={form.city} onChange={(v) => setForm({ ...form, city: v })} />
               <F label="Téléphone" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} />
-              <F label="Email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} />
+              <F label="Email (affiché sur documents)" value={form.email} onChange={(v) => setForm({ ...form, email: v })} />
               <F label="Site web" value={form.website} onChange={(v) => setForm({ ...form, website: v })} />
+              <F
+                label="Adresse d’envoi Resend (From)"
+                value={form.mailFromEmail ?? ""}
+                onChange={(v) => setForm({ ...form, mailFromEmail: v })}
+              />
+              <F
+                label="Adresse de réponse (Reply-To)"
+                value={form.mailReplyTo ?? ""}
+                onChange={(v) => setForm({ ...form, mailReplyTo: v })}
+              />
+              <p className="sm:col-span-2 text-xs text-muted-foreground">
+                Domaines à vérifier chez Resend : <code>2ref.ga</code> /{" "}
+                <code>2rconseil.ga</code>. L’envoi utilise l’adresse du cabinet
+                du document (pas 2r-hub.com).
+              </p>
               <F
                 label="Nom du gérant (signataire des lettres)"
                 value={form.managerName ?? ""}

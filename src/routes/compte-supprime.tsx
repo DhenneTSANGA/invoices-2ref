@@ -72,7 +72,7 @@ function CompteSupprimePage() {
 
           <div className="mt-6 rounded-2xl border border-border/60 bg-surface/50 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
             Si vous avez besoin d’un nouvel accès, un administrateur devra
-            recréer votre compte depuis la page Équipe.
+            recréer votre compte.
           </div>
 
           <Link

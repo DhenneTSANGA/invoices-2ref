@@ -6,7 +6,7 @@ import {
   notificationTypeForStatus,
 } from "@/lib/document-status-labels";
 import { CABINET_LABELS } from "@/lib/cabinets";
-import { escapeHtml, formatFrom, resendErrorMessage } from "@/lib/email";
+import { escapeHtml, resolveCabinetMailAddresses, resendErrorMessage } from "@/lib/email";
 import { currency as formatCurrency } from "@/lib/format";
 import type { DocumentStatus, DocumentType, PaymentMethod } from "@/store/types";
 import { paymentMethodLabel } from "@/lib/payment-method";
@@ -149,10 +149,35 @@ async function notifyAdminsDocumentPaid(args: {
   }
 
   const apiKey = process.env.RESEND_API_KEY?.trim();
-  const fromEmail = process.env.RESEND_FROM_EMAIL?.trim();
-  if (!apiKey || !fromEmail) {
+  if (!apiKey) {
     const msg =
-      "RESEND_API_KEY / RESEND_FROM_EMAIL manquants — e-mail d'alerte non envoyé";
+      "RESEND_API_KEY manquante — e-mail d'alerte non envoyé";
+    console.warn("[notifyAdminsDocumentPaid]", msg);
+    return { emailSent: false, emailRecipients: emails.length, emailError: msg };
+  }
+
+  const companyRow = await prisma.company.findUnique({
+    where: { cabinet: args.cabinet },
+  });
+  const company = companyRow
+    ? {
+        name: companyRow.name,
+        email: companyRow.email,
+        mailFromEmail: companyRow.mailFromEmail,
+        mailReplyTo: companyRow.mailReplyTo,
+      }
+    : {
+        name: CABINET_LABELS[args.cabinet],
+        email: "",
+        mailFromEmail: process.env.RESEND_FROM_EMAIL ?? null,
+        mailReplyTo: process.env.RESEND_REPLY_TO ?? null,
+      };
+
+  let from: string;
+  try {
+    from = resolveCabinetMailAddresses(company).from;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Adresse d’envoi manquante";
     console.warn("[notifyAdminsDocumentPaid]", msg);
     return { emailSent: false, emailRecipients: emails.length, emailError: msg };
   }
@@ -197,7 +222,6 @@ async function notifyAdminsDocumentPaid(args: {
     </div>
   `.trim();
 
-  const from = formatFrom(cabinetLabel, fromEmail);
   const { error } = await resend.emails.send({
     from,
     to: emails,

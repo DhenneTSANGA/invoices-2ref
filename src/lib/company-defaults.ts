@@ -21,6 +21,8 @@ export function companyForPreview(
     website: string | null;
     bankName: string | null;
     bankAccount: string | null;
+    mailFromEmail?: string | null;
+    mailReplyTo?: string | null;
     managerName?: string | null;
     stampUrl?: string | null;
   } | null | undefined,
@@ -42,6 +44,17 @@ export function companyForPreview(
     website: row.website ?? "",
     bankName: row.bankName?.trim() || fallback.bankName,
     bankAccount: row.bankAccount?.trim() || fallback.bankAccount,
+    mailFromEmail:
+      row.mailFromEmail?.trim() ||
+      row.email?.trim() ||
+      fallback.mailFromEmail ||
+      fallback.email,
+    mailReplyTo:
+      row.mailReplyTo?.trim() ||
+      row.mailFromEmail?.trim() ||
+      row.email?.trim() ||
+      fallback.mailReplyTo ||
+      fallback.email,
     managerName: row.managerName ?? fallback.managerName ?? "",
     stampUrl: row.stampUrl ?? fallback.stampUrl ?? "",
   };

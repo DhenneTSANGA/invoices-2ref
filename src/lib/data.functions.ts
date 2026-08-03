@@ -902,6 +902,8 @@ export const updateCompany = createServerFn({ method: "POST" })
       website: data.website ?? null,
       bankName: data.bankName ?? null,
       bankAccount: data.bankAccount ?? null,
+      mailFromEmail: data.mailFromEmail?.trim() || null,
+      mailReplyTo: data.mailReplyTo?.trim() || null,
       managerName: data.managerName?.trim() || null,
       stampUrl: data.stampUrl?.trim() || null,
     };

@@ -97,6 +97,10 @@ model Company {
   website     String?
   bankName    String?
   bankAccount String?
+  /** Adresse From Resend (domaine vérifié). Si vide → email du cabinet. */
+  mailFromEmail String?
+  /** Reply-To. Si vide → mailFromEmail / email. */
+  mailReplyTo   String?
   /** Nom du gérant (signataire des lettres). */
   managerName String?
   /** URL publique du cachet / tampon (Storage ou asset). */
