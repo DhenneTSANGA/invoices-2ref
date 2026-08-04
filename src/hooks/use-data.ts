@@ -19,6 +19,7 @@ import {
   getCompany,
   getCompanyForCabinet,
   updateCompany,
+  uploadCompanySignature,
   listNotifications,
   markAllNotificationsRead,
   markNotificationRead,
@@ -34,6 +35,12 @@ import {
   clearMailHistory,
 } from "@/lib/mail.functions";
 import { sendDocumentEmail } from "@/lib/send-document-email";
+import {
+  getLetterSignatureRequest,
+  requestLetterSignature,
+  signLetterDocument,
+  rejectLetterSignature,
+} from "@/lib/letter-signature.functions";
 import {
   buildDocumentPdfFromDoc,
   downloadDocumentPdf,
@@ -420,6 +427,20 @@ export function useUpdateCompany() {
   });
 }
 
+export function useUploadCompanySignature() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: {
+      base64: string;
+      contentType: "image/png" | "image/jpeg" | "image/webp";
+      fileName?: string;
+    }) => uploadCompanySignature({ data: payload }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: companyKey });
+    },
+  });
+}
+
 export function useNotifications() {
   return useQuery({
     queryKey: notificationsKey,
@@ -474,5 +495,62 @@ export function useMarkNotificationRead() {
       );
     },
     onSettled: () => qc.invalidateQueries({ queryKey: notificationsKey }),
+  });
+}
+
+export const letterSignatureKey = (documentId: string) =>
+  ["letter-signature", documentId] as const;
+
+export function useLetterSignatureRequest(documentId: string | undefined) {
+  return useQuery({
+    queryKey: letterSignatureKey(documentId ?? ""),
+    queryFn: () =>
+      getLetterSignatureRequest({ data: { documentId: documentId! } }),
+    enabled: Boolean(documentId),
+  });
+}
+
+export function useRequestLetterSignature() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (documentId: string) =>
+      requestLetterSignature({ data: { documentId } }),
+    onSuccess: (req) => {
+      void qc.invalidateQueries({ queryKey: letterSignatureKey(req.documentId) });
+      void qc.invalidateQueries({ queryKey: ["document", req.documentId] });
+      void qc.invalidateQueries({ queryKey: documentsKey("letter") });
+      void qc.invalidateQueries({ queryKey: notificationsKey });
+    },
+  });
+}
+
+export function useSignLetterDocument() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (documentId: string) =>
+      signLetterDocument({
+        data: { documentId, previewConfirmed: true },
+      }),
+    onSuccess: (_res, documentId) => {
+      void qc.invalidateQueries({ queryKey: letterSignatureKey(documentId) });
+      void qc.invalidateQueries({ queryKey: ["document", documentId] });
+      void qc.invalidateQueries({ queryKey: documentsKey("letter") });
+      void qc.invalidateQueries({ queryKey: notificationsKey });
+    },
+  });
+}
+
+export function useRejectLetterSignature() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { documentId: string; note?: string }) =>
+      rejectLetterSignature({ data: payload }),
+    onSuccess: (_res, payload) => {
+      void qc.invalidateQueries({
+        queryKey: letterSignatureKey(payload.documentId),
+      });
+      void qc.invalidateQueries({ queryKey: ["document", payload.documentId] });
+      void qc.invalidateQueries({ queryKey: notificationsKey });
+    },
   });
 }

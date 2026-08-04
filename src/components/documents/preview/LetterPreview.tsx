@@ -4,6 +4,7 @@ import { usePreviewData } from "@/hooks/use-preview-data";
 import { longDate } from "@/lib/format";
 import { DOCUMENT_COLORS } from "@/lib/cabinets";
 import { LegalFooter, PreviewLogo, PreviewShell } from "./PreviewShell";
+import { ManagerSignature } from "@/components/signature/ManagerSignature";
 
 type Props = { doc: Document; compact?: boolean; variant?: "full" | "thumb"; className?: string };
 
@@ -42,7 +43,6 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
       isThumb={isThumb}
       className={className}
     >
-      {/* En-tête type facture / devis */}
       <div
         className="flex items-start justify-between gap-4 border-b-2 pb-5"
         style={{ borderColor: accent }}
@@ -75,12 +75,10 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
         </div>
       </div>
 
-      {/* Lieu + date */}
       <div className="mt-5 text-right text-[13px] text-[#475569]">
         {city}, le {longDate(doc.issueDate)}.
       </div>
 
-      {/* Destinataire */}
       <div className="mt-6 flex justify-end">
         <div
           className="w-[52%] whitespace-pre-line rounded-lg border-2 p-3.5 text-[13.5px] leading-[1.55]"
@@ -100,7 +98,6 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
         </div>
       </div>
 
-      {/* REF + Objet */}
       <div
         className="mt-6 rounded-lg p-3.5 text-[13.5px] leading-[1.55]"
         style={{
@@ -121,65 +118,31 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
         </div>
       </div>
 
-      {/* Formule d'appel */}
       {doc.salutation?.trim() ? (
         <div className="mt-7 text-[14px] leading-[1.7] text-[#0F172A]">
           {doc.salutation.trim()}
         </div>
       ) : null}
 
-      {/* Corps */}
       <div className="mt-4 flex-1 whitespace-pre-line text-[13.5px] leading-[1.75] text-justify text-[#1E293B]">
         {doc.body?.trim() || ""}
       </div>
 
-      {/* Formule de politesse */}
       {doc.closing?.trim() ? (
         <div className="mt-7 whitespace-pre-line text-[13.5px] leading-[1.7] text-justify text-[#1E293B]">
           {doc.closing.trim()}
         </div>
       ) : null}
 
-      {/* Signature / cachet */}
       <div className="mt-10 flex justify-end">
-        <div className="w-64 text-center">
-          <div className="text-[13px] font-semibold" style={{ color: accent }}>
-            {signatoryTitle}
-          </div>
-
-          {showStamp ? (
-            <div className="mt-3 flex min-h-[7rem] flex-col items-center justify-center gap-2">
-              {stampUrl ? (
-                <img
-                  src={stampUrl}
-                  alt="Cachet"
-                  className="max-h-28 max-w-[13rem] object-contain"
-                />
-              ) : null}
-              {managerName ? (
-                <div className="text-[14px] font-semibold text-[#0F172A]">
-                  {managerName}
-                </div>
-              ) : (
-                <div className="text-[12px] italic text-[#94A3B8]">Signé</div>
-              )}
-            </div>
-          ) : (
-            <div className="mt-3 flex flex-col items-center gap-2">
-              <div
-                className="flex h-28 w-52 flex-col items-center justify-center rounded-lg border border-dashed text-[12px] italic text-[#94A3B8]"
-                style={{ borderColor: `${accent}44` }}
-              >
-                En attente de signature
-              </div>
-              {managerName ? (
-                <div className="text-[14px] font-semibold text-[#0F172A]">
-                  {managerName}
-                </div>
-              ) : null}
-            </div>
-          )}
-        </div>
+        <ManagerSignature
+          signatureUrl={stampUrl}
+          managerName={managerName}
+          signatoryTitle={signatoryTitle}
+          applied={showStamp}
+          accent={accent}
+          compact={isThumb}
+        />
       </div>
 
       <LegalFooter {...company} niuLabel={niuLabel} />

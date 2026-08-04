@@ -526,6 +526,12 @@ export const upsertDocument = createServerFn({ method: "POST" })
         },
         include: docInclude,
       });
+      if (existing.type === "letter" && existing.status === "draft") {
+        const { cancelPendingLetterSignatures } = await import(
+          "@/lib/letter-signature.functions"
+        );
+        await cancelPendingLetterSignatures(existing.id);
+      }
       if (existing.status !== data.status) {
         await broadcastDocumentStatusChange({
           actorStaffId: staff.id,
@@ -590,6 +596,11 @@ export const setDocumentStatus = createServerFn({ method: "POST" })
     if (!existing) throw new Error("Document introuvable");
     if (!canWriteDocument(staff.role, staff.id, existing.createdById)) {
       throw new Error("Accès refusé — document en lecture seule");
+    }
+    if (existing.type === "letter" && data.status === "signed") {
+      throw new Error(
+        "Pour signer un courriel, ouvrez le document et utilisez le bouton Signer (après aperçu).",
+      );
     }
     if (data.status === "paid" && !data.paymentMethod) {
       throw new Error(
@@ -921,6 +932,69 @@ export const updateCompany = createServerFn({ method: "POST" })
       create: { ...payload, cabinet: activeCabinet },
       update: payload,
     });
+    return mapCompany(row, activeCabinet);
+  });
+
+/** Enregistre une signature manuscrite (PNG/JPEG/WebP) pour le cabinet actif. */
+export const uploadCompanySignature = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      base64: z.string().min(1),
+      contentType: z.enum(["image/png", "image/jpeg", "image/webp"]),
+      fileName: z.string().optional(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const session = await requireSession();
+    if (!canEditCompanySettings(session.staff.role)) {
+      throw new Error("Modification réservée aux administrateurs");
+    }
+    const { activeCabinet } = session;
+
+    const raw = Buffer.from(data.base64, "base64");
+    if (raw.byteLength > 2 * 1024 * 1024) {
+      throw new Error("Signature trop volumineuse (max 2 Mo)");
+    }
+
+    const { uploadCompanySignatureBytes } = await import(
+      "@/lib/company-signature-storage"
+    );
+    const uploaded = await uploadCompanySignatureBytes({
+      cabinet: activeCabinet,
+      bytes: raw,
+      contentType: data.contentType,
+      fileName: data.fileName,
+    });
+
+    const existing = await prisma.company.findUnique({
+      where: { cabinet: activeCabinet },
+    });
+    const defaults = COMPANY_DEFAULTS[activeCabinet];
+    const row = await prisma.company.upsert({
+      where: { cabinet: activeCabinet },
+      create: {
+        cabinet: activeCabinet,
+        name: existing?.name ?? defaults.name,
+        tagline: existing?.tagline ?? defaults.tagline,
+        nif: existing?.nif ?? defaults.nif,
+        niu: existing?.niu ?? defaults.niu,
+        rccm: existing?.rccm ?? defaults.rccm,
+        cnss: existing?.cnss ?? defaults.cnss,
+        address: existing?.address ?? defaults.address,
+        city: existing?.city ?? defaults.city,
+        phone: existing?.phone ?? defaults.phone,
+        email: existing?.email ?? defaults.email,
+        website: existing?.website ?? defaults.website,
+        bankName: existing?.bankName ?? defaults.bankName,
+        bankAccount: existing?.bankAccount ?? defaults.bankAccount,
+        mailFromEmail: existing?.mailFromEmail ?? defaults.mailFromEmail,
+        mailReplyTo: existing?.mailReplyTo ?? defaults.mailReplyTo,
+        managerName: existing?.managerName ?? defaults.managerName,
+        stampUrl: uploaded.fileUrl,
+      },
+      update: { stampUrl: uploaded.fileUrl },
+    });
+
     return mapCompany(row, activeCabinet);
   });
 

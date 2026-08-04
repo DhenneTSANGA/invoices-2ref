@@ -316,6 +316,7 @@ function buildLetterEmailHtml(params: {
 }): string {
   const colors = DOCUMENT_COLORS.letter;
   const { accent } = colors;
+  const signatureUrl = params.company.stampUrl?.trim() || "";
 
   const recipientHtml = escapeHtml(
     params.recipientBlock || "Destinataire",
@@ -373,8 +374,13 @@ ${escapeHtml(params.body)}
         <td width="240" align="center" style="padding:12px 8px;">
           <div style="font-size:13px;font-weight:600;color:${accent};">${escapeHtml(params.signatoryTitle || "Le Gérant")}</div>
           ${
+            signatureUrl
+              ? `<div style="margin-top:12px;"><img src="${escapeHtml(signatureUrl)}" alt="Signature" width="180" style="max-width:180px;height:auto;display:inline-block;" /></div>`
+              : ""
+          }
+          ${
             params.managerName
-              ? `<div style="margin-top:18px;font-size:14px;font-weight:600;color:#0F172A;">${escapeHtml(params.managerName)}</div>`
+              ? `<div style="margin-top:12px;font-size:14px;font-weight:600;color:#0F172A;">${escapeHtml(params.managerName)}</div>`
               : `<div style="margin-top:18px;font-size:12px;font-style:italic;color:#94A3B8;">Signé</div>`
           }
         </td>
@@ -421,6 +427,13 @@ export const sendDocumentEmail = createServerFn({ method: "POST" })
     if (!doc) throw new Error("Document introuvable");
     if (!canWriteDocument(staff.role, staff.id, doc.createdById)) {
       throw new Error("Accès refusé — document en lecture seule");
+    }
+    if (doc.type === "letter") {
+      if (doc.status !== "signed" && doc.status !== "sent") {
+        throw new Error(
+          "Le courriel doit être signé par un administrateur avant l'envoi",
+        );
+      }
     }
     if (doc.mailMergeCampaignId) {
       if (!isAdmin(staff.role)) {

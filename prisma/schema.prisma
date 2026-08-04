@@ -134,6 +134,8 @@ model StaffMember {
   pdfTraces     DocumentPdfTrace[]
   mailMergeCampaigns MailMergeCampaign[] @relation("MailMergeCreator")
   mailMergeSigned    MailMergeCampaign[] @relation("MailMergeSigner")
+  letterSignatureRequests LetterSignatureRequest[] @relation("LetterSignatureRequester")
+  letterSignatureReviews  LetterSignatureRequest[] @relation("LetterSignatureReviewer")
 
   @@index([lastName])
   @@index([role])
@@ -278,6 +280,7 @@ model Document {
   lines         DocumentLine[]
   notifications Notification[]
   pdfTraces     DocumentPdfTrace[]
+  signatureRequests LetterSignatureRequest[]
 
   @@unique([cabinet, type, number])
   @@index([cabinet])
@@ -343,6 +346,29 @@ model Notification {
   @@index([staffId, at])
   @@index([staffId, cabinet, at])
   @@map("notifications")
+}
+
+/** Demande de signature électronique (étape A : cachet cabinet + validation admin). */
+model LetterSignatureRequest {
+  id            String             @id @default(cuid())
+  documentId    String
+  cabinet       Cabinet
+  status        AdminRequestStatus @default(pending)
+  requestedById String
+  reviewedById  String?
+  reviewedAt    DateTime?
+  note          String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  document    Document    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  requestedBy StaffMember @relation("LetterSignatureRequester", fields: [requestedById], references: [id], onDelete: Restrict)
+  reviewedBy  StaffMember? @relation("LetterSignatureReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([documentId, status])
+  @@index([cabinet, status, createdAt])
+  @@index([requestedById])
+  @@map("letter_signature_requests")
 }
 
 /** Campagne de publipostage lettres (création → signature → envoi). */

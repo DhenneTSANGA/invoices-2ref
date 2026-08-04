@@ -1,16 +1,23 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Save, Building2, Receipt, Palette, ShieldCheck } from "lucide-react";
+import { Save, Building2, Receipt, Palette, ShieldCheck, Upload } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { LoadingState } from "@/components/common/LoadingState";
-import { useCompany, useUpdateCompany, useSession } from "@/hooks/use-data";
+import {
+  useCompany,
+  useUpdateCompany,
+  useSession,
+  useUploadCompanySignature,
+} from "@/hooks/use-data";
 import { Logo } from "@/components/common/Logo";
 import { COMPANY_DEFAULTS } from "@/lib/company-defaults";
 import type { CompanyInfo } from "@/store/types";
 import { cn } from "@/lib/utils";
 import { canEditCompanySettings } from "@/lib/roles";
 import { getCurrentSession } from "@/lib/session.functions";
+import { SignaturePad } from "@/components/signature/SignaturePad";
+import { ManagerSignature } from "@/components/signature/ManagerSignature";
 
 export const Route = createFileRoute("/_app/settings")({
   head: () => ({ meta: [{ title: "Paramètres — 2R Hub" }] }),
@@ -34,6 +41,8 @@ function SettingsPage() {
   const { data: session } = useSession();
   const { data: company, isLoading: loadingCompany } = useCompany();
   const updateCompany = useUpdateCompany();
+  const uploadSignature = useUploadCompanySignature();
+  const fileRef = useRef<HTMLInputElement>(null);
   const [tab, setTab] = useState("company");
   const fallback =
     COMPANY_DEFAULTS[session?.activeCabinet ?? "expertise_fiscale"];
@@ -50,6 +59,49 @@ function SettingsPage() {
     } catch {
       toast.error("Impossible d'enregistrer les modifications");
     }
+  };
+
+  const saveSignatureFromDataUrl = async (dataUrl: string, fileName?: string) => {
+    const match = dataUrl.match(/^data:(image\/(?:png|jpeg|webp));base64,(.+)$/);
+    if (!match) {
+      toast.error("Format d'image non supporté");
+      return;
+    }
+    const contentType = match[1] as "image/png" | "image/jpeg" | "image/webp";
+    const base64 = match[2];
+    try {
+      const updated = await uploadSignature.mutateAsync({
+        base64,
+        contentType,
+        fileName,
+      });
+      setForm(updated);
+      toast.success("Signature électronique enregistrée");
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Enregistrement de la signature impossible",
+      );
+    }
+  };
+
+  const onFile = async (file: File | undefined) => {
+    if (!file) return;
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+      toast.error("Utilisez une image PNG, JPEG ou WebP");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Image trop volumineuse (max 2 Mo)");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result === "string") {
+        void saveSignatureFromDataUrl(result, file.name);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   if (loadingCompany) {
@@ -107,13 +159,79 @@ function SettingsPage() {
                 label="Nom du gérant (signataire des courriels)"
                 value={form.managerName ?? ""}
                 onChange={(v) => setForm({ ...form, managerName: v })}
-              />
-              <F
-                label="URL du cachet (image)"
-                value={form.stampUrl ?? ""}
-                onChange={(v) => setForm({ ...form, stampUrl: v })}
                 colSpan
               />
+
+              <div className="sm:col-span-2 space-y-4 rounded-2xl border border-border/60 bg-muted/20 p-4">
+                <div>
+                  <h4 className="font-display text-sm font-semibold">
+                    Signature électronique du gérant
+                  </h4>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Dessinez ou importez une signature manuscrite. Elle sera
+                    réutilisée automatiquement sur les courriels signés.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-start gap-6">
+                  <div className="rounded-2xl border border-border/50 bg-white p-4">
+                    <ManagerSignature
+                      signatureUrl={form.stampUrl}
+                      managerName={form.managerName}
+                      signatoryTitle="Le Gérant"
+                      applied
+                      accent="#01004C"
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-3">
+                    <SignaturePad
+                      disabled={uploadSignature.isPending}
+                      onCapture={(dataUrl) => {
+                        void saveSignatureFromDataUrl(dataUrl, "signature.png");
+                      }}
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <input
+                        ref={fileRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        className="hidden"
+                        onChange={(e) => {
+                          void onFile(e.target.files?.[0]);
+                          e.target.value = "";
+                        }}
+                      />
+                      <button
+                        type="button"
+                        disabled={uploadSignature.isPending}
+                        onClick={() => fileRef.current?.click()}
+                        className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60"
+                      >
+                        <Upload className="h-4 w-4" />
+                        Importer une image
+                      </button>
+                      {form.stampUrl ? (
+                        <button
+                          type="button"
+                          disabled={uploadSignature.isPending || updateCompany.isPending}
+                          onClick={() => {
+                            setForm({ ...form, stampUrl: "" });
+                            void updateCompany
+                              .mutateAsync({ ...form, stampUrl: "" })
+                              .then(() => toast.success("Signature retirée"))
+                              .catch(() =>
+                                toast.error("Impossible de retirer la signature"),
+                              );
+                          }}
+                          className="inline-flex items-center gap-2 rounded-xl border border-danger/30 bg-danger/10 px-3 py-2 text-sm font-medium text-danger hover:bg-danger/15 disabled:opacity-60"
+                        >
+                          Retirer
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
           {tab === "fiscal" && (

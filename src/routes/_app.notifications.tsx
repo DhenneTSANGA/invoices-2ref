@@ -44,6 +44,7 @@ function NotificationsPage() {
     const target = notificationNavTarget(n);
     void navigate({
       to: target.to,
+      ...(target.params ? { params: target.params } : {}),
       ...(target.search ? { search: target.search } : {}),
     });
   };
