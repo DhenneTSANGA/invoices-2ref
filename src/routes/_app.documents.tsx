@@ -7,21 +7,17 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { EmptyState } from "@/components/common/EmptyState";
 import { LoadingState } from "@/components/common/LoadingState";
-import { CabinetFilter } from "@/components/common/CabinetFilter";
-import { CabinetBadge } from "@/components/common/CabinetBadge";
 import { DocumentCreatorInline } from "@/components/documents/DocumentCreatorCard";
 import { useAllDocuments, useClients, useSession } from "@/hooks/use-data";
 import { documentTypeLabel } from "@/lib/document-status-labels";
-import { CABINET_LABELS, CABINETS, type CabinetScope } from "@/lib/cabinets";
+import { CABINET_LABELS } from "@/lib/cabinets";
 import { currency, shortDate } from "@/lib/format";
-import { canSwitchCabinet } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 import type { Document, DocumentType } from "@/store/types";
 
 const searchSchema = z.object({
   focus: z.string().optional(),
   type: z.enum(["all", "invoice", "quotation", "letter"]).optional(),
-  cabinet: z.enum(["all", "conseil", "expertise_fiscale"]).optional(),
 });
 
 export const Route = createFileRoute("/_app/documents")({
@@ -34,7 +30,7 @@ const TYPE_FILTERS: { value: "all" | DocumentType; label: string }[] = [
   { value: "all", label: "Tous les types" },
   { value: "invoice", label: "Factures" },
   { value: "quotation", label: "Devis" },
-  { value: "letter", label: "Lettres" },
+  { value: "letter", label: "Courriels" },
 ];
 
 function detailLink(doc: Document): {
@@ -53,21 +49,15 @@ function detailLink(doc: Document): {
 
 function DocumentsHubPage() {
   const navigate = useNavigate();
-  const { focus, type: typeParam, cabinet: cabinetParam } = Route.useSearch();
+  const { focus, type: typeParam } = Route.useSearch();
   const { data: session } = useSession();
-  const showCabinetFilter = session ? canSwitchCabinet(session.staff.role) : false;
 
   const typeFilter = focus ? "all" : (typeParam ?? "all");
-  const cabinetScope: CabinetScope = showCabinetFilter
-    ? (cabinetParam ?? session?.activeCabinet ?? "expertise_fiscale")
-    : (session?.activeCabinet ?? "expertise_fiscale");
-  const scope = showCabinetFilter ? cabinetScope : undefined;
 
   const { data: documents = [], isLoading } = useAllDocuments(
     typeFilter === "all" ? undefined : typeFilter,
-    scope,
   );
-  const { data: clients = [] } = useClients(scope);
+  const { data: clients = [] } = useClients();
   const [q, setQ] = useState("");
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
 
@@ -79,21 +69,11 @@ function DocumentsHubPage() {
       const creator = d.createdBy
         ? `${d.createdBy.firstName} ${d.createdBy.lastName}`
         : "";
-      return `${d.number} ${client?.name ?? ""} ${creator} ${documentTypeLabel(d.type)} ${CABINET_LABELS[d.cabinet]}`
+      return `${d.number} ${client?.name ?? ""} ${creator} ${documentTypeLabel(d.type)}`
         .toLowerCase()
         .includes(term);
     });
   }, [documents, clients, q]);
-
-  const grouped = useMemo(() => {
-    if (!showCabinetFilter || cabinetScope !== "all") {
-      return [{ cabinet: null as Document["cabinet"] | null, docs: filtered }];
-    }
-    return CABINETS.map((cabinet) => ({
-      cabinet,
-      docs: filtered.filter((d) => d.cabinet === cabinet),
-    })).filter((g) => g.docs.length > 0);
-  }, [filtered, showCabinetFilter, cabinetScope]);
 
   useEffect(() => {
     if (!focus) return;
@@ -151,36 +131,16 @@ function DocumentsHubPage() {
     });
   };
 
-  const setCabinetFilter = (value: CabinetScope) => {
-    void navigate({
-      to: "/documents",
-      search: (prev) => ({
-        ...prev,
-        cabinet: value,
-        focus: undefined,
-      }),
-    });
-  };
+  const cabinetLabel = session?.activeCabinet
+    ? CABINET_LABELS[session.activeCabinet]
+    : "cabinet actif";
 
   return (
     <div>
       <PageHeader
         title="Tous les documents"
-        subtitle={
-          showCabinetFilter
-            ? "Par défaut : cabinet actif. Choisissez « Tous les cabinets » pour une vue transversale."
-            : "Vue cabinet — factures, devis et lettres de tous les collaborateurs."
-        }
+        subtitle={`Vue ${cabinetLabel} — factures, devis et courriels de l’équipe.`}
       />
-
-      {showCabinetFilter && (
-        <div className="mb-3">
-          <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Cabinet
-          </div>
-          <CabinetFilter value={cabinetScope} onChange={setCabinetFilter} />
-        </div>
-      )}
 
       <div className="mb-4">
         <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -211,7 +171,7 @@ function DocumentsHubPage() {
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Rechercher par numéro, client, créateur ou cabinet…"
+            placeholder="Rechercher par numéro, client ou créateur…"
             className="w-full rounded-xl border border-border/60 bg-transparent py-2 pl-10 pr-3 text-sm focus:border-primary focus:outline-none"
           />
         </div>
@@ -230,92 +190,69 @@ function DocumentsHubPage() {
           description="Les documents créés par l'équipe apparaîtront ici."
         />
       ) : (
-        <div className="space-y-8">
-          {grouped.map((group) => (
-            <section key={group.cabinet ?? "single"}>
-              {group.cabinet && (
-                <h2 className="mb-3 flex items-center gap-2 font-display text-base font-semibold">
-                  <CabinetBadge cabinet={group.cabinet} showLogo />
-                  <span>{CABINET_LABELS[group.cabinet]}</span>
-                  <span className="text-sm font-normal text-muted-foreground">
-                    ({group.docs.length})
-                  </span>
-                </h2>
-              )}
-              <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {group.docs.map((doc, i) => {
-                  const client = clients.find((c) => c.id === doc.clientId);
-                  const focused = highlightedId === doc.id || focus === doc.id;
-                  return (
-                    <motion.li
-                      key={doc.id}
-                      id={`doc-${doc.id}`}
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: Math.min(i * 0.03, 0.3) }}
-                      className={cn(
-                        "scroll-mt-24 min-w-0 rounded-3xl p-4 transition-all duration-300 sm:p-5",
-                        focused
-                          ? "border-2 border-yellow-400 bg-yellow-100 shadow-[0_0_0_4px_rgba(250,204,21,0.45)] dark:bg-yellow-400/25"
-                          : "glass-panel",
-                      )}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                              {documentTypeLabel(doc.type)}
-                            </span>
-                            {showCabinetFilter && cabinetScope === "all" && !group.cabinet && (
-                              <CabinetBadge cabinet={doc.cabinet} />
-                            )}
-                            {showCabinetFilter && cabinetScope !== "all" && (
-                              <CabinetBadge cabinet={doc.cabinet} />
-                            )}
-                          </div>
-                          <div className="mt-0.5 truncate font-display text-lg font-semibold">
-                            {doc.number}
-                          </div>
-                        </div>
-                        <StatusBadge status={doc.status} />
-                      </div>
+        <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {filtered.map((doc, i) => {
+            const client = clients.find((c) => c.id === doc.clientId);
+            const focused = highlightedId === doc.id || focus === doc.id;
+            return (
+              <motion.li
+                key={doc.id}
+                id={`doc-${doc.id}`}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: Math.min(i * 0.03, 0.3) }}
+                className={cn(
+                  "scroll-mt-24 min-w-0 rounded-3xl p-4 transition-all duration-300 sm:p-5",
+                  focused
+                    ? "border-2 border-yellow-400 bg-yellow-100 shadow-[0_0_0_4px_rgba(250,204,21,0.45)] dark:bg-yellow-400/25"
+                    : "glass-panel",
+                )}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      {documentTypeLabel(doc.type)}
+                    </span>
+                    <div className="mt-0.5 truncate font-display text-lg font-semibold">
+                      {doc.number}
+                    </div>
+                  </div>
+                  <StatusBadge status={doc.status} />
+                </div>
 
-                      <div className="mt-3 space-y-1 text-sm">
-                        <div className="truncate text-muted-foreground">
-                          {client?.name ?? "Client inconnu"}
-                        </div>
-                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
-                          <span>Émis le {shortDate(doc.issueDate)}</span>
-                          {doc.type !== "letter" && (
-                            <span className="font-numeric font-semibold text-foreground">
-                              {currency(doc.total, doc.currency)}
-                            </span>
-                          )}
-                        </div>
-                      </div>
+                <div className="mt-3 space-y-1 text-sm">
+                  <div className="truncate text-muted-foreground">
+                    {client?.name ?? "Client inconnu"}
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                    <span>Émis le {shortDate(doc.issueDate)}</span>
+                    {doc.type !== "letter" && (
+                      <span className="font-numeric font-semibold text-foreground">
+                        {currency(doc.total, doc.currency)}
+                      </span>
+                    )}
+                  </div>
+                </div>
 
-                      <div className="mt-4 border-t border-border/60 pt-3">
-                        <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                          Créé par
-                        </div>
-                        <DocumentCreatorInline creator={doc.createdBy} />
-                      </div>
+                <div className="mt-4 border-t border-border/60 pt-3">
+                  <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Créé par
+                  </div>
+                  <DocumentCreatorInline creator={doc.createdBy} />
+                </div>
 
-                      <div className="mt-4">
-                        <Link
-                          {...detailLink(doc)}
-                          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-glow transition-transform hover:scale-[1.01] active:scale-[0.99]"
-                        >
-                          <Eye className="h-4 w-4" /> Voir les détails
-                        </Link>
-                      </div>
-                    </motion.li>
-                  );
-                })}
-              </ul>
-            </section>
-          ))}
-        </div>
+                <div className="mt-4">
+                  <Link
+                    {...detailLink(doc)}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-glow transition-transform hover:scale-[1.01] active:scale-[0.99]"
+                  >
+                    <Eye className="h-4 w-4" /> Voir les détails
+                  </Link>
+                </div>
+              </motion.li>
+            );
+          })}
+        </ul>
       )}
     </div>
   );

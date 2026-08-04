@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Inbox,
@@ -8,32 +8,133 @@ import {
   Reply,
   Send,
   FileText,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
 import { LoadingState } from "@/components/common/LoadingState";
-import { useMail, useMails, useSyncMails } from "@/hooks/use-data";
+import {
+  useMail,
+  useMails,
+  useSyncMails,
+  useClearMailHistory,
+  useSession,
+} from "@/hooks/use-data";
 import { shortDate } from "@/lib/format";
+import { bareEmail } from "@/lib/email";
 import { cn } from "@/lib/utils";
+import { isAdmin } from "@/lib/roles";
 import type { MailListItem } from "@/lib/mail.functions";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/_app/mails")({
   head: () => ({ meta: [{ title: "Mails — 2R Hub" }] }),
   component: MailsPage,
 });
 
-type Tab = "outbound" | "inbound";
+type Conversation = {
+  peerKey: string;
+  peerLabel: string;
+  messages: MailListItem[];
+  lastAt: string;
+  inboundCount: number;
+  outboundCount: number;
+};
+
+function peerKeyFromMail(mail: MailListItem): string {
+  const raw =
+    mail.direction === "outbound" ? mail.toEmail : mail.fromEmail;
+  return bareEmail(raw).toLowerCase() || raw.trim().toLowerCase();
+}
+
+function buildConversations(items: MailListItem[]): Conversation[] {
+  const map = new Map<string, Conversation>();
+  for (const mail of items) {
+    const key = peerKeyFromMail(mail);
+    const existing = map.get(key);
+    if (!existing) {
+      map.set(key, {
+        peerKey: key,
+        peerLabel: key,
+        messages: [mail],
+        lastAt: mail.createdAt,
+        inboundCount: mail.direction === "inbound" ? 1 : 0,
+        outboundCount: mail.direction === "outbound" ? 1 : 0,
+      });
+    } else {
+      existing.messages.push(mail);
+      if (mail.createdAt > existing.lastAt) existing.lastAt = mail.createdAt;
+      if (mail.direction === "inbound") existing.inboundCount += 1;
+      else existing.outboundCount += 1;
+    }
+  }
+  for (const conv of map.values()) {
+    conv.messages.sort(
+      (a, b) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+    );
+  }
+  return [...map.values()].sort(
+    (a, b) => new Date(b.lastAt).getTime() - new Date(a.lastAt).getTime(),
+  );
+}
 
 function MailsPage() {
-  const [tab, setTab] = useState<Tab>("outbound");
+  const [selectedPeer, setSelectedPeer] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const { data, isLoading, isFetching } = useMails(tab);
+  const [clearOpen, setClearOpen] = useState(false);
+  const threadEndRef = useRef<HTMLDivElement>(null);
+  const { data: session } = useSession();
+  const { data, isLoading, isFetching } = useMails("all");
   const { data: detail, isLoading: loadingDetail } = useMail(selectedId);
   const syncMutation = useSyncMails();
+  const clearMutation = useClearMailHistory();
+  const canClear = session?.staff.role
+    ? isAdmin(session.staff.role)
+    : false;
 
   const items = data?.items ?? [];
   const inboundHint = !data?.inboundConfigured;
+  const conversations = useMemo(() => buildConversations(items), [items]);
+
+  const activeConversation = useMemo(
+    () =>
+      conversations.find((c) => c.peerKey === selectedPeer) ??
+      conversations[0] ??
+      null,
+    [conversations, selectedPeer],
+  );
+
+  useEffect(() => {
+    if (!selectedPeer && conversations[0]) {
+      setSelectedPeer(conversations[0].peerKey);
+    }
+  }, [conversations, selectedPeer]);
+
+  useEffect(() => {
+    if (!activeConversation) {
+      setSelectedId(null);
+      return;
+    }
+    const last = activeConversation.messages[activeConversation.messages.length - 1];
+    if (last && (!selectedId || !activeConversation.messages.some((m) => m.id === selectedId))) {
+      setSelectedId(last.id);
+    }
+  }, [activeConversation, selectedId]);
+
+  useEffect(() => {
+    threadEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [activeConversation?.peerKey, activeConversation?.messages.length]);
 
   const sync = () => {
     syncMutation.mutate(undefined, {
@@ -55,64 +156,91 @@ function MailsPage() {
     });
   };
 
-  const selected = useMemo(
-    () => items.find((m) => m.id === selectedId) ?? null,
-    [items, selectedId],
-  );
+  const clearHistory = () => {
+    clearMutation.mutate(undefined, {
+      onSuccess: (res) => {
+        setClearOpen(false);
+        setSelectedPeer(null);
+        setSelectedId(null);
+        toast.success(
+          res.deleted > 0
+            ? `${res.deleted} message(s) supprimé(s)`
+            : "Historique déjà vide",
+        );
+      },
+      onError: (e) => toast.error(e.message),
+    });
+  };
 
   return (
     <div>
       <PageHeader
         title="Espace mails"
-        subtitle="Historique des e-mails envoyés et des réponses reçues."
+        subtitle="Conversations avec vos clients — envois 2R Hub et réponses reçues."
         actions={
-          <button
-            type="button"
-            onClick={sync}
-            disabled={syncMutation.isPending || isFetching}
-            className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60"
-          >
-            <RefreshCw
-              className={cn(
-                "h-4 w-4",
-                (syncMutation.isPending || isFetching) && "animate-spin",
-              )}
-            />
-            Synchroniser
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {canClear ? (
+              <button
+                type="button"
+                onClick={() => setClearOpen(true)}
+                disabled={clearMutation.isPending || items.length === 0}
+                className="inline-flex items-center gap-2 rounded-2xl border border-danger/30 bg-surface px-4 py-2 text-sm font-medium text-danger hover:bg-danger/10 disabled:opacity-60"
+              >
+                <Trash2 className="h-4 w-4" />
+                Vider l’historique
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={sync}
+              disabled={syncMutation.isPending || isFetching}
+              className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60"
+            >
+              <RefreshCw
+                className={cn(
+                  "h-4 w-4",
+                  (syncMutation.isPending || isFetching) && "animate-spin",
+                )}
+              />
+              Synchroniser
+            </button>
+          </div>
         }
       />
 
-      <div className="mb-4 flex flex-wrap gap-2">
-        <TabBtn
-          active={tab === "outbound"}
-          onClick={() => {
-            setTab("outbound");
-            setSelectedId(null);
-          }}
-          icon={Send}
-          label="Envoyés"
-          count={tab === "outbound" ? items.length : undefined}
-        />
-        <TabBtn
-          active={tab === "inbound"}
-          onClick={() => {
-            setTab("inbound");
-            setSelectedId(null);
-          }}
-          icon={Inbox}
-          label="Réponses / reçus"
-          count={tab === "inbound" ? items.length : undefined}
-        />
-      </div>
+      <AlertDialog open={clearOpen} onOpenChange={setClearOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Vider l’historique des mails ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Les messages envoyés et reçus seront supprimés de l’espace Mails.
+              Les e-mails déjà partis chez les destinataires ne sont pas
+              annulés. Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={clearMutation.isPending}>
+              Annuler
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                clearHistory();
+              }}
+              disabled={clearMutation.isPending}
+              className="bg-danger text-white hover:bg-danger/90"
+            >
+              {clearMutation.isPending ? "Suppression…" : "Tout supprimer"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
-      {tab === "inbound" && inboundHint && (
+      {inboundHint && (
         <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/40 dark:text-amber-100">
-          Pour recevoir les réponses ici, configurez{" "}
-          <strong>Resend Inbound</strong> sur votre domaine et ajoutez{" "}
-          <code className="rounded bg-black/5 px-1">RESEND_REPLY_TO</code> dans
-          le <code className="rounded bg-black/5 px-1">.env</code> (adresse de
-          réception). Les nouveaux envois utiliseront cette adresse en Reply-To.
+          Pour recevoir les réponses ici, activez{" "}
+          <strong>Resend Inbound</strong> sur <code>2r-hub.com</code>. Les
+          réponses clients notifieront aussi l’expéditeur (cloche).
         </div>
       )}
 
@@ -120,58 +248,207 @@ function MailsPage() {
         <LoadingState
           icon={Mail}
           title="Chargement des mails"
-          description="Récupération de l’historique…"
+          description="Récupération des conversations…"
         />
+      ) : conversations.length === 0 ? (
+        <div className="glass-panel rounded-3xl">
+          <EmptyState
+            icon={Inbox}
+            title="Aucune conversation"
+            description="Envoyez une facture ou un devis par e-mail, puis synchronisez les réponses clients."
+          />
+        </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)]">
           <div className="glass-panel overflow-hidden rounded-3xl">
-            {items.length === 0 ? (
-              <EmptyState
-                icon={tab === "outbound" ? Send : Inbox}
-                title={
-                  tab === "outbound"
-                    ? "Aucun e-mail envoyé"
-                    : "Aucune réponse reçue"
-                }
-                description={
-                  tab === "outbound"
-                    ? "Les envois de factures, devis et publipostages apparaîtront ici."
-                    : "Cliquez sur Synchroniser après avoir activé Resend Inbound."
-                }
-              />
-            ) : (
-              <ul className="divide-y divide-border/50 max-h-[70vh] overflow-y-auto">
-                {items.map((m) => (
-                  <MailRow
-                    key={m.id}
-                    mail={m}
-                    active={m.id === selectedId}
-                    onSelect={() => setSelectedId(m.id)}
-                  />
-                ))}
-              </ul>
-            )}
+            <div className="border-b border-border/50 px-4 py-3">
+              <h3 className="text-sm font-semibold">Conversations</h3>
+              <p className="text-xs text-muted-foreground">
+                {conversations.length} fil(s)
+              </p>
+            </div>
+            <ul className="max-h-[70vh] space-y-2 overflow-y-auto p-3">
+              {conversations.map((conv) => {
+                const last =
+                  conv.messages[conv.messages.length - 1] ?? null;
+                const active = conv.peerKey === activeConversation?.peerKey;
+                return (
+                  <li key={conv.peerKey}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedPeer(conv.peerKey);
+                        if (last) setSelectedId(last.id);
+                      }}
+                      className={cn(
+                        "flex w-full flex-col gap-2 rounded-2xl border px-3 py-3 text-left transition",
+                        active
+                          ? "border-primary/40 bg-primary/10 shadow-sm"
+                          : "border-border/50 bg-surface/60 hover:bg-muted/50",
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="truncate text-sm font-semibold">
+                          {conv.peerLabel}
+                        </span>
+                        <span className="shrink-0 text-[11px] text-muted-foreground">
+                          {shortDate(conv.lastAt)}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                          <Send className="h-2.5 w-2.5" />
+                          {conv.outboundCount}
+                        </span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
+                          <Reply className="h-2.5 w-2.5" />
+                          {conv.inboundCount}
+                        </span>
+                      </div>
+                      {last ? (
+                        <p className="line-clamp-2 text-xs text-muted-foreground">
+                          {last.direction === "outbound" ? "Vous : " : ""}
+                          {last.subject}
+                        </p>
+                      ) : null}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
 
-          <div className="glass-panel rounded-3xl p-5 min-h-[320px]">
-            {!selectedId ? (
-              <div className="flex h-full min-h-[280px] flex-col items-center justify-center text-center text-sm text-muted-foreground">
+          <div className="glass-panel flex min-h-[420px] flex-col overflow-hidden rounded-3xl">
+            {!activeConversation ? (
+              <div className="flex flex-1 flex-col items-center justify-center p-6 text-center text-sm text-muted-foreground">
                 <MailOpen className="mb-3 h-10 w-10 opacity-40" />
-                Sélectionnez un message pour lire le contenu.
+                Sélectionnez une conversation.
               </div>
-            ) : loadingDetail ? (
-              <LoadingState
-                icon={MailOpen}
-                title="Ouverture"
-                description="Chargement du message…"
-              />
-            ) : detail ? (
-              <MailDetail
-                mail={detail}
-                isReply={selected?.isReply ?? detail.isReply}
-              />
             ) : (
-              <p className="text-sm text-muted-foreground">Message introuvable.</p>
+              <>
+                <div className="border-b border-border/50 px-4 py-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <h3 className="font-display text-base font-semibold">
+                        {activeConversation.peerLabel}
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        {activeConversation.messages.length} message(s)
+                      </p>
+                    </div>
+                    {detail?.documentId ? (
+                      <Link
+                        to="/documents"
+                        search={{ focus: detail.documentId }}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-1.5 text-xs font-medium hover:bg-muted"
+                      >
+                        <FileText className="h-3.5 w-3.5" /> Document lié
+                      </Link>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="flex-1 space-y-3 overflow-y-auto bg-muted/20 p-4">
+                  {activeConversation.messages.map((mail) => {
+                    const outbound = mail.direction === "outbound";
+                    const selected = mail.id === selectedId;
+                    return (
+                      <button
+                        key={mail.id}
+                        type="button"
+                        onClick={() => setSelectedId(mail.id)}
+                        className={cn(
+                          "flex w-full",
+                          outbound ? "justify-end" : "justify-start",
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            "max-w-[min(100%,28rem)] rounded-3xl px-4 py-3 text-left shadow-sm transition",
+                            outbound
+                              ? "rounded-br-md bg-gradient-primary text-primary-foreground"
+                              : "rounded-bl-md border border-border/60 bg-surface",
+                            selected &&
+                              (outbound
+                                ? "ring-2 ring-white/50"
+                                : "ring-2 ring-primary/40"),
+                          )}
+                        >
+                          <div className="mb-1 flex flex-wrap items-center gap-1.5">
+                            <span
+                              className={cn(
+                                "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide",
+                                outbound
+                                  ? "bg-white/20"
+                                  : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+                              )}
+                            >
+                              {outbound ? (
+                                <>
+                                  <Send className="h-2.5 w-2.5" /> Envoyé
+                                </>
+                              ) : (
+                                <>
+                                  <Reply className="h-2.5 w-2.5" /> Reçu
+                                </>
+                              )}
+                            </span>
+                            <span
+                              className={cn(
+                                "text-[10px]",
+                                outbound
+                                  ? "text-primary-foreground/80"
+                                  : "text-muted-foreground",
+                              )}
+                            >
+                              {shortDate(mail.createdAt)}
+                            </span>
+                          </div>
+                          <p
+                            className={cn(
+                              "text-sm font-semibold leading-snug",
+                              outbound
+                                ? "text-primary-foreground"
+                                : "text-foreground",
+                            )}
+                          >
+                            {mail.subject}
+                          </p>
+                          {mail.preview ? (
+                            <p
+                              className={cn(
+                                "mt-1 line-clamp-3 text-xs leading-relaxed",
+                                outbound
+                                  ? "text-primary-foreground/85"
+                                  : "text-muted-foreground",
+                              )}
+                            >
+                              {mail.preview}
+                            </p>
+                          ) : null}
+                        </div>
+                      </button>
+                    );
+                  })}
+                  <div ref={threadEndRef} />
+                </div>
+
+                <div className="border-t border-border/50 bg-surface/80 p-4">
+                  {loadingDetail ? (
+                    <LoadingState
+                      icon={MailOpen}
+                      title="Ouverture"
+                      description="Chargement du message…"
+                    />
+                  ) : detail && detail.id === selectedId ? (
+                    <MailDetailBody mail={detail} />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Sélectionnez une bulle pour lire le contenu complet.
+                    </p>
+                  )}
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -180,153 +457,44 @@ function MailsPage() {
   );
 }
 
-function TabBtn({
-  active,
-  onClick,
-  icon: Icon,
-  label,
-  count,
-}: {
-  active: boolean;
-  onClick: () => void;
-  icon: typeof Send;
-  label: string;
-  count?: number;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-medium transition",
-        active
-          ? "bg-gradient-primary text-primary-foreground shadow-glow"
-          : "border border-border bg-surface hover:bg-muted",
-      )}
-    >
-      <Icon className="h-4 w-4" />
-      {label}
-      {typeof count === "number" && (
-        <span
-          className={cn(
-            "rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
-            active ? "bg-white/20" : "bg-muted",
-          )}
-        >
-          {count}
-        </span>
-      )}
-    </button>
-  );
-}
-
-function MailRow({
+function MailDetailBody({
   mail,
-  active,
-  onSelect,
-}: {
-  mail: MailListItem;
-  active: boolean;
-  onSelect: () => void;
-}) {
-  return (
-    <li>
-      <button
-        type="button"
-        onClick={onSelect}
-        className={cn(
-          "flex w-full flex-col gap-1 px-4 py-3 text-left transition hover:bg-muted/60",
-          active && "bg-primary/5",
-        )}
-      >
-        <div className="flex items-start justify-between gap-2">
-          <span className="truncate text-sm font-semibold">
-            {mail.direction === "outbound" ? mail.toEmail : mail.fromEmail}
-          </span>
-          <span className="shrink-0 text-[11px] text-muted-foreground">
-            {shortDate(mail.createdAt)}
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          {mail.isReply && (
-            <span className="inline-flex items-center gap-0.5 rounded-full bg-accent/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-accent">
-              <Reply className="h-2.5 w-2.5" /> Réponse
-            </span>
-          )}
-          <span className="truncate text-sm">{mail.subject}</span>
-        </div>
-        {mail.preview ? (
-          <p className="line-clamp-2 text-xs text-muted-foreground">{mail.preview}</p>
-        ) : null}
-      </button>
-    </li>
-  );
-}
-
-function MailDetail({
-  mail,
-  isReply,
 }: {
   mail: MailListItem & { htmlBody?: string | null; textBody?: string | null };
-  isReply: boolean;
 }) {
+  const outbound = mail.direction === "outbound";
   return (
-    <div>
-      <div className="flex flex-wrap items-start justify-between gap-2 border-b border-border/50 pb-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="font-display text-lg font-semibold leading-snug">
-              {mail.subject}
-            </h2>
-            {isReply && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-accent/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-accent">
-                <Reply className="h-3 w-3" /> Réponse
-              </span>
-            )}
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {shortDate(mail.createdAt)}
-            {mail.lastEvent ? ` · ${mail.lastEvent}` : ""}
-          </p>
-        </div>
-        {mail.documentId && (
-          <Link
-            to="/documents"
-            search={{ focus: mail.documentId }}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-1.5 text-xs font-medium hover:bg-muted"
-          >
-            <FileText className="h-3.5 w-3.5" /> Document lié
-          </Link>
-        )}
+    <div
+      className={cn(
+        "rounded-2xl border p-4",
+        outbound
+          ? "border-primary/25 bg-primary/5"
+          : "border-emerald-500/25 bg-emerald-500/5",
+      )}
+    >
+      <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+        <span>
+          <strong className="text-foreground">De</strong> {mail.fromEmail}
+        </span>
+        <span>
+          <strong className="text-foreground">À</strong> {mail.toEmail}
+        </span>
+        {mail.lastEvent ? <span>· {mail.lastEvent}</span> : null}
       </div>
-
-      <dl className="mt-3 grid gap-1 text-sm">
-        <div className="flex gap-2">
-          <dt className="w-16 shrink-0 text-muted-foreground">De</dt>
-          <dd className="min-w-0 break-all font-medium">{mail.fromEmail}</dd>
-        </div>
-        <div className="flex gap-2">
-          <dt className="w-16 shrink-0 text-muted-foreground">À</dt>
-          <dd className="min-w-0 break-all font-medium">{mail.toEmail}</dd>
-        </div>
-      </dl>
-
-      <div className="mt-4 rounded-2xl border border-border/60 bg-surface-2/40 p-4">
-        {mail.htmlBody ? (
-          <div
-            className="prose prose-sm max-w-none dark:prose-invert"
-            dangerouslySetInnerHTML={{ __html: mail.htmlBody }}
-          />
-        ) : mail.textBody ? (
-          <pre className="whitespace-pre-wrap text-sm font-sans">{mail.textBody}</pre>
-        ) : mail.preview ? (
-          <p className="text-sm text-muted-foreground">{mail.preview}</p>
-        ) : (
-          <p className="text-sm italic text-muted-foreground">
-            Contenu non disponible. Essayez Synchroniser.
-          </p>
-        )}
-      </div>
+      {mail.htmlBody ? (
+        <div
+          className="prose prose-sm max-w-none dark:prose-invert"
+          dangerouslySetInnerHTML={{ __html: mail.htmlBody }}
+        />
+      ) : mail.textBody ? (
+        <pre className="whitespace-pre-wrap font-sans text-sm">{mail.textBody}</pre>
+      ) : mail.preview ? (
+        <p className="text-sm text-muted-foreground">{mail.preview}</p>
+      ) : (
+        <p className="text-sm italic text-muted-foreground">
+          Contenu non disponible. Essayez Synchroniser.
+        </p>
+      )}
     </div>
   );
 }

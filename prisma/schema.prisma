@@ -333,12 +333,15 @@ model Notification {
   read       Boolean          @default(false)
   type       NotificationType @default(info)
   documentId String?
+  /// Cabinet concerné (filtre super admin = cabinet actif).
+  cabinet    Cabinet?
 
   staff    StaffMember @relation(fields: [staffId], references: [id], onDelete: Cascade)
   document Document?   @relation(fields: [documentId], references: [id], onDelete: SetNull)
 
   @@index([staffId, read])
   @@index([staffId, at])
+  @@index([staffId, cabinet, at])
   @@map("notifications")
 }
 

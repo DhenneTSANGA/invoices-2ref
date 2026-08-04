@@ -88,6 +88,7 @@ export async function broadcastDocumentStatusChange(
       data: recipients.map((r) => ({
         staffId: r.id,
         documentId: args.documentId,
+        cabinet: doc.cabinet,
         title: `${typeLabel} ${args.documentNumber} — ${nextLabel}`,
         body: `${args.actorName} a mis à jour le statut : ${prevLabel} → ${nextLabel}${methodNote}`,
         type: notifType,

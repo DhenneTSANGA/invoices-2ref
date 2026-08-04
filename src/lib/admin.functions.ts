@@ -416,12 +416,10 @@ export const listAdminRequests = createServerFn({ method: "GET" }).handler(
     }
 
     const rows = await prisma.adminRequest.findMany({
-      where: isSuperAdmin(session.staff.role)
-        ? { status: "pending" }
-        : {
-            status: "pending",
-            staff: { cabinet: session.activeCabinet },
-          },
+      where: {
+        status: "pending",
+        staff: { cabinet: session.activeCabinet },
+      },
       include: { staff: true },
       orderBy: { createdAt: "asc" },
     });

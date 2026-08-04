@@ -14,6 +14,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { sessionKey } from "@/hooks/use-data";
 import { useClickOutside } from "@/hooks/use-click-outside";
 import type { NotificationItem } from "@/store/types";
+import { notificationNavTarget } from "@/lib/notification-nav";
 
 export function AppTopbar() {
   const { theme, toggle, ready } = useTheme();
@@ -60,14 +61,11 @@ export function AppTopbar() {
         // On navigue quand même
       }
     }
-    if (n.documentId) {
-      void navigate({
-        to: "/documents",
-        search: { focus: n.documentId },
-      });
-    } else {
-      void navigate({ to: "/notifications" });
-    }
+    const target = notificationNavTarget(n);
+    void navigate({
+      to: target.to,
+      ...(target.search ? { search: target.search } : {}),
+    });
   };
 
   return (

@@ -8,17 +8,14 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { StatusBadge, statusLabel } from "@/components/common/StatusBadge";
-import { CabinetFilter } from "@/components/common/CabinetFilter";
-import { CabinetBadge } from "@/components/common/CabinetBadge";
 import { MarkAsPaidDialog } from "@/components/documents/MarkAsPaidDialog";
 import { documentRowClass, getDocumentRowStyles } from "@/lib/document-row-styles";
 import { documentTypeLabel } from "@/lib/document-status-labels";
 import { currency, shortDate } from "@/lib/format";
 import { paymentMethodLabel } from "@/lib/payment-method";
 import type { Document, DocumentStatus, DocumentType, PaymentMethod } from "@/store/types";
-import type { CabinetScope } from "@/lib/cabinets";
 import { cn } from "@/lib/utils";
-import { canSwitchCabinet, canWriteDocument } from "@/lib/roles";
+import { canWriteDocument } from "@/lib/roles";
 import {
   useClients,
   useDocuments,
@@ -32,7 +29,7 @@ import {
 const labels = {
   invoice: { title: "Factures", new: "/invoices/new", detail: "/invoices/$id", subtitle: "Suivi de vos factures émises" },
   quotation: { title: "Devis", new: "/quotations/new", detail: "/quotations/$id", subtitle: "Pipeline de propositions commerciales" },
-  letter: { title: "Lettres", new: "/lettre/new", detail: "/lettre/$id", subtitle: "Courriers commerciaux" },
+  letter: { title: "Courriels", new: "/lettre/new", detail: "/lettre/$id", subtitle: "Courriers commerciaux envoyés par e-mail" },
 } as const;
 
 const invoiceStatuses: DocumentStatus[] = ["draft", "sent", "paid", "overdue", "cancelled"];
@@ -47,16 +44,8 @@ function statusesFor(type: DocumentType): DocumentStatus[] {
 
 export function DocumentsList({ type }: { type: DocumentType }) {
   const { data: session } = useSession();
-  const showCabinetFilter = session ? canSwitchCabinet(session.staff.role) : false;
-  const activeCabinet = session?.activeCabinet;
-  const [cabinetScope, setCabinetScope] = useState<CabinetScope | null>(null);
-  // SA : défaut = cabinet actif (pas « tous »)
-  const scope: CabinetScope | undefined = showCabinetFilter
-    ? (cabinetScope ?? activeCabinet ?? "expertise_fiscale")
-    : undefined;
-
-  const { data: documents = [], isLoading } = useDocuments(type, scope);
-  const { data: clients = [] } = useClients(scope);
+  const { data: documents = [], isLoading } = useDocuments(type);
+  const { data: clients = [] } = useClients();
   const setStatusMutation = useSetDocumentStatus();
   const sendEmailMutation = useSendDocumentEmail();
   const deleteDocument = useDeleteDocument();
@@ -173,11 +162,7 @@ export function DocumentsList({ type }: { type: DocumentType }) {
     <div>
       <PageHeader
         title={L.title}
-        subtitle={
-          showCabinetFilter
-            ? `${L.subtitle} — filtrez par cabinet.`
-            : L.subtitle
-        }
+        subtitle={L.subtitle}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             {type === "letter" && (
@@ -194,18 +179,6 @@ export function DocumentsList({ type }: { type: DocumentType }) {
           </div>
         }
       />
-
-      {showCabinetFilter && (
-        <div className="mb-4">
-          <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Cabinet
-          </div>
-          <CabinetFilter
-            value={scope ?? "expertise_fiscale"}
-            onChange={setCabinetScope}
-          />
-        </div>
-      )}
 
       <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3">
         <Kpi label="Total documents" value={String(filtered.length)} />
@@ -241,7 +214,6 @@ export function DocumentsList({ type }: { type: DocumentType }) {
             <thead className="bg-muted/60 text-xs uppercase tracking-wider text-muted-foreground">
               <tr>
                 <th className="px-5 py-3 text-left">Numéro</th>
-                {showCabinetFilter && <th className="px-5 py-3 text-left">Cabinet</th>}
                 <th className="px-5 py-3 text-left">Client</th>
                 <th className="px-5 py-3 text-left">Date</th>
                 <th className="px-5 py-3 text-left">Échéance</th>
@@ -286,11 +258,6 @@ export function DocumentsList({ type }: { type: DocumentType }) {
                         )}
                       </div>
                     </td>
-                    {showCabinetFilter && (
-                      <td className="px-5 py-3">
-                        <CabinetBadge cabinet={d.cabinet} />
-                      </td>
-                    )}
                     <td className="px-5 py-3">{c?.name}</td>
                     <td className={cn("px-5 py-3", row.muted)}>{shortDate(d.issueDate)}</td>
                     <td className={cn("px-5 py-3", row.muted)}>{shortDate(d.dueDate)}</td>

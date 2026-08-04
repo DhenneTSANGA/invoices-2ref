@@ -27,7 +27,12 @@ import {
   processDueSubscriptions,
   listDocumentPdfTraces,
 } from "@/lib/data.functions";
-import { listMails, getMail, syncInboundMails } from "@/lib/mail.functions";
+import {
+  listMails,
+  getMail,
+  syncInboundMails,
+  clearMailHistory,
+} from "@/lib/mail.functions";
 import { sendDocumentEmail } from "@/lib/send-document-email";
 import {
   buildDocumentPdfFromDoc,
@@ -89,7 +94,7 @@ export function useSession() {
   });
 }
 
-export function useClients(cabinetScope?: "all" | "conseil" | "expertise_fiscale") {
+export function useClients(cabinetScope?: "conseil" | "expertise_fiscale") {
   return useQuery({
     queryKey: [...clientsKey, cabinetScope ?? "active"] as const,
     queryFn: () =>
@@ -179,7 +184,7 @@ export function useDeleteService() {
 
 export function useDocuments(
   type?: DocumentType,
-  cabinetScope?: "all" | "conseil" | "expertise_fiscale",
+  cabinetScope?: "conseil" | "expertise_fiscale",
 ) {
   return useQuery({
     queryKey: documentsKey(type, cabinetScope),
@@ -193,7 +198,7 @@ export function useDocuments(
 
 export function useAllDocuments(
   type?: DocumentType,
-  cabinetScope?: "all" | "conseil" | "expertise_fiscale",
+  cabinetScope?: "conseil" | "expertise_fiscale",
 ) {
   return useQuery({
     queryKey: type
@@ -315,6 +320,17 @@ export function useSyncMails() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => syncInboundMails(),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: mailsKey });
+      void qc.invalidateQueries({ queryKey: notificationsKey });
+    },
+  });
+}
+
+export function useClearMailHistory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => clearMailHistory(),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: mailsKey });
     },

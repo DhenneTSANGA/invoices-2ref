@@ -98,12 +98,13 @@ function SettingsPage() {
                 onChange={(v) => setForm({ ...form, mailReplyTo: v })}
               />
               <p className="sm:col-span-2 text-xs text-muted-foreground">
-                Domaines à vérifier chez Resend : <code>2ref.ga</code> /{" "}
-                <code>2rconseil.ga</code>. L’envoi utilise l’adresse du cabinet
-                du document (pas 2r-hub.com).
+                Domaine Resend vérifié : <code>2r-hub.com</code>. Expertise
+                fiscale → <code>2ref@2r-hub.com</code> ; 2R Conseil →{" "}
+                <code>2rconseil@2r-hub.com</code>. Le Reply-To reçoit les
+                réponses clients (Resend Inbound → page Mails).
               </p>
               <F
-                label="Nom du gérant (signataire des lettres)"
+                label="Nom du gérant (signataire des courriels)"
                 value={form.managerName ?? ""}
                 onChange={(v) => setForm({ ...form, managerName: v })}
               />

@@ -3,6 +3,7 @@ import type { User } from "@supabase/supabase-js";
 /**
  * Flag local : demande de reset en cours (détecte le retour PKCE sans type=recovery).
  * localStorage (pas sessionStorage) : le lien e-mail s’ouvre souvent dans un autre onglet.
+ * Secours principal : `redirectTo=.../auth/callback?next=reset` (voir requestPasswordReset).
  */
 export const PASSWORD_RECOVERY_PENDING_KEY = "2r_password_recovery_pending";
 const PASSWORD_RECOVERY_PENDING_TTL_MS = 60 * 60 * 1000; // 1 h

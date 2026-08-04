@@ -70,7 +70,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "2R Hub — Centraliser · Automatiser · Performer" },
-      { name: "description", content: "2R Hub : plateforme multi-cabinet pour 2R Conseil et 2R Expertise Fiscale — clients, devis, factures et lettres." },
+      { name: "description", content: "2R Hub : plateforme multi-cabinet pour 2R Conseil et 2R Expertise Fiscale — clients, devis, factures et courriels." },
       { name: "author", content: "2R Hub" },
       { property: "og:title", content: "2R Hub — Centraliser · Automatiser · Performer" },
       { property: "og:description", content: "Plateforme premium de gestion des clients, devis et factures pour 2R Conseil et 2R Expertise Fiscale." },

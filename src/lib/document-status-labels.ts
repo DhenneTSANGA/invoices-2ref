@@ -15,7 +15,7 @@ const statusLabels: Record<DocumentStatus, string> = {
 const typeLabels: Record<DocumentType, string> = {
   invoice: "Facture",
   quotation: "Devis",
-  letter: "Lettre",
+  letter: "Courriel",
 };
 
 export function documentStatusLabel(status: DocumentStatus): string {

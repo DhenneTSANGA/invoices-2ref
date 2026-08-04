@@ -3,7 +3,8 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session.functions";
 import { getResend } from "@/lib/resend";
-import { COMPANY_DEFAULTS } from "@/lib/company-defaults";
+import { companyForPreview } from "@/lib/company-defaults";
+import { DOCUMENT_COLORS } from "@/lib/cabinets";
 import {
   escapeHtml,
   requireResendApiKey,
@@ -16,7 +17,7 @@ import {
 } from "@/lib/notify-document-status";
 import { documentTypeLabel } from "@/lib/document-status-labels";
 import { canWriteDocument, isAdmin, isSuperAdmin } from "@/lib/roles";
-import type { DocumentType } from "@/store/types";
+import type { CompanyInfo, DocumentType } from "@/store/types";
 import { logOutboundMail } from "@/lib/mail-log";
 
 async function requireSession() {
@@ -52,12 +53,104 @@ function formatDate(d: Date) {
   }).format(d);
 }
 
+type EmailAccent = { accent: string; accentTo: string };
+
+function emailShell(params: {
+  accent: EmailAccent;
+  company: CompanyInfo;
+  typeTitle: string;
+  number: string;
+  issueDate?: string;
+  bodyHtml: string;
+  niuLabel?: string;
+}): string {
+  const { accent, accentTo } = params.accent;
+  const c = params.company;
+  const niuLabel = params.niuLabel ?? "NIU";
+  const legalBits = [
+    c.tagline,
+    [c.address, c.city].filter(Boolean).join(", "),
+    c.rccm && c.rccm !== "—" ? `RCCM : ${c.rccm}` : "",
+    c.nif && c.nif !== "—" ? `NIF : ${c.nif}` : "",
+    c.niu && c.niu !== "—" ? `${niuLabel} : ${c.niu}` : "",
+    c.phone ? `Tél. : ${c.phone}` : "",
+    c.email,
+  ].filter(Boolean);
+
+  return `
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+<body style="margin:0;padding:0;background:#F1F5F9;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;color:#0F172A;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F1F5F9;padding:28px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="640" cellpadding="0" cellspacing="0" style="max-width:640px;width:100%;background:#FFFFFF;border-radius:12px;overflow:hidden;box-shadow:0 8px 30px rgba(15,23,42,0.08);">
+          <tr>
+            <td style="height:4px;background:linear-gradient(90deg, ${accent}, ${accentTo});font-size:0;line-height:0;">&nbsp;</td>
+          </tr>
+          <tr>
+            <td style="padding:28px 28px 20px;border-bottom:2px solid ${accent};">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td valign="top" style="padding-right:16px;">
+                    <div style="font-size:20px;font-weight:700;letter-spacing:-0.02em;color:${accent};line-height:1.25;">
+                      ${escapeHtml(c.name)}
+                    </div>
+                    ${
+                      c.tagline
+                        ? `<div style="margin-top:4px;font-size:12px;color:#64748B;line-height:1.4;">${escapeHtml(c.tagline)}</div>`
+                        : ""
+                    }
+                  </td>
+                  <td valign="top" align="right" style="white-space:nowrap;">
+                    <div style="font-size:22px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:${accent};line-height:1.2;">
+                      ${escapeHtml(params.typeTitle)}
+                    </div>
+                    <div style="margin-top:4px;font-size:13px;font-weight:600;color:#0F172A;">N° ${escapeHtml(params.number)}</div>
+                    ${
+                      params.issueDate
+                        ? `<div style="margin-top:2px;font-size:12px;color:#64748B;">${escapeHtml(params.issueDate)}</div>`
+                        : ""
+                    }
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px 28px 8px;">
+              ${params.bodyHtml}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 28px 28px;">
+              <div style="border-top:1px solid #E2E8F0;padding-top:14px;font-size:11px;line-height:1.55;color:#94A3B8;text-align:center;">
+                ${escapeHtml(legalBits.join(" · "))}<br/>
+                Document conforme aux usages OHADA / zone CEMAC
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`.trim();
+}
+
 function buildCommercialEmailHtml(params: {
-  companyName: string;
+  company: CompanyInfo;
+  type: "invoice" | "quotation";
   typeLabel: string;
   number: string;
   clientName: string;
   contactName: string;
+  clientAddress?: string;
+  clientCity?: string;
   issueDate: string;
   dueDate: string;
   currency: string;
@@ -68,120 +161,235 @@ function buildCommercialEmailHtml(params: {
   vat: number;
   total: number;
   notes?: string | null;
+  niuLabel: string;
 }): string {
+  const colors = DOCUMENT_COLORS[params.type];
+  const { accent, accentTo } = colors;
+
   const rows = params.lines
     .map(
-      (l) => `
-      <tr>
-        <td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;">${escapeHtml(l.description)}</td>
-        <td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;text-align:right;">${l.quantity}</td>
-        <td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;text-align:right;">${escapeHtml(money(l.unitPrice, params.currency))}</td>
-        <td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:600;">${escapeHtml(money(l.total, params.currency))}</td>
+      (l, i) => `
+      <tr style="background:${i % 2 === 0 ? "#FFFFFF" : "#F8FAFC"};">
+        <td style="padding:10px 12px;border-bottom:1px solid #E2E8F0;font-size:13px;color:#0F172A;">${escapeHtml(l.description)}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #E2E8F0;text-align:right;font-size:13px;color:#475569;">${l.quantity}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #E2E8F0;text-align:right;font-size:13px;color:#475569;">${escapeHtml(money(l.unitPrice, params.currency))}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #E2E8F0;text-align:right;font-size:13px;font-weight:600;color:#0F172A;">${escapeHtml(money(l.total, params.currency))}</td>
       </tr>`,
     )
     .join("");
 
   const taxRows = [
     params.tps > 0
-      ? `<tr><td style="padding:4px 0;color:#64748b;">TPS</td><td style="padding:4px 0;text-align:right;">${escapeHtml(money(params.tps, params.currency))}</td></tr>`
+      ? `<tr><td style="padding:6px 12px;color:#64748B;font-size:13px;">TPS</td><td style="padding:6px 12px;text-align:right;font-size:13px;">${escapeHtml(money(params.tps, params.currency))}</td></tr>`
       : "",
     params.css > 0
-      ? `<tr><td style="padding:4px 0;color:#64748b;">CSS</td><td style="padding:4px 0;text-align:right;">${escapeHtml(money(params.css, params.currency))}</td></tr>`
+      ? `<tr><td style="padding:6px 12px;color:#64748B;font-size:13px;">CSS</td><td style="padding:6px 12px;text-align:right;font-size:13px;">${escapeHtml(money(params.css, params.currency))}</td></tr>`
       : "",
-    `<tr><td style="padding:4px 0;color:#64748b;">TVA</td><td style="padding:4px 0;text-align:right;">${escapeHtml(money(params.vat, params.currency))}</td></tr>`,
+    `<tr><td style="padding:6px 12px;color:#64748B;font-size:13px;">TVA</td><td style="padding:6px 12px;text-align:right;font-size:13px;">${escapeHtml(money(params.vat, params.currency))}</td></tr>`,
   ].join("");
 
-  return `
-<!DOCTYPE html>
-<html lang="fr">
-<head><meta charset="utf-8" /></head>
-<body style="font-family:'Segoe UI',Tahoma,sans-serif;color:#1e293b;max-width:640px;margin:0 auto;padding:32px 24px;">
-  <div style="border-bottom:2px solid #1E40AF;padding-bottom:16px;margin-bottom:24px;">
-    <strong style="font-size:18px;color:#1E40AF;">${escapeHtml(params.companyName)}</strong>
-    <div style="margin-top:4px;font-size:13px;color:#64748b;">${escapeHtml(params.typeLabel)} ${escapeHtml(params.number)}</div>
-  </div>
-  <p style="font-size:14px;line-height:1.7;">
-    Bonjour ${escapeHtml(params.contactName || params.clientName)},
-  </p>
-  <p style="font-size:14px;line-height:1.7;">
-    Veuillez trouver ci-dessous le détail de votre <strong>${escapeHtml(params.typeLabel.toLowerCase())}</strong>
-    n° <strong>${escapeHtml(params.number)}</strong>.
-  </p>
-  <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin:20px 0;font-size:13px;">
-    <div><span style="color:#64748b;">Client :</span> <strong>${escapeHtml(params.clientName)}</strong></div>
-    <div><span style="color:#64748b;">Émission :</span> ${escapeHtml(params.issueDate)}</div>
-    <div><span style="color:#64748b;">Échéance :</span> ${escapeHtml(params.dueDate)}</div>
-  </div>
-  <table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:8px;">
-    <thead>
-      <tr style="background:#1E40AF;color:#fff;">
-        <th style="text-align:left;padding:10px;">Description</th>
-        <th style="text-align:right;padding:10px;">Qté</th>
-        <th style="text-align:right;padding:10px;">P.U.</th>
-        <th style="text-align:right;padding:10px;">Total</th>
+  const emitterLines = [
+    params.company.address,
+    params.company.city,
+    [params.company.phone, params.company.email].filter(Boolean).join(" · "),
+  ].filter(Boolean);
+
+  const clientLines = [
+    params.clientAddress,
+    params.clientCity,
+    params.contactName && params.contactName !== params.clientName
+      ? params.contactName
+      : "",
+  ].filter(Boolean);
+
+  const bodyHtml = `
+    <p style="margin:0 0 14px;font-size:14px;line-height:1.7;color:#334155;">
+      Bonjour <strong style="color:#0F172A;">${escapeHtml(params.contactName || params.clientName)}</strong>,
+    </p>
+    <p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#334155;">
+      Veuillez trouver ci-dessous le détail de votre
+      <strong style="color:#0F172A;">${escapeHtml(params.typeLabel.toLowerCase())}</strong>
+      n° <strong style="color:#0F172A;">${escapeHtml(params.number)}</strong>
+      ${params.type === "invoice" ? "(PDF joint)." : "— valable selon les conditions indiquées (PDF joint)."}
+    </p>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+      <tr>
+        <td width="48%" valign="top" style="padding-right:8px;">
+          <div style="background:#F1F5F9;border-radius:10px;padding:14px 16px;">
+            <div style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#64748B;">Émetteur</div>
+            <div style="margin-top:6px;font-size:14px;font-weight:600;color:#0F172A;">${escapeHtml(params.company.name)}</div>
+            ${emitterLines
+              .map(
+                (l) =>
+                  `<div style="font-size:12px;line-height:1.45;color:#475569;">${escapeHtml(l)}</div>`,
+              )
+              .join("")}
+          </div>
+        </td>
+        <td width="52%" valign="top" style="padding-left:8px;">
+          <div style="border:2px solid ${accent}33;border-radius:10px;padding:14px 16px;">
+            <div style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:${accent};">Client</div>
+            <div style="margin-top:6px;font-size:14px;font-weight:600;color:#0F172A;">${escapeHtml(params.clientName)}</div>
+            ${clientLines
+              .map(
+                (l) =>
+                  `<div style="font-size:12px;line-height:1.45;color:#475569;">${escapeHtml(l)}</div>`,
+              )
+              .join("")}
+          </div>
+        </td>
       </tr>
-    </thead>
-    <tbody>${rows}</tbody>
-  </table>
-  <table style="width:100%;max-width:280px;margin-left:auto;margin-top:16px;font-size:13px;">
-    <tr><td style="padding:4px 0;color:#64748b;">Sous-total</td><td style="padding:4px 0;text-align:right;">${escapeHtml(money(params.subtotal, params.currency))}</td></tr>
-    ${taxRows}
-    <tr>
-      <td style="padding:10px 0 0;font-weight:700;border-top:2px solid #1E40AF;">Total TTC</td>
-      <td style="padding:10px 0 0;text-align:right;font-weight:700;border-top:2px solid #1E40AF;">${escapeHtml(money(params.total, params.currency))}</td>
-    </tr>
-  </table>
-  ${
-    params.notes
-      ? `<p style="margin-top:24px;font-size:13px;color:#475569;"><strong>Notes :</strong> ${escapeHtml(params.notes)}</p>`
-      : ""
-  }
-  <p style="margin-top:28px;font-size:14px;line-height:1.7;">
-    Cordialement,<br/>${escapeHtml(params.companyName)}
-  </p>
-  <div style="margin-top:40px;border-top:1px solid #e2e8f0;padding-top:12px;font-size:11px;color:#94a3b8;">
-    ${escapeHtml(params.companyName)} — Document conforme aux usages OHADA / zone CEMAC
-  </div>
-</body>
-</html>`.trim();
+    </table>
+
+    <div style="margin-bottom:16px;font-size:12px;color:#475569;">
+      <span style="margin-right:16px;">Émission : <strong style="color:#0F172A;">${escapeHtml(params.issueDate)}</strong></span>
+      <span>Échéance : <strong style="color:#0F172A;">${escapeHtml(params.dueDate)}</strong></span>
+    </div>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border-radius:10px;overflow:hidden;border:1px solid #E2E8F0;">
+      <thead>
+        <tr style="background:linear-gradient(90deg, ${accent}, ${accentTo});color:#FFFFFF;">
+          <th style="text-align:left;padding:11px 12px;font-size:12px;font-weight:600;letter-spacing:0.03em;">Description</th>
+          <th style="text-align:right;padding:11px 12px;font-size:12px;font-weight:600;">Qté</th>
+          <th style="text-align:right;padding:11px 12px;font-size:12px;font-weight:600;">P.U.</th>
+          <th style="text-align:right;padding:11px 12px;font-size:12px;font-weight:600;">Total</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;">
+      <tr>
+        <td></td>
+        <td width="280" valign="top">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E2E8F0;border-radius:10px;overflow:hidden;">
+            <tr>
+              <td style="padding:8px 12px;color:#64748B;font-size:13px;background:#FFFFFF;">Sous-total</td>
+              <td style="padding:8px 12px;text-align:right;font-size:13px;background:#FFFFFF;">${escapeHtml(money(params.subtotal, params.currency))}</td>
+            </tr>
+            ${taxRows}
+            <tr>
+              <td style="padding:12px;font-size:13px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#FFFFFF;background:linear-gradient(90deg, ${accent}, ${accentTo});">Total TTC</td>
+              <td style="padding:12px;text-align:right;font-size:14px;font-weight:700;color:#FFFFFF;background:linear-gradient(90deg, ${accent}, ${accentTo});">${escapeHtml(money(params.total, params.currency))}</td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    ${
+      params.notes
+        ? `<div style="margin-top:20px;background:#F8FAFC;border-radius:10px;padding:12px 14px;font-size:13px;color:#475569;"><strong style="color:#0F172A;">Notes :</strong> ${escapeHtml(params.notes)}</div>`
+        : ""
+    }
+
+    <p style="margin:28px 0 0;font-size:14px;line-height:1.7;color:#334155;">
+      Cordialement,<br/>
+      <strong style="color:${accent};">${escapeHtml(params.company.name)}</strong>
+    </p>
+  `;
+
+  return emailShell({
+    accent: colors,
+    company: params.company,
+    typeTitle: params.typeLabel,
+    number: params.number,
+    issueDate: params.issueDate,
+    bodyHtml,
+    niuLabel: params.niuLabel,
+  });
 }
 
 function buildLetterEmailHtml(params: {
-  companyName: string;
+  company: CompanyInfo;
+  number: string;
   subject: string;
+  placeDate: string;
+  recipientBlock: string;
+  salutation: string;
   body: string;
   closing: string;
   signatoryTitle: string;
+  managerName: string;
+  niuLabel: string;
 }): string {
-  return `
-<!DOCTYPE html>
-<html lang="fr">
-<head><meta charset="utf-8" /></head>
-<body style="font-family:'Segoe UI',Tahoma,sans-serif;color:#1e293b;max-width:640px;margin:0 auto;padding:32px 24px;">
-  <div style="border-bottom:2px solid #B45309;padding-bottom:16px;margin-bottom:24px;">
-    <strong style="font-size:18px;color:#B45309;">${escapeHtml(params.companyName)}</strong>
-  </div>
-  <div style="font-size:14px;font-weight:600;margin-bottom:16px;">
-    Objet : ${escapeHtml(params.subject)}
-  </div>
-  <div style="white-space:pre-line;line-height:1.8;font-size:14px;">
+  const colors = DOCUMENT_COLORS.letter;
+  const { accent } = colors;
+
+  const recipientHtml = escapeHtml(
+    params.recipientBlock || "Destinataire",
+  ).replace(/\n/g, "<br/>");
+
+  const bodyHtml = `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:8px;">
+      <tr>
+        <td></td>
+        <td width="52%" align="right" style="font-size:13px;color:#475569;line-height:1.5;">
+          ${escapeHtml(params.placeDate)}
+        </td>
+      </tr>
+    </table>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:18px 0 22px;">
+      <tr>
+        <td></td>
+        <td width="54%" valign="top">
+          <div style="border-left:3px solid ${accent};padding:10px 14px;background:#F8FAFC;border-radius:0 10px 10px 0;font-size:13.5px;line-height:1.55;color:#0F172A;">
+            ${recipientHtml}
+          </div>
+        </td>
+      </tr>
+    </table>
+
+    <div style="margin-bottom:18px;padding:14px 16px;background:#F1F5F9;border-radius:10px;">
+      <div style="font-size:13px;color:#0F172A;line-height:1.55;">
+        <span style="font-weight:700;color:${accent};">REF :</span> ${escapeHtml(params.number)}
+      </div>
+      <div style="margin-top:6px;font-size:13px;color:#0F172A;line-height:1.55;">
+        <span style="font-weight:700;color:${accent};">Objet :</span> ${escapeHtml(params.subject)}
+      </div>
+    </div>
+
+    ${
+      params.salutation
+        ? `<p style="margin:0 0 14px;font-size:14px;line-height:1.7;color:#0F172A;">${escapeHtml(params.salutation)}</p>`
+        : ""
+    }
+
+    <div style="font-size:14px;line-height:1.8;color:#1E293B;white-space:pre-line;text-align:justify;">
 ${escapeHtml(params.body)}
-  </div>
-  ${
-    params.closing
-      ? `<div style="margin-top:32px;white-space:pre-line;font-size:14px;">${escapeHtml(params.closing)}</div>`
-      : ""
-  }
-  ${
-    params.signatoryTitle
-      ? `<div style="margin-top:24px;font-size:13px;color:#B45309;">${escapeHtml(params.signatoryTitle)}</div>`
-      : ""
-  }
-  <div style="margin-top:48px;border-top:1px solid #e2e8f0;padding-top:12px;font-size:11px;color:#94a3b8;">
-    ${escapeHtml(params.companyName)} — Document conforme aux usages OHADA / zone CEMAC
-  </div>
-</body>
-</html>`.trim();
+    </div>
+
+    ${
+      params.closing
+        ? `<div style="margin-top:24px;font-size:14px;line-height:1.75;color:#1E293B;white-space:pre-line;">${escapeHtml(params.closing)}</div>`
+        : ""
+    }
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:36px;">
+      <tr>
+        <td></td>
+        <td width="240" align="center" style="padding:12px 8px;">
+          <div style="font-size:13px;font-weight:600;color:${accent};">${escapeHtml(params.signatoryTitle || "Le Gérant")}</div>
+          ${
+            params.managerName
+              ? `<div style="margin-top:18px;font-size:14px;font-weight:600;color:#0F172A;">${escapeHtml(params.managerName)}</div>`
+              : `<div style="margin-top:18px;font-size:12px;font-style:italic;color:#94A3B8;">Signé</div>`
+          }
+        </td>
+      </tr>
+    </table>
+  `;
+
+  return emailShell({
+    accent: colors,
+    company: params.company,
+    typeTitle: "Courriel",
+    number: params.number,
+    bodyHtml,
+    niuLabel: params.niuLabel,
+  });
 }
 
 function lineAmount(quantity: number, unitPrice: number, discount: number) {
@@ -219,7 +427,7 @@ export const sendDocumentEmail = createServerFn({ method: "POST" })
         throw new Error("Envoi du publipostage réservé aux administrateurs");
       }
       if (doc.status !== "signed" && doc.status !== "sent") {
-        throw new Error("La lettre doit être signée avant l'envoi");
+        throw new Error("Le courriel doit être signé avant l'envoi");
       }
     }
     if (!doc.client) throw new Error("Client introuvable");
@@ -230,30 +438,44 @@ export const sendDocumentEmail = createServerFn({ method: "POST" })
     const companyRow = await prisma.company.findUnique({
       where: { cabinet: doc.cabinet },
     });
-    const company = companyRow
-      ? {
-          name: companyRow.name,
-          email: companyRow.email,
-          mailFromEmail: companyRow.mailFromEmail,
-          mailReplyTo: companyRow.mailReplyTo,
-        }
-      : COMPANY_DEFAULTS[doc.cabinet];
+    const company = companyForPreview(companyRow, doc.cabinet);
     const { from, replyTo } = resolveCabinetMailAddresses(company);
     const typeLabel = documentTypeLabel(doc.type as DocumentType);
     const to = doc.client.email.trim();
+    const niuLabel = doc.cabinet === "conseil" ? "STAT" : "NIU";
 
     let subject: string;
     let html: string;
 
     if (doc.type === "letter") {
       subject = doc.subject?.trim() || `${typeLabel} ${doc.number}`;
-      const letterBody = [doc.salutation, doc.body].filter(Boolean).join("\n\n");
+      const letterBody = [doc.body].filter(Boolean).join("\n\n");
+      const city = (company.city.split(",")[0] || company.city).trim();
+      const recipientBlock = doc.recipientOverride?.trim()
+        ? doc.recipientOverride.trim()
+        : [
+            doc.client.contactName ? "À" : "",
+            doc.client.contactName || "",
+            doc.client.name ? `De ${doc.client.name}` : "",
+            [doc.client.address, doc.client.city, doc.client.country]
+              .filter(Boolean)
+              .join(" — "),
+          ]
+            .filter(Boolean)
+            .join("\n");
+
       html = buildLetterEmailHtml({
-        companyName: company.name,
+        company,
+        number: doc.number,
         subject,
+        placeDate: `${city}, le ${formatDate(doc.issueDate)}.`,
+        recipientBlock,
+        salutation: doc.salutation?.trim() || "",
         body: letterBody || "Veuillez trouver notre courrier ci-joint.",
         closing: doc.closing ?? "",
         signatoryTitle: doc.signatoryTitle || staff.jobTitle,
+        managerName: company.managerName?.trim() || "",
+        niuLabel,
       });
     } else {
       const currency = doc.currency || "XAF";
@@ -270,11 +492,14 @@ export const sendDocumentEmail = createServerFn({ method: "POST" })
       });
       subject = `${typeLabel} ${doc.number} — ${company.name}`;
       html = buildCommercialEmailHtml({
-        companyName: company.name,
+        company,
+        type: doc.type as "invoice" | "quotation",
         typeLabel,
         number: doc.number,
         clientName: doc.client.name,
         contactName: doc.client.contactName,
+        clientAddress: doc.client.address || undefined,
+        clientCity: [doc.client.city, doc.client.country].filter(Boolean).join(", ") || undefined,
         issueDate: formatDate(doc.issueDate),
         dueDate: formatDate(doc.dueDate),
         currency,
@@ -285,6 +510,7 @@ export const sendDocumentEmail = createServerFn({ method: "POST" })
         vat: Number(doc.vat),
         total: Number(doc.total),
         notes: doc.notes,
+        niuLabel,
       });
     }
 

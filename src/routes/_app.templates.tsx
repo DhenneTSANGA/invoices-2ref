@@ -31,7 +31,7 @@ const META: {
     icon: ReceiptText,
     gradient: "bg-gradient-primary",
     to: "/invoices/new",
-    accent: "#1E40AF",
+    accent: "#01004C",
   },
   {
     id: "quotation",
@@ -40,16 +40,16 @@ const META: {
     icon: FileText,
     gradient: "bg-gradient-success",
     to: "/quotations/new",
-    accent: "#0F766E",
+    accent: "#5C9A35",
   },
   {
     id: "letter",
-    name: "Lettre commerciale",
+    name: "Courriel commercial",
     description: "Courrier structuré (relance, proposition, réclamation) au format professionnel gabonais.",
     icon: Mail,
-    gradient: "bg-gradient-accent",
+    gradient: "bg-gradient-primary",
     to: "/lettre/new",
-    accent: "#B45309",
+    accent: "#01004C",
   },
 ];
 
@@ -72,7 +72,7 @@ function Templates() {
     <div>
       <PageHeader
         title="Modèles de documents"
-        subtitle="Trois modèles adaptés au Gabon et à la zone CEMAC — facture, devis et lettre."
+        subtitle="Trois modèles adaptés au Gabon et à la zone CEMAC — facture, devis et courriel."
       />
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
         {META.map((t, i) => {

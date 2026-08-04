@@ -30,14 +30,18 @@ export const DOCUMENT_COLORS = {
     /** Vert charte (#8BC163). */
     accentTo: "#8BC163",
   },
+  letter: {
+    /** Bleu marine charte — aligné facture pour les courriels. */
+    accent: "#01004C",
+    accentTo: "#1A1860",
+  },
 } as const;
 
-export type CabinetScope = "all" | Cabinet;
+export type CabinetScope = Cabinet;
 
 export const CABINET_SCOPE_OPTIONS: { value: CabinetScope; label: string }[] = [
   { value: "conseil", label: CABINET_LABELS.conseil },
   { value: "expertise_fiscale", label: CABINET_LABELS.expertise_fiscale },
-  { value: "all", label: "Tous les cabinets" },
 ];
 
 export const STAFF_JOB_TITLES = [
@@ -91,8 +95,8 @@ export const COMPANY_DEFAULTS: Record<Cabinet, CompanyInfo> = {
     website: "www.2ref.ga",
     bankName: "Orabank Gabon",
     bankAccount: "40021 01002 25911900201 45",
-    mailFromEmail: "expertise.fiscale@2ref.ga",
-    mailReplyTo: "expertise.fiscale@2ref.ga",
+    mailFromEmail: "2ref@2r-hub.com",
+    mailReplyTo: "2ref@2r-hub.com",
     managerName: "",
     stampUrl: "",
   },
@@ -110,8 +114,8 @@ export const COMPANY_DEFAULTS: Record<Cabinet, CompanyInfo> = {
     website: "www.2rconseil.ga",
     bankName: "Orabank Gabon",
     bankAccount: "40003 04130 41051542011 61",
-    mailFromEmail: "contact@2rconseil.ga",
-    mailReplyTo: "contact@2rconseil.ga",
+    mailFromEmail: "2rconseil@2r-hub.com",
+    mailReplyTo: "2rconseil@2r-hub.com",
     managerName: "",
     stampUrl: "",
   },

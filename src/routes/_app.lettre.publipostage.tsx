@@ -155,7 +155,7 @@ function MailMergePage() {
         },
       }),
     onSuccess: (campaign) => {
-      toast.success(`Campagne créée — ${campaign.documentCount} lettre(s)`);
+      toast.success(`Campagne créée — ${campaign.documentCount} courriel(s)`);
       void qc.invalidateQueries({ queryKey: campaignsKey });
       setActiveCampaignId(campaign.id);
       setView("detail");
@@ -248,7 +248,7 @@ function MailMergePage() {
     }
     const docs = activeCampaign.documents ?? [];
     if (docs.length === 0) {
-      toast.error("Aucune lettre dans cette campagne");
+      toast.error("Aucun courriel dans cette campagne");
       return;
     }
 
@@ -322,7 +322,7 @@ function MailMergePage() {
         to="/lettre"
         className="mb-2 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
-        <ArrowLeft className="h-4 w-4" /> Retour aux lettres
+        <ArrowLeft className="h-4 w-4" /> Retour aux courriels
       </Link>
       <PageHeader
         title="Publipostage"
@@ -384,7 +384,7 @@ function MailMergePage() {
                     <div className="min-w-0">
                       <div className="truncate font-medium">{c.subject}</div>
                       <div className="text-xs text-muted-foreground">
-                        {c.documentCount} lettre(s) · {c.issueDate}
+                        {c.documentCount} courriel(s) · {c.issueDate}
                       </div>
                     </div>
                     <span className="shrink-0 rounded-full bg-muted px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wide">
@@ -528,7 +528,7 @@ function MailMergePage() {
             <LoadingState
               icon={PenLine}
               title="Chargement de la campagne"
-              description="Préparation des lettres…"
+              description="Préparation des courriels…"
             />
           ) : (
             <>
@@ -542,7 +542,7 @@ function MailMergePage() {
                       {activeCampaign.subject}
                     </h3>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {activeCampaign.documentCount} lettre(s) ·{" "}
+                      {activeCampaign.documentCount} courriel(s) ·{" "}
                       {activeCampaign.issueDate}
                     </p>
                   </div>

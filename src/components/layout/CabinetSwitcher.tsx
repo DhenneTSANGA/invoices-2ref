@@ -10,6 +10,8 @@ import {
   companyKey,
   servicesKey,
   allDocumentsKey,
+  notificationsKey,
+  mailsKey,
   useSession,
 } from "@/hooks/use-data";
 import { LoadingOverlay } from "@/components/common/LoadingState";
@@ -35,6 +37,8 @@ export function CabinetSwitcher() {
         qc.invalidateQueries({ queryKey: servicesKey }),
         qc.invalidateQueries({ queryKey: allDocumentsKey }),
         qc.invalidateQueries({ queryKey: ["documents"] }),
+        qc.invalidateQueries({ queryKey: notificationsKey }),
+        qc.invalidateQueries({ queryKey: mailsKey }),
       ]);
       await router.invalidate();
       toast.success(`Cabinet : ${CABINET_LABELS[cabinet]}`);

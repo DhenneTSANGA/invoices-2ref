@@ -18,7 +18,7 @@ import { longDate } from "@/lib/format";
 import { LetterEditor } from "@/components/editor/LetterEditor";
 
 export const Route = createFileRoute("/_app/lettre/$id")({
-  head: () => ({ meta: [{ title: "Détail lettre — 2R Hub" }] }),
+  head: () => ({ meta: [{ title: "Détail courriel — 2R Hub" }] }),
   component: LetterDetail,
 });
 
@@ -36,12 +36,12 @@ function LetterDetail() {
     return (
       <LoadingState
         icon={Mail}
-        title="Chargement de la lettre"
+        title="Chargement du courriel"
         description="Ouverture du document…"
       />
     );
   }
-  if (!doc) return <div className="glass-panel rounded-3xl p-8 text-center">Lettre introuvable.</div>;
+  if (!doc) return <div className="glass-panel rounded-3xl p-8 text-center">Courriel introuvable.</div>;
 
   if (editing) {
     return (
@@ -93,7 +93,7 @@ function LetterDetail() {
               const toastId = toast.loading("Envoi de l'email…");
               sendEmailMutation.mutate(doc, {
                 onSuccess: (res) =>
-                  toast.success("Lettre envoyée par email", {
+                  toast.success("Courriel envoyé", {
                     id: toastId,
                     description: `À ${res.to}`,
                   }),

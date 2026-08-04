@@ -79,7 +79,7 @@ export function LetterEditor({ initial }: Props) {
     return (
       <LoadingState
         icon={UserRound}
-        title="Préparation de la lettre"
+        title="Préparation du courriel"
         description="Chargement des destinataires…"
       />
     );
@@ -120,11 +120,11 @@ export function LetterEditor({ initial }: Props) {
       });
       if (status === "sent") {
         const emailed = await sendEmailMutation.mutateAsync(saved);
-        toast.success("Lettre envoyée par email", {
+        toast.success("Courriel envoyé", {
           description: `${saved.number} → ${emailed.to}`,
         });
       } else {
-        toast.success("Lettre enregistrée", { description: saved.number });
+        toast.success("Courriel enregistré", { description: saved.number });
       }
       void navigate({ to: "/lettre" });
     } catch (err) {
@@ -221,7 +221,7 @@ export function LetterEditor({ initial }: Props) {
 
           <Section
             icon={<PenLine className="h-4 w-4" />}
-            title="Contenu de la lettre"
+            title="Contenu du courriel"
             hint="Objet, formule d'appel et corps du message"
           >
             <div className="space-y-4">
@@ -236,7 +236,7 @@ export function LetterEditor({ initial }: Props) {
                 onChange={(v) => setDoc({ ...doc, salutation: v })}
               />
               <TextArea
-                label="Corps de la lettre"
+                label="Corps du courriel"
                 rows={11}
                 value={doc.body ?? ""}
                 onChange={(v) => setDoc({ ...doc, body: v })}

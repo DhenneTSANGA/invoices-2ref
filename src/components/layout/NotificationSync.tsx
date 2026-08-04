@@ -12,6 +12,7 @@ import {
   loadToastedNotificationIds,
   rememberToastedNotificationIds,
 } from "@/lib/notification-toast-state";
+import { notificationNavTarget } from "@/lib/notification-nav";
 
 /** Polling + toasts quand un autre collaborateur met à jour un document. */
 export function NotificationSync() {
@@ -52,14 +53,11 @@ export function NotificationSync() {
           label: "Voir",
           onClick: () => {
             if (!n.read) markRead(n.id);
-            if (n.documentId) {
-              void navigate({
-                to: "/documents",
-                search: { focus: n.documentId },
-              });
-            } else {
-              void navigate({ to: "/notifications" });
-            }
+            const target = notificationNavTarget(n);
+            void navigate({
+              to: target.to,
+              ...(target.search ? { search: target.search } : {}),
+            });
           },
         },
       });

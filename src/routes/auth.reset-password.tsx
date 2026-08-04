@@ -19,15 +19,13 @@ export const Route = createFileRoute("/auth/reset-password")({
     meta: [{ title: "Nouveau mot de passe — 2R Hub" }],
   }),
   beforeLoad: async () => {
+    // Pendant un recovery, on ne bloque pas sur access_denied / onboarding :
+    // l’utilisateur doit pouvoir changer son mot de passe dès qu’une session Auth existe.
     const boot = await getAuthBootstrap();
     if (!boot) throw redirect({ to: "/login" });
     if (boot.status === "account_removed") {
       throw redirect({ to: "/compte-supprime" });
     }
-    if (boot.status === "access_denied") {
-      throw redirect({ href: "/login?error=invite_only" });
-    }
-    // Session recovery : on reste ici même si le compte est déjà « ready »
   },
   component: ResetPasswordPage,
 });

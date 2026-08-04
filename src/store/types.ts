@@ -119,7 +119,7 @@ export type Document = {
   /** Devis */
   validityDays?: number;
   executionTerms?: string;
-  /** Lettre commerciale */
+  /** Courriel commercial */
   subject?: string;
   salutation?: string;
   body?: string;

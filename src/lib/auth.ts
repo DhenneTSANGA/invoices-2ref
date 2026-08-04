@@ -12,9 +12,8 @@ export function requestPasswordReset(email: string) {
   markPasswordRecoveryPending();
   const supabase = createClient();
   return supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-    // Sans query : l’URL doit matcher exactement les Redirect URLs Supabase.
-    // La page reset est choisie via localStorage + événement PASSWORD_RECOVERY.
-    redirectTo: `${window.location.origin}/auth/callback`,
+    // `next=reset` reste dans l’URL au retour (même sans localStorage / autre appareil).
+    redirectTo: `${window.location.origin}/auth/callback?next=reset`,
   });
 }
 

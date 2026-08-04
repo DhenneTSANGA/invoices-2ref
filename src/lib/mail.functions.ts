@@ -1,9 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import type { Cabinet } from "@prisma/client";
+import type { Cabinet, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session.functions";
-import { isSuperAdmin } from "@/lib/roles";
+import { isAdmin } from "@/lib/roles";
+import { bareEmail } from "@/lib/email";
 import { htmlToPreview, mapMailRow, type MailListItem } from "@/lib/mail-log";
 
 async function requireSession() {
@@ -35,17 +36,6 @@ async function resendFetch<T>(path: string): Promise<T> {
   return json;
 }
 
-type ResendSentList = {
-  data?: Array<{
-    id: string;
-    to?: string[] | string | null;
-    from?: string | null;
-    subject?: string | null;
-    created_at?: string;
-    last_event?: string | null;
-  }>;
-};
-
 type ResendReceivedList = {
   data?: Array<{
     id: string;
@@ -71,7 +61,125 @@ function asAddressList(value: string[] | string | null | undefined): string {
   return Array.isArray(value) ? value.join(", ") : value;
 }
 
-/** Liste les mails envoyés (DB) et reçus (DB + sync Resend optionnelle). */
+const APP_MAIL_DOMAIN = "2r-hub.com";
+
+/** Adresses From / Reply-To de l’app (env + fiches cabinets). */
+async function appMailAddresses(): Promise<Set<string>> {
+  const set = new Set<string>();
+  const add = (raw?: string | null) => {
+    const email = bareEmail(raw ?? "").toLowerCase();
+    if (email.includes("@")) set.add(email);
+  };
+  add(process.env.RESEND_REPLY_TO);
+  add(process.env.RESEND_FROM_EMAIL);
+  add("2ref@2r-hub.com");
+  add("2rconseil@2r-hub.com");
+
+  const companies = await prisma.company.findMany({
+    select: { mailFromEmail: true, mailReplyTo: true, email: true },
+  });
+  for (const c of companies) {
+    add(c.mailReplyTo);
+    add(c.mailFromEmail);
+  }
+  return set;
+}
+
+function extractEmails(value: string): string[] {
+  return value
+    .split(/[,;]/)
+    .map((part) => bareEmail(part.trim()).toLowerCase())
+    .filter((e) => e.includes("@"));
+}
+
+/** Destinataire Inbound lié à l’app (domaine 2r-hub.com ou adresse cabinet). */
+function isAppInboundRecipient(
+  toEmail: string,
+  allowed: Set<string>,
+): boolean {
+  const emails = extractEmails(toEmail);
+  if (emails.length === 0) return false;
+  return emails.some(
+    (e) => allowed.has(e) || e.endsWith(`@${APP_MAIL_DOMAIN}`),
+  );
+}
+
+/**
+ * Uniquement les mails de l’app :
+ * - envoyés : journalisés à l’envoi (documentId / staffId)
+ * - reçus : adressés aux boîtes @2r-hub.com / Reply-To cabinets
+ */
+function appMailsOnlyWhere(
+  allowedInbound: Set<string>,
+): Prisma.MailMessageWhereInput {
+  const inboundOr: Prisma.MailMessageWhereInput[] = [
+    { toEmail: { contains: `@${APP_MAIL_DOMAIN}`, mode: "insensitive" } },
+  ];
+  for (const addr of allowedInbound) {
+    inboundOr.push({
+      toEmail: { contains: addr, mode: "insensitive" },
+    });
+  }
+
+  return {
+    OR: [
+      {
+        direction: "outbound",
+        OR: [{ documentId: { not: null } }, { staffId: { not: null } }],
+      },
+      {
+        direction: "inbound",
+        OR: inboundOr,
+      },
+    ],
+  };
+}
+
+/** Notifie le collaborateur qui a envoyé le dernier mail à ce client. */
+async function notifySenderOfClientReply(input: {
+  fromEmail: string;
+  subject: string;
+  cabinet: Cabinet;
+}) {
+  const clientEmail = bareEmail(input.fromEmail).toLowerCase();
+  if (!clientEmail.includes("@")) return;
+
+  const previous = await prisma.mailMessage.findFirst({
+    where: {
+      direction: "outbound",
+      staffId: { not: null },
+      toEmail: { contains: clientEmail, mode: "insensitive" },
+      OR: [{ cabinet: input.cabinet }, { cabinet: null }],
+    },
+    orderBy: { createdAt: "desc" },
+    select: { staffId: true, documentId: true },
+  });
+  if (!previous?.staffId) return;
+
+  const already = await prisma.notification.findFirst({
+    where: {
+      staffId: previous.staffId,
+      title: "Réponse e-mail reçue",
+      body: { contains: clientEmail },
+      at: { gte: new Date(Date.now() - 2 * 60_000) },
+    },
+    select: { id: true },
+  });
+  if (already) return;
+
+  await prisma.notification.create({
+    data: {
+      staffId: previous.staffId,
+      documentId: previous.documentId,
+      cabinet: input.cabinet,
+      title: "Réponse e-mail reçue",
+      body: `${clientEmail} a répondu : ${input.subject}`,
+      type: "info",
+    },
+  });
+}
+
+/** Liste les mails envoyés / reçus liés à l’application uniquement. */
 export const listMails = createServerFn({ method: "GET" })
   .validator(
     z.object({
@@ -81,19 +189,21 @@ export const listMails = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     const session = await requireSession();
-    const whereCabinet = isSuperAdmin(session.staff.role)
-      ? {}
-      : {
-          OR: [
-            { cabinet: session.activeCabinet },
-            { cabinet: null },
-          ],
-        };
+    const allowed = await appMailAddresses();
+    const whereCabinet = {
+      OR: [
+        { cabinet: session.activeCabinet },
+        { cabinet: null },
+      ],
+    };
 
     const rows = await prisma.mailMessage.findMany({
       where: {
-        ...whereCabinet,
-        ...(data.direction === "all" ? {} : { direction: data.direction }),
+        AND: [
+          whereCabinet,
+          appMailsOnlyWhere(allowed),
+          data.direction === "all" ? {} : { direction: data.direction },
+        ],
       },
       orderBy: { createdAt: "desc" },
       take: data.limit,
@@ -101,7 +211,7 @@ export const listMails = createServerFn({ method: "GET" })
 
     return {
       items: rows.map(mapMailRow),
-      inboundConfigured: Boolean(process.env.RESEND_REPLY_TO?.trim()),
+      inboundConfigured: allowed.size > 0,
     };
   });
 
@@ -153,13 +263,15 @@ export const getMail = createServerFn({ method: "GET" })
   });
 
 /**
- * Importe les e-mails reçus (réponses) depuis Resend Inbound.
- * Nécessite un domaine / adresse de réception configurés côté Resend.
+ * Importe uniquement les réponses reçues sur les adresses de l’app (Inbound).
+ * Les envois sont journalisés à l’envoi depuis l’app — pas d’import Resend « sent ».
  */
 export const syncInboundMails = createServerFn({ method: "POST" }).handler(
   async () => {
     const session = await requireSession();
+    const allowed = await appMailAddresses();
     let imported = 0;
+    let skipped = 0;
     let error: string | null = null;
 
     try {
@@ -169,10 +281,23 @@ export const syncInboundMails = createServerFn({ method: "POST" }).handler(
       for (const item of list.data ?? []) {
         const fromEmail = item.from?.trim() || "inconnu";
         const toEmail = asAddressList(item.to) || "—";
+        if (!isAppInboundRecipient(toEmail, allowed)) {
+          skipped += 1;
+          continue;
+        }
+
         const subject = item.subject?.trim() || "(sans objet)";
         const createdAt = item.created_at
           ? new Date(item.created_at)
           : new Date();
+
+        const existing = item.id
+          ? await prisma.mailMessage.findUnique({
+              where: { resendId: item.id },
+              select: { id: true },
+            })
+          : null;
+        const isNew = !existing;
 
         let html: string | null = null;
         let text: string | null = null;
@@ -214,50 +339,47 @@ export const syncInboundMails = createServerFn({ method: "POST" }).handler(
           },
         });
         imported += 1;
+
+        if (isNew) {
+          await notifySenderOfClientReply({
+            fromEmail,
+            subject,
+            cabinet: session.activeCabinet as Cabinet,
+          });
+        }
       }
     } catch (err) {
       error =
         err instanceof Error
           ? err.message
           : "Impossible de synchroniser les e-mails reçus";
-      // Resend Inbound non activé → message clair
       if (/not found|404|receiving|inbound/i.test(error)) {
         error =
           "Réception Resend non configurée. Activez Inbound sur votre domaine et définissez RESEND_REPLY_TO.";
       }
     }
 
-    // Optionnel : importer aussi l’historique d’envois Resend non encore loggés
-    try {
-      const sent = await resendFetch<ResendSentList>("/emails?limit=30");
-      for (const item of sent.data ?? []) {
-        if (!item.id) continue;
-        const existing = await prisma.mailMessage.findUnique({
-          where: { resendId: item.id },
-        });
-        if (existing) continue;
-        await prisma.mailMessage.create({
-          data: {
-            direction: "outbound",
-            cabinet: session.activeCabinet,
-            resendId: item.id,
-            fromEmail: item.from?.trim() || "—",
-            toEmail: asAddressList(item.to) || "—",
-            subject: item.subject?.trim() || "(sans objet)",
-            preview: "",
-            lastEvent: item.last_event ?? "sent",
-            createdAt: item.created_at
-              ? new Date(item.created_at)
-              : new Date(),
-          },
-        });
-        imported += 1;
-      }
-    } catch {
-      // liste sent optionnelle
+    return { imported, skipped, error };
+  },
+);
+
+/** Vide l’historique local (envoyés + reçus). Admin : cabinet actif ; super admin : tout. */
+export const clearMailHistory = createServerFn({ method: "POST" }).handler(
+  async () => {
+    const session = await requireSession();
+    if (!isAdmin(session.staff.role)) {
+      throw new Error("Réservé aux administrateurs");
     }
 
-    return { imported, error };
+    const result = await prisma.mailMessage.deleteMany({
+      where: {
+        OR: [
+          { cabinet: session.activeCabinet },
+          { cabinet: null },
+        ],
+      },
+    });
+    return { deleted: result.count };
   },
 );
 

@@ -66,12 +66,12 @@ const QUICK_ACTIONS: QuickAction[] = [
     keywords: "devis quotation proposition",
   },
   {
-    label: "Nouvelle lettre",
+    label: "Nouveau courriel",
     hint: "Courrier commercial",
     path: "/lettre/new",
     icon: Mail,
-    iconClass: "bg-gradient-accent text-accent-foreground",
-    keywords: "lettre courrier mail",
+    iconClass: "bg-gradient-primary text-primary-foreground",
+    keywords: "lettre courriel courrier mail",
   },
   {
     label: "Publipostage",

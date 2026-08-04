@@ -25,7 +25,8 @@ import { humanAuthError } from "@/lib/auth-errors";
  * - OAuth / PKCE : ?code=
  * - Invitation / e-mail (templates TokenHash) : ?token_hash=&type=
  * - Ancien flux implicite : #access_token=&refresh_token=
- * - Mot de passe oublié : type=recovery ou localStorage flag → /auth/reset-password
+ * - Mot de passe oublié : ?next=reset, type=recovery, localStorage, ou événement PASSWORD_RECOVERY
+ *   → /auth/reset-password
  *
  * Après invitation → /auth/set-password pour créer le mot de passe.
  */
@@ -68,7 +69,10 @@ function AuthCallbackPage() {
       }
 
       if (opts.recovery) {
-        if (!cancelled) void navigate({ to: "/auth/reset-password" });
+        // Navigation pleine page : cookies session bien pris en compte par beforeLoad
+        if (!cancelled) {
+          window.location.replace("/auth/reset-password");
+        }
         return;
       }
 
@@ -157,6 +161,7 @@ function AuthCallbackPage() {
         }
 
         let inviteFlow = typeParam === "invite";
+        // `next=reset` est posé dans redirectTo du mail (fiable même sans localStorage)
         let recoveryFlow =
           typeParam === "recovery" ||
           nextParam === "reset" ||
@@ -169,31 +174,39 @@ function AuthCallbackPage() {
           if (event === "PASSWORD_RECOVERY") recoveryFromEvent = true;
         });
 
-        // Attend que PASSWORD_RECOVERY arrive (max 1.5s) après échange de session
-        const waitForRecoveryEvent = () =>
+        const waitForRecoveryEvent = (ms = 3500) =>
           new Promise<void>((resolve) => {
-            if (recoveryFromEvent) { resolve(); return; }
-            const timeout = setTimeout(resolve, 1500);
+            if (recoveryFromEvent || recoveryFlow) {
+              resolve();
+              return;
+            }
+            const timeout = setTimeout(resolve, ms);
             const poll = setInterval(() => {
               if (recoveryFromEvent) {
                 clearTimeout(timeout);
                 clearInterval(poll);
                 resolve();
               }
-            }, 100);
+            }, 50);
           });
 
         try {
           if (code) {
-            setMessage("Échange du code d'autorisation…");
+            setMessage(
+              recoveryFlow
+                ? "Validation du lien de réinitialisation…"
+                : "Échange du code d'autorisation…",
+            );
             const { error } = await supabase.auth.exchangeCodeForSession(code);
             if (error) {
               await fail(error.message);
               return;
             }
-            // En PKCE, le type (recovery/invite) n'est pas dans l'URL.
-            // On attend un peu pour laisser Supabase émettre PASSWORD_RECOVERY.
-            await waitForRecoveryEvent();
+            // PKCE : le type recovery n’est pas dans l’URL si next=reset a été perdu ;
+            // on attend PASSWORD_RECOVERY en secours.
+            if (!recoveryFlow) {
+              await waitForRecoveryEvent();
+            }
           } else if (tokenHash && typeParam) {
             setMessage(
               typeParam === "recovery"

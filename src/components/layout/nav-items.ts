@@ -20,7 +20,7 @@ export const primaryNav: NavDef[] = [
   { to: "/documents", label: "Documents", icon: FolderOpen },
   { to: "/quotations", label: "Devis", icon: FileText },
   { to: "/invoices", label: "Factures", icon: ReceiptText },
-  { to: "/lettre", label: "Lettres", icon: Mail },
+  { to: "/lettre", label: "Courriels", icon: Mail },
   { to: "/mails", label: "Mails", icon: Inbox },
   { to: "/templates", label: "Modèles", icon: Files },
   { to: "/archive", label: "Archives", icon: Archive },

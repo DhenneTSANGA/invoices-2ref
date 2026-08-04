@@ -92,7 +92,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "2R Hub réunit 2R Conseil et 2R Expertise Fiscale : clients, devis, factures, lettres et suivi d’équipe, sans mélange des dossiers.",
+          "2R Hub réunit 2R Conseil et 2R Expertise Fiscale : clients, devis, factures, courriels et suivi d’équipe, sans mélange des dossiers.",
       },
     ],
   }),
@@ -130,7 +130,7 @@ const features = [
   },
   {
     icon: Mail,
-    title: "Lettres & publipostage",
+    title: "Courriels & publipostage",
     description:
       "Rédigez des courriers au format cabinet et envoyez-les à plusieurs destinataires en quelques clics.",
   },
@@ -262,7 +262,7 @@ function LandingPage() {
               seul flux de travail
             </h1>
             <p className="mt-5 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-lg">
-              Centralisez clients, devis, factures et lettres pour{" "}
+              Centralisez clients, devis, factures et courriels pour{" "}
               <strong className="font-medium text-foreground">2R Conseil</strong>{" "}
               et{" "}
               <strong className="font-medium text-foreground">

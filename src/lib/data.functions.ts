@@ -59,7 +59,7 @@ async function allocateCommercialNumber(
   });
 }
 
-const cabinetScopeSchema = z.enum(["all", "conseil", "expertise_fiscale"]).optional();
+const cabinetScopeSchema = z.enum(["conseil", "expertise_fiscale"]).optional();
 
 async function requireSession(): Promise<NonNullable<AppSession>> {
   const session = await getCurrentSession();
@@ -69,28 +69,23 @@ async function requireSession(): Promise<NonNullable<AppSession>> {
 
 /**
  * Filtre cabinet pour listes.
- * - Membre/admin : toujours le cabinet du compte.
- * - Super admin : cabinet actif par défaut ; `"all"` uniquement si demandé.
+ * Toujours un cabinet concret (actif, ou scope explicite) — jamais « tous ».
  */
 function resolveDocCabinetFilter(
   session: NonNullable<AppSession>,
   scope?: "all" | Cabinet,
-): Cabinet | undefined {
-  if (isSuperAdmin(session.staff.role)) {
-    if (scope === "all") return undefined;
-    if (scope === "conseil" || scope === "expertise_fiscale") return scope;
-    return session.activeCabinet;
-  }
+): Cabinet {
+  if (scope === "conseil" || scope === "expertise_fiscale") return scope;
   return session.activeCabinet;
 }
 
 function cabinetDocWhere(
-  cabinet: Cabinet | undefined,
+  cabinet: Cabinet,
   type?: DocumentType,
   extra?: { createdById?: string },
 ) {
   return {
-    ...(cabinet ? { cabinet } : {}),
+    cabinet,
     ...(type ? { type } : {}),
     ...(extra?.createdById ? { createdById: extra.createdById } : {}),
   };
@@ -112,7 +107,7 @@ export const listClients = createServerFn({ method: "GET" })
     const session = await requireSession();
     const cabinet = resolveDocCabinetFilter(session, data?.cabinetScope);
     const rows = await prisma.client.findMany({
-      where: cabinet ? { cabinet } : {},
+      where: { cabinet },
       orderBy: { name: "asc" },
     });
     return rows.map(mapClient);
@@ -801,9 +796,16 @@ const notificationInclude = {
 } as const;
 
 export const listNotifications = createServerFn({ method: "GET" }).handler(async () => {
-  const { staff } = await requireSession();
+  const { staff, activeCabinet } = await requireSession();
   const rows = await prisma.notification.findMany({
-    where: { staffId: staff.id },
+    where: {
+      staffId: staff.id,
+      OR: [
+        { cabinet: activeCabinet },
+        // Anciennes notifs sans cabinet : rattachement via le document
+        { cabinet: null, document: { cabinet: activeCabinet } },
+      ],
+    },
     include: notificationInclude,
     orderBy: { at: "desc" },
     take: 100,
@@ -813,9 +815,16 @@ export const listNotifications = createServerFn({ method: "GET" }).handler(async
 
 export const markAllNotificationsRead = createServerFn({ method: "POST" }).handler(
   async () => {
-    const { staff } = await requireSession();
+    const { staff, activeCabinet } = await requireSession();
     await prisma.notification.updateMany({
-      where: { staffId: staff.id, read: false },
+      where: {
+        staffId: staff.id,
+        read: false,
+        OR: [
+          { cabinet: activeCabinet },
+          { cabinet: null, document: { cabinet: activeCabinet } },
+        ],
+      },
       data: { read: true },
     });
     return { ok: true };

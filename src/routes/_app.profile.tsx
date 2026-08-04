@@ -232,7 +232,7 @@ function ProfilePage() {
                   staff?.cabinet
                     ? CABINET_LABELS[staff.cabinet]
                     : staff?.role === "super_admin"
-                      ? "Tous les cabinets"
+                      ? "Basculable (sidebar) — un cabinet à la fois"
                       : ""
                 }
                 readOnly

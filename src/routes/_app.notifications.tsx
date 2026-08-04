@@ -12,6 +12,7 @@ import {
   useNotifications,
 } from "@/hooks/use-data";
 import type { NotificationItem } from "@/store/types";
+import { notificationNavTarget } from "@/lib/notification-nav";
 
 export const Route = createFileRoute("/_app/notifications")({
   head: () => ({ meta: [{ title: "Notifications — 2R Hub" }] }),
@@ -37,15 +38,14 @@ function NotificationsPage() {
       try {
         await markOneMutation.mutateAsync(n.id);
       } catch {
-        // On navigue quand même vers le document si possible
+        // On navigue quand même
       }
     }
-    if (n.documentId) {
-      void navigate({
-        to: "/documents",
-        search: { focus: n.documentId },
-      });
-    }
+    const target = notificationNavTarget(n);
+    void navigate({
+      to: target.to,
+      ...(target.search ? { search: target.search } : {}),
+    });
   };
 
   return (
