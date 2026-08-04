@@ -321,6 +321,100 @@
   }
 }
 
+/* Micro-animations icônes sidebar (style Resend) — déclenchées via .group:hover */
+@keyframes nav-icon-ring {
+  0%, 100% { transform: rotate(0deg); }
+  15% { transform: rotate(14deg); }
+  30% { transform: rotate(-12deg); }
+  45% { transform: rotate(10deg); }
+  60% { transform: rotate(-6deg); }
+  75% { transform: rotate(3deg); }
+}
+
+@keyframes nav-icon-wiggle {
+  0%, 100% { transform: rotate(0deg) translateX(0); }
+  20% { transform: rotate(-10deg) translateX(-1px); }
+  40% { transform: rotate(8deg) translateX(1px); }
+  60% { transform: rotate(-5deg) translateX(-0.5px); }
+  80% { transform: rotate(3deg) translateX(0.5px); }
+}
+
+@keyframes nav-icon-bounce {
+  0%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-3px); }
+  50% { transform: translateY(1px); }
+  70% { transform: translateY(-1.5px); }
+}
+
+@keyframes nav-icon-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(90deg); }
+}
+
+@keyframes nav-icon-tilt {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  40% { transform: rotate(-12deg) scale(1.08); }
+  70% { transform: rotate(6deg) scale(1.04); }
+}
+
+@keyframes nav-icon-pulse {
+  0%, 100% { transform: scale(1); }
+  40% { transform: scale(1.18); }
+  70% { transform: scale(0.96); }
+}
+
+@keyframes nav-icon-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  50% { transform: translateX(2px); }
+  75% { transform: translateX(-1px); }
+}
+
+@keyframes nav-icon-lift {
+  0%, 100% { transform: translateY(0) scale(1); }
+  35% { transform: translateY(-3px) scale(1.06); }
+  55% { transform: translateY(1px) scale(0.98); }
+  75% { transform: translateY(-1px) scale(1.02); }
+}
+
+.group:hover .nav-icon-ring {
+  animation: nav-icon-ring 0.55s ease;
+}
+.group:hover .nav-icon-wiggle {
+  animation: nav-icon-wiggle 0.5s ease;
+}
+.group:hover .nav-icon-bounce {
+  animation: nav-icon-bounce 0.45s ease;
+}
+.group:hover .nav-icon-spin {
+  animation: nav-icon-spin 0.45s ease;
+}
+.group:hover .nav-icon-tilt {
+  animation: nav-icon-tilt 0.45s ease;
+}
+.group:hover .nav-icon-pulse {
+  animation: nav-icon-pulse 0.4s ease;
+}
+.group:hover .nav-icon-shake {
+  animation: nav-icon-shake 0.4s ease;
+}
+.group:hover .nav-icon-lift {
+  animation: nav-icon-lift 0.45s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .group:hover .nav-icon-ring,
+  .group:hover .nav-icon-wiggle,
+  .group:hover .nav-icon-bounce,
+  .group:hover .nav-icon-spin,
+  .group:hover .nav-icon-tilt,
+  .group:hover .nav-icon-pulse,
+  .group:hover .nav-icon-shake,
+  .group:hover .nav-icon-lift {
+    animation: none;
+  }
+}
+
 /* Barre de temps des toasts Sonner (durée par défaut ≈ 4s) */
 @keyframes toast-timer {
   from { transform: scaleX(1); }

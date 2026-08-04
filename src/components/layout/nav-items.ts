@@ -2,38 +2,41 @@ import {
   LayoutDashboard, Users, FileText, ReceiptText, Package,
   Files, Archive, Settings, Bell, Search, UserCircle2, FolderOpen, Mail, Shield, Globe, Inbox,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import type { AppRole } from "@/lib/roles";
 import { canAccessDashboard, canManageAdminRequests, isMember } from "@/lib/roles";
+import type { NavIconMotion } from "./NavIcon";
 
 type NavDef = {
   to: string;
   label: string;
-  icon: typeof LayoutDashboard;
+  icon: LucideIcon;
+  iconMotion?: NavIconMotion;
   roles?: AppRole[];
 };
 
 export const primaryNav: NavDef[] = [
-  { to: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard, roles: ["admin", "super_admin"] },
-  { to: "/home", label: "Accueil", icon: LayoutDashboard, roles: ["member"] },
-  { to: "/clients", label: "Clients", icon: Users },
-  { to: "/services", label: "Catalogue", icon: Package },
-  { to: "/documents", label: "Documents", icon: FolderOpen },
-  { to: "/quotations", label: "Devis", icon: FileText },
-  { to: "/invoices", label: "Factures", icon: ReceiptText },
-  { to: "/lettre", label: "Courriels", icon: Mail },
-  { to: "/mails", label: "Mails", icon: Inbox },
-  { to: "/templates", label: "Modèles", icon: Files },
-  { to: "/archive", label: "Archives", icon: Archive },
-  { to: "/users", label: "Équipe", icon: Shield, roles: ["admin", "super_admin"] },
+  { to: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard, iconMotion: "bounce", roles: ["admin", "super_admin"] },
+  { to: "/home", label: "Accueil", icon: LayoutDashboard, iconMotion: "bounce", roles: ["member"] },
+  { to: "/clients", label: "Clients", icon: Users, iconMotion: "pulse" },
+  { to: "/services", label: "Catalogue", icon: Package, iconMotion: "bounce" },
+  { to: "/documents", label: "Documents", icon: FolderOpen, iconMotion: "tilt" },
+  { to: "/quotations", label: "Devis", icon: FileText, iconMotion: "tilt" },
+  { to: "/invoices", label: "Factures", icon: ReceiptText, iconMotion: "lift" },
+  { to: "/lettre", label: "Courriels", icon: Mail, iconMotion: "wiggle" },
+  { to: "/mails", label: "Mails", icon: Inbox, iconMotion: "bounce" },
+  { to: "/templates", label: "Modèles", icon: Files, iconMotion: "tilt" },
+  { to: "/archive", label: "Archives", icon: Archive, iconMotion: "lift" },
+  { to: "/users", label: "Équipe", icon: Shield, iconMotion: "pulse", roles: ["admin", "super_admin"] },
 ];
 
 export const secondaryNav: NavDef[] = [
-  { to: "https://2ref-expertise.vercel.app/", label: "Vitrine 2REF", icon: Globe },
-  { to: "/", label: "Vitrine 2RC", icon: Globe },
-  { to: "/search", label: "Recherche", icon: Search },
-  { to: "/notifications", label: "Notifications", icon: Bell },
-  { to: "/profile", label: "Profil", icon: UserCircle2 },
-  { to: "/settings", label: "Paramètres", icon: Settings, roles: ["admin", "super_admin"] },
+  { to: "https://2ref-expertise.vercel.app/", label: "Vitrine 2REF", icon: Globe, iconMotion: "spin" },
+  { to: "/", label: "Vitrine 2RC", icon: Globe, iconMotion: "spin" },
+  { to: "/search", label: "Recherche", icon: Search, iconMotion: "tilt" },
+  { to: "/notifications", label: "Notifications", icon: Bell, iconMotion: "ring" },
+  { to: "/profile", label: "Profil", icon: UserCircle2, iconMotion: "pulse" },
+  { to: "/settings", label: "Paramètres", icon: Settings, iconMotion: "spin", roles: ["admin", "super_admin"] },
 ];
 
 export type NavItem = NavDef;

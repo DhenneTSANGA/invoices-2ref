@@ -160,17 +160,23 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
                 <div className="text-[14px] font-semibold text-[#0F172A]">
                   {managerName}
                 </div>
-              ) : null}
-              {!stampUrl && !managerName ? (
+              ) : (
                 <div className="text-[12px] italic text-[#94A3B8]">Signé</div>
-              ) : null}
+              )}
             </div>
           ) : (
-            <div
-              className="mx-auto mt-4 flex h-28 w-52 flex-col items-center justify-center rounded-lg border border-dashed text-[12px] italic text-[#94A3B8]"
-              style={{ borderColor: `${accent}44` }}
-            >
-              En attente de signature
+            <div className="mt-3 flex flex-col items-center gap-2">
+              <div
+                className="flex h-28 w-52 flex-col items-center justify-center rounded-lg border border-dashed text-[12px] italic text-[#94A3B8]"
+                style={{ borderColor: `${accent}44` }}
+              >
+                En attente de signature
+              </div>
+              {managerName ? (
+                <div className="text-[14px] font-semibold text-[#0F172A]">
+                  {managerName}
+                </div>
+              ) : null}
             </div>
           )}
         </div>

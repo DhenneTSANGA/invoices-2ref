@@ -10,7 +10,8 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { Logo } from "@/components/common/Logo";
-import { primaryNav, secondaryNav, navForRole } from "./nav-items";
+import { primaryNav, secondaryNav, navForRole, type NavItem } from "./nav-items";
+import { NavIcon } from "./NavIcon";
 import { CabinetSwitcher } from "./CabinetSwitcher";
 import { canSwitchCabinet, isAdmin, isSuperAdmin, roleLabel } from "@/lib/roles";
 import { CABINET_LABELS } from "@/lib/cabinets";
@@ -146,7 +147,7 @@ function MobileSection({
   onNavigate,
 }: {
   title: string;
-  items: readonly { to: string; label: string; icon: (typeof primaryNav)[number]["icon"] }[];
+  items: readonly NavItem[];
   pathname: string;
   onNavigate: () => void;
 }) {
@@ -165,13 +166,13 @@ function MobileSection({
                 preload="intent"
                 onClick={onNavigate}
                 className={cn(
-                  "flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-medium transition-colors",
+                  "group flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-medium transition-colors",
                   active
                     ? "bg-gradient-primary text-primary-foreground shadow-glow"
                     : "text-foreground/85 hover:bg-muted",
                 )}
               >
-                <item.icon className="h-4.5 w-4.5 shrink-0" />
+                <NavIcon icon={item.icon} motion={item.iconMotion} />
                 <span>{item.label}</span>
               </Link>
             </li>

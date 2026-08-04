@@ -55,7 +55,7 @@ export function companyForPreview(
       row.email?.trim() ||
       fallback.mailReplyTo ||
       fallback.email,
-    managerName: row.managerName ?? fallback.managerName ?? "",
-    stampUrl: row.stampUrl ?? fallback.stampUrl ?? "",
+    managerName: row.managerName?.trim() || fallback.managerName || "",
+    stampUrl: row.stampUrl?.trim() || fallback.stampUrl || "",
   };
 }

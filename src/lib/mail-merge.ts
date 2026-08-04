@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session.functions";
 import { mapDocument } from "@/lib/mappers";
+import { companyForPreview } from "@/lib/company-defaults";
 import { isAdmin } from "@/lib/roles";
 import type { MailMergeCampaign } from "@/store/types";
 
@@ -249,10 +250,11 @@ export const signMailMergeCampaign = createServerFn({ method: "POST" })
       throw new Error("Cette campagne est déjà signée");
     }
 
-    const company = await prisma.company.findUnique({
+    const companyRow = await prisma.company.findUnique({
       where: { cabinet: activeCabinet },
     });
-    if (!company?.managerName?.trim()) {
+    const company = companyForPreview(companyRow, activeCabinet);
+    if (!company.managerName?.trim()) {
       throw new Error(
         "Configurez le nom du gérant dans les paramètres du cabinet avant de signer.",
       );

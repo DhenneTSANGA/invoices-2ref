@@ -97,7 +97,7 @@ export const COMPANY_DEFAULTS: Record<Cabinet, CompanyInfo> = {
     bankAccount: "40021 01002 25911900201 45",
     mailFromEmail: "2ref@2r-hub.com",
     mailReplyTo: "2ref@2r-hub.com",
-    managerName: "",
+    managerName: "M. Richard BICKAPA NIONGUI",
     stampUrl: "",
   },
   conseil: {
@@ -116,7 +116,7 @@ export const COMPANY_DEFAULTS: Record<Cabinet, CompanyInfo> = {
     bankAccount: "40003 04130 41051542011 61",
     mailFromEmail: "2rconseil@2r-hub.com",
     mailReplyTo: "2rconseil@2r-hub.com",
-    managerName: "",
+    managerName: "M. Romaric BOULINGUI",
     stampUrl: "",
   },
 };

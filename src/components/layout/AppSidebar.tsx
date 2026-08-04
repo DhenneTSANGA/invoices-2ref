@@ -6,7 +6,8 @@ import { cn } from "@/lib/utils";
 import { Logo } from "@/components/common/Logo";
 import { CABINET_LABELS } from "@/lib/cabinets";
 import { canSwitchCabinet, isAdmin, isSuperAdmin, roleLabel } from "@/lib/roles";
-import { primaryNav, secondaryNav, navForRole } from "./nav-items";
+import { primaryNav, secondaryNav, navForRole, type NavItem } from "./nav-items";
+import { NavIcon } from "./NavIcon";
 import { CabinetSwitcher } from "./CabinetSwitcher";
 
 function selectPathname(s: { location: { pathname: string } }) {
@@ -173,7 +174,7 @@ function NavSection({
   title, items, pathname, collapsed,
 }: {
   title: string;
-  items: { to: string; label: string; icon: typeof ChevronLeft }[];
+  items: NavItem[];
   pathname: string;
   collapsed: boolean;
 }) {
@@ -200,8 +201,12 @@ function NavSection({
                     transition={{ type: "spring", stiffness: 350, damping: 30 }}
                   />
                 )}
-                <item.icon className={cn("relative h-4.5 w-4.5 shrink-0", active && "drop-shadow")} />
-                {!collapsed && <span className="relative truncate">{item.label}</span>}
+                <NavIcon
+                  icon={item.icon}
+                  motion={item.iconMotion}
+                  className={cn("relative z-[1]", active && "drop-shadow")}
+                />
+                {!collapsed && <span className="relative z-[1] truncate">{item.label}</span>}
               </Link>
             </li>
           );
