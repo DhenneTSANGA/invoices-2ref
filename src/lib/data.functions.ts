@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { Cabinet, DocumentType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { formatPrismaError, isPrismaColumnMissing } from "@/lib/prisma-errors";
 import { mapClient, mapDocument, mapService, mapCompany, mapNotification } from "@/lib/mappers";
 import { clientInputSchema, documentInputSchema, companyInputSchema, clientFicheUploadSchema, serviceInputSchema } from "@/lib/auth-schemas";
 import {
@@ -468,6 +469,16 @@ export const peekNextDocumentNumber = createServerFn({ method: "GET" })
 export const upsertDocument = createServerFn({ method: "POST" })
   .validator(documentInputSchema)
   .handler(async ({ data }) => {
+    try {
+      return await upsertDocumentHandler(data);
+    } catch (err) {
+      throw new Error(formatPrismaError(err, "Création / enregistrement du document impossible"));
+    }
+  });
+
+async function upsertDocumentHandler(
+  data: z.infer<typeof documentInputSchema>,
+) {
     const session = await requireSession();
     const { staff, activeCabinet } = session;
     await assertClientInCabinet(data.clientId, activeCabinet);
@@ -475,15 +486,23 @@ export const upsertDocument = createServerFn({ method: "POST" })
     const commercial = data.type === "invoice" || data.type === "quotation";
 
     const lines = data.items.map((item, position) => ({
-      id: item.id,
-      serviceId: item.serviceId ?? null,
+      serviceId:
+        item.serviceId && item.serviceId.trim() ? item.serviceId.trim() : null,
       description: item.description,
-      quantity: item.quantity,
-      unitPrice: item.unitPrice,
-      vatRate: item.vatRate,
-      discount: commercial ? 0 : (item.discount ?? 0),
-      tpsRate: commercial ? 0 : (item.tpsRate ?? 0),
-      cssRate: commercial ? (item.cssRate ?? 0) : (item.cssRate ?? 0),
+      quantity: Number.isFinite(item.quantity) ? item.quantity : 0,
+      unitPrice: Number.isFinite(item.unitPrice) ? item.unitPrice : 0,
+      vatRate: Number.isFinite(item.vatRate) ? item.vatRate : 0,
+      discount: commercial
+        ? 0
+        : Number.isFinite(item.discount)
+          ? item.discount
+          : 0,
+      tpsRate: commercial
+        ? 0
+        : Number.isFinite(item.tpsRate)
+          ? item.tpsRate
+          : 0,
+      cssRate: Number.isFinite(item.cssRate) ? item.cssRate ?? 0 : 0,
       position,
     }));
 
@@ -496,6 +515,10 @@ export const upsertDocument = createServerFn({ method: "POST" })
       );
     }
 
+    const docDiscount = commercial
+      ? Math.min(100, Math.max(0, Number(data.discount) || 0))
+      : 0;
+
     const docData = {
       cabinet: activeCabinet,
       type: data.type,
@@ -505,13 +528,15 @@ export const upsertDocument = createServerFn({ method: "POST" })
       status: data.status,
       issueDate: new Date(data.issueDate),
       dueDate: new Date(data.dueDate),
-      subtotal: data.subtotal,
-      discount: commercial ? (data.discount ?? 0) : 0,
+      subtotal: Number.isFinite(data.subtotal) ? data.subtotal : 0,
+      discount: docDiscount,
       tps: commercial ? 0 : (data.tps ?? 0),
       css: commercial ? (data.css ?? 0) : (data.css ?? 0),
-      vat: data.vat,
+      vat: Number.isFinite(data.vat) ? data.vat : 0,
       total: commercial
-        ? data.subtotal + (data.css ?? 0) + data.vat
+        ? (Number.isFinite(data.subtotal) ? data.subtotal : 0) +
+          (data.css ?? 0) +
+          (Number.isFinite(data.vat) ? data.vat : 0)
         : data.total,
       currency: data.currency,
       notes: data.notes ?? null,
@@ -535,29 +560,47 @@ export const upsertDocument = createServerFn({ method: "POST" })
         throw new Error("Accès refusé — document en lecture seule");
       }
 
-      const updated = await prisma.document.update({
-        where: { id: data.id },
-        data: {
-          ...docData,
-          createdById: existing.createdById,
-          lines: {
-            deleteMany: {},
-            create: lines.map(({ id: _id, ...l }) => l),
+      let updated;
+      try {
+        updated = await prisma.document.update({
+          where: { id: data.id },
+          data: {
+            ...docData,
+            createdById: existing.createdById,
+            lines: {
+              deleteMany: {},
+              create: lines,
+            },
           },
-        },
-        include: docInclude,
-      });
-    if (
-      (existing.type === "letter" ||
-        existing.type === "invoice" ||
-        existing.type === "quotation") &&
-      existing.status === "draft"
-    ) {
-      const { cancelPendingLetterSignatures } = await import(
-        "@/lib/letter-signature.functions"
-      );
-      await cancelPendingLetterSignatures(existing.id);
-    }
+          include: docInclude,
+        });
+      } catch (err) {
+        if (!isPrismaColumnMissing(err, "discount")) throw err;
+        const { discount: _d, ...withoutDiscount } = docData;
+        updated = await prisma.document.update({
+          where: { id: data.id },
+          data: {
+            ...withoutDiscount,
+            createdById: existing.createdById,
+            lines: {
+              deleteMany: {},
+              create: lines,
+            },
+          },
+          include: docInclude,
+        });
+      }
+      if (
+        (existing.type === "letter" ||
+          existing.type === "invoice" ||
+          existing.type === "quotation") &&
+        existing.status === "draft"
+      ) {
+        const { cancelPendingLetterSignatures } = await import(
+          "@/lib/letter-signature.functions"
+        );
+        await cancelPendingLetterSignatures(existing.id);
+      }
       if (existing.status !== data.status) {
         await broadcastDocumentStatusChange({
           actorStaffId: staff.id,
@@ -572,13 +615,26 @@ export const upsertDocument = createServerFn({ method: "POST" })
       return mapDocument(updated);
     }
 
-    const created = await prisma.document.create({
-      data: {
-        ...docData,
-        lines: { create: lines.map(({ id: _id, ...l }) => l) },
-      },
-      include: docInclude,
-    });
+    let created;
+    try {
+      created = await prisma.document.create({
+        data: {
+          ...docData,
+          lines: { create: lines },
+        },
+        include: docInclude,
+      });
+    } catch (err) {
+      if (!isPrismaColumnMissing(err, "discount")) throw err;
+      const { discount: _d, ...withoutDiscount } = docData;
+      created = await prisma.document.create({
+        data: {
+          ...withoutDiscount,
+          lines: { create: lines },
+        },
+        include: docInclude,
+      });
+    }
     if (data.status !== "draft") {
       await broadcastDocumentStatusChange({
         actorStaffId: staff.id,
@@ -591,7 +647,7 @@ export const upsertDocument = createServerFn({ method: "POST" })
       });
     }
     return mapDocument(created);
-  });
+}
 
 export const setDocumentStatus = createServerFn({ method: "POST" })
   .validator(

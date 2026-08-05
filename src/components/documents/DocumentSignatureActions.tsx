@@ -23,7 +23,7 @@ type Props = {
 /**
  * Actions signature en ligne (courriel / facture / devis).
  * - Membre : Demander la signature
- * - Admin : Signer / Refuser
+ * - Admin / SA : Signer / Refuser (après consultation de l’aperçu)
  * Le PDF reste disponible pour signature physique.
  */
 export function DocumentSignatureActions({
@@ -49,6 +49,7 @@ export function DocumentSignatureActions({
     doc.status === "sent" ||
     doc.status === "paid";
 
+  /** Membres (créateur) : demander une signature — admin / SA signent directement. */
   const canRequest =
     !alreadySigned &&
     doc.status === "draft" &&
@@ -56,7 +57,8 @@ export function DocumentSignatureActions({
     isCreator &&
     !adminLike;
 
-  const canSign = adminLike && !alreadySigned && doc.status === "draft" && previewSeen;
+  const canSign =
+    adminLike && !alreadySigned && doc.status === "draft" && previewSeen;
 
   if (alreadySigned) return null;
 
@@ -151,6 +153,11 @@ export function DocumentSignatureActions({
         >
           <Ban className="h-4 w-4" /> Refuser
         </button>
+      )}
+      {adminLike && !previewSeen && doc.status === "draft" && (
+        <span className="text-xs text-muted-foreground">
+          Consultez l’aperçu pour activer la signature.
+        </span>
       )}
     </div>
   );

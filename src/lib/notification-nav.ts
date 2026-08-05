@@ -41,6 +41,17 @@ export function notificationNavTarget(n: NotificationItem): {
     if (n.documentType === "quotation") {
       return { to: "/quotations/$id", params: { id: n.documentId } };
     }
+    if (n.documentType === "letter") {
+      return { to: "/lettre/$id", params: { id: n.documentId } };
+    }
+    // Fallback si le type n’est pas joint : déduire du libellé de la notif
+    const body = `${n.title} ${n.body}`.toLowerCase();
+    if (body.includes("facture")) {
+      return { to: "/invoices/$id", params: { id: n.documentId } };
+    }
+    if (body.includes("devis")) {
+      return { to: "/quotations/$id", params: { id: n.documentId } };
+    }
     return { to: "/lettre/$id", params: { id: n.documentId } };
   }
 

@@ -206,12 +206,12 @@ export const lineItemSchema = z.object({
   id: z.string().optional(),
   serviceId: z.string().optional().nullable(),
   description: z.string(),
-  quantity: z.number(),
-  unitPrice: z.number(),
-  vatRate: z.number(),
-  discount: z.number().default(0),
-  tpsRate: z.number().default(0),
-  cssRate: z.number().default(0),
+  quantity: z.coerce.number(),
+  unitPrice: z.coerce.number(),
+  vatRate: z.coerce.number(),
+  discount: z.coerce.number().optional().default(0),
+  tpsRate: z.coerce.number().optional().default(0),
+  cssRate: z.coerce.number().optional().default(0),
 });
 
 export const documentInputSchema = z.object({
@@ -246,9 +246,9 @@ export const documentInputSchema = z.object({
   items: z.array(lineItemSchema),
   subtotal: z.number(),
   /** Remise globale % sur le HT (factures / devis). */
-  discount: z.number().min(0).max(100).default(0),
-  tps: z.number().default(0),
-  css: z.number().default(0),
-  vat: z.number(),
-  total: z.number(),
+  discount: z.coerce.number().min(0).max(100).optional().default(0),
+  tps: z.coerce.number().optional().default(0),
+  css: z.coerce.number().optional().default(0),
+  vat: z.coerce.number(),
+  total: z.coerce.number(),
 });

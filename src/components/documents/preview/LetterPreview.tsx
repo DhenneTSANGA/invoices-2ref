@@ -6,6 +6,7 @@ import { DOCUMENT_COLORS } from "@/lib/cabinets";
 import { LegalFooter, PreviewLogo, PreviewShell } from "./PreviewShell";
 import { ManagerSignature } from "@/components/signature/ManagerSignature";
 import { clientLetterRecipientLines } from "@/lib/client-address";
+import { cn } from "@/lib/utils";
 
 type Props = { doc: Document; compact?: boolean; variant?: "full" | "thumb"; className?: string };
 
@@ -15,6 +16,7 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
 ) {
   const { company, client } = usePreviewData(doc);
   const isThumb = variant === "thumb";
+  const dense = Boolean(compact);
   const { accent, accentTo } = DOCUMENT_COLORS.letter;
   const city = (company.city.split(",")[0] || company.city).trim();
   const showStamp = doc.status === "signed" || doc.status === "sent";
@@ -37,25 +39,28 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
       isThumb={isThumb}
       className={className}
     >
-      <div className="flex items-start justify-between gap-4">
-        <PreviewLogo cabinet={doc.cabinet} className="h-28" />
-        <div className="pt-2 text-right text-[13px] text-[#475569]">
+      <div className={cn("flex items-start justify-between", dense ? "gap-3" : "gap-4")}>
+        <PreviewLogo cabinet={doc.cabinet} compact={dense} className={dense ? "h-14" : "h-28"} />
+        <div className={cn("text-right text-[#475569]", dense ? "pt-1 text-[11px]" : "pt-2 text-[13px]")}>
           {city}, le {longDate(doc.issueDate)}.
         </div>
       </div>
 
-      <div className="mt-10 flex justify-end">
+      <div className={cn("flex justify-end", dense ? "mt-5" : "mt-10")}>
         <div
-          className="w-[52%] whitespace-pre-line rounded-lg border-2 p-3.5 text-[13.5px] leading-[1.55]"
+          className={cn(
+            "w-[52%] whitespace-pre-line rounded-lg border-2 leading-[1.45]",
+            dense ? "p-2.5 text-[12px]" : "p-3.5 text-[13.5px] leading-[1.55]",
+          )}
           style={{ borderColor: `${accent}33` }}
         >
           <div
-            className="text-[11px] font-bold uppercase tracking-wider"
+            className={cn("font-bold uppercase tracking-wider", dense ? "text-[9px]" : "text-[11px]")}
             style={{ color: accent }}
           >
             Destinataire
           </div>
-          <div className="mt-1.5 text-[#0F172A]">
+          <div className={cn("text-[#0F172A]", dense ? "mt-1" : "mt-1.5")}>
             {recipientLines || (
               <span className="italic text-[#94A3B8]">Destinataire à renseigner</span>
             )}
@@ -64,7 +69,7 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
       </div>
 
       <div
-        className="mt-6 rounded-lg p-3.5 text-[13.5px] leading-[1.55]"
+        className={cn("rounded-lg leading-[1.45]", dense ? "mt-3 p-2.5 text-[12px]" : "mt-6 p-3.5 text-[13.5px] leading-[1.55]")}
         style={{
           background: `linear-gradient(135deg, ${accent}08, ${accentTo}12)`,
         }}
@@ -75,7 +80,7 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
           </span>{" "}
           <span className="font-semibold text-[#0F172A]">{doc.number}</span>
         </div>
-        <div className="mt-1.5">
+        <div className={dense ? "mt-1" : "mt-1.5"}>
           <span className="font-bold" style={{ color: accent }}>
             Objet :
           </span>{" "}
@@ -84,33 +89,43 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
       </div>
 
       {doc.salutation?.trim() ? (
-        <div className="mt-7 text-[14px] leading-[1.7] text-[#0F172A]">
+        <div className={cn("text-[#0F172A]", dense ? "mt-4 text-[12.5px] leading-[1.55]" : "mt-7 text-[14px] leading-[1.7]")}>
           {doc.salutation.trim()}
         </div>
       ) : null}
 
-      <div className="mt-4 flex-1 whitespace-pre-line text-[13.5px] leading-[1.75] text-justify text-[#1E293B]">
+      <div
+        className={cn(
+          "flex-1 whitespace-pre-line text-justify text-[#1E293B]",
+          dense ? "mt-2.5 text-[12px] leading-[1.55]" : "mt-4 text-[13.5px] leading-[1.75]",
+        )}
+      >
         {doc.body?.trim() || ""}
       </div>
 
       {doc.closing?.trim() ? (
-        <div className="mt-7 whitespace-pre-line text-[13.5px] leading-[1.7] text-justify text-[#1E293B]">
+        <div
+          className={cn(
+            "whitespace-pre-line text-justify text-[#1E293B]",
+            dense ? "mt-4 text-[12px] leading-[1.55]" : "mt-7 text-[13.5px] leading-[1.7]",
+          )}
+        >
           {doc.closing.trim()}
         </div>
       ) : null}
 
-      <div className="mt-10 flex justify-end">
+      <div className={cn("flex justify-end", dense ? "mt-5" : "mt-10")}>
         <ManagerSignature
           signatureUrl={stampUrl}
           managerName={managerName}
           signatoryTitle={signatoryTitle}
           applied={showStamp}
           accent={accent}
-          compact={isThumb}
+          compact={dense || isThumb}
         />
       </div>
 
-      <LegalFooter {...company} niuLabel={niuLabel} />
+      <LegalFooter {...company} niuLabel={niuLabel} compact={dense} />
     </PreviewShell>
   );
 });

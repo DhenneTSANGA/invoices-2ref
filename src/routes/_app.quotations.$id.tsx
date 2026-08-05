@@ -138,8 +138,24 @@ function QuotationDetail() {
       />
 
       {doc.status === "draft" && (
+        <div className="glass-panel mb-4 rounded-3xl p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 className="font-display text-sm font-semibold">Signature</h3>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {adminLike
+                  ? "Relisez l’aperçu puis signez (ou refusez la demande). Le PDF reste disponible pour une signature physique."
+                  : "Demandez la signature du gérant (notification). Vous pouvez aussi télécharger le PDF pour une signature physique."}
+              </p>
+            </div>
+            <DocumentSignatureActions doc={doc} previewSeen={previewSeen} />
+          </div>
+        </div>
+      )}
+
+      {doc.status === "draft" && (
         <p className="mb-4 text-xs text-muted-foreground">
-          Signature en ligne (gérant distant) ou PDF pour signature physique. L’envoi e-mail nécessite le statut « Signé ».
+          L’envoi e-mail nécessite le statut « Signé ».
         </p>
       )}
 

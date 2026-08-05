@@ -25,7 +25,8 @@ function uint8ToBase64(bytes: Uint8Array): string {
 }
 
 /**
- * Capture un nœud DOM déjà monté et layouté → bytes PDF A4.
+ * Capture un nœud DOM déjà monté et layouté → bytes PDF A4 (toujours 1 page).
+ * Si le contenu dépasse, il est réduit proportionnellement pour tenir dans la page.
  */
 export async function buildDocumentPdf(
   element: HTMLElement,
@@ -88,25 +89,22 @@ export async function buildDocumentPdf(
   const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
-  const margin = 6;
+  const margin = 5;
   const usableWidth = pageWidth - margin * 2;
   const usableHeight = pageHeight - margin * 2;
 
-  const imgWidth = usableWidth;
-  const imgHeight = (height * imgWidth) / width;
+  // Dimensions naturelles (largeur = zone utile)
+  const naturalW = usableWidth;
+  const naturalH = (height * naturalW) / width;
 
-  let heightLeft = imgHeight;
-  let position = margin;
+  // Toujours une seule page : réduire si besoin, ne jamais agrandir
+  const fit = Math.min(1, usableWidth / naturalW, usableHeight / naturalH);
+  const finalW = naturalW * fit;
+  const finalH = naturalH * fit;
+  const x = margin + (usableWidth - finalW) / 2;
+  const y = margin + (usableHeight - finalH) / 2;
 
-  pdf.addImage(dataUrl, "JPEG", margin, position, imgWidth, imgHeight);
-  heightLeft -= usableHeight;
-
-  while (heightLeft > 1) {
-    position = margin - (imgHeight - heightLeft);
-    pdf.addPage();
-    pdf.addImage(dataUrl, "JPEG", margin, position, imgWidth, imgHeight);
-    heightLeft -= usableHeight;
-  }
+  pdf.addImage(dataUrl, "JPEG", x, y, finalW, finalH);
 
   const safeName = filename.replace(/[^\w.\-]+/g, "_");
   const fileName = safeName.endsWith(".pdf") ? safeName : `${safeName}.pdf`;

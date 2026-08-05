@@ -18,6 +18,7 @@ import {
   clientRepresentativeLine,
   formatClientBp,
 } from "@/lib/client-address";
+import { cn } from "@/lib/utils";
 
 type Props = { doc: Document; compact?: boolean; variant?: "full" | "thumb"; className?: string };
 
@@ -35,6 +36,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
 ) {
   const { company, client } = usePreviewData(doc);
   const isThumb = variant === "thumb";
+  const dense = Boolean(compact);
   const { accent, accentTo } = DOCUMENT_COLORS.invoice;
 
   const emitterLines = partyAddressLines([
@@ -59,26 +61,52 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
 
   return (
     <PreviewShell innerRef={ref} accent={accent} compact={compact} isThumb={isThumb} className={className}>
-      <div className="flex items-start justify-between gap-4 border-b-2 pb-5" style={{ borderColor: accent }}>
-        <div className="flex min-w-0 items-center gap-3">
-          <PreviewLogo cabinet={doc.cabinet} className="h-32" />
+      <div
+        className={cn(
+          "flex items-start justify-between border-b-2",
+          dense ? "gap-3 pb-2.5" : "gap-4 pb-5",
+        )}
+        style={{ borderColor: accent }}
+      >
+        <div className="flex min-w-0 items-center gap-2.5">
+          <PreviewLogo cabinet={doc.cabinet} compact={dense} className={dense ? "h-16" : "h-32"} />
           <div className="min-w-0">
-            <div className="font-display text-xl font-bold tracking-tight leading-tight" style={{ color: accent }}>
+            <div
+              className={cn(
+                "font-display font-bold tracking-tight leading-tight",
+                dense ? "text-base" : "text-xl",
+              )}
+              style={{ color: accent }}
+            >
               {company.name}
             </div>
             {company.tagline ? (
-              <div className="mt-0.5 text-[12px] leading-snug text-[#64748B]">{company.tagline}</div>
+              <div className={cn("mt-0.5 leading-snug text-[#64748B]", dense ? "text-[10px]" : "text-[12px]")}>
+                {company.tagline}
+              </div>
             ) : null}
           </div>
         </div>
         <div className="shrink-0 text-right">
-          <div className="font-display text-[30px] font-bold uppercase tracking-wide" style={{ color: accent }}>FACTURE</div>
-          <div className="mt-1 text-[13px] font-semibold">N° {doc.number}</div>
-          <div className="text-[12px] text-[#64748B]">{longDate(doc.issueDate)}</div>
+          <div
+            className={cn(
+              "font-display font-bold uppercase tracking-wide",
+              dense ? "text-[22px]" : "text-[30px]",
+            )}
+            style={{ color: accent }}
+          >
+            FACTURE
+          </div>
+          <div className={cn("mt-0.5 font-semibold", dense ? "text-[11px]" : "text-[13px]")}>
+            N° {doc.number}
+          </div>
+          <div className={cn("text-[#64748B]", dense ? "text-[10px]" : "text-[12px]")}>
+            {longDate(doc.issueDate)}
+          </div>
         </div>
       </div>
 
-      <div className="mt-5 grid grid-cols-2 gap-6">
+      <div className={cn("grid grid-cols-2", dense ? "mt-2.5 gap-3" : "mt-5 gap-6")}>
         <PartyBlock
           title="Émetteur"
           accent="#64748B"
@@ -90,6 +118,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
           rccm={company.rccm}
           cnss={company.cnss}
           muted
+          compact={dense}
         />
         <PartyBlock
           title="Client"
@@ -102,32 +131,44 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
           cnss={client?.cnss}
           cnamgs={client?.cnamgs}
           bordered
+          compact={dense}
         />
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-x-6 gap-y-1 text-[12px] text-[#475569]">
+      <div
+        className={cn(
+          "flex flex-wrap text-[#475569]",
+          dense ? "mt-2 gap-x-5 gap-y-0.5 text-[10px]" : "mt-4 gap-x-6 gap-y-1 text-[12px]",
+        )}
+      >
         <span>Date d'émission : <b className="text-[#0F172A]">{longDate(doc.issueDate)}</b></span>
         <span>Échéance : <b className="text-[#0F172A]">{longDate(doc.dueDate)}</b></span>
         {doc.paymentTerms && <span>Conditions : <b className="text-[#0F172A]">{doc.paymentTerms}</b></span>}
       </div>
 
-      <ItemsTable doc={doc} headerFrom={accent} headerTo={accentTo} />
+      <ItemsTable doc={doc} headerFrom={accent} headerTo={accentTo} compact={dense} />
 
       <PreviewBottomRow
+        compact={dense}
         left={
           company.bankName || company.bankAccount ? (
-            <div className="rounded-lg bg-[#F1F5F9] p-3.5">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-[#64748B]">
+            <div className={cn("rounded-lg bg-[#F1F5F9]", dense ? "p-2.5" : "p-3.5")}>
+              <div
+                className={cn(
+                  "font-bold uppercase tracking-wider text-[#64748B]",
+                  dense ? "text-[9px]" : "text-[11px]",
+                )}
+              >
                 RIB pour le règlement
               </div>
               {company.bankName ? (
-                <div className="mt-1 text-[12px] text-[#334155]">
+                <div className={cn("mt-0.5 text-[#334155]", dense ? "text-[10px]" : "text-[12px]")}>
                   <span className="text-[#64748B]">Banque : </span>
                   {company.bankName}
                 </div>
               ) : null}
               {company.bankAccount ? (
-                <div className="mt-0.5 break-words text-[12px] text-[#334155]">
+                <div className={cn("break-words text-[#334155]", dense ? "text-[10px]" : "mt-0.5 text-[12px]")}>
                   <span className="text-[#64748B]">RIB : </span>
                   {company.bankAccount}
                 </div>
@@ -137,30 +178,43 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
             <div />
           )
         }
-        right={<TotalsBlock doc={doc} accent={accent} />}
+        right={<TotalsBlock doc={doc} accent={accent} compact={dense} />}
       />
 
-      <div className="mt-4 w-full">
-        <AmountInWords amount={doc.total} currency={doc.currency} accent={accent} />
+      <div className={cn("w-full", dense ? "mt-2" : "mt-4")}>
+        <AmountInWords amount={doc.total} currency={doc.currency} accent={accent} compact={dense} />
       </div>
 
-      <div className="mt-4 flex justify-end">
+      <div className={cn("flex justify-end", dense ? "mt-2" : "mt-4")}>
         <ManagerSignature
           applied={doc.status === "signed" || doc.status === "sent" || doc.status === "paid"}
           managerName={company.managerName?.trim() || ""}
           signatureUrl={company.stampUrl?.trim() || ""}
           signatoryTitle="Le Gérant"
           accent={accent}
+          compact={dense}
         />
       </div>
 
-      <LegalFooter {...company} niuLabel={doc.cabinet === "conseil" ? "STAT" : "NIU"} />
+      <LegalFooter {...company} niuLabel={doc.cabinet === "conseil" ? "STAT" : "NIU"} compact={dense} />
     </PreviewShell>
   );
 });
 
 function PartyBlock({
-  title, accent, name, lines, nif, niu, niuLabel = "NIU", rccm, cnss, cnamgs, muted, bordered,
+  title,
+  accent,
+  name,
+  lines,
+  nif,
+  niu,
+  niuLabel = "NIU",
+  rccm,
+  cnss,
+  cnamgs,
+  muted,
+  bordered,
+  compact,
 }: {
   title: string;
   accent: string;
@@ -174,6 +228,7 @@ function PartyBlock({
   cnamgs?: string;
   muted?: boolean;
   bordered?: boolean;
+  compact?: boolean;
 }) {
   const ids = [
     nif && nif !== "—" ? { label: "NIF", value: nif } : null,
@@ -183,26 +238,50 @@ function PartyBlock({
     cnamgs ? { label: "CNAMGS", value: cnamgs } : null,
   ].filter(Boolean) as Array<{ label: string; value: string }>;
 
+  const pad = compact ? "p-2.5" : "p-3.5";
+
   return (
     <div
       className={
         muted
-          ? "rounded-lg bg-[#F1F5F9] p-3.5"
+          ? `rounded-lg bg-[#F1F5F9] ${pad}`
           : bordered
-            ? "rounded-lg border-2 p-3.5"
-            : "rounded-lg p-3.5"
+            ? `rounded-lg border-2 ${pad}`
+            : `rounded-lg ${pad}`
       }
       style={bordered ? { borderColor: `${accent}33` } : undefined}
     >
-      <div className="text-[11px] font-bold uppercase tracking-wider" style={{ color: accent }}>{title}</div>
+      <div
+        className={cn("font-bold uppercase tracking-wider", compact ? "text-[9px]" : "text-[11px]")}
+        style={{ color: accent }}
+      >
+        {title}
+      </div>
       {name ? (
         <>
-          <div className="mt-1.5 text-[14px] font-semibold leading-snug break-words">{name}</div>
+          <div
+            className={cn(
+              "font-semibold leading-snug break-words",
+              compact ? "mt-1 text-[12px]" : "mt-1.5 text-[14px]",
+            )}
+          >
+            {name}
+          </div>
           {lines?.map((l, i) => (
-            <div key={i} className="text-[12px] leading-snug text-[#475569] break-words">{l}</div>
+            <div
+              key={i}
+              className={cn("leading-snug text-[#475569] break-words", compact ? "text-[10px]" : "text-[12px]")}
+            >
+              {l}
+            </div>
           ))}
           {ids.length > 0 && (
-            <div className="mt-1.5 grid grid-cols-1 gap-y-0.5 text-[11px] text-[#475569] sm:grid-cols-2 sm:gap-x-2">
+            <div
+              className={cn(
+                "grid grid-cols-1 gap-y-0.5 text-[#475569] sm:grid-cols-2 sm:gap-x-2",
+                compact ? "mt-1 text-[9px]" : "mt-1.5 text-[11px]",
+              )}
+            >
               {ids.map((id) => (
                 <span
                   key={id.label}
@@ -219,7 +298,9 @@ function PartyBlock({
           )}
         </>
       ) : (
-        <div className="mt-2 text-[12px] italic text-[#94A3B8]">Sélectionnez un client…</div>
+        <div className={cn("italic text-[#94A3B8]", compact ? "mt-1 text-[10px]" : "mt-2 text-[12px]")}>
+          Sélectionnez un client…
+        </div>
       )}
     </div>
   );
@@ -230,29 +311,32 @@ function ItemsTable({
   doc,
   headerFrom,
   headerTo,
+  compact,
 }: {
   doc: Document;
   headerFrom: string;
   headerTo: string;
+  compact?: boolean;
   /** @deprecated Ignoré — taxes uniquement dans les totaux. */
   showTaxColumns?: boolean;
 }) {
+  const cell = compact ? "px-2 py-1.5" : "px-2.5 py-2.5";
   return (
-    <div className="mt-4 overflow-hidden rounded-lg ring-1 ring-[#E2E8F0]">
-      <table className="w-full border-collapse text-[12px]">
+    <div className={cn("overflow-hidden rounded-lg ring-1 ring-[#E2E8F0]", compact ? "mt-2" : "mt-4")}>
+      <table className={cn("w-full border-collapse", compact ? "text-[10px]" : "text-[12px]")}>
         <thead>
           <tr style={{ background: `linear-gradient(90deg, ${headerFrom}, ${headerTo})` }} className="text-white">
-            <th className="px-2.5 py-2.5 text-left font-semibold w-9">#</th>
-            <th className="px-2.5 py-2.5 text-left font-semibold">Désignation</th>
-            <th className="px-2.5 py-2.5 text-right font-semibold w-12">Qté</th>
-            <th className="px-2.5 py-2.5 text-right font-semibold w-20">P.U. HT</th>
-            <th className="px-2.5 py-2.5 text-right font-semibold w-24">Total HT</th>
+            <th className={cn(cell, "w-8 text-left font-semibold")}>#</th>
+            <th className={cn(cell, "text-left font-semibold")}>Désignation</th>
+            <th className={cn(cell, "w-10 text-right font-semibold")}>Qté</th>
+            <th className={cn(cell, "w-16 text-right font-semibold")}>P.U. HT</th>
+            <th className={cn(cell, "w-20 text-right font-semibold")}>Total HT</th>
           </tr>
         </thead>
         <tbody>
           {doc.items.length === 0 && (
             <tr>
-              <td colSpan={5} className="px-3 py-6 text-center italic text-[#94A3B8]">
+              <td colSpan={5} className={cn(cell, "text-center italic text-[#94A3B8]")}>
                 Aucune ligne.
               </td>
             </tr>
@@ -261,13 +345,15 @@ function ItemsTable({
             const lineTotal = it.quantity * it.unitPrice;
             return (
               <tr key={it.id} className={i % 2 === 0 ? "bg-white" : "bg-[#F8FAFC]"}>
-                <td className="px-2.5 py-2.5 align-top text-[#64748B]">{String(i + 1).padStart(2, "0")}</td>
-                <td className="px-2.5 py-2.5 align-top leading-snug">
-                  {it.description}
+                <td className={cn(cell, "align-top text-[#64748B]")}>
+                  {String(i + 1).padStart(2, "0")}
                 </td>
-                <td className="px-2.5 py-2.5 text-right align-top font-mono">{it.quantity}</td>
-                <td className="px-2.5 py-2.5 text-right align-top font-mono">{number(it.unitPrice)}</td>
-                <td className="px-2.5 py-2.5 text-right align-top font-mono font-semibold">{number(lineTotal)}</td>
+                <td className={cn(cell, "align-top leading-snug")}>{it.description}</td>
+                <td className={cn(cell, "text-right align-top font-mono")}>{it.quantity}</td>
+                <td className={cn(cell, "text-right align-top font-mono")}>{number(it.unitPrice)}</td>
+                <td className={cn(cell, "text-right align-top font-mono font-semibold")}>
+                  {number(lineTotal)}
+                </td>
               </tr>
             );
           })}
@@ -294,9 +380,11 @@ function StampBox({ accent, label = "Signature & Cachet" }: { accent: string; la
 function TotalsBlock({
   doc,
   accent,
+  compact,
 }: {
   doc: Document;
   accent: string;
+  compact?: boolean;
 }) {
   const { vatRate, cssRate } = documentTaxRates(doc.items);
   const discountPct = doc.discount ?? 0;
@@ -313,13 +401,14 @@ function TotalsBlock({
   const total = doc.total || computed.total;
 
   return (
-    <div className="w-full space-y-2">
+    <div className="w-full">
       <div className="overflow-hidden rounded-lg ring-1 ring-[#E2E8F0]">
         <AmountRow
           label="Sous-total HT"
           value={number(grossSubtotal)}
           currency={doc.currency}
           accent={accent}
+          compact={compact}
         />
         {discountAmount > 0 ? (
           <AmountRow
@@ -327,6 +416,7 @@ function TotalsBlock({
             value={number(-discountAmount)}
             currency={doc.currency}
             accent={accent}
+            compact={compact}
           />
         ) : null}
         {discountAmount > 0 ? (
@@ -335,6 +425,7 @@ function TotalsBlock({
             value={number(subtotal)}
             currency={doc.currency}
             accent={accent}
+            compact={compact}
           />
         ) : null}
         <AmountRow
@@ -342,12 +433,14 @@ function TotalsBlock({
           value={number(css)}
           currency={doc.currency}
           accent={accent}
+          compact={compact}
         />
         <AmountRow
           label={`TVA (${vatRate} %)`}
           value={number(vat)}
           currency={doc.currency}
           accent={accent}
+          compact={compact}
         />
         <AmountRow
           label="Total TTC"
@@ -355,6 +448,7 @@ function TotalsBlock({
           currency={doc.currency}
           strong
           accent={accent}
+          compact={compact}
         />
       </div>
     </div>

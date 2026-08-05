@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Plus, Trash2, Save, Send, Download, Eye, Loader2, Users, Check } from "lucide-react";
+import { Plus, Trash2, Save, Send, Download, Eye, Loader2, Users, Check, PenLine, Stamp } from "lucide-react";
 import { toast } from "sonner";
 import {
   computeTotals,
@@ -19,8 +19,19 @@ import { downloadDocumentPdf } from "@/lib/pdf/downloadDocumentPdf";
 import { number } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { LoadingState } from "@/components/common/LoadingState";
-import { useClients, useServices, useUpsertDocument, useSendDocumentEmail, useSession, usePeekNextDocumentNumber } from "@/hooks/use-data";
+import {
+  useClients,
+  useServices,
+  useUpsertDocument,
+  useSendDocumentEmail,
+  useSession,
+  usePeekNextDocumentNumber,
+  useRequestLetterSignature,
+  useSignLetterDocument,
+} from "@/hooks/use-data";
 import type { Cabinet } from "@/lib/cabinets";
+import { isAdmin } from "@/lib/roles";
+import { documentCanSendEmail } from "@/components/documents/DocumentSignatureActions";
 
 type Props = { initial?: Document; type: DocumentType };
 
@@ -45,9 +56,12 @@ export function DocumentEditor({ initial, type }: Props) {
   const { data: services = [] } = useServices();
   const upsertMutation = useUpsertDocument();
   const sendEmailMutation = useSendDocumentEmail();
+  const requestSignMutation = useRequestLetterSignature();
+  const signMutation = useSignLetterDocument();
 
   const isNew = !initial;
   const commercial = type === "invoice" || type === "quotation";
+  const adminLike = session ? isAdmin(session.staff.role) : false;
 
   const [doc, setDoc] = useState<Document>(() => {
     if (!initial) return defaultDoc(type, "", activeCabinet);
@@ -268,6 +282,67 @@ export function DocumentEditor({ initial, type }: Props) {
         ? "/quotations"
         : "/lettre";
 
+  const detailPath = (id: string) =>
+    type === "invoice"
+      ? ({ to: "/invoices/$id" as const, params: { id } })
+      : type === "quotation"
+        ? ({ to: "/quotations/$id" as const, params: { id } })
+        : ({ to: "/lettre/$id" as const, params: { id } });
+
+  const alreadySigned = documentCanSendEmail(doc);
+
+  const buildPayload = (status: Document["status"] = "draft") => ({
+    ...(isPersistedId(merged.id) ? { id: merged.id } : {}),
+    type,
+    number: merged.number,
+    clientId: merged.clientId,
+    status: status === "sent" ? ("draft" as const) : status,
+    issueDate: merged.issueDate,
+    dueDate: merged.dueDate,
+    currency: merged.currency,
+    notes: merged.notes ?? null,
+    paymentTerms: type === "quotation" ? null : (merged.paymentTerms ?? null),
+    validityDays: merged.validityDays ?? null,
+    executionTerms: merged.executionTerms ?? null,
+    subject: merged.subject ?? null,
+    salutation: merged.salutation ?? null,
+    body: merged.body ?? null,
+    closing: merged.closing ?? null,
+    signatoryTitle: merged.signatoryTitle ?? null,
+    recipientOverride: merged.recipientOverride ?? null,
+    items: merged.items.map((it) => ({
+      id: isPersistedId(it.id) ? it.id : undefined,
+      serviceId: it.serviceId ?? null,
+      description: it.description,
+      quantity: it.quantity,
+      unitPrice: it.unitPrice,
+      vatRate: it.vatRate,
+      discount: commercial ? 0 : (it.discount ?? 0),
+      tpsRate: commercial ? 0 : (it.tpsRate ?? 0),
+      cssRate: commercial ? (it.cssRate ?? DEFAULT_CSS_RATE) : (it.cssRate ?? 0),
+    })),
+    subtotal: merged.subtotal,
+    discount: commercial ? (merged.discount ?? 0) : 0,
+    tps: commercial ? 0 : merged.tps,
+    css: commercial ? merged.css : merged.css,
+    vat: merged.vat,
+    total: merged.total,
+  });
+
+  const persistDraft = async () => {
+    if (!merged.clientId) {
+      toast.error("Sélectionnez un client");
+      return null;
+    }
+    if (commercial && merged.items.length === 0) {
+      toast.error("Ajoutez au moins une prestation");
+      return null;
+    }
+    const saved = await upsertMutation.mutateAsync(buildPayload("draft"));
+    setDoc((d) => ({ ...d, ...saved, id: saved.id }));
+    return saved;
+  };
+
   const save = async (status: Document["status"] = "draft") => {
     if (!merged.clientId) {
       toast.error("Sélectionnez un client");
@@ -275,57 +350,15 @@ export function DocumentEditor({ initial, type }: Props) {
     }
     setSaving(true);
     try {
-      const payload = {
-        ...(initial && isPersistedId(initial.id) ? { id: merged.id } : {}),
-        type,
-        number: merged.number,
-        clientId: merged.clientId,
-        status: status === "sent" ? ("draft" as const) : status,
-        issueDate: merged.issueDate,
-        dueDate: merged.dueDate,
-        currency: merged.currency,
-        notes: merged.notes ?? null,
-        paymentTerms: type === "quotation" ? null : (merged.paymentTerms ?? null),
-        validityDays: merged.validityDays ?? null,
-        executionTerms: merged.executionTerms ?? null,
-        subject: merged.subject ?? null,
-        salutation: merged.salutation ?? null,
-        body: merged.body ?? null,
-        closing: merged.closing ?? null,
-        signatoryTitle: merged.signatoryTitle ?? null,
-        recipientOverride: merged.recipientOverride ?? null,
-        items: merged.items.map((it) => ({
-          id: isPersistedId(it.id) ? it.id : undefined,
-          serviceId: it.serviceId ?? null,
-          description: it.description,
-          quantity: it.quantity,
-          unitPrice: it.unitPrice,
-          vatRate: it.vatRate,
-          discount: commercial ? 0 : (it.discount ?? 0),
-          tpsRate: commercial ? 0 : (it.tpsRate ?? 0),
-          cssRate: commercial ? (it.cssRate ?? DEFAULT_CSS_RATE) : (it.cssRate ?? 0),
-        })),
-        subtotal: merged.subtotal,
-        discount: commercial ? (merged.discount ?? 0) : 0,
-        tps: commercial ? 0 : merged.tps,
-        css: commercial ? merged.css : merged.css,
-        vat: merged.vat,
-        total: merged.total,
-      };
-      const saved = await upsertMutation.mutateAsync(payload);
+      const saved = await upsertMutation.mutateAsync(buildPayload(status));
+      setDoc((d) => ({ ...d, ...saved, id: saved.id }));
       if (status === "sent") {
         if (saved.status !== "signed" && saved.status !== "sent") {
           toast.success("Document enregistré", {
             description:
               "Demandez la signature (ou PDF physique) avant l’envoi e-mail.",
           });
-          if (type === "invoice") {
-            void navigate({ to: "/invoices/$id", params: { id: saved.id } });
-          } else if (type === "quotation") {
-            void navigate({ to: "/quotations/$id", params: { id: saved.id } });
-          } else {
-            void navigate({ to: listPath });
-          }
+          void navigate(detailPath(saved.id));
           return;
         }
         const emailed = await sendEmailMutation.mutateAsync(saved);
@@ -336,15 +369,47 @@ export function DocumentEditor({ initial, type }: Props) {
         toast.success("Document enregistré", { description: saved.number });
       }
       if (commercial) {
-        void navigate({
-          to: type === "invoice" ? "/invoices/$id" : "/quotations/$id",
-          params: { id: saved.id },
-        });
+        void navigate(detailPath(saved.id));
       } else {
         void navigate({ to: listPath });
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Enregistrement impossible");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const requestSignature = async () => {
+    setSaving(true);
+    try {
+      const saved = await persistDraft();
+      if (!saved) return;
+      await requestSignMutation.mutateAsync(saved.id);
+      toast.success("Demande de signature envoyée", {
+        description:
+          "Les administrateurs ont été notifiés. Ils doivent relire puis signer.",
+      });
+      void navigate(detailPath(saved.id));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Demande impossible");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const signNow = async () => {
+    setSaving(true);
+    try {
+      const saved = await persistDraft();
+      if (!saved) return;
+      await signMutation.mutateAsync(saved.id);
+      toast.success("Document signé", {
+        description: "Vous pouvez maintenant l’envoyer par e-mail.",
+      });
+      void navigate(detailPath(saved.id));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Signature impossible");
     } finally {
       setSaving(false);
     }
@@ -884,6 +949,28 @@ export function DocumentEditor({ initial, type }: Props) {
         >
           <Save className="h-4 w-4" /> Enregistrer
         </Button>
+        {commercial && !alreadySigned && !adminLike && (
+          <Button
+            className="rounded-xl bg-amber-600 text-white hover:bg-amber-600/90"
+            disabled={saving || requestSignMutation.isPending}
+            onClick={() => void requestSignature()}
+          >
+            <PenLine className="h-4 w-4" />
+            {requestSignMutation.isPending
+              ? "Demande…"
+              : "Demander la signature"}
+          </Button>
+        )}
+        {commercial && !alreadySigned && adminLike && (
+          <Button
+            className="rounded-xl bg-gradient-primary text-primary-foreground shadow-glow"
+            disabled={saving || signMutation.isPending}
+            onClick={() => void signNow()}
+          >
+            <Stamp className="h-4 w-4" />
+            {signMutation.isPending ? "Signature…" : "Signer"}
+          </Button>
+        )}
         <Button
           className="rounded-xl bg-gradient-primary text-primary-foreground shadow-glow hover:opacity-95"
           disabled={saving}
@@ -892,6 +979,14 @@ export function DocumentEditor({ initial, type }: Props) {
           <Send className="h-4 w-4" /> Envoyer
         </Button>
       </div>
+
+      {commercial && !alreadySigned ? (
+        <p className="text-right text-xs text-muted-foreground">
+          {adminLike
+            ? "En tant qu’administrateur, vous pouvez signer directement. L’envoi e-mail reste possible après signature (ou PDF physique)."
+            : "Option : demandez la signature du gérant (notification). Le PDF reste disponible pour une signature physique."}
+        </p>
+      ) : null}
 
       <DocumentPreviewModal
         doc={merged}
