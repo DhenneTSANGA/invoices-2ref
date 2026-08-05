@@ -24,44 +24,32 @@ export function PreviewShell({
   isThumb,
   innerRef,
 }: ShellProps) {
-  // compact = export PDF : densifié pour tenir sur une page A4
-  const fillPage = Boolean(compact);
+  // compact = export PDF : même typo/paddings que l’aperçu, sans ombre ni coins
+  const forPdf = Boolean(compact);
 
   return (
     <div
       ref={innerRef}
       data-document-preview
-      data-pdf-dense={fillPage ? "true" : undefined}
       className={cn(
         "mx-auto bg-white text-[#0F172A]",
-        fillPage
+        forPdf
           ? "rounded-none shadow-none ring-0"
           : "shadow-float ring-1 ring-black/5",
-        !fillPage && !isThumb && "rounded-2xl",
+        !forPdf && !isThumb && "rounded-2xl",
         isThumb ? "w-[820px] max-w-none overflow-hidden rounded-xl" : "w-full max-w-[820px]",
         className,
       )}
       style={{
         ["--preview-accent" as string]: accent,
-        ...(fillPage
-          ? { minHeight: A4_MIN_HEIGHT }
-          : !isThumb
-            ? { minHeight: A4_MIN_HEIGHT }
-            : undefined),
+        width: forPdf ? PREVIEW_WIDTH : undefined,
+        maxWidth: forPdf ? PREVIEW_WIDTH : undefined,
+        minHeight: !isThumb ? A4_MIN_HEIGHT : undefined,
       }}
     >
       <div
-        className={cn(
-          "flex flex-col",
-          fillPage
-            ? "min-h-[inherit] gap-0 p-4 pb-2.5 text-[12.5px] leading-snug"
-            : "min-h-full p-7 pb-5 text-[14px] leading-relaxed",
-        )}
-        style={
-          fillPage || !isThumb
-            ? { minHeight: A4_MIN_HEIGHT }
-            : undefined
-        }
+        className="flex min-h-full flex-col p-7 pb-5 text-[14px] leading-relaxed"
+        style={{ minHeight: !isThumb ? A4_MIN_HEIGHT : undefined }}
       >
         {children}
       </div>
@@ -213,38 +201,35 @@ export function AmountInWords({
   );
 }
 
-/** Rangée bas de document : contenu gauche + totaux collés à droite (fiable PDF). */
+/** Rangée bas de document : RIB / conditions + totaux (table = layout stable en capture PDF). */
 export function PreviewBottomRow({
   left,
   right,
-  compact,
+  compact: _compact,
 }: {
   left: ReactNode;
   right: ReactNode;
   compact?: boolean;
 }) {
   return (
-    <div
-      className={cn("flex items-start", compact ? "mt-2.5 gap-3" : "mt-4 gap-6")}
-      style={{
-        display: "flex",
-        alignItems: "flex-start",
-        gap: compact ? "12px" : "24px",
-      }}
+    <table
+      className="mt-4 w-full border-collapse"
+      style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}
     >
-      <div className="min-w-0 flex-1" style={{ flex: "1 1 0%", minWidth: 0 }}>
-        {left}
-      </div>
-      <div
-        className="shrink-0"
-        style={{
-          flex: compact ? "0 0 240px" : "0 0 280px",
-          width: compact ? 240 : 280,
-          maxWidth: compact ? 240 : 280,
-        }}
-      >
-        {right}
-      </div>
-    </div>
+      <tbody>
+        <tr>
+          <td
+            style={{
+              width: "58%",
+              verticalAlign: "top",
+              paddingRight: "20px",
+            }}
+          >
+            {left}
+          </td>
+          <td style={{ width: "42%", verticalAlign: "top" }}>{right}</td>
+        </tr>
+      </tbody>
+    </table>
   );
 }

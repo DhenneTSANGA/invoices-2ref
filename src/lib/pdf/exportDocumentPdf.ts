@@ -25,8 +25,9 @@ function uint8ToBase64(bytes: Uint8Array): string {
 }
 
 /**
- * Capture un nœud DOM déjà monté et layouté → bytes PDF A4 (toujours 1 page).
- * Si le contenu dépasse, il est réduit proportionnellement pour tenir dans la page.
+ * Capture un nœud DOM → PDF A4 **toujours sur 1 page**.
+ * Remplit la largeur ; si le contenu dépasse en hauteur, réduction
+ * proportionnelle légère (évite 2 pages avec seulement le pied / signature).
  */
 export async function buildDocumentPdf(
   element: HTMLElement,
@@ -34,77 +35,96 @@ export async function buildDocumentPdf(
 ): Promise<BuiltPdf> {
   await waitForPaint();
 
-  const width = Math.max(element.scrollWidth, element.offsetWidth, 820);
+  const width = 820;
   const height = Math.max(element.scrollHeight, element.offsetHeight, 1);
-  if (!width || !height) {
+  if (!height) {
     throw new Error("Le document n'a pas de dimensions capturables.");
   }
 
+  const prevWidth = element.style.width;
+  const prevMaxWidth = element.style.maxWidth;
+  element.style.width = `${width}px`;
+  element.style.maxWidth = `${width}px`;
+
   let dataUrl: string;
   try {
-    dataUrl = await toJpeg(element, {
-      quality: 0.95,
-      pixelRatio: 2,
-      backgroundColor: "#ffffff",
-      cacheBust: true,
-      width,
-      height,
-      skipFonts: true,
-      filter: (node) => {
-        if (!(node instanceof HTMLElement)) return true;
-        const tag = node.tagName.toLowerCase();
-        return tag !== "script" && tag !== "noscript";
-      },
-      style: {
-        transform: "none",
-        margin: "0",
-      },
-    });
-  } catch (err) {
-    const html2canvas = (await import("html2canvas")).default;
-    const canvas = await html2canvas(element, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: "#ffffff",
-      logging: false,
-      width,
-      height,
-      windowWidth: width,
-      windowHeight: height,
-      onclone: (_doc, cloned) => {
-        cloned.querySelectorAll("*").forEach((node) => {
-          const el = node as HTMLElement;
-          if (!el.style) return;
-          const cs = window.getComputedStyle(el);
-          el.style.color = cs.color;
-          el.style.backgroundColor = cs.backgroundColor;
-          el.style.borderColor = cs.borderColor;
-          el.style.boxShadow = "none";
-        });
-      },
-    });
-    dataUrl = canvas.toDataURL("image/jpeg", 0.95);
+    try {
+      dataUrl = await toJpeg(element, {
+        quality: 0.95,
+        pixelRatio: 2,
+        backgroundColor: "#ffffff",
+        cacheBust: true,
+        width,
+        height,
+        canvasWidth: width * 2,
+        canvasHeight: height * 2,
+        skipFonts: true,
+        filter: (node) => {
+          if (!(node instanceof HTMLElement)) return true;
+          const tag = node.tagName.toLowerCase();
+          return tag !== "script" && tag !== "noscript";
+        },
+        style: {
+          transform: "none",
+          margin: "0",
+          width: `${width}px`,
+          maxWidth: `${width}px`,
+        },
+      });
+    } catch {
+      const html2canvas = (await import("html2canvas")).default;
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+        width,
+        height,
+        windowWidth: width,
+        windowHeight: height,
+        onclone: (_doc, cloned) => {
+          cloned.style.width = `${width}px`;
+          cloned.style.maxWidth = `${width}px`;
+          cloned.querySelectorAll("*").forEach((node) => {
+            const el = node as HTMLElement;
+            if (!el.style) return;
+            const cs = window.getComputedStyle(el);
+            el.style.color = cs.color;
+            el.style.backgroundColor = cs.backgroundColor;
+            el.style.borderColor = cs.borderColor;
+            el.style.boxShadow = "none";
+          });
+        },
+      });
+      dataUrl = canvas.toDataURL("image/jpeg", 0.95);
+    }
+  } finally {
+    element.style.width = prevWidth;
+    element.style.maxWidth = prevMaxWidth;
   }
 
   const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
-  const margin = 5;
+  const margin = 6;
   const usableWidth = pageWidth - margin * 2;
   const usableHeight = pageHeight - margin * 2;
 
-  // Dimensions naturelles (largeur = zone utile)
-  const naturalW = usableWidth;
-  const naturalH = (height * naturalW) / width;
+  // Taille naturelle à largeur pleine page
+  let imgWidth = usableWidth;
+  let imgHeight = (height * imgWidth) / width;
 
-  // Toujours une seule page : réduire si besoin, ne jamais agrandir
-  const fit = Math.min(1, usableWidth / naturalW, usableHeight / naturalH);
-  const finalW = naturalW * fit;
-  const finalH = naturalH * fit;
-  const x = margin + (usableWidth - finalW) / 2;
-  const y = margin + (usableHeight - finalH) / 2;
+  // Une seule page : réduire proportionnellement si besoin (jamais agrandir)
+  if (imgHeight > usableHeight) {
+    const scale = usableHeight / imgHeight;
+    imgWidth *= scale;
+    imgHeight = usableHeight;
+  }
 
-  pdf.addImage(dataUrl, "JPEG", x, y, finalW, finalH);
+  const x = margin + (usableWidth - imgWidth) / 2;
+  const y = margin; // aligné en haut (pas centré → évite l’effet « timbre »)
+
+  pdf.addImage(dataUrl, "JPEG", x, y, imgWidth, imgHeight);
 
   const safeName = filename.replace(/[^\w.\-]+/g, "_");
   const fileName = safeName.endsWith(".pdf") ? safeName : `${safeName}.pdf`;

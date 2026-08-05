@@ -78,18 +78,20 @@ export async function buildDocumentPdfFromDoc(doc: Document): Promise<BuiltPdf> 
   host.setAttribute("data-pdf-capture", "true");
   Object.assign(host.style, {
     position: "fixed",
-    left: "0",
+    left: "-10000px",
     top: "0",
     width: "820px",
-    zIndex: "-1",
-    opacity: "0.01",
+    zIndex: "0",
+    opacity: "1",
     pointerEvents: "none",
     background: "#ffffff",
+    overflow: "visible",
   });
   document.body.appendChild(host);
 
   const mount = document.createElement("div");
   mount.style.width = "820px";
+  mount.style.maxWidth = "820px";
   mount.style.background = "#ffffff";
   host.appendChild(mount);
 
@@ -98,14 +100,15 @@ export async function buildDocumentPdfFromDoc(doc: Document): Promise<BuiltPdf> 
     flushSync(() => {
       root!.render(
         <QueryClientProvider client={queryClient}>
+          {/* Même rendu que l’aperçu écran (pas de densification) */}
           <DocumentPreview doc={doc} compact />
         </QueryClientProvider>,
       );
     });
 
-    await waitFrames(2);
+    await waitFrames(3);
     await waitForImages(mount);
-    await new Promise((r) => setTimeout(r, 80));
+    await new Promise((r) => setTimeout(r, 120));
 
     const preview =
       (mount.querySelector("[data-document-preview]") as HTMLElement | null) ??
@@ -114,6 +117,9 @@ export async function buildDocumentPdfFromDoc(doc: Document): Promise<BuiltPdf> 
     if (!preview) {
       throw new Error("Aperçu introuvable pour l'export PDF.");
     }
+
+    preview.style.width = "820px";
+    preview.style.maxWidth = "820px";
 
     return await buildDocumentPdf(preview, `${doc.number}.pdf`);
   } finally {

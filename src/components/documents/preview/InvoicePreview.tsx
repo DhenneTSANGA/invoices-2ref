@@ -36,7 +36,8 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
 ) {
   const { company, client } = usePreviewData(doc);
   const isThumb = variant === "thumb";
-  const dense = Boolean(compact);
+  /** Pas de densification : le PDF doit matcher l’aperçu écran. */
+  const dense = false;
   const { accent, accentTo } = DOCUMENT_COLORS.invoice;
 
   const emitterLines = partyAddressLines([
@@ -69,7 +70,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
         style={{ borderColor: accent }}
       >
         <div className="flex min-w-0 items-center gap-2.5">
-          <PreviewLogo cabinet={doc.cabinet} compact={dense} className={dense ? "h-16" : "h-32"} />
+          <PreviewLogo cabinet={doc.cabinet} className="h-32" />
           <div className="min-w-0">
             <div
               className={cn(
@@ -106,34 +107,45 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
         </div>
       </div>
 
-      <div className={cn("grid grid-cols-2", dense ? "mt-2.5 gap-3" : "mt-5 gap-6")}>
-        <PartyBlock
-          title="Émetteur"
-          accent="#64748B"
-          name={company.name}
-          lines={emitterLines}
-          nif={company.nif}
-          niu={company.niu}
-          niuLabel={doc.cabinet === "conseil" ? "STAT" : "NIU"}
-          rccm={company.rccm}
-          cnss={company.cnss}
-          muted
-          compact={dense}
-        />
-        <PartyBlock
-          title="Client"
-          accent={accent}
-          name={client ? clientDisplayName(client) : undefined}
-          lines={clientLines}
-          nif={client?.nif}
-          niu={client?.niu}
-          rccm={client?.rccm}
-          cnss={client?.cnss}
-          cnamgs={client?.cnamgs}
-          bordered
-          compact={dense}
-        />
-      </div>
+      <table
+        className={cn(dense ? "mt-2.5" : "mt-5")}
+        style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}
+      >
+        <tbody>
+          <tr>
+            <td style={{ width: "50%", verticalAlign: "top", paddingRight: "12px" }}>
+              <PartyBlock
+                title="Émetteur"
+                accent="#64748B"
+                name={company.name}
+                lines={emitterLines}
+                nif={company.nif}
+                niu={company.niu}
+                niuLabel={doc.cabinet === "conseil" ? "STAT" : "NIU"}
+                rccm={company.rccm}
+                cnss={company.cnss}
+                muted
+                compact={dense}
+              />
+            </td>
+            <td style={{ width: "50%", verticalAlign: "top", paddingLeft: "12px" }}>
+              <PartyBlock
+                title="Client"
+                accent={accent}
+                name={client ? clientDisplayName(client) : undefined}
+                lines={clientLines}
+                nif={client?.nif}
+                niu={client?.niu}
+                rccm={client?.rccm}
+                cnss={client?.cnss}
+                cnamgs={client?.cnamgs}
+                bordered
+                compact={dense}
+              />
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
       <div
         className={cn(

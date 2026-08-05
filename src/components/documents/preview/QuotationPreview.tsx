@@ -35,7 +35,8 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
 ) {
   const { company, client } = usePreviewData(doc);
   const isThumb = variant === "thumb";
-  const dense = Boolean(compact);
+  /** Pas de densification : le PDF doit matcher l’aperçu écran. */
+  const dense = false;
   const validity = doc.validityDays ?? 30;
 
   const emitterLines = partyAddressLines([
@@ -68,7 +69,7 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
         style={{ borderColor: ACCENT }}
       >
         <div className="flex min-w-0 items-center gap-2.5">
-          <PreviewLogo cabinet={doc.cabinet} compact={dense} className={dense ? "h-16" : "h-32"} />
+          <PreviewLogo cabinet={doc.cabinet} className="h-32" />
           <div className="min-w-0">
             <div
               className={cn(
@@ -119,34 +120,45 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
         Proposition commerciale valable <b>{validity} jours</b> à compter de la date d'émission — acceptation écrite requise (OHADA / Gabon).
       </div>
 
-      <div className={cn("grid grid-cols-2", dense ? "mt-2 gap-3" : "mt-4 gap-6")}>
-        <PartyBlock
-          title="Émetteur"
-          accent="#64748B"
-          name={company.name}
-          lines={emitterLines}
-          nif={company.nif}
-          niu={company.niu}
-          niuLabel={doc.cabinet === "conseil" ? "STAT" : "NIU"}
-          rccm={company.rccm}
-          cnss={company.cnss}
-          muted
-          compact={dense}
-        />
-        <PartyBlock
-          title="Client"
-          accent={ACCENT}
-          name={client ? clientDisplayName(client) : undefined}
-          lines={clientLines}
-          nif={client?.nif}
-          niu={client?.niu}
-          rccm={client?.rccm}
-          cnss={client?.cnss}
-          cnamgs={client?.cnamgs}
-          bordered
-          compact={dense}
-        />
-      </div>
+      <table
+        className={cn(dense ? "mt-2" : "mt-4")}
+        style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}
+      >
+        <tbody>
+          <tr>
+            <td style={{ width: "50%", verticalAlign: "top", paddingRight: "12px" }}>
+              <PartyBlock
+                title="Émetteur"
+                accent="#64748B"
+                name={company.name}
+                lines={emitterLines}
+                nif={company.nif}
+                niu={company.niu}
+                niuLabel={doc.cabinet === "conseil" ? "STAT" : "NIU"}
+                rccm={company.rccm}
+                cnss={company.cnss}
+                muted
+                compact={dense}
+              />
+            </td>
+            <td style={{ width: "50%", verticalAlign: "top", paddingLeft: "12px" }}>
+              <PartyBlock
+                title="Client"
+                accent={ACCENT}
+                name={client ? clientDisplayName(client) : undefined}
+                lines={clientLines}
+                nif={client?.nif}
+                niu={client?.niu}
+                rccm={client?.rccm}
+                cnss={client?.cnss}
+                cnamgs={client?.cnamgs}
+                bordered
+                compact={dense}
+              />
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
       <div
         className={cn(

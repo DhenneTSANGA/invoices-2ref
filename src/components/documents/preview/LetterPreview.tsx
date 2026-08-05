@@ -16,7 +16,8 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
 ) {
   const { company, client } = usePreviewData(doc);
   const isThumb = variant === "thumb";
-  const dense = Boolean(compact);
+  /** Pas de densification : le PDF doit matcher l’aperçu écran. */
+  const dense = false;
   const { accent, accentTo } = DOCUMENT_COLORS.letter;
   const city = (company.city.split(",")[0] || company.city).trim();
   const showStamp = doc.status === "signed" || doc.status === "sent";
@@ -40,7 +41,7 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
       className={className}
     >
       <div className={cn("flex items-start justify-between", dense ? "gap-3" : "gap-4")}>
-        <PreviewLogo cabinet={doc.cabinet} compact={dense} className={dense ? "h-14" : "h-28"} />
+        <PreviewLogo cabinet={doc.cabinet} className="h-28" />
         <div className={cn("text-right text-[#475569]", dense ? "pt-1 text-[11px]" : "pt-2 text-[13px]")}>
           {city}, le {longDate(doc.issueDate)}.
         </div>
@@ -121,7 +122,7 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
           signatoryTitle={signatoryTitle}
           applied={showStamp}
           accent={accent}
-          compact={dense || isThumb}
+          compact={isThumb}
         />
       </div>
 
