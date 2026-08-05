@@ -28,6 +28,7 @@ import {
 import { DocumentPreview } from "@/components/documents/DocumentPreview";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 import { DocumentPdfTracesPanel } from "@/components/documents/DocumentPdfTracesPanel";
+import { SignedDocumentReadyBanner } from "@/components/documents/SignedDocumentReadyBanner";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { longDate } from "@/lib/format";
 import { LetterEditor } from "@/components/editor/LetterEditor";
@@ -285,6 +286,8 @@ function LetterDetail() {
           </span>
         )}
       </div>
+
+      {doc.status === "signed" && <SignedDocumentReadyBanner type={doc.type} />}
 
       <div
         className={cn(

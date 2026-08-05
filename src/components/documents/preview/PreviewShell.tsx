@@ -70,6 +70,9 @@ export function PreviewLogo({
     <img
       src={CABINET_LOGOS[cabinet]}
       alt={CABINET_LABELS[cabinet]}
+      crossOrigin="anonymous"
+      referrerPolicy="no-referrer"
+      decoding="sync"
       className={cn(
         "w-auto shrink-0 object-contain",
         compact ? "h-16" : "h-32",

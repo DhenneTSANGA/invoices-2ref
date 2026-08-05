@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Plus, Trash2, Save, Send, Download, Eye, Loader2, Users, Check, PenLine, Stamp } from "lucide-react";
 import { toast } from "sonner";
@@ -124,6 +124,21 @@ export function DocumentEditor({ initial, type }: Props) {
   const [docCssRate, setDocCssRate] = useState(() =>
     documentTaxRates(initial?.items ?? []).cssRate,
   );
+  /** Focus auto sur le champ description après ajout d’une ligne. */
+  const [focusDescriptionLineId, setFocusDescriptionLineId] = useState<
+    string | null
+  >(null);
+  const descriptionInputRefs = useRef(new Map<string, HTMLInputElement>());
+
+  useEffect(() => {
+    if (!focusDescriptionLineId) return;
+    const el = descriptionInputRefs.current.get(focusDescriptionLineId);
+    if (el) {
+      el.focus();
+      el.select();
+    }
+    setFocusDescriptionLineId(null);
+  }, [focusDescriptionLineId, doc.items]);
 
   const effectiveClientId = doc.clientId || clients[0]?.id || "";
   const executionDays = parseExecutionDays(doc.executionTerms);
@@ -232,13 +247,14 @@ export function DocumentEditor({ initial, type }: Props) {
       items: d.items.map((i) => (i.id === id ? { ...i, ...patch } : i)),
     }));
 
-  const addEmpty = () =>
+  const addEmpty = () => {
+    const id = newId();
     setDoc((d) => ({
       ...d,
       items: [
         ...d.items,
         {
-          id: newId(),
+          id,
           description: "",
           quantity: 1,
           unitPrice: 0,
@@ -249,16 +265,19 @@ export function DocumentEditor({ initial, type }: Props) {
         },
       ],
     }));
+    setFocusDescriptionLineId(id);
+  };
 
   const addFromService = (serviceId: string) => {
     const s = services.find((x) => x.id === serviceId);
     if (!s) return;
+    const id = newId();
     setDoc((d) => ({
       ...d,
       items: [
         ...d.items,
         {
-          id: newId(),
+          id,
           serviceId: s.id,
           description: s.name,
           quantity: 1,
@@ -270,6 +289,7 @@ export function DocumentEditor({ initial, type }: Props) {
         },
       ],
     }));
+    setFocusDescriptionLineId(id);
   };
 
   const removeItem = (id: string) =>
@@ -790,11 +810,24 @@ export function DocumentEditor({ initial, type }: Props) {
               {doc.items.map((it) => {
                 const lineTotal = it.quantity * it.unitPrice;
                 return (
-                  <tr key={it.id} className="border-b border-border/40">
+                  <tr
+                    key={it.id}
+                    className="border-b border-border/40"
+                    onClick={(e) => {
+                      const target = e.target as HTMLElement;
+                      if (target.closest("input, button, select, textarea")) return;
+                      descriptionInputRefs.current.get(it.id)?.focus();
+                    }}
+                  >
                     <td className="py-2 pr-2">
                       <input
+                        ref={(el) => {
+                          if (el) descriptionInputRefs.current.set(it.id, el);
+                          else descriptionInputRefs.current.delete(it.id);
+                        }}
                         className="w-full rounded-lg border border-border/60 bg-transparent px-2 py-1.5 focus:border-primary focus:outline-none"
                         value={it.description}
+                        placeholder="Titre / description de la désignation"
                         onChange={(e) =>
                           updateItem(it.id, { description: e.target.value })
                         }

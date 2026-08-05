@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { formatPrismaError } from "@/lib/prisma-errors";
 import { getCurrentSession } from "@/lib/session.functions";
 import { isAdmin, isSuperAdmin, canWriteDocument } from "@/lib/roles";
 import { companyForPreview } from "@/lib/company-defaults";
@@ -138,51 +139,57 @@ export const getLetterSignatureRequest = createServerFn({ method: "GET" })
 export const requestLetterSignature = createServerFn({ method: "POST" })
   .validator(z.object({ documentId: z.string() }))
   .handler(async ({ data }) => {
-    const session = await requireSession();
-    const { staff, activeCabinet } = session;
+    try {
+      const session = await requireSession();
+      const { staff, activeCabinet } = session;
 
-    const doc = await loadSignableDoc({
-      documentId: data.documentId,
-      role: staff.role,
-      activeCabinet,
-    });
-    if (!canWriteDocument(staff.role, staff.id, doc.createdById)) {
-      throw new Error("Accès refusé");
-    }
-    if (doc.status === "signed" || doc.status === "sent" || doc.status === "paid") {
-      throw new Error("Ce document est déjà signé ou finalisé");
-    }
-    if (doc.status === "cancelled") {
-      throw new Error("Document annulé");
-    }
+      const doc = await loadSignableDoc({
+        documentId: data.documentId,
+        role: staff.role,
+        activeCabinet,
+      });
+      if (!canWriteDocument(staff.role, staff.id, doc.createdById)) {
+        throw new Error("Accès refusé");
+      }
+      if (doc.status === "signed" || doc.status === "sent" || doc.status === "paid") {
+        throw new Error("Ce document est déjà signé ou finalisé");
+      }
+      if (doc.status === "cancelled") {
+        throw new Error("Document annulé");
+      }
 
-    const pending = await prisma.letterSignatureRequest.findFirst({
-      where: { documentId: doc.id, status: "pending" },
-      include: { requestedBy: true },
-    });
-    if (pending) return mapRequest(pending);
+      const pending = await prisma.letterSignatureRequest.findFirst({
+        where: { documentId: doc.id, status: "pending" },
+        include: { requestedBy: true },
+      });
+      if (pending) return mapRequest(pending);
 
-    const row = await prisma.letterSignatureRequest.create({
-      data: {
-        documentId: doc.id,
+      const row = await prisma.letterSignatureRequest.create({
+        data: {
+          documentId: doc.id,
+          cabinet: doc.cabinet,
+          requestedById: staff.id,
+          status: "pending",
+        },
+        include: { requestedBy: true },
+      });
+
+      const label = documentTypeLabel(doc.type as DocumentType).toLowerCase();
+      await notifySignatureAudience({
+        actorStaffId: staff.id,
         cabinet: doc.cabinet,
-        requestedById: staff.id,
-        status: "pending",
-      },
-      include: { requestedBy: true },
-    });
+        documentId: doc.id,
+        title: "Demande de signature",
+        body: `${staffDisplayName(staff)} demande votre signature sur ${label} ${doc.number}. Ouvrez le document pour le relire avant de signer.`,
+        type: "warning",
+      });
 
-    const label = documentTypeLabel(doc.type as DocumentType).toLowerCase();
-    await notifySignatureAudience({
-      actorStaffId: staff.id,
-      cabinet: doc.cabinet,
-      documentId: doc.id,
-      title: "Demande de signature",
-      body: `${staffDisplayName(staff)} demande votre signature sur ${label} ${doc.number}. Ouvrez le document pour le relire avant de signer.`,
-      type: "warning",
-    });
-
-    return mapRequest(row);
+      return mapRequest(row);
+    } catch (err) {
+      throw new Error(
+        formatPrismaError(err, "Impossible d’envoyer la demande de signature"),
+      );
+    }
   });
 
 /**
@@ -262,6 +269,7 @@ export const signLetterDocument = createServerFn({ method: "POST" })
       }
     });
 
+    // Créateur + demandeur (souvent le même) : priorité à l’auteur du document
     const notifyIds = [doc.createdById];
     if (pending) notifyIds.push(pending.requestedById);
     const label = documentTypeLabel(doc.type as DocumentType).toLowerCase();
@@ -271,7 +279,7 @@ export const signLetterDocument = createServerFn({ method: "POST" })
       cabinet: doc.cabinet,
       documentId: doc.id,
       title: "Document signé",
-      body: `${staffDisplayName(staff)} a signé ${label} ${doc.number}. Vous pouvez maintenant l’envoyer par e-mail.`,
+      body: `${staffDisplayName(staff)} a signé ${label} ${doc.number}. Vous pouvez l’envoyer par e-mail, télécharger/imprimer le PDF, ou le conserver pour un envoi ultérieur.`,
       type: "success",
       alsoStaffIds: notifyIds,
     });

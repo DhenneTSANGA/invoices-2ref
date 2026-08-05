@@ -56,6 +56,9 @@ export function ManagerSignature({
             <img
               src={url}
               alt={name ? `Signature de ${name}` : "Signature électronique"}
+              crossOrigin="anonymous"
+              referrerPolicy="no-referrer"
+              decoding="sync"
               className={cn(
                 "object-contain object-center",
                 compact ? "max-h-20 max-w-[11rem]" : "max-h-28 max-w-[13rem]",

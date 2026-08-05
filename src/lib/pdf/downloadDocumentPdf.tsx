@@ -27,18 +27,68 @@ function waitFrames(n = 2) {
   });
 }
 
-async function waitForImages(root: ParentNode) {
+/** Convertit les images distantes en data-URL pour une capture PDF fiable (CORS). */
+async function inlineImagesForPdf(root: ParentNode) {
   const images = Array.from(root.querySelectorAll("img"));
   await Promise.all(
-    images.map(
-      (img) =>
-        img.complete
-          ? Promise.resolve()
-          : new Promise<void>((resolve) => {
-              img.onload = () => resolve();
-              img.onerror = () => resolve();
-            }),
-    ),
+    images.map(async (img) => {
+      const src = (img.currentSrc || img.src || "").trim();
+      if (!src || src.startsWith("data:") || src.startsWith("blob:")) {
+        if (img.decode) {
+          try {
+            await img.decode();
+          } catch {
+            /* ignore */
+          }
+        }
+        return;
+      }
+      try {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const probe = new Image();
+          probe.crossOrigin = "anonymous";
+          probe.referrerPolicy = "no-referrer";
+          probe.onload = () => {
+            try {
+              const canvas = document.createElement("canvas");
+              canvas.width = Math.max(1, probe.naturalWidth);
+              canvas.height = Math.max(1, probe.naturalHeight);
+              const ctx = canvas.getContext("2d");
+              if (!ctx) {
+                reject(new Error("canvas"));
+                return;
+              }
+              ctx.drawImage(probe, 0, 0);
+              resolve(canvas.toDataURL("image/png"));
+            } catch (e) {
+              reject(e);
+            }
+          };
+          probe.onerror = () => reject(new Error("load"));
+          // Cache-bust pour forcer un chargement CORS propre
+          const sep = src.includes("?") ? "&" : "?";
+          probe.src = `${src}${sep}pdf=1`;
+        });
+        img.removeAttribute("crossorigin");
+        img.src = dataUrl;
+        if (img.decode) {
+          try {
+            await img.decode();
+          } catch {
+            /* ignore */
+          }
+        }
+      } catch {
+        // Garde l’URL d’origine ; la capture pourra échouer sur cette image seule
+        img.crossOrigin = "anonymous";
+        if (!img.complete) {
+          await new Promise<void>((resolve) => {
+            img.onload = () => resolve();
+            img.onerror = () => resolve();
+          });
+        }
+      }
+    }),
   );
 }
 
@@ -107,8 +157,8 @@ export async function buildDocumentPdfFromDoc(doc: Document): Promise<BuiltPdf> 
     });
 
     await waitFrames(3);
-    await waitForImages(mount);
-    await new Promise((r) => setTimeout(r, 120));
+    await inlineImagesForPdf(mount);
+    await new Promise((r) => setTimeout(r, 80));
 
     const preview =
       (mount.querySelector("[data-document-preview]") as HTMLElement | null) ??

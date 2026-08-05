@@ -33,6 +33,7 @@ import {
   DocumentSignatureActions,
   documentCanSendEmail,
 } from "@/components/documents/DocumentSignatureActions";
+import { SignedDocumentReadyBanner } from "@/components/documents/SignedDocumentReadyBanner";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { DocumentCreatorCard } from "@/components/documents/DocumentCreatorCard";
 import { DocumentPdfTracesPanel } from "@/components/documents/DocumentPdfTracesPanel";
@@ -186,7 +187,7 @@ function InvoiceDetail() {
               {downloadPdfMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} PDF
             </button>
             <DocumentSignatureActions doc={doc} previewSeen={previewSeen} compact />
-            <button onClick={sendByEmail} disabled={sendEmailMutation.isPending || !canSend} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60"><Send className="h-4 w-4" /> {sendEmailMutation.isPending ? "Envoi…" : "Envoyer"}</button>
+            <button onClick={sendByEmail} disabled={sendEmailMutation.isPending || !canSend} className={doc.status === "signed" ? "inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow disabled:opacity-60" : "inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60"}><Send className="h-4 w-4" /> {sendEmailMutation.isPending ? "Envoi…" : "Envoyer"}</button>
             {doc.status !== "paid" && doc.status !== "cancelled" && (
               <button onClick={() => setPaidOpen(true)} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-success px-4 py-2 text-sm font-medium text-success-foreground shadow"><CheckCircle2 className="h-4 w-4" /> Marquer payée</button>
             )}
@@ -216,6 +217,8 @@ function InvoiceDetail() {
           L’envoi e-mail nécessite le statut « Signé ».
         </p>
       )}
+
+      {doc.status === "signed" && <SignedDocumentReadyBanner type={doc.type} />}
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
         <aside className="space-y-4">
