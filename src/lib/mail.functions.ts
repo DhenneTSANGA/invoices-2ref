@@ -85,6 +85,46 @@ async function appMailAddresses(): Promise<Set<string>> {
   return set;
 }
 
+/** Déduit le cabinet à partir des adresses destinataires (boîtes From / Reply-To). */
+async function resolveCabinetFromToEmail(
+  toEmail: string,
+): Promise<Cabinet | null> {
+  const emails = extractEmails(toEmail);
+  if (emails.length === 0) return null;
+
+  const companies = await prisma.company.findMany({
+    select: {
+      cabinet: true,
+      mailFromEmail: true,
+      mailReplyTo: true,
+      email: true,
+    },
+  });
+
+  for (const c of companies) {
+    const addrs = [c.mailReplyTo, c.mailFromEmail, c.email]
+      .map((a) => bareEmail(a ?? "").toLowerCase())
+      .filter((e) => e.includes("@"));
+    if (emails.some((e) => addrs.includes(e))) return c.cabinet;
+  }
+
+  // Heuristiques domaines / boîtes connues
+  if (emails.some((e) => e.includes("2rconseil") || e.startsWith("conseil@"))) {
+    return "conseil";
+  }
+  if (
+    emails.some(
+      (e) =>
+        e.includes("2ref@") ||
+        e.includes("expertise") ||
+        e.startsWith("2ref@"),
+    )
+  ) {
+    return "expertise_fiscale";
+  }
+  return null;
+}
+
 function extractEmails(value: string): string[] {
   return value
     .split(/[,;]/)
@@ -190,17 +230,26 @@ export const listMails = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const session = await requireSession();
     const allowed = await appMailAddresses();
-    const whereCabinet = {
-      OR: [
-        { cabinet: session.activeCabinet },
-        { cabinet: null },
-      ],
-    };
+    const cabinet = session.activeCabinet;
+
+    // Anciens mails sans cabinet mais liés à un document du cabinet actif
+    const linkedDocs = await prisma.document.findMany({
+      where: { cabinet },
+      select: { id: true },
+    });
+    const linkedDocIds = linkedDocs.map((d) => d.id);
 
     const rows = await prisma.mailMessage.findMany({
       where: {
         AND: [
-          whereCabinet,
+          {
+            OR: [
+              { cabinet },
+              ...(linkedDocIds.length
+                ? [{ cabinet: null as const, documentId: { in: linkedDocIds } }]
+                : []),
+            ],
+          },
           appMailsOnlyWhere(allowed),
           data.direction === "all" ? {} : { direction: data.direction },
         ],
@@ -218,8 +267,25 @@ export const listMails = createServerFn({ method: "GET" })
 export const getMail = createServerFn({ method: "GET" })
   .validator(z.object({ id: z.string() }))
   .handler(async ({ data }) => {
-    await requireSession();
-    const row = await prisma.mailMessage.findUnique({ where: { id: data.id } });
+    const session = await requireSession();
+    const cabinet = session.activeCabinet;
+    const linkedDocs = await prisma.document.findMany({
+      where: { cabinet },
+      select: { id: true },
+    });
+    const linkedDocIds = linkedDocs.map((d) => d.id);
+
+    const row = await prisma.mailMessage.findFirst({
+      where: {
+        id: data.id,
+        OR: [
+          { cabinet },
+          ...(linkedDocIds.length
+            ? [{ cabinet: null as const, documentId: { in: linkedDocIds } }]
+            : []),
+        ],
+      },
+    });
     if (!row) throw new Error("Message introuvable");
 
     // Enrichir un reçu via Resend si le corps manque
@@ -315,11 +381,15 @@ export const syncInboundMails = createServerFn({ method: "POST" }).handler(
           text?.replace(/\s+/g, " ").trim().slice(0, 180) ||
           (html ? htmlToPreview(html) : "");
 
+        const resolvedCabinet =
+          (await resolveCabinetFromToEmail(toEmail)) ??
+          (session.activeCabinet as Cabinet);
+
         await prisma.mailMessage.upsert({
           where: { resendId: item.id },
           create: {
             direction: "inbound",
-            cabinet: session.activeCabinet as Cabinet,
+            cabinet: resolvedCabinet,
             resendId: item.id,
             fromEmail,
             toEmail,
@@ -336,6 +406,8 @@ export const syncInboundMails = createServerFn({ method: "POST" }).handler(
             htmlBody: html ?? undefined,
             textBody: text ?? undefined,
             lastEvent: "received",
+            // Réattribue le cabinet si on peut le déduire de l’adresse To
+            cabinet: resolvedCabinet,
           },
         });
         imported += 1;
@@ -344,7 +416,7 @@ export const syncInboundMails = createServerFn({ method: "POST" }).handler(
           await notifySenderOfClientReply({
             fromEmail,
             subject,
-            cabinet: session.activeCabinet as Cabinet,
+            cabinet: resolvedCabinet,
           });
         }
       }
@@ -363,7 +435,7 @@ export const syncInboundMails = createServerFn({ method: "POST" }).handler(
   },
 );
 
-/** Vide l’historique local (envoyés + reçus). Admin : cabinet actif ; super admin : tout. */
+/** Vide l’historique local (envoyés + reçus) du cabinet actif. Super admin : tout. */
 export const clearMailHistory = createServerFn({ method: "POST" }).handler(
   async () => {
     const session = await requireSession();
@@ -372,12 +444,10 @@ export const clearMailHistory = createServerFn({ method: "POST" }).handler(
     }
 
     const result = await prisma.mailMessage.deleteMany({
-      where: {
-        OR: [
-          { cabinet: session.activeCabinet },
-          { cabinet: null },
-        ],
-      },
+      where:
+        session.staff.role === "super_admin"
+          ? {}
+          : { cabinet: session.activeCabinet },
     });
     return { deleted: result.count };
   },

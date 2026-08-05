@@ -5,6 +5,7 @@ import { longDate } from "@/lib/format";
 import { DOCUMENT_COLORS } from "@/lib/cabinets";
 import { LegalFooter, PreviewLogo, PreviewShell } from "./PreviewShell";
 import { ManagerSignature } from "@/components/signature/ManagerSignature";
+import { clientLetterRecipientLines } from "@/lib/client-address";
 
 type Props = { doc: Document; compact?: boolean; variant?: "full" | "thumb"; className?: string };
 
@@ -25,14 +26,7 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
   const recipientLines = doc.recipientOverride
     ? doc.recipientOverride
     : client
-      ? [
-          client.contactName ? `À` : "",
-          client.contactName || "",
-          client.name ? `De ${client.name}` : "",
-          [client.address, client.city, client.country].filter(Boolean).join(" — "),
-        ]
-          .filter(Boolean)
-          .join("\n")
+      ? clientLetterRecipientLines(client).join("\n")
       : "";
 
   return (
@@ -43,43 +37,14 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
       isThumb={isThumb}
       className={className}
     >
-      <div
-        className="flex items-start justify-between gap-4 border-b-2 pb-5"
-        style={{ borderColor: accent }}
-      >
-        <div className="flex min-w-0 items-center gap-3">
-          <PreviewLogo cabinet={doc.cabinet} className="h-28" />
-          <div className="min-w-0">
-            <div
-              className="font-display text-xl font-bold tracking-tight leading-tight"
-              style={{ color: accent }}
-            >
-              {company.name}
-            </div>
-            {company.tagline ? (
-              <div className="mt-0.5 text-[12px] leading-snug text-[#64748B]">
-                {company.tagline}
-              </div>
-            ) : null}
-          </div>
-        </div>
-        <div className="shrink-0 text-right">
-          <div
-            className="font-display text-[28px] font-bold uppercase tracking-wide"
-            style={{ color: accent }}
-          >
-            Courriel
-          </div>
-          <div className="mt-1 text-[13px] font-semibold">N° {doc.number}</div>
-          <div className="text-[12px] text-[#64748B]">{longDate(doc.issueDate)}</div>
+      <div className="flex items-start justify-between gap-4">
+        <PreviewLogo cabinet={doc.cabinet} className="h-28" />
+        <div className="pt-2 text-right text-[13px] text-[#475569]">
+          {city}, le {longDate(doc.issueDate)}.
         </div>
       </div>
 
-      <div className="mt-5 text-right text-[13px] text-[#475569]">
-        {city}, le {longDate(doc.issueDate)}.
-      </div>
-
-      <div className="mt-6 flex justify-end">
+      <div className="mt-10 flex justify-end">
         <div
           className="w-[52%] whitespace-pre-line rounded-lg border-2 p-3.5 text-[13.5px] leading-[1.55]"
           style={{ borderColor: `${accent}33` }}

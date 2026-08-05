@@ -24,9 +24,12 @@ import {
   useSendDocumentEmail,
   useSession,
   useRequestLetterSignature,
+  useSignLetterDocument,
 } from "@/hooks/use-data";
 import type { Cabinet } from "@/lib/cabinets";
+import { isAdmin } from "@/lib/roles";
 import { cn } from "@/lib/utils";
+import { clientLetterPostalLine, clientRepresentativeLine, clientDisplayName } from "@/lib/client-address";
 
 type Props = { initial?: Document };
 
@@ -39,6 +42,8 @@ export function LetterEditor({ initial }: Props) {
   const upsertMutation = useUpsertDocument();
   const sendEmailMutation = useSendDocumentEmail();
   const requestSignMutation = useRequestLetterSignature();
+  const signMutation = useSignLetterDocument();
+  const adminLike = session ? isAdmin(session.staff.role) : false;
 
   const [doc, setDoc] = useState<Document>(
     initial ?? {
@@ -154,6 +159,20 @@ export function LetterEditor({ initial }: Props) {
     }
   };
 
+  const signNow = async () => {
+    try {
+      const saved = await persistDraft();
+      if (!saved) return;
+      await signMutation.mutateAsync(saved.id);
+      toast.success("Courriel signé", {
+        description: "Vous pouvez maintenant l’envoyer par e-mail.",
+      });
+      void navigate({ to: "/lettre/$id", params: { id: saved.id } });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Signature impossible");
+    }
+  };
+
   const sendSigned = async () => {
     try {
       let target = doc;
@@ -197,6 +216,7 @@ export function LetterEditor({ initial }: Props) {
   const busy =
     upsertMutation.isPending ||
     requestSignMutation.isPending ||
+    signMutation.isPending ||
     sendEmailMutation.isPending;
 
   return (
@@ -249,11 +269,15 @@ export function LetterEditor({ initial }: Props) {
               <div className="flex gap-3 rounded-2xl border border-amber-200/70 bg-amber-50/60 px-4 py-3 text-sm text-amber-950">
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
                 <div className="min-w-0 leading-relaxed">
-                  <div className="font-medium">{selectedClient.contactName}</div>
-                  <div className="text-amber-900/80">{selectedClient.name}</div>
-                  <div className="text-amber-900/70">
-                    {selectedClient.address} — {selectedClient.city}, {selectedClient.country}
+                  <div className="font-medium">
+                    {clientRepresentativeLine(selectedClient) || "—"}
                   </div>
+                  <div className="text-amber-900/80">
+                    {clientDisplayName(selectedClient)}
+                  </div>
+                    <div className="text-amber-900/70">
+                      {clientLetterPostalLine(selectedClient)}
+                    </div>
                 </div>
               </div>
             )}
@@ -304,7 +328,11 @@ export function LetterEditor({ initial }: Props) {
         <Section
           icon={<Stamp className="h-4 w-4" />}
           title="Signature"
-          hint="Après enregistrement, demandez la signature de l’administrateur (gérant). L’envoi e-mail n’est possible qu’une fois le courriel signé."
+          hint={
+            adminLike
+              ? "En tant qu’administrateur (gérant), vous pouvez signer directement ce courriel. L’envoi e-mail n’est possible qu’après signature."
+              : "Après enregistrement, demandez la signature de l’administrateur (gérant). L’envoi e-mail n’est possible qu’une fois le courriel signé."
+          }
         >
           <Field
             label="Fonction du signataire"
@@ -334,7 +362,17 @@ export function LetterEditor({ initial }: Props) {
           >
             <Save className="h-4 w-4" /> Enregistrer
           </Button>
-          {!alreadySigned && (
+          {!alreadySigned && adminLike && (
+            <Button
+              className="rounded-xl bg-gradient-primary text-primary-foreground shadow-glow"
+              disabled={busy}
+              onClick={() => void signNow()}
+            >
+              <Stamp className="h-4 w-4" />
+              {signMutation.isPending ? "Signature…" : "Signer"}
+            </Button>
+          )}
+          {!alreadySigned && !adminLike && (
             <Button
               className="rounded-xl bg-amber-600 text-white hover:bg-amber-600/90"
               disabled={busy}

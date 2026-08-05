@@ -12,6 +12,11 @@ import {
 } from "./PreviewShell";
 import { documentTaxRates } from "@/lib/document-math";
 import { DOCUMENT_COLORS } from "@/lib/cabinets";
+import { ManagerSignature } from "@/components/signature/ManagerSignature";
+import {
+  clientDisplayName,
+  clientRepresentativeLine,
+} from "@/lib/client-address";
 
 type Props = { doc: Document; compact?: boolean; variant?: "full" | "thumb"; className?: string };
 
@@ -42,7 +47,11 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
     ? partyAddressLines([
         client.address,
         [client.city, client.country].filter(Boolean).join(", "),
-        partyContactLine([client.contactName, client.email, client.phone]),
+        partyContactLine([
+          clientRepresentativeLine(client),
+          client.email,
+          client.phone,
+        ]),
       ])
     : undefined;
 
@@ -83,11 +92,13 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
         <PartyBlock
           title="Client"
           accent={accent}
-          name={client?.name}
+          name={client ? clientDisplayName(client) : undefined}
           lines={clientLines}
           nif={client?.nif}
           niu={client?.niu}
           rccm={client?.rccm}
+          cnss={client?.cnss}
+          cnamgs={client?.cnamgs}
           bordered
         />
       </div>
@@ -132,7 +143,13 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
       </div>
 
       <div className="mt-4 flex justify-end">
-        <StampBox accent={accent} />
+        <ManagerSignature
+          applied={doc.status === "signed" || doc.status === "sent" || doc.status === "paid"}
+          managerName={company.managerName?.trim() || ""}
+          signatureUrl={company.stampUrl?.trim() || ""}
+          signatoryTitle="Le Gérant"
+          accent={accent}
+        />
       </div>
 
       <LegalFooter {...company} niuLabel={doc.cabinet === "conseil" ? "STAT" : "NIU"} />
@@ -141,7 +158,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
 });
 
 function PartyBlock({
-  title, accent, name, lines, nif, niu, niuLabel = "NIU", rccm, cnss, muted, bordered,
+  title, accent, name, lines, nif, niu, niuLabel = "NIU", rccm, cnss, cnamgs, muted, bordered,
 }: {
   title: string;
   accent: string;
@@ -152,6 +169,7 @@ function PartyBlock({
   niuLabel?: string;
   rccm?: string;
   cnss?: string;
+  cnamgs?: string;
   muted?: boolean;
   bordered?: boolean;
 }) {
@@ -160,6 +178,7 @@ function PartyBlock({
     niu && niu !== "—" ? { label: niuLabel, value: niu } : null,
     rccm && rccm !== "—" ? { label: "RCCM", value: rccm } : null,
     cnss ? { label: "CNSS", value: cnss } : null,
+    cnamgs ? { label: "CNAMGS", value: cnamgs } : null,
   ].filter(Boolean) as Array<{ label: string; value: string }>;
 
   return (
@@ -183,7 +202,14 @@ function PartyBlock({
           {ids.length > 0 && (
             <div className="mt-1.5 grid grid-cols-1 gap-y-0.5 text-[11px] text-[#475569] sm:grid-cols-2 sm:gap-x-2">
               {ids.map((id) => (
-                <span key={id.label} className={id.label === "RCCM" || id.label === "CNSS" ? "sm:col-span-2" : undefined}>
+                <span
+                  key={id.label}
+                  className={
+                    id.label === "RCCM" || id.label === "CNSS" || id.label === "CNAMGS"
+                      ? "sm:col-span-2"
+                      : undefined
+                  }
+                >
                   {id.label}: <b className="text-[#0F172A]">{id.value}</b>
                 </span>
               ))}

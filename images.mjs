@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 import { performance } from "perf_hooks";
 
-const inputDir = "./public/auth";
+const inputDir = "./public/Sign";
 const outputDir = "./public/optimized/auth";
 const MAX_WIDTH = 1600;
 const WEBP_QUALITY = 80;

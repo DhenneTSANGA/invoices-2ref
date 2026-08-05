@@ -36,7 +36,7 @@ function ClientsPage() {
     (c) =>
       (city === "all" || c.city === city) &&
       (q === "" ||
-        `${c.name} ${c.nif} ${c.rccm} ${c.email} ${c.contactName}`
+        `${c.name} ${c.sigle} ${c.nif} ${c.rccm} ${c.cnss} ${c.cnamgs} ${c.email} ${c.contactName} ${c.anpiNumber}`
           .toLowerCase()
           .includes(q.toLowerCase())),
   );
@@ -149,7 +149,7 @@ function ClientsPage() {
                       {c.name}
                     </Link>
                     <div className="text-xs text-muted-foreground">
-                      {c.legalForm} · {c.city}
+                      {[c.sigle, c.legalForm, c.city].filter(Boolean).join(" · ")}
                     </div>
                   </div>
                   <div className="flex gap-1">
@@ -185,7 +185,11 @@ function ClientsPage() {
                   <div>
                     <div className="text-muted-foreground">NIF</div>
                     <div className="font-numeric font-medium">
-                      {c.nif.slice(0, 8)}…
+                      {c.nif
+                        ? c.nif.length > 10
+                          ? `${c.nif.slice(0, 10)}…`
+                          : c.nif
+                        : "—"}
                     </div>
                   </div>
                   <div>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   ArrowLeft,
@@ -23,16 +23,22 @@ import {
   useSendDocumentEmail,
   useSetInvoiceSubscription,
   useDownloadDocumentPdf,
+  useSession,
 } from "@/hooks/use-data";
 import { DocumentPreview } from "@/components/documents/DocumentPreview";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 import { MarkAsPaidDialog } from "@/components/documents/MarkAsPaidDialog";
 import { SubscriptionDialog } from "@/components/documents/SubscriptionDialog";
+import {
+  DocumentSignatureActions,
+  documentCanSendEmail,
+} from "@/components/documents/DocumentSignatureActions";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { DocumentCreatorCard } from "@/components/documents/DocumentCreatorCard";
 import { DocumentPdfTracesPanel } from "@/components/documents/DocumentPdfTracesPanel";
 import { currency, longDate, shortDate } from "@/lib/format";
 import { paymentMethodLabel } from "@/lib/payment-method";
+import { isAdmin } from "@/lib/roles";
 import type { PaymentMethod } from "@/store/types";
 
 export const Route = createFileRoute("/_app/invoices/$id")({
@@ -42,6 +48,7 @@ export const Route = createFileRoute("/_app/invoices/$id")({
 
 function InvoiceDetail() {
   const { id } = Route.useParams();
+  const { data: session } = useSession();
   const { data: doc, isLoading } = useDocument(id);
   const { data: clients = [] } = useClients();
   const client = clients.find((c) => c.id === doc?.clientId);
@@ -52,6 +59,13 @@ function InvoiceDetail() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [paidOpen, setPaidOpen] = useState(false);
   const [subOpen, setSubOpen] = useState(false);
+  const [previewSeen, setPreviewSeen] = useState(false);
+
+  const adminLike = session ? isAdmin(session.staff.role) : false;
+
+  useEffect(() => {
+    if (adminLike && doc?.status === "draft") setPreviewSeen(true);
+  }, [adminLike, doc?.id, doc?.status]);
 
   if (isLoading) {
     return (
@@ -63,6 +77,8 @@ function InvoiceDetail() {
     );
   }
   if (!doc) return <div className="glass-panel rounded-3xl p-8 text-center">Document introuvable.</div>;
+
+  const canSend = documentCanSendEmail(doc);
 
   const patchStatus = (
     status: typeof doc.status,
@@ -100,6 +116,12 @@ function InvoiceDetail() {
   };
 
   const sendByEmail = () => {
+    if (!canSend) {
+      toast.error(
+        "La facture doit être signée avant l’envoi (signature en ligne ou PDF physique).",
+      );
+      return;
+    }
     const toastId = toast.loading("Envoi de l'email…");
     sendEmailMutation.mutate(doc, {
       onSuccess: (res) =>
@@ -122,7 +144,7 @@ function InvoiceDetail() {
       onSuccess: () =>
         toast.success("PDF téléchargé", {
           id: toastId,
-          description: `${doc.number}.pdf`,
+          description: `${doc.number}.pdf — signature physique possible`,
         }),
       onError: (err) => {
         console.error(err);
@@ -163,7 +185,8 @@ function InvoiceDetail() {
             <button onClick={downloadPdf} disabled={downloadPdfMutation.isPending} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60">
               {downloadPdfMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} PDF
             </button>
-            <button onClick={sendByEmail} disabled={sendEmailMutation.isPending} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60"><Send className="h-4 w-4" /> {sendEmailMutation.isPending ? "Envoi…" : "Envoyer"}</button>
+            <DocumentSignatureActions doc={doc} previewSeen={previewSeen} compact />
+            <button onClick={sendByEmail} disabled={sendEmailMutation.isPending || !canSend} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60"><Send className="h-4 w-4" /> {sendEmailMutation.isPending ? "Envoi…" : "Envoyer"}</button>
             {doc.status !== "paid" && doc.status !== "cancelled" && (
               <button onClick={() => setPaidOpen(true)} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-success px-4 py-2 text-sm font-medium text-success-foreground shadow"><CheckCircle2 className="h-4 w-4" /> Marquer payée</button>
             )}
@@ -171,6 +194,12 @@ function InvoiceDetail() {
           </>
         }
       />
+
+      {doc.status === "draft" && (
+        <p className="mb-4 text-xs text-muted-foreground">
+          Signature en ligne (gérant distant) ou PDF pour signature physique. L’envoi e-mail nécessite le statut « Signé ».
+        </p>
+      )}
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
         <aside className="space-y-4">
@@ -277,13 +306,27 @@ function InvoiceDetail() {
             <div className="text-xs uppercase tracking-wider text-muted-foreground">Aperçu</div>
             <button type="button" onClick={() => setPreviewOpen(true)} className="text-xs font-medium text-primary hover:underline">Plein écran</button>
           </div>
-          <div className="cursor-pointer" onClick={() => setPreviewOpen(true)}>
+          <div
+            className="cursor-pointer"
+            onClick={() => {
+              setPreviewSeen(true);
+              setPreviewOpen(true);
+            }}
+            onMouseEnter={() => setPreviewSeen(true)}
+          >
             <DocumentPreview doc={doc} />
           </div>
         </div>
       </div>
 
-      <DocumentPreviewModal doc={doc} open={previewOpen} onOpenChange={setPreviewOpen} />
+      <DocumentPreviewModal
+        doc={doc}
+        open={previewOpen}
+        onOpenChange={(o) => {
+          setPreviewOpen(o);
+          if (o) setPreviewSeen(true);
+        }}
+      />
       <MarkAsPaidDialog
         open={paidOpen}
         onOpenChange={setPaidOpen}

@@ -107,7 +107,7 @@ export const listClients = createServerFn({ method: "GET" })
     const session = await requireSession();
     const cabinet = resolveDocCabinetFilter(session, data?.cabinetScope);
     const rows = await prisma.client.findMany({
-      where: { cabinet },
+      where: { cabinet, isTransient: false },
       orderBy: { name: "asc" },
     });
     return rows.map(mapClient);
@@ -132,16 +132,26 @@ export const createClient = createServerFn({ method: "POST" })
     const row = await prisma.client.create({
       data: {
         name: data.name,
+        sigle: data.sigle ?? "",
         legalForm: data.legalForm,
+        shareCapital: data.shareCapital ?? "",
         nif: data.nif,
         niu: data.niu,
         rccm: data.rccm,
+        cnss: data.cnss ?? "",
+        cnamgs: data.cnamgs ?? "",
+        activity: data.activity ?? "",
+        activityDetail: data.activityDetail ?? "",
         contactName: data.contactName,
+        representativeTitle: data.representativeTitle ?? "",
         email: data.email,
         phone: data.phone,
         address: data.address,
+        bp: data.bp ?? "",
         city: data.city,
         country: data.country,
+        anpiNumber: data.anpiNumber ?? "",
+        anpiDate: data.anpiDate ?? "",
         ficheCircuitUrl: data.ficheCircuitUrl ?? null,
         ficheCircuitName: data.ficheCircuitName ?? null,
         ficheStatusUrl: data.ficheStatusUrl ?? null,
@@ -166,16 +176,26 @@ export const updateClient = createServerFn({ method: "POST" })
       where: { id },
       data: {
         name: rest.name,
+        sigle: rest.sigle ?? "",
         legalForm: rest.legalForm,
+        shareCapital: rest.shareCapital ?? "",
         nif: rest.nif,
         niu: rest.niu,
         rccm: rest.rccm,
+        cnss: rest.cnss ?? "",
+        cnamgs: rest.cnamgs ?? "",
+        activity: rest.activity ?? "",
+        activityDetail: rest.activityDetail ?? "",
         contactName: rest.contactName,
+        representativeTitle: rest.representativeTitle ?? "",
         email: rest.email,
         phone: rest.phone,
         address: rest.address,
+        bp: rest.bp ?? "",
         city: rest.city,
         country: rest.country,
+        anpiNumber: rest.anpiNumber ?? "",
+        anpiDate: rest.anpiDate ?? "",
         ...(rest.ficheCircuitUrl !== undefined
           ? { ficheCircuitUrl: rest.ficheCircuitUrl, ficheCircuitName: rest.ficheCircuitName ?? null }
           : {}),
@@ -526,12 +546,17 @@ export const upsertDocument = createServerFn({ method: "POST" })
         },
         include: docInclude,
       });
-      if (existing.type === "letter" && existing.status === "draft") {
-        const { cancelPendingLetterSignatures } = await import(
-          "@/lib/letter-signature.functions"
-        );
-        await cancelPendingLetterSignatures(existing.id);
-      }
+    if (
+      (existing.type === "letter" ||
+        existing.type === "invoice" ||
+        existing.type === "quotation") &&
+      existing.status === "draft"
+    ) {
+      const { cancelPendingLetterSignatures } = await import(
+        "@/lib/letter-signature.functions"
+      );
+      await cancelPendingLetterSignatures(existing.id);
+    }
       if (existing.status !== data.status) {
         await broadcastDocumentStatusChange({
           actorStaffId: staff.id,
@@ -597,9 +622,14 @@ export const setDocumentStatus = createServerFn({ method: "POST" })
     if (!canWriteDocument(staff.role, staff.id, existing.createdById)) {
       throw new Error("Accès refusé — document en lecture seule");
     }
-    if (existing.type === "letter" && data.status === "signed") {
+    if (
+      (existing.type === "letter" ||
+        existing.type === "invoice" ||
+        existing.type === "quotation") &&
+      data.status === "signed"
+    ) {
       throw new Error(
-        "Pour signer un courriel, ouvrez le document et utilisez le bouton Signer (après aperçu).",
+        "Pour signer, ouvrez le document et utilisez le bouton Signer (après aperçu).",
       );
     }
     if (data.status === "paid" && !data.paymentMethod) {

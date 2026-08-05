@@ -69,16 +69,26 @@ export function mapClient(row: {
   id: string;
   cabinet: "conseil" | "expertise_fiscale";
   name: string;
+  sigle?: string | null;
   legalForm: string;
+  shareCapital?: string | null;
   nif: string;
   niu: string;
   rccm: string;
+  cnss?: string | null;
+  cnamgs?: string | null;
+  activity?: string | null;
+  activityDetail?: string | null;
   contactName: string;
+  representativeTitle?: string | null;
   email: string;
   phone: string;
   address: string;
+  bp?: string | null;
   city: string;
   country: string;
+  anpiNumber?: string | null;
+  anpiDate?: string | null;
   ficheCircuitUrl?: string | null;
   ficheCircuitName?: string | null;
   ficheStatusUrl?: string | null;
@@ -90,16 +100,26 @@ export function mapClient(row: {
     id: row.id,
     cabinet: row.cabinet,
     name: row.name,
+    sigle: row.sigle ?? "",
     legalForm: row.legalForm,
+    shareCapital: row.shareCapital ?? "",
     nif: row.nif,
     niu: row.niu,
     rccm: row.rccm,
+    cnss: row.cnss ?? "",
+    cnamgs: row.cnamgs ?? "",
+    activity: row.activity ?? "",
+    activityDetail: row.activityDetail ?? "",
     contactName: row.contactName,
+    representativeTitle: row.representativeTitle ?? "",
     email: row.email,
     phone: row.phone,
     address: row.address,
+    bp: row.bp ?? "",
     city: row.city,
     country: row.country,
+    anpiNumber: row.anpiNumber ?? "",
+    anpiDate: row.anpiDate ?? "",
     ficheCircuitUrl: row.ficheCircuitUrl ?? null,
     ficheCircuitName: row.ficheCircuitName ?? null,
     ficheStatusUrl: row.ficheStatusUrl ?? null,

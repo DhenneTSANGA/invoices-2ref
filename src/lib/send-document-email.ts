@@ -19,6 +19,7 @@ import { documentTypeLabel } from "@/lib/document-status-labels";
 import { canWriteDocument, isAdmin, isSuperAdmin } from "@/lib/roles";
 import type { CompanyInfo, DocumentType } from "@/store/types";
 import { logOutboundMail } from "@/lib/mail-log";
+import { clientLetterRecipientLines, clientDisplayName, clientRepresentativeLine } from "@/lib/client-address";
 
 async function requireSession() {
   const session = await getCurrentSession();
@@ -151,6 +152,10 @@ function buildCommercialEmailHtml(params: {
   contactName: string;
   clientAddress?: string;
   clientCity?: string;
+  clientNif?: string;
+  clientRccm?: string;
+  clientCnss?: string;
+  clientCnamgs?: string;
   issueDate: string;
   dueDate: string;
   currency: string;
@@ -202,6 +207,13 @@ function buildCommercialEmailHtml(params: {
       : "",
   ].filter(Boolean);
 
+  const clientLegalBits = [
+    params.clientNif ? `NIF : ${params.clientNif}` : "",
+    params.clientRccm ? `RCCM : ${params.clientRccm}` : "",
+    params.clientCnss ? `CNSS : ${params.clientCnss}` : "",
+    params.clientCnamgs ? `CNAMGS : ${params.clientCnamgs}` : "",
+  ].filter(Boolean);
+
   const bodyHtml = `
     <p style="margin:0 0 14px;font-size:14px;line-height:1.7;color:#334155;">
       Bonjour <strong style="color:#0F172A;">${escapeHtml(params.contactName || params.clientName)}</strong>,
@@ -237,6 +249,11 @@ function buildCommercialEmailHtml(params: {
                   `<div style="font-size:12px;line-height:1.45;color:#475569;">${escapeHtml(l)}</div>`,
               )
               .join("")}
+            ${
+              clientLegalBits.length
+                ? `<div style="margin-top:8px;font-size:11px;line-height:1.45;color:#64748B;">${escapeHtml(clientLegalBits.join(" · "))}</div>`
+                : ""
+            }
           </div>
         </td>
       </tr>
@@ -428,19 +445,20 @@ export const sendDocumentEmail = createServerFn({ method: "POST" })
     if (!canWriteDocument(staff.role, staff.id, doc.createdById)) {
       throw new Error("Accès refusé — document en lecture seule");
     }
-    if (doc.type === "letter") {
+    if (
+      doc.type === "letter" ||
+      doc.type === "invoice" ||
+      doc.type === "quotation"
+    ) {
       if (doc.status !== "signed" && doc.status !== "sent") {
         throw new Error(
-          "Le courriel doit être signé par un administrateur avant l'envoi",
+          "Le document doit être signé par un administrateur avant l'envoi (ou imprimé en PDF pour signature physique).",
         );
       }
     }
     if (doc.mailMergeCampaignId) {
       if (!isAdmin(staff.role)) {
         throw new Error("Envoi du publipostage réservé aux administrateurs");
-      }
-      if (doc.status !== "signed" && doc.status !== "sent") {
-        throw new Error("Le courriel doit être signé avant l'envoi");
       }
     }
     if (!doc.client) throw new Error("Client introuvable");
@@ -466,16 +484,7 @@ export const sendDocumentEmail = createServerFn({ method: "POST" })
       const city = (company.city.split(",")[0] || company.city).trim();
       const recipientBlock = doc.recipientOverride?.trim()
         ? doc.recipientOverride.trim()
-        : [
-            doc.client.contactName ? "À" : "",
-            doc.client.contactName || "",
-            doc.client.name ? `De ${doc.client.name}` : "",
-            [doc.client.address, doc.client.city, doc.client.country]
-              .filter(Boolean)
-              .join(" — "),
-          ]
-            .filter(Boolean)
-            .join("\n");
+        : clientLetterRecipientLines(doc.client).join("\n");
 
       html = buildLetterEmailHtml({
         company,
@@ -509,10 +518,14 @@ export const sendDocumentEmail = createServerFn({ method: "POST" })
         type: doc.type as "invoice" | "quotation",
         typeLabel,
         number: doc.number,
-        clientName: doc.client.name,
-        contactName: doc.client.contactName,
+        clientName: clientDisplayName(doc.client),
+        contactName: clientRepresentativeLine(doc.client) || doc.client.contactName,
         clientAddress: doc.client.address || undefined,
         clientCity: [doc.client.city, doc.client.country].filter(Boolean).join(", ") || undefined,
+        clientNif: doc.client.nif || undefined,
+        clientRccm: doc.client.rccm || undefined,
+        clientCnss: doc.client.cnss || undefined,
+        clientCnamgs: doc.client.cnamgs || undefined,
         issueDate: formatDate(doc.issueDate),
         dueDate: formatDate(doc.dueDate),
         currency,

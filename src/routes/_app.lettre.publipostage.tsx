@@ -14,6 +14,7 @@ import {
   PenLine,
   Stamp,
   Plus,
+  Ban,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -21,11 +22,14 @@ import { LoadingState } from "@/components/common/LoadingState";
 import { Button } from "@/components/ui/button";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 import { useClients, useSession } from "@/hooks/use-data";
+import { clientLetterRecipientLines, formatClientBp } from "@/lib/client-address";
 import {
   createMailMergeCampaign,
   getMailMergeCampaign,
   listMailMergeCampaigns,
   markMailMergeCampaignSent,
+  rejectMailMergeSignature,
+  requestMailMergeSignature,
   signMailMergeCampaign,
 } from "@/lib/mail-merge";
 import { sendDocumentEmail } from "@/lib/send-document-email";
@@ -41,6 +45,38 @@ export const Route = createFileRoute("/_app/lettre/publipostage")({
 
 const campaignsKey = ["mail-merge-campaigns"] as const;
 
+type GuestRecipient = {
+  name: string;
+  sigle: string;
+  contactName: string;
+  representativeTitle: string;
+  email: string;
+  phone: string;
+  address: string;
+  bp: string;
+  city: string;
+  country: string;
+  nif: string;
+  rccm: string;
+  activity: string;
+};
+
+const emptyGuest = (): GuestRecipient => ({
+  name: "",
+  sigle: "",
+  contactName: "",
+  representativeTitle: "",
+  email: "",
+  phone: "",
+  address: "",
+  bp: "",
+  city: "",
+  country: "Gabon",
+  nif: "",
+  rccm: "",
+  activity: "",
+});
+
 function interpolate(template: string, vars: Record<string, string>): string {
   let result = template;
   for (const [key, value] of Object.entries(vars)) {
@@ -52,10 +88,16 @@ function interpolate(template: string, vars: Record<string, string>): string {
 function clientVars(client: Client): Record<string, string> {
   return {
     nom: client.name,
+    sigle: client.sigle || "",
     contact: client.contactName || client.name,
+    qualite: client.representativeTitle || "",
     adresse: client.address,
+    bp: formatClientBp(client.bp),
     ville: client.city,
     pays: client.country,
+    nif: client.nif || "",
+    rccm: client.rccm || "",
+    activite: client.activity || "",
   };
 }
 
@@ -91,19 +133,13 @@ function buildPreviewDoc(
     body: interpolate(body, vars),
     closing: interpolate(closing, vars),
     signatoryTitle,
-    recipientOverride: [
-      client.contactName ? "À" : "",
-      client.contactName || "",
-      client.name ? `De ${client.name}` : "",
-      [client.address, client.city, client.country].filter(Boolean).join(" — "),
-    ]
-      .filter(Boolean)
-      .join("\n"),
+    recipientOverride: clientLetterRecipientLines(client).join("\n"),
   };
 }
 
 function statusLabel(status: MailMergeCampaign["status"]) {
   if (status === "draft") return "Brouillon";
+  if (status === "pending_signature") return "Signature demandée";
   if (status === "signed") return "Signé";
   return "Envoyé";
 }
@@ -129,6 +165,9 @@ function MailMergePage() {
   });
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [guests, setGuests] = useState<GuestRecipient[]>([]);
+  const [guestDraft, setGuestDraft] = useState<GuestRecipient>(emptyGuest);
+  const [showGuestForm, setShowGuestForm] = useState(false);
   const [subject, setSubject] = useState("");
   const [salutation, setSalutation] = useState("");
   const [body, setBody] = useState("");
@@ -142,11 +181,18 @@ function MailMergePage() {
     { documentId: string; label: string; success: boolean; error?: string }[] | null
   >(null);
 
+  const recipientCount = selectedIds.size + guests.length;
+  const isCreator = Boolean(
+    session?.staff.id &&
+      activeCampaign?.createdById === session.staff.id,
+  );
+
   const createMutation = useMutation({
     mutationFn: () =>
       createMailMergeCampaign({
         data: {
           clientIds: [...selectedIds],
+          guests,
           subject,
           salutation,
           body,
@@ -159,9 +205,22 @@ function MailMergePage() {
       void qc.invalidateQueries({ queryKey: campaignsKey });
       setActiveCampaignId(campaign.id);
       setView("detail");
+      setGuests([]);
+      setSelectedIds(new Set());
     },
     onError: (err) =>
       toast.error(humanAuthError(err, "Impossible de créer la campagne.")),
+  });
+
+  const requestSignMutation = useMutation({
+    mutationFn: (id: string) => requestMailMergeSignature({ data: { id } }),
+    onSuccess: (campaign) => {
+      toast.success("Demande de signature envoyée aux administrateurs");
+      void qc.invalidateQueries({ queryKey: campaignsKey });
+      void qc.setQueryData([...campaignsKey, campaign.id], campaign);
+    },
+    onError: (err) =>
+      toast.error(humanAuthError(err, "Demande impossible.")),
   });
 
   const signMutation = useMutation({
@@ -173,6 +232,17 @@ function MailMergePage() {
     },
     onError: (err) =>
       toast.error(humanAuthError(err, "Impossible de signer la campagne.")),
+  });
+
+  const rejectSignMutation = useMutation({
+    mutationFn: (id: string) => rejectMailMergeSignature({ data: { id } }),
+    onSuccess: (campaign) => {
+      toast.success("Demande refusée");
+      void qc.invalidateQueries({ queryKey: campaignsKey });
+      void qc.setQueryData([...campaignsKey, campaign.id], campaign);
+    },
+    onError: (err) =>
+      toast.error(humanAuthError(err, "Refus impossible.")),
   });
 
   const selectedClients = useMemo(
@@ -216,8 +286,8 @@ function MailMergePage() {
   });
 
   const openCreatePreview = () => {
-    if (selectedClients.length === 0) {
-      toast.error("Sélectionnez au moins un destinataire pour l'aperçu");
+    if (recipientCount === 0) {
+      toast.error("Sélectionnez ou ajoutez au moins un destinataire pour l'aperçu");
       return;
     }
     if (!subject.trim() || !body.trim()) {
@@ -229,8 +299,8 @@ function MailMergePage() {
   };
 
   const handleCreate = () => {
-    if (selectedIds.size === 0) {
-      toast.error("Sélectionnez au moins un destinataire");
+    if (recipientCount === 0) {
+      toast.error("Sélectionnez ou ajoutez au moins un destinataire");
       return;
     }
     if (!subject.trim() || !body.trim()) {
@@ -238,6 +308,16 @@ function MailMergePage() {
       return;
     }
     createMutation.mutate();
+  };
+
+  const addGuest = () => {
+    if (!guestDraft.name.trim() || !guestDraft.email.trim()) {
+      toast.error("Dénomination et email requis pour un destinataire ponctuel");
+      return;
+    }
+    setGuests((prev) => [...prev, guestDraft]);
+    setGuestDraft(emptyGuest());
+    setShowGuestForm(false);
   };
 
   const handleSendCampaign = async () => {
@@ -406,13 +486,81 @@ function MailMergePage() {
                 <h3 className="flex items-center gap-2 font-display font-semibold">
                   <Users className="h-4 w-4" /> Destinataires
                   <span className="text-xs font-normal text-muted-foreground">
-                    ({selectedIds.size}/{clients.length})
+                    ({recipientCount})
                   </span>
                 </h3>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl"
+                  onClick={() => setShowGuestForm((v) => !v)}
+                >
+                  <Plus className="mr-1 h-3.5 w-3.5" />
+                  Ponctuel
+                </Button>
               </div>
+              {showGuestForm && (
+                <div className="space-y-2 rounded-2xl border border-border/60 bg-muted/30 p-3">
+                  <p className="text-xs text-muted-foreground">
+                    Destinataire non enregistré. Les champs optionnels alimentent les
+                    variables du courrier ; s’ils sont vides, la variable correspondante
+                    reste vide dans le texte.
+                  </p>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <Field label="Dénomination {{nom}} *" value={guestDraft.name} onChange={(v) => setGuestDraft({ ...guestDraft, name: v })} />
+                    <Field label="Email *" value={guestDraft.email} onChange={(v) => setGuestDraft({ ...guestDraft, email: v })} />
+                    <Field label="Sigle {{sigle}}" value={guestDraft.sigle} onChange={(v) => setGuestDraft({ ...guestDraft, sigle: v })} />
+                    <Field label="Représentant {{contact}}" value={guestDraft.contactName} onChange={(v) => setGuestDraft({ ...guestDraft, contactName: v })} />
+                    <Field label="Qualité {{qualite}}" value={guestDraft.representativeTitle} onChange={(v) => setGuestDraft({ ...guestDraft, representativeTitle: v })} />
+                    <Field label="Téléphone" value={guestDraft.phone} onChange={(v) => setGuestDraft({ ...guestDraft, phone: v })} />
+                    <Field label="Adresse / quartier {{adresse}}" value={guestDraft.address} onChange={(v) => setGuestDraft({ ...guestDraft, address: v })} />
+                    <Field label="BP {{bp}}" value={guestDraft.bp} onChange={(v) => setGuestDraft({ ...guestDraft, bp: v })} />
+                    <Field label="Ville {{ville}}" value={guestDraft.city} onChange={(v) => setGuestDraft({ ...guestDraft, city: v })} />
+                    <Field label="Pays {{pays}}" value={guestDraft.country} onChange={(v) => setGuestDraft({ ...guestDraft, country: v })} />
+                    <Field label="NIF {{nif}}" value={guestDraft.nif} onChange={(v) => setGuestDraft({ ...guestDraft, nif: v })} />
+                    <Field label="RCCM {{rccm}}" value={guestDraft.rccm} onChange={(v) => setGuestDraft({ ...guestDraft, rccm: v })} />
+                    <Field label="Activité {{activite}}" value={guestDraft.activity} onChange={(v) => setGuestDraft({ ...guestDraft, activity: v })} />
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button type="button" variant="outline" size="sm" className="rounded-xl" onClick={() => setShowGuestForm(false)}>
+                      Annuler
+                    </Button>
+                    <Button type="button" size="sm" className="rounded-xl" onClick={addGuest}>
+                      Ajouter
+                    </Button>
+                  </div>
+                </div>
+              )}
+              {guests.length > 0 && (
+                <ul className="space-y-1">
+                  {guests.map((g, i) => (
+                    <li
+                      key={`${g.email}-${i}`}
+                      className="flex items-center justify-between rounded-xl bg-amber-500/10 px-3 py-2 text-sm"
+                    >
+                      <div className="min-w-0">
+                        <div className="truncate font-medium">{g.name}</div>
+                        <div className="truncate text-xs text-muted-foreground">
+                          {g.email} · ponctuel
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-danger"
+                        onClick={() =>
+                          setGuests((prev) => prev.filter((_, idx) => idx !== i))
+                        }
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
               <input
                 type="text"
-                placeholder="Filtrer par nom ou email…"
+                placeholder="Filtrer les clients enregistrés…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full rounded-xl border border-border/60 bg-transparent px-3 py-2 text-sm focus:border-primary focus:outline-none"
@@ -451,9 +599,16 @@ function MailMergePage() {
             <div className="glass-panel space-y-4 rounded-3xl p-5">
               <h3 className="font-display font-semibold">Contenu du courrier</h3>
               <div className="rounded-xl bg-muted/50 p-3 text-xs text-muted-foreground">
-                Variables : <code>{"{{nom}}"}</code>, <code>{"{{contact}}"}</code>,{" "}
-                <code>{"{{adresse}}"}</code>, <code>{"{{ville}}"}</code>,{" "}
-                <code>{"{{pays}}"}</code>
+                Variables : <code>{"{{nom}}"}</code>, <code>{"{{sigle}}"}</code>,{" "}
+                <code>{"{{contact}}"}</code>, <code>{"{{qualite}}"}</code>,{" "}
+                <code>{"{{adresse}}"}</code>, <code>{"{{bp}}"}</code>,{" "}
+                <code>{"{{ville}}"}</code>, <code>{"{{pays}}"}</code>,{" "}
+                <code>{"{{nif}}"}</code>, <code>{"{{rccm}}"}</code>,{" "}
+                <code>{"{{activite}}"}</code>
+                <span className="mt-1 block">
+                  Clients enregistrés : toutes les valeurs connues. Destinataires
+                  ponctuels : uniquement les champs saisis (le reste reste vide).
+                </span>
               </div>
               <Field
                 label="Objet"
@@ -500,7 +655,7 @@ function MailMergePage() {
             <Button
               variant="outline"
               onClick={openCreatePreview}
-              disabled={selectedIds.size === 0}
+              disabled={recipientCount === 0 || selectedClients.length === 0}
               className="rounded-xl"
             >
               <Eye className="mr-2 h-4 w-4" />
@@ -508,7 +663,7 @@ function MailMergePage() {
             </Button>
             <Button
               onClick={handleCreate}
-              disabled={createMutation.isPending || selectedIds.size === 0}
+              disabled={createMutation.isPending || recipientCount === 0}
               className="rounded-xl bg-gradient-primary text-primary-foreground"
             >
               {createMutation.isPending ? (
@@ -559,7 +714,27 @@ function MailMergePage() {
                       <Eye className="mr-2 h-4 w-4" />
                       Aperçu
                     </Button>
-                    {canSign && activeCampaign.status === "draft" && (
+                    {!canSign &&
+                      isCreator &&
+                      activeCampaign.status === "draft" && (
+                      <Button
+                        className="rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-900 hover:bg-amber-500/20"
+                        disabled={requestSignMutation.isPending}
+                        onClick={() =>
+                          requestSignMutation.mutate(activeCampaign.id)
+                        }
+                      >
+                        {requestSignMutation.isPending ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <PenLine className="mr-2 h-4 w-4" />
+                        )}
+                        Demander la signature
+                      </Button>
+                    )}
+                    {canSign &&
+                      (activeCampaign.status === "draft" ||
+                        activeCampaign.status === "pending_signature") && (
                       <Button
                         className="rounded-xl bg-gradient-accent text-accent-foreground"
                         disabled={signMutation.isPending}
@@ -571,6 +746,23 @@ function MailMergePage() {
                           <Stamp className="mr-2 h-4 w-4" />
                         )}
                         Signer / Cachet
+                      </Button>
+                    )}
+                    {canSign && activeCampaign.status === "pending_signature" && (
+                      <Button
+                        variant="outline"
+                        className="rounded-xl border-danger/40 text-danger"
+                        disabled={rejectSignMutation.isPending}
+                        onClick={() =>
+                          rejectSignMutation.mutate(activeCampaign.id)
+                        }
+                      >
+                        {rejectSignMutation.isPending ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Ban className="mr-2 h-4 w-4" />
+                        )}
+                        Refuser
                       </Button>
                     )}
                     {canSign && activeCampaign.status === "signed" && (

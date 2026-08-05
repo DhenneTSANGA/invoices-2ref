@@ -26,16 +26,26 @@ const empty: Omit<
   | "ficheStatusName"
 > = {
   name: "",
+  sigle: "",
   legalForm: "SARL",
+  shareCapital: "",
   nif: "",
   niu: "",
   rccm: "",
+  cnss: "",
+  cnamgs: "",
+  activity: "",
+  activityDetail: "",
   contactName: "",
+  representativeTitle: "",
   email: "",
   phone: "",
   address: "",
+  bp: "",
   city: "",
   country: "Gabon",
+  anpiNumber: "",
+  anpiDate: "",
 };
 
 function NewClient() {
@@ -102,15 +112,20 @@ function NewClient() {
       </button>
       <PageHeader
         title="Nouveau client"
-        subtitle="Renseignez les informations légales, le contact et les fiches associées."
+        subtitle="Saisissez les informations de la fiche unique d’enregistrement ANPI, le contact métier et les fiches associées."
       />
       <form onSubmit={submit} className="space-y-5">
         <Section title="Identité de l'entreprise">
           <Field
-            label="Raison sociale"
+            label="Dénomination sociale"
             value={form.name}
             onChange={(v) => setForm({ ...form, name: v })}
             required
+          />
+          <Field
+            label="Sigle"
+            value={form.sigle}
+            onChange={(v) => setForm({ ...form, sigle: v })}
           />
           <Select
             label="Forme juridique"
@@ -125,27 +140,114 @@ function NewClient() {
               "Personne physique",
             ]}
           />
-          <Field label="NIF" value={form.nif} onChange={(v) => setForm({ ...form, nif: v })} placeholder="Ex. GA20245678901" />
-          <Field label="NIU" value={form.niu} onChange={(v) => setForm({ ...form, niu: v })} placeholder="Identifiant CEMAC" />
           <Field
-            label="RCCM"
-            value={form.rccm}
-            onChange={(v) => setForm({ ...form, rccm: v })}
-            placeholder="Ex. GA-LBV-01-2020-B12-00045"
+            label="Capital social"
+            value={form.shareCapital}
+            onChange={(v) => setForm({ ...form, shareCapital: v })}
+          />
+          <Field
+            label="Activité"
+            value={form.activity}
+            onChange={(v) => setForm({ ...form, activity: v })}
+          />
+          <Field
+            label="Nature de l’activité"
+            value={form.activityDetail}
+            onChange={(v) => setForm({ ...form, activityDetail: v })}
             colSpan={2}
           />
         </Section>
 
-        <Section title="Contact principal">
-          <Field label="Nom du contact" value={form.contactName} onChange={(v) => setForm({ ...form, contactName: v })} />
-          <Field label="Email" type="email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} />
-          <Field label="Téléphone" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} />
+        <Section title="Identifiants légaux">
+          <Field
+            label="N° RCCM"
+            value={form.rccm}
+            onChange={(v) => setForm({ ...form, rccm: v })}
+            colSpan={2}
+          />
+          <Field
+            label="N° NIF"
+            value={form.nif}
+            onChange={(v) => setForm({ ...form, nif: v })}
+          />
+          <Field
+            label="N° CNSS"
+            value={form.cnss}
+            onChange={(v) => setForm({ ...form, cnss: v })}
+          />
+          <Field
+            label="N° CNAMGS"
+            value={form.cnamgs}
+            onChange={(v) => setForm({ ...form, cnamgs: v })}
+          />
+          <Field
+            label="NIU (optionnel)"
+            value={form.niu}
+            onChange={(v) => setForm({ ...form, niu: v })}
+          />
+        </Section>
+
+        <Section title="Représentant légal & contact">
+          <Field
+            label="Représentant légal"
+            value={form.contactName}
+            onChange={(v) => setForm({ ...form, contactName: v })}
+          />
+          <Field
+            label="Qualité"
+            value={form.representativeTitle}
+            onChange={(v) => setForm({ ...form, representativeTitle: v })}
+          />
+          <Field
+            label="Email"
+            type="email"
+            value={form.email}
+            onChange={(v) => setForm({ ...form, email: v })}
+          />
+          <Field
+            label="Téléphone"
+            value={form.phone}
+            onChange={(v) => setForm({ ...form, phone: v })}
+          />
         </Section>
 
         <Section title="Adresse">
-          <Field label="Adresse" value={form.address} onChange={(v) => setForm({ ...form, address: v })} colSpan={2} />
-          <Field label="Ville" value={form.city} onChange={(v) => setForm({ ...form, city: v })} />
-          <Field label="Pays" value={form.country} onChange={(v) => setForm({ ...form, country: v })} />
+          <Field
+            label="Quartier"
+            value={form.address}
+            onChange={(v) => setForm({ ...form, address: v })}
+            colSpan={2}
+          />
+          <Field
+            label="Boîte postale (BP)"
+            value={form.bp}
+            onChange={(v) => setForm({ ...form, bp: v })}
+          />
+          <Field
+            label="Ville"
+            value={form.city}
+            onChange={(v) => setForm({ ...form, city: v })}
+          />
+          <Field
+            label="Pays"
+            value={form.country}
+            onChange={(v) => setForm({ ...form, country: v })}
+            colSpan={2}
+          />
+        </Section>
+
+        <Section title="Fiche ANPI (optionnel)">
+          <Field
+            label="N° fiche ANPI"
+            value={form.anpiNumber}
+            onChange={(v) => setForm({ ...form, anpiNumber: v })}
+          />
+          <Field
+            label="Date de la fiche"
+            value={form.anpiDate}
+            onChange={(v) => setForm({ ...form, anpiDate: v })}
+            placeholder="JJ/MM/AAAA"
+          />
         </Section>
 
         <Section title="Fiches documents">

@@ -5,11 +5,20 @@ import { getCurrentSession } from "@/lib/session.functions";
 import { isAdmin, isSuperAdmin, canWriteDocument } from "@/lib/roles";
 import { companyForPreview } from "@/lib/company-defaults";
 import { staffDisplayName } from "@/lib/notify-document-status";
+import { documentTypeLabel } from "@/lib/document-status-labels";
+import type { DocumentType } from "@/store/types";
 
 async function requireSession() {
   const session = await getCurrentSession();
   if (!session) throw new Error("Non authentifié");
   return session;
+}
+
+const SIGNABLE_TYPES = ["letter", "invoice", "quotation"] as const;
+type SignableType = (typeof SIGNABLE_TYPES)[number];
+
+function isSignableType(type: string): type is SignableType {
+  return (SIGNABLE_TYPES as readonly string[]).includes(type);
 }
 
 export type LetterSignatureRequestView = {
@@ -56,7 +65,6 @@ async function notifySignatureAudience(args: {
   title: string;
   body: string;
   type: "info" | "success" | "warning" | "danger";
-  /** Si true : notifie aussi le créateur (hors admins déjà ciblés). */
   alsoStaffIds?: string[];
 }) {
   const admins = await prisma.staffMember.findMany({
@@ -89,20 +97,34 @@ async function notifySignatureAudience(args: {
   });
 }
 
+async function loadSignableDoc(args: {
+  documentId: string;
+  role: string;
+  activeCabinet: "conseil" | "expertise_fiscale";
+  includeCreatedBy?: boolean;
+}) {
+  const doc = await prisma.document.findFirst({
+    where: isSuperAdmin(args.role as "super_admin")
+      ? { id: args.documentId }
+      : { id: args.documentId, cabinet: args.activeCabinet },
+    include: args.includeCreatedBy ? { createdBy: true } : undefined,
+  });
+  if (!doc) throw new Error("Document introuvable");
+  if (!isSignableType(doc.type)) {
+    throw new Error("Ce type de document ne prend pas en charge la signature en ligne");
+  }
+  return doc;
+}
+
 export const getLetterSignatureRequest = createServerFn({ method: "GET" })
   .validator(z.object({ documentId: z.string() }))
   .handler(async ({ data }) => {
     const session = await requireSession();
-    const doc = await prisma.document.findFirst({
-      where: isSuperAdmin(session.staff.role)
-        ? { id: data.documentId, type: "letter" }
-        : {
-            id: data.documentId,
-            type: "letter",
-            cabinet: session.activeCabinet,
-          },
+    await loadSignableDoc({
+      documentId: data.documentId,
+      role: session.staff.role,
+      activeCabinet: session.activeCabinet,
     });
-    if (!doc) throw new Error("Courriel introuvable");
 
     const row = await prisma.letterSignatureRequest.findFirst({
       where: { documentId: data.documentId },
@@ -112,27 +134,26 @@ export const getLetterSignatureRequest = createServerFn({ method: "GET" })
     return row ? mapRequest(row) : null;
   });
 
-/** Membre (ou admin) demande la signature du gérant / admin. */
+/** Demande la signature du gérant / admin (courriel, facture ou devis). */
 export const requestLetterSignature = createServerFn({ method: "POST" })
   .validator(z.object({ documentId: z.string() }))
   .handler(async ({ data }) => {
     const session = await requireSession();
     const { staff, activeCabinet } = session;
 
-    const doc = await prisma.document.findFirst({
-      where: isSuperAdmin(staff.role)
-        ? { id: data.documentId, type: "letter" }
-        : { id: data.documentId, type: "letter", cabinet: activeCabinet },
+    const doc = await loadSignableDoc({
+      documentId: data.documentId,
+      role: staff.role,
+      activeCabinet,
     });
-    if (!doc) throw new Error("Courriel introuvable");
     if (!canWriteDocument(staff.role, staff.id, doc.createdById)) {
       throw new Error("Accès refusé");
     }
-    if (doc.status === "signed" || doc.status === "sent") {
-      throw new Error("Ce courriel est déjà signé");
+    if (doc.status === "signed" || doc.status === "sent" || doc.status === "paid") {
+      throw new Error("Ce document est déjà signé ou finalisé");
     }
     if (doc.status === "cancelled") {
-      throw new Error("Courriel annulé");
+      throw new Error("Document annulé");
     }
 
     const pending = await prisma.letterSignatureRequest.findFirst({
@@ -151,12 +172,13 @@ export const requestLetterSignature = createServerFn({ method: "POST" })
       include: { requestedBy: true },
     });
 
+    const label = documentTypeLabel(doc.type as DocumentType).toLowerCase();
     await notifySignatureAudience({
       actorStaffId: staff.id,
       cabinet: doc.cabinet,
       documentId: doc.id,
       title: "Demande de signature",
-      body: `${staffDisplayName(staff)} demande votre signature sur le courriel ${doc.number}. Ouvrez le document pour le relire avant de signer.`,
+      body: `${staffDisplayName(staff)} demande votre signature sur ${label} ${doc.number}. Ouvrez le document pour le relire avant de signer.`,
       type: "warning",
     });
 
@@ -164,14 +186,13 @@ export const requestLetterSignature = createServerFn({ method: "POST" })
   });
 
 /**
- * Admin / SA signe après avoir consulté le courriel (page détail).
+ * Admin / SA signe après avoir consulté le document.
  * Applique le cachet cabinet (stampUrl + managerName) via le statut signed.
  */
 export const signLetterDocument = createServerFn({ method: "POST" })
   .validator(
     z.object({
       documentId: z.string(),
-      /** Confirmation explicite que l’admin a consulté l’aperçu. */
       previewConfirmed: z.literal(true),
     }),
   )
@@ -182,21 +203,20 @@ export const signLetterDocument = createServerFn({ method: "POST" })
       throw new Error("Seuls l’administrateur (gérant) ou le super admin peuvent signer");
     }
 
-    const doc = await prisma.document.findFirst({
-      where: isSuperAdmin(staff.role)
-        ? { id: data.documentId, type: "letter" }
-        : { id: data.documentId, type: "letter", cabinet: activeCabinet },
-      include: { createdBy: true },
+    const doc = await loadSignableDoc({
+      documentId: data.documentId,
+      role: staff.role,
+      activeCabinet,
+      includeCreatedBy: true,
     });
-    if (!doc) throw new Error("Courriel introuvable");
     if (!isSuperAdmin(staff.role) && doc.cabinet !== activeCabinet) {
-      throw new Error("Ce courriel appartient à un autre cabinet");
+      throw new Error("Ce document appartient à un autre cabinet");
     }
-    if (doc.status === "signed" || doc.status === "sent") {
-      throw new Error("Ce courriel est déjà signé");
+    if (doc.status === "signed" || doc.status === "sent" || doc.status === "paid") {
+      throw new Error("Ce document est déjà signé ou finalisé");
     }
     if (doc.status === "cancelled") {
-      throw new Error("Courriel annulé");
+      throw new Error("Document annulé");
     }
 
     const company = companyForPreview(
@@ -228,7 +248,6 @@ export const signLetterDocument = createServerFn({ method: "POST" })
           },
         });
       } else {
-        // Signature directe admin sans demande préalable
         await tx.letterSignatureRequest.create({
           data: {
             documentId: doc.id,
@@ -245,13 +264,14 @@ export const signLetterDocument = createServerFn({ method: "POST" })
 
     const notifyIds = [doc.createdById];
     if (pending) notifyIds.push(pending.requestedById);
+    const label = documentTypeLabel(doc.type as DocumentType).toLowerCase();
 
     await notifySignatureAudience({
       actorStaffId: staff.id,
       cabinet: doc.cabinet,
       documentId: doc.id,
-      title: "Courriel signé",
-      body: `${staffDisplayName(staff)} a signé le courriel ${doc.number}. Vous pouvez maintenant l’envoyer par e-mail.`,
+      title: "Document signé",
+      body: `${staffDisplayName(staff)} a signé ${label} ${doc.number}. Vous pouvez maintenant l’envoyer par e-mail.`,
       type: "success",
       alsoStaffIds: notifyIds,
     });
@@ -273,12 +293,11 @@ export const rejectLetterSignature = createServerFn({ method: "POST" })
       throw new Error("Accès réservé aux administrateurs");
     }
 
-    const doc = await prisma.document.findFirst({
-      where: isSuperAdmin(staff.role)
-        ? { id: data.documentId, type: "letter" }
-        : { id: data.documentId, type: "letter", cabinet: activeCabinet },
+    const doc = await loadSignableDoc({
+      documentId: data.documentId,
+      role: staff.role,
+      activeCabinet,
     });
-    if (!doc) throw new Error("Courriel introuvable");
 
     const pending = await prisma.letterSignatureRequest.findFirst({
       where: { documentId: doc.id, status: "pending" },
@@ -317,7 +336,7 @@ export async function cancelPendingLetterSignatures(documentId: string) {
     data: {
       status: "rejected",
       reviewedAt: new Date(),
-      note: "Annulée : le courriel a été modifié",
+      note: "Annulée : le document a été modifié",
     },
   });
 }

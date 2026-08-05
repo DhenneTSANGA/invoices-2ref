@@ -308,18 +308,23 @@ export function useProcessDueSubscriptions() {
 export const mailsKey = ["mails"] as const;
 
 export function useMails(direction: "outbound" | "inbound" | "all" = "all") {
+  const { data: session } = useSession();
+  const cabinet = session?.activeCabinet ?? "expertise_fiscale";
   return useQuery({
-    queryKey: [...mailsKey, direction],
+    queryKey: [...mailsKey, cabinet, direction],
     queryFn: () => listMails({ data: { direction, limit: 80 } }),
     staleTime: 30_000,
+    enabled: Boolean(session),
   });
 }
 
 export function useMail(id: string | null) {
+  const { data: session } = useSession();
+  const cabinet = session?.activeCabinet ?? "expertise_fiscale";
   return useQuery({
-    queryKey: [...mailsKey, "detail", id],
+    queryKey: [...mailsKey, cabinet, "detail", id],
     queryFn: () => getMail({ data: { id: id! } }),
-    enabled: Boolean(id),
+    enabled: Boolean(id) && Boolean(session),
   });
 }
 
@@ -519,6 +524,8 @@ export function useRequestLetterSignature() {
       void qc.invalidateQueries({ queryKey: letterSignatureKey(req.documentId) });
       void qc.invalidateQueries({ queryKey: ["document", req.documentId] });
       void qc.invalidateQueries({ queryKey: documentsKey("letter") });
+      void qc.invalidateQueries({ queryKey: documentsKey("invoice") });
+      void qc.invalidateQueries({ queryKey: documentsKey("quotation") });
       void qc.invalidateQueries({ queryKey: notificationsKey });
     },
   });
@@ -535,6 +542,8 @@ export function useSignLetterDocument() {
       void qc.invalidateQueries({ queryKey: letterSignatureKey(documentId) });
       void qc.invalidateQueries({ queryKey: ["document", documentId] });
       void qc.invalidateQueries({ queryKey: documentsKey("letter") });
+      void qc.invalidateQueries({ queryKey: documentsKey("invoice") });
+      void qc.invalidateQueries({ queryKey: documentsKey("quotation") });
       void qc.invalidateQueries({ queryKey: notificationsKey });
     },
   });

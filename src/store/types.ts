@@ -16,16 +16,33 @@ export type Client = {
   id: string;
   cabinet: Cabinet;
   name: string;
+  /** Sigle / abréviation (fiche ANPI). */
+  sigle: string;
   legalForm: string;
+  /** Capital social (texte libre). */
+  shareCapital: string;
   nif: string;
   niu: string;
   rccm: string;
+  cnss: string;
+  cnamgs: string;
+  activity: string;
+  activityDetail: string;
+  /** Représentant légal. */
   contactName: string;
+  /** Qualité (ex. Gérant). */
+  representativeTitle: string;
   email: string;
   phone: string;
   address: string;
+  /** Boîte postale (courriels). */
+  bp: string;
   city: string;
   country: string;
+  /** N° fiche ANPI (optionnel). */
+  anpiNumber: string;
+  /** Date fiche ANPI (optionnel). */
+  anpiDate: string;
   ficheCircuitUrl?: string | null;
   ficheCircuitName?: string | null;
   ficheStatusUrl?: string | null;
@@ -85,7 +102,7 @@ export type LineItem = {
 export type DocumentType = "quotation" | "invoice" | "letter";
 export type DocumentStatus = "draft" | "signed" | "sent" | "accepted" | "rejected" | "paid" | "overdue" | "archived" | "cancelled";
 export type PaymentMethod = "cash" | "check" | "bank_transfer";
-export type MailMergeStatus = "draft" | "signed" | "sent";
+export type MailMergeStatus = "draft" | "pending_signature" | "signed" | "sent";
 
 export type Document = {
   id: string;
@@ -141,6 +158,10 @@ export type MailMergeCampaign = {
   issueDate: string;
   signedAt?: string | null;
   signedById?: string | null;
+  signatureRequestedAt?: string | null;
+  signatureRequestedById?: string | null;
+  signatureRejectedAt?: string | null;
+  signatureRejectNote?: string | null;
   sentAt?: string | null;
   createdAt: string;
   documentCount: number;

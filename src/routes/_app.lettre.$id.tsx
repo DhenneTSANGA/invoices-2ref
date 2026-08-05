@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   ArrowLeft,
@@ -62,6 +62,13 @@ function LetterDetail() {
     session?.staff.id && doc?.createdById === session.staff.id,
   );
 
+  // Sur la page détail, l’aperçu est déjà visible → l’admin peut signer sans geste supplémentaire.
+  useEffect(() => {
+    if (adminLike && doc?.status === "draft") {
+      setPreviewSeen(true);
+    }
+  }, [adminLike, doc?.id, doc?.status]);
+
   if (isLoading) {
     return (
       <LoadingState
@@ -95,14 +102,10 @@ function LetterDetail() {
   }
 
   const pending = signatureReq?.status === "pending";
+  /** Seuls les membres demandent une signature — admin / SA signent directement. */
   const canRequest =
-    doc.status === "draft" &&
-    !pending &&
-    (isCreator || adminLike);
-  const canSign =
-    adminLike &&
-    doc.status === "draft" &&
-    previewSeen;
+    doc.status === "draft" && !pending && isCreator && !adminLike;
+  const canSign = adminLike && doc.status === "draft" && previewSeen;
   const canSend =
     (doc.status === "signed" || doc.status === "sent") &&
     (isCreator || adminLike);

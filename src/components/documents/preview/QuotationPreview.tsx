@@ -12,12 +12,16 @@ import {
 import {
   ItemsTable,
   PartyBlock,
-  StampBox,
   TotalsBlock,
   partyAddressLines,
   partyContactLine,
 } from "./InvoicePreview";
 import { DOCUMENT_COLORS } from "@/lib/cabinets";
+import {
+  clientDisplayName,
+  clientRepresentativeLine,
+} from "@/lib/client-address";
+import { ManagerSignature } from "@/components/signature/ManagerSignature";
 
 type Props = { doc: Document; compact?: boolean; variant?: "full" | "thumb"; className?: string };
 
@@ -42,7 +46,11 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
     ? partyAddressLines([
         client.address,
         [client.city, client.country].filter(Boolean).join(", "),
-        partyContactLine([client.contactName, client.email, client.phone]),
+        partyContactLine([
+          clientRepresentativeLine(client),
+          client.email,
+          client.phone,
+        ]),
       ])
     : undefined;
 
@@ -94,11 +102,13 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
         <PartyBlock
           title="Client"
           accent={ACCENT}
-          name={client?.name}
+          name={client ? clientDisplayName(client) : undefined}
           lines={clientLines}
           nif={client?.nif}
           niu={client?.niu}
           rccm={client?.rccm}
+          cnss={client?.cnss}
+          cnamgs={client?.cnamgs}
           bordered
         />
       </div>
@@ -140,7 +150,13 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
       </div>
 
       <div className="mt-4 flex justify-end">
-        <StampBox accent={ACCENT} />
+        <ManagerSignature
+          applied={doc.status === "signed" || doc.status === "sent" || doc.status === "accepted"}
+          managerName={company.managerName?.trim() || ""}
+          signatureUrl={company.stampUrl?.trim() || ""}
+          signatoryTitle="Le Gérant"
+          accent={ACCENT}
+        />
       </div>
 
       <LegalFooter {...company} niuLabel={doc.cabinet === "conseil" ? "STAT" : "NIU"} />

@@ -286,6 +286,20 @@ export function DocumentEditor({ initial, type }: Props) {
       };
       const saved = await upsertMutation.mutateAsync(payload);
       if (status === "sent") {
+        if (saved.status !== "signed" && saved.status !== "sent") {
+          toast.success("Document enregistré", {
+            description:
+              "Demandez la signature (ou PDF physique) avant l’envoi e-mail.",
+          });
+          if (type === "invoice") {
+            void navigate({ to: "/invoices/$id", params: { id: saved.id } });
+          } else if (type === "quotation") {
+            void navigate({ to: "/quotations/$id", params: { id: saved.id } });
+          } else {
+            void navigate({ to: listPath });
+          }
+          return;
+        }
         const emailed = await sendEmailMutation.mutateAsync(saved);
         toast.success("Document envoyé par email", {
           description: `${saved.number} → ${emailed.to}`,
@@ -293,8 +307,11 @@ export function DocumentEditor({ initial, type }: Props) {
       } else {
         toast.success("Document enregistré", { description: saved.number });
       }
-      if (type === "invoice" && initial && isPersistedId(initial.id)) {
-        void navigate({ to: "/invoices/$id", params: { id: saved.id } });
+      if (commercial) {
+        void navigate({
+          to: type === "invoice" ? "/invoices/$id" : "/quotations/$id",
+          params: { id: saved.id },
+        });
       } else {
         void navigate({ to: listPath });
       }

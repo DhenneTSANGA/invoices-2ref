@@ -77,6 +77,7 @@ enum AdminRequestStatus {
 
 enum MailMergeStatus {
   draft
+  pending_signature
   signed
   sent
 }
@@ -134,6 +135,7 @@ model StaffMember {
   pdfTraces     DocumentPdfTrace[]
   mailMergeCampaigns MailMergeCampaign[] @relation("MailMergeCreator")
   mailMergeSigned    MailMergeCampaign[] @relation("MailMergeSigner")
+  mailMergeSignatureRequests MailMergeCampaign[] @relation("MailMergeSignatureRequester")
   letterSignatureRequests LetterSignatureRequest[] @relation("LetterSignatureRequester")
   letterSignatureReviews  LetterSignatureRequest[] @relation("LetterSignatureReviewer")
 
@@ -175,16 +177,37 @@ model Client {
   id          String   @id @default(cuid())
   cabinet     Cabinet
   name        String
+  /// Sigle / abréviation (fiche ANPI).
+  sigle       String   @default("")
   legalForm   String
+  /// Capital social (texte libre, ex. « 10 000 000 FCFA »).
+  shareCapital String @default("")
   nif         String
   niu         String
   rccm        String
+  cnss        String   @default("")
+  cnamgs      String   @default("")
+  /// Activité principale (fiche ANPI).
+  activity    String   @default("")
+  /// Nature détaillée de l’activité.
+  activityDetail String @default("")
+  /// Représentant légal (nom).
   contactName String
+  /// Qualité du représentant (ex. Gérant).
+  representativeTitle String @default("")
   email       String
   phone       String
   address     String
+  /// Boîte postale (affichée sur les courriels à la place du quartier).
+  bp          String   @default("")
   city        String
   country     String   @default("Gabon")
+  /// N° fiche ANPI (optionnel).
+  anpiNumber  String   @default("")
+  /// Date de la fiche ANPI (texte, ex. 22/03/2022).
+  anpiDate    String   @default("")
+  /** Destinataire ponctuel (publipostage) — masqué de la liste clients. */
+  isTransient Boolean  @default(false)
   /** URL publique fiche circuit (Storage). */
   ficheCircuitUrl  String?
   ficheCircuitName String?
@@ -385,12 +408,18 @@ model MailMergeCampaign {
   issueDate      DateTime        @db.Date
   signedAt       DateTime?
   signedById     String?
+  /** Demande de signature en attente (membre → admin). */
+  signatureRequestedAt   DateTime?
+  signatureRequestedById String?
+  signatureRejectedAt    DateTime?
+  signatureRejectNote    String?
   sentAt         DateTime?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
   createdBy StaffMember  @relation("MailMergeCreator", fields: [createdById], references: [id], onDelete: Restrict)
   signedBy  StaffMember? @relation("MailMergeSigner", fields: [signedById], references: [id], onDelete: SetNull)
+  signatureRequestedBy StaffMember? @relation("MailMergeSignatureRequester", fields: [signatureRequestedById], references: [id], onDelete: SetNull)
   documents Document[]
 
   @@index([cabinet, createdAt])

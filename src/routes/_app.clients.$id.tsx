@@ -95,55 +95,74 @@ function EditClient() {
     }
   };
 
+  const subtitleParts = [
+    form.sigle || null,
+    form.legalForm,
+    `Ajouté le ${shortDate(client.createdAt)}`,
+  ].filter(Boolean);
+
   return (
     <div>
       <button onClick={() => history.back()} className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" /> Retour</button>
-      <PageHeader title={client.name} subtitle={`${client.legalForm} · Ajouté le ${shortDate(client.createdAt)}`} />
+      <PageHeader title={client.name} subtitle={subtitleParts.join(" · ")} />
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_360px]">
         <form onSubmit={save} className="space-y-5">
-          <div className="glass-panel rounded-3xl p-5">
-            <h3 className="font-display font-semibold">Identité</h3>
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Raison sociale" value={form.name} onChange={(v) => setForm({ ...form, name: v })} />
-              <Field label="Forme juridique" value={form.legalForm} onChange={(v) => setForm({ ...form, legalForm: v })} />
-              <Field label="NIF" value={form.nif} onChange={(v) => setForm({ ...form, nif: v })} />
-              <Field label="NIU" value={form.niu} onChange={(v) => setForm({ ...form, niu: v })} />
-              <Field label="RCCM" value={form.rccm} onChange={(v) => setForm({ ...form, rccm: v })} colSpan />
-            </div>
-          </div>
-          <div className="glass-panel rounded-3xl p-5">
-            <h3 className="font-display font-semibold">Contact & adresse</h3>
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Contact" value={form.contactName} onChange={(v) => setForm({ ...form, contactName: v })} />
-              <Field label="Email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} />
-              <Field label="Téléphone" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} />
-              <Field label="Ville" value={form.city} onChange={(v) => setForm({ ...form, city: v })} />
-              <Field label="Adresse" value={form.address} onChange={(v) => setForm({ ...form, address: v })} colSpan />
-              <Field label="Pays" value={form.country} onChange={(v) => setForm({ ...form, country: v })} />
-            </div>
-          </div>
-          <div className="glass-panel rounded-3xl p-5">
-            <h3 className="font-display font-semibold">Fiches documents</h3>
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <ClientFicheUpload
-                label="Fiche circuit"
-                file={circuitFile}
-                existingUrl={form.ficheCircuitUrl}
-                existingName={form.ficheCircuitName}
-                onFileChange={setCircuitFile}
-                disabled={saving}
-              />
-              <ClientFicheUpload
-                label="Fiche status"
-                file={statusFile}
-                existingUrl={form.ficheStatusUrl}
-                existingName={form.ficheStatusName}
-                onFileChange={setStatusFile}
-                disabled={saving}
-              />
-            </div>
-          </div>
+          <Section title="Identité de l'entreprise">
+            <Field label="Dénomination sociale" value={form.name} onChange={(v) => setForm({ ...form, name: v })} />
+            <Field label="Sigle" value={form.sigle} onChange={(v) => setForm({ ...form, sigle: v })} />
+            <Field label="Forme juridique" value={form.legalForm} onChange={(v) => setForm({ ...form, legalForm: v })} />
+            <Field label="Capital social" value={form.shareCapital} onChange={(v) => setForm({ ...form, shareCapital: v })} />
+            <Field label="Activité" value={form.activity} onChange={(v) => setForm({ ...form, activity: v })} />
+            <Field label="Nature de l’activité" value={form.activityDetail} onChange={(v) => setForm({ ...form, activityDetail: v })} colSpan />
+          </Section>
+
+          <Section title="Identifiants légaux">
+            <Field label="N° RCCM" value={form.rccm} onChange={(v) => setForm({ ...form, rccm: v })} colSpan />
+            <Field label="N° NIF" value={form.nif} onChange={(v) => setForm({ ...form, nif: v })} />
+            <Field label="N° CNSS" value={form.cnss} onChange={(v) => setForm({ ...form, cnss: v })} />
+            <Field label="N° CNAMGS" value={form.cnamgs} onChange={(v) => setForm({ ...form, cnamgs: v })} />
+            <Field label="NIU (optionnel)" value={form.niu} onChange={(v) => setForm({ ...form, niu: v })} />
+          </Section>
+
+          <Section title="Représentant légal & contact">
+            <Field label="Représentant légal" value={form.contactName} onChange={(v) => setForm({ ...form, contactName: v })} />
+            <Field label="Qualité" value={form.representativeTitle} onChange={(v) => setForm({ ...form, representativeTitle: v })} />
+            <Field label="Email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} />
+            <Field label="Téléphone" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} />
+          </Section>
+
+          <Section title="Adresse">
+            <Field label="Quartier" value={form.address} onChange={(v) => setForm({ ...form, address: v })} colSpan />
+            <Field label="Boîte postale (BP)" value={form.bp} onChange={(v) => setForm({ ...form, bp: v })} />
+            <Field label="Ville" value={form.city} onChange={(v) => setForm({ ...form, city: v })} />
+            <Field label="Pays" value={form.country} onChange={(v) => setForm({ ...form, country: v })} />
+          </Section>
+
+          <Section title="Fiche ANPI (optionnel)">
+            <Field label="N° fiche ANPI" value={form.anpiNumber} onChange={(v) => setForm({ ...form, anpiNumber: v })} />
+            <Field label="Date de la fiche" value={form.anpiDate} onChange={(v) => setForm({ ...form, anpiDate: v })} placeholder="JJ/MM/AAAA" />
+          </Section>
+
+          <Section title="Fiches documents">
+            <ClientFicheUpload
+              label="Fiche circuit"
+              file={circuitFile}
+              existingUrl={form.ficheCircuitUrl}
+              existingName={form.ficheCircuitName}
+              onFileChange={setCircuitFile}
+              disabled={saving}
+            />
+            <ClientFicheUpload
+              label="Fiche status"
+              file={statusFile}
+              existingUrl={form.ficheStatusUrl}
+              existingName={form.ficheStatusName}
+              onFileChange={setStatusFile}
+              disabled={saving}
+            />
+          </Section>
+
           <div className="flex justify-end gap-2">
             <button type="button" onClick={() => navigate({ to: "/clients" })} className="rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted">Annuler</button>
             <button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow disabled:opacity-60">
@@ -183,11 +202,37 @@ function EditClient() {
   );
 }
 
-function Field({ label, value, onChange, colSpan }: { label: string; value: string; onChange: (v: string) => void; colSpan?: boolean }) {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="glass-panel rounded-3xl p-5">
+      <h3 className="font-display font-semibold">{title}</h3>
+      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">{children}</div>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  value,
+  onChange,
+  colSpan,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  colSpan?: boolean;
+  placeholder?: string;
+}) {
   return (
     <label className={colSpan ? "sm:col-span-2 block" : "block"}>
       <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</span>
-      <input value={value} onChange={(e) => onChange(e.target.value)} className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition" />
+      <input
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
+      />
     </label>
   );
 }
