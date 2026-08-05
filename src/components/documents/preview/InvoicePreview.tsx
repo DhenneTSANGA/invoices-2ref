@@ -10,7 +10,7 @@ import {
   AmountInWords,
   PreviewBottomRow,
 } from "./PreviewShell";
-import { documentTaxRates } from "@/lib/document-math";
+import { computeDocumentTotals, documentTaxRates } from "@/lib/document-math";
 import { DOCUMENT_COLORS } from "@/lib/cabinets";
 import { ManagerSignature } from "@/components/signature/ManagerSignature";
 import {
@@ -256,13 +256,12 @@ function ItemsTable({
             </tr>
           )}
           {doc.items.map((it, i) => {
-            const lineTotal = it.quantity * it.unitPrice * (1 - (it.discount || 0) / 100);
+            const lineTotal = it.quantity * it.unitPrice;
             return (
               <tr key={it.id} className={i % 2 === 0 ? "bg-white" : "bg-[#F8FAFC]"}>
                 <td className="px-2.5 py-2.5 align-top text-[#64748B]">{String(i + 1).padStart(2, "0")}</td>
                 <td className="px-2.5 py-2.5 align-top leading-snug">
                   {it.description}
-                  {it.discount ? <span className="text-[#B45309]"> (−{it.discount}%)</span> : null}
                 </td>
                 <td className="px-2.5 py-2.5 text-right align-top font-mono">{it.quantity}</td>
                 <td className="px-2.5 py-2.5 text-right align-top font-mono">{number(it.unitPrice)}</td>
@@ -298,23 +297,63 @@ function TotalsBlock({
   accent: string;
 }) {
   const { vatRate, cssRate } = documentTaxRates(doc.items);
+  const discountPct = doc.discount ?? 0;
+  const computed = computeDocumentTotals(doc.items, {
+    discount: discountPct,
+    vatRate,
+    cssRate,
+  });
+  const grossSubtotal = computed.grossSubtotal || doc.subtotal;
+  const discountAmount = computed.discountAmount;
+  const subtotal = doc.subtotal || computed.subtotal;
+  const css = doc.css ?? computed.css;
+  const vat = doc.vat || computed.vat;
+  const total = doc.total || computed.total;
+
   return (
     <div className="w-full space-y-2">
       <div className="overflow-hidden rounded-lg ring-1 ring-[#E2E8F0]">
-        <AmountRow label="Sous-total HT" value={number(doc.subtotal)} currency={doc.currency} accent={accent} />
+        <AmountRow
+          label="Sous-total HT"
+          value={number(grossSubtotal)}
+          currency={doc.currency}
+          accent={accent}
+        />
+        {discountAmount > 0 ? (
+          <AmountRow
+            label={`Remise (${discountPct} %)`}
+            value={number(-discountAmount)}
+            currency={doc.currency}
+            accent={accent}
+          />
+        ) : null}
+        {discountAmount > 0 ? (
+          <AmountRow
+            label="HT net"
+            value={number(subtotal)}
+            currency={doc.currency}
+            accent={accent}
+          />
+        ) : null}
         <AmountRow
           label={`CSS (${cssRate} %)`}
-          value={number(doc.css ?? 0)}
+          value={number(css)}
           currency={doc.currency}
           accent={accent}
         />
         <AmountRow
           label={`TVA (${vatRate} %)`}
-          value={number(doc.vat)}
+          value={number(vat)}
           currency={doc.currency}
           accent={accent}
         />
-        <AmountRow label="Total TTC" value={number(doc.total)} currency={doc.currency} strong accent={accent} />
+        <AmountRow
+          label="Total TTC"
+          value={number(total)}
+          currency={doc.currency}
+          strong
+          accent={accent}
+        />
       </div>
     </div>
   );

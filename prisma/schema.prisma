@@ -265,6 +265,8 @@ model Document {
   issueDate         DateTime       @db.Date
   dueDate           DateTime       @db.Date
   subtotal          Decimal        @db.Decimal(18, 2)
+  /** Remise globale % sur le sous-total HT (factures / devis). */
+  discount          Decimal        @default(0) @db.Decimal(5, 2)
   tps               Decimal        @default(0) @db.Decimal(18, 2)
   css               Decimal        @default(0) @db.Decimal(18, 2)
   vat               Decimal        @db.Decimal(18, 2)

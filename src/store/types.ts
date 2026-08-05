@@ -117,6 +117,8 @@ export type Document = {
   dueDate: string;
   items: LineItem[];
   subtotal: number;
+  /** Remise globale % (factures / devis). */
+  discount?: number;
   tps: number;
   css: number;
   vat: number;

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Plus, Trash2, Save, Send, Download, Eye, Loader2, Users } from "lucide-react";
+import { Plus, Trash2, Save, Send, Download, Eye, Loader2, Users, Check } from "lucide-react";
 import { toast } from "sonner";
 import {
   computeTotals,
@@ -11,6 +11,7 @@ import {
   parseExecutionDays,
   formatExecutionTerms,
   breakdownFromTtc,
+  withDocumentTaxRates,
 } from "@/lib/document-math";
 import type { Document, DocumentType, LineItem } from "@/store/types";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
@@ -48,9 +49,21 @@ export function DocumentEditor({ initial, type }: Props) {
   const isNew = !initial;
   const commercial = type === "invoice" || type === "quotation";
 
-  const [doc, setDoc] = useState<Document>(() =>
-    initial ?? defaultDoc(type, "", activeCabinet),
-  );
+  const [doc, setDoc] = useState<Document>(() => {
+    if (!initial) return defaultDoc(type, "", activeCabinet);
+    if (type !== "invoice" && type !== "quotation") return initial;
+    const hasLineDiscount = initial.items.some((it) => (it.discount || 0) > 0);
+    const items = hasLineDiscount
+      ? initial.items.map((it) => ({
+          ...it,
+          unitPrice: Math.round(
+            it.unitPrice * (1 - (it.discount || 0) / 100),
+          ),
+          discount: 0,
+        }))
+      : initial.items.map((it) => ({ ...it, discount: 0 }));
+    return { ...initial, discount: initial.discount ?? 0, items };
+  });
 
   const { data: peekedNumber } = usePeekNextDocumentNumber(
     commercial ? type : undefined,
@@ -91,10 +104,18 @@ export function DocumentEditor({ initial, type }: Props) {
   const [ttcVatRate, setTtcVatRate] = useState(DEFAULT_VAT_RATE);
   const [ttcCssRate, setTtcCssRate] = useState(DEFAULT_CSS_RATE);
   const [ttcDescription, setTtcDescription] = useState("Prestation");
+  const [docVatRate, setDocVatRate] = useState(() =>
+    documentTaxRates(initial?.items ?? []).vatRate,
+  );
+  const [docCssRate, setDocCssRate] = useState(() =>
+    documentTaxRates(initial?.items ?? []).cssRate,
+  );
 
   const effectiveClientId = doc.clientId || clients[0]?.id || "";
   const executionDays = parseExecutionDays(doc.executionTerms);
-  const { vatRate, cssRate } = documentTaxRates(doc.items);
+  const vatRate = commercial ? docVatRate : documentTaxRates(doc.items).vatRate;
+  const cssRate = commercial ? docCssRate : documentTaxRates(doc.items).cssRate;
+  const docDiscount = doc.discount ?? 0;
 
   const ttcAmount = Number(ttcInput.replace(/\s/g, "").replace(",", ".")) || 0;
   const ttcBreakdown = useMemo(
@@ -105,83 +126,89 @@ export function DocumentEditor({ initial, type }: Props) {
     [ttcAmount, ttcVatRate, ttcCssRate],
   );
 
-  const applyTtcToDoc = (
-    breakdown: NonNullable<typeof ttcBreakdown>,
-    vat: number,
-    css: number,
-    description: string,
-  ) => {
+  const applyTtcLine = () => {
+    if (!ttcBreakdown || ttcAmount <= 0) {
+      toast.error("Saisissez un montant TTC valide");
+      return;
+    }
+    const description = ttcDescription.trim();
+    if (!description) {
+      toast.error("Indiquez une description");
+      return;
+    }
     setDoc((d) => ({
       ...d,
       items: [
+        ...d.items,
         {
-          id: d.items.length === 1 ? d.items[0]!.id : newId(),
-          description: description.trim() || "Prestation",
+          id: newId(),
+          description,
           quantity: 1,
-          unitPrice: breakdown.subtotal,
-          vatRate: vat,
-          cssRate: css,
+          unitPrice: ttcBreakdown.subtotal,
+          vatRate: ttcVatRate,
+          cssRate: ttcCssRate,
           discount: 0,
           tpsRate: 0,
         },
       ],
     }));
-  };
-
-  const syncFromTtc = (
-    rawTtc: string,
-    vat: number,
-    css: number,
-    description: string,
-  ) => {
-    const amount = Number(rawTtc.replace(/\s/g, "").replace(",", ".")) || 0;
-    if (amount <= 0) {
-      setDoc((d) => ({ ...d, items: [] }));
-      return;
-    }
-    applyTtcToDoc(breakdownFromTtc(amount, vat, css), vat, css, description);
+    toast.success("Prestation ajoutée", {
+      description: `${description} — TTC ${number(ttcBreakdown.total)}`,
+    });
+    setTtcInput("");
+    setTtcDescription("Prestation");
   };
 
   const selectAmountMode = (mode: "ht" | "ttc") => {
     if (mode === amountMode) return;
     if (mode === "ttc") {
-      const rates = documentTaxRates(doc.items);
-      setTtcVatRate(rates.vatRate);
-      setTtcCssRate(rates.cssRate);
-      if (doc.items.length === 1 && doc.items[0]?.description) {
-        setTtcDescription(doc.items[0].description);
-      }
-      const currentTotal = computeDocumentTotals(doc.items).total;
-      const nextInput =
-        currentTotal > 0 ? String(Math.round(currentTotal)) : ttcInput;
-      if (currentTotal > 0) setTtcInput(nextInput);
-      if (nextInput) {
-        syncFromTtc(
-          nextInput,
-          rates.vatRate,
-          rates.cssRate,
-          doc.items.length === 1 && doc.items[0]?.description
-            ? doc.items[0].description
-            : ttcDescription,
-        );
-      }
+      setTtcVatRate(docVatRate);
+      setTtcCssRate(docCssRate);
+      setTtcInput("");
+      setTtcDescription("Prestation");
     }
     setAmountMode(mode);
   };
 
-  const totals = useMemo(
+  const setDocumentRates = (nextVat: number, nextCss: number) => {
+    setDocVatRate(nextVat);
+    setDocCssRate(nextCss);
+    setTtcVatRate(nextVat);
+    setTtcCssRate(nextCss);
+    setDoc((d) => ({
+      ...d,
+      items: withDocumentTaxRates(d.items, nextVat, nextCss),
+    }));
+  };
+
+  const commercialTotals = useMemo(
     () =>
-      commercial
-        ? computeDocumentTotals(doc.items)
-        : computeTotals(doc.items),
-    [doc.items, commercial],
+      computeDocumentTotals(doc.items, {
+        discount: docDiscount,
+        vatRate,
+        cssRate,
+      }),
+    [doc.items, docDiscount, vatRate, cssRate],
   );
+  const legacyTotals = useMemo(() => computeTotals(doc.items), [doc.items]);
+  const totals = commercial ? commercialTotals : legacyTotals;
   const merged: Document = {
     ...doc,
-    ...totals,
+    subtotal: totals.subtotal,
+    tps: totals.tps,
+    css: totals.css,
+    vat: totals.vat,
+    total: totals.total,
+    discount: commercial ? docDiscount : 0,
     clientId: effectiveClientId,
     items: commercial
-      ? doc.items.map((it) => ({ ...it, tpsRate: 0 }))
+      ? doc.items.map((it) => ({
+          ...it,
+          tpsRate: 0,
+          discount: 0,
+          vatRate,
+          cssRate,
+        }))
       : doc.items,
   };
 
@@ -201,16 +228,16 @@ export function DocumentEditor({ initial, type }: Props) {
           description: "",
           quantity: 1,
           unitPrice: 0,
-          vatRate: DEFAULT_VAT_RATE,
+          vatRate: commercial ? docVatRate : DEFAULT_VAT_RATE,
           discount: 0,
           tpsRate: 0,
-          cssRate: DEFAULT_CSS_RATE,
+          cssRate: commercial ? docCssRate : DEFAULT_CSS_RATE,
         },
       ],
     }));
 
-  const addFromService = (sid: string) => {
-    const s = services.find((x) => x.id === sid);
+  const addFromService = (serviceId: string) => {
+    const s = services.find((x) => x.id === serviceId);
     if (!s) return;
     setDoc((d) => ({
       ...d,
@@ -222,10 +249,10 @@ export function DocumentEditor({ initial, type }: Props) {
           description: s.name,
           quantity: 1,
           unitPrice: s.unitPrice,
-          vatRate: s.vatRate || DEFAULT_VAT_RATE,
+          vatRate: commercial ? docVatRate : s.vatRate || DEFAULT_VAT_RATE,
           discount: 0,
           tpsRate: 0,
-          cssRate: DEFAULT_CSS_RATE,
+          cssRate: commercial ? docCssRate : DEFAULT_CSS_RATE,
         },
       ],
     }));
@@ -274,11 +301,12 @@ export function DocumentEditor({ initial, type }: Props) {
           quantity: it.quantity,
           unitPrice: it.unitPrice,
           vatRate: it.vatRate,
-          discount: it.discount ?? 0,
+          discount: commercial ? 0 : (it.discount ?? 0),
           tpsRate: commercial ? 0 : (it.tpsRate ?? 0),
           cssRate: commercial ? (it.cssRate ?? DEFAULT_CSS_RATE) : (it.cssRate ?? 0),
         })),
         subtotal: merged.subtotal,
+        discount: commercial ? (merged.discount ?? 0) : 0,
         tps: commercial ? 0 : merged.tps,
         css: commercial ? merged.css : merged.css,
         vat: merged.vat,
@@ -494,7 +522,7 @@ export function DocumentEditor({ initial, type }: Props) {
           <p className="mt-3 text-xs text-muted-foreground">
             {amountMode === "ht"
               ? "Mode classique : vous saisissez les lignes en HT, puis CSS et TVA sont calculées."
-              : "Mode client TTC : vous saisissez le montant TTC, HT / CSS / TVA sont déduits automatiquement."}
+              : "Mode client TTC : saisissez une prestation, vérifiez la décomposition, puis cliquez Appliquer. Répétez pour chaque ligne."}
           </p>
         </div>
       ) : null}
@@ -503,8 +531,8 @@ export function DocumentEditor({ initial, type }: Props) {
         <div className="glass-panel rounded-3xl p-5">
           <h3 className="font-display font-semibold">Montant TTC</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Indiquez le total TTC communiqué par le client. Les montants HT, CSS
-            et TVA sont calculés et appliqués tout de suite.
+            Indiquez le total TTC communiqué par le client. Vérifiez HT, CSS et
+            TVA, puis cliquez Appliquer pour ajouter la prestation à la facture.
           </p>
           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="block sm:col-span-2">
@@ -514,13 +542,7 @@ export function DocumentEditor({ initial, type }: Props) {
               <input
                 type="text"
                 value={ttcDescription}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setTtcDescription(v);
-                  if (ttcBreakdown) {
-                    syncFromTtc(ttcInput, ttcVatRate, ttcCssRate, v);
-                  }
-                }}
+                onChange={(e) => setTtcDescription(e.target.value)}
                 className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </label>
@@ -533,10 +555,12 @@ export function DocumentEditor({ initial, type }: Props) {
                 min={0}
                 step={1}
                 value={ttcInput}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setTtcInput(v);
-                  syncFromTtc(v, ttcVatRate, ttcCssRate, ttcDescription);
+                onChange={(e) => setTtcInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    applyTtcLine();
+                  }
                 }}
                 placeholder="Ex. 1190000"
                 className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm font-numeric focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
@@ -554,7 +578,7 @@ export function DocumentEditor({ initial, type }: Props) {
                 onChange={(e) => {
                   const v = Number(e.target.value) || 0;
                   setTtcVatRate(v);
-                  syncFromTtc(ttcInput, v, ttcCssRate, ttcDescription);
+                  setDocumentRates(v, ttcCssRate);
                 }}
                 className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm font-numeric focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
@@ -571,7 +595,7 @@ export function DocumentEditor({ initial, type }: Props) {
                 onChange={(e) => {
                   const v = Number(e.target.value) || 0;
                   setTtcCssRate(v);
-                  syncFromTtc(ttcInput, ttcVatRate, v, ttcDescription);
+                  setDocumentRates(ttcVatRate, v);
                 }}
                 className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm font-numeric focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
@@ -618,13 +642,31 @@ export function DocumentEditor({ initial, type }: Props) {
               Saisissez un montant TTC pour voir la décomposition.
             </p>
           )}
+
+          <div className="mt-4 flex justify-end">
+            <Button
+              type="button"
+              className="rounded-xl bg-gradient-primary text-primary-foreground shadow-glow"
+              disabled={!ttcBreakdown || ttcAmount <= 0}
+              onClick={applyTtcLine}
+            >
+              <Check className="h-4 w-4" /> Appliquer
+            </Button>
+          </div>
         </div>
       ) : null}
 
-      {(!commercial || amountMode === "ht") ? (
       <div className="glass-panel rounded-3xl p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="font-display font-semibold">Lignes de prestation</h3>
+          <h3 className="font-display font-semibold">
+            Lignes de prestation
+            {commercial && amountMode === "ttc" && doc.items.length > 0 ? (
+              <span className="ml-2 text-xs font-normal text-muted-foreground">
+                ({doc.items.length})
+              </span>
+            ) : null}
+          </h3>
+          {(!commercial || amountMode === "ht") && (
           <div className="flex flex-wrap items-center gap-2">
             <select
               className="rounded-xl border border-border bg-surface px-3 py-2 text-sm"
@@ -649,6 +691,7 @@ export function DocumentEditor({ initial, type }: Props) {
               <Plus className="h-4 w-4" /> Ligne libre
             </Button>
           </div>
+          )}
         </div>
 
         <div className="mt-4 overflow-x-auto">
@@ -658,18 +701,29 @@ export function DocumentEditor({ initial, type }: Props) {
                 <th className="py-2 text-left font-medium">Description</th>
                 <th className="py-2 text-right font-medium w-20">Qté</th>
                 <th className="py-2 text-right font-medium w-28">P.U. HT</th>
-                <th className="py-2 text-right font-medium w-20">TVA %</th>
-                <th className="py-2 text-right font-medium w-20">CSS %</th>
-                <th className="py-2 text-right font-medium w-20">Rem. %</th>
+                {!commercial ? (
+                  <>
+                    <th className="py-2 text-right font-medium w-20">TVA %</th>
+                    <th className="py-2 text-right font-medium w-20">CSS %</th>
+                    <th className="py-2 text-right font-medium w-20">Rem. %</th>
+                  </>
+                ) : null}
                 <th className="py-2 text-right font-medium w-28">Total HT</th>
                 <th className="w-10" />
               </tr>
             </thead>
             <tbody>
-              <AnimateEmpty items={doc.items} colSpan={8} />
+              <AnimateEmpty
+                items={doc.items}
+                colSpan={commercial ? 5 : 8}
+                emptyHint={
+                  commercial && amountMode === "ttc"
+                    ? "Aucune ligne — saisissez un montant TTC ci-dessus puis cliquez Appliquer."
+                    : undefined
+                }
+              />
               {doc.items.map((it) => {
-                const lineTotal =
-                  it.quantity * it.unitPrice * (1 - (it.discount || 0) / 100);
+                const lineTotal = it.quantity * it.unitPrice;
                 return (
                   <tr key={it.id} className="border-b border-border/40">
                     <td className="py-2 pr-2">
@@ -694,24 +748,28 @@ export function DocumentEditor({ initial, type }: Props) {
                         step={1}
                       />
                     </td>
-                    <td className="py-2 px-1">
-                      <NumInput
-                        value={it.vatRate}
-                        onChange={(v) => updateItem(it.id, { vatRate: v })}
-                      />
-                    </td>
-                    <td className="py-2 px-1">
-                      <NumInput
-                        value={it.cssRate ?? DEFAULT_CSS_RATE}
-                        onChange={(v) => updateItem(it.id, { cssRate: v })}
-                      />
-                    </td>
-                    <td className="py-2 px-1">
-                      <NumInput
-                        value={it.discount}
-                        onChange={(v) => updateItem(it.id, { discount: v })}
-                      />
-                    </td>
+                    {!commercial ? (
+                      <>
+                        <td className="py-2 px-1">
+                          <NumInput
+                            value={it.vatRate}
+                            onChange={(v) => updateItem(it.id, { vatRate: v })}
+                          />
+                        </td>
+                        <td className="py-2 px-1">
+                          <NumInput
+                            value={it.cssRate ?? DEFAULT_CSS_RATE}
+                            onChange={(v) => updateItem(it.id, { cssRate: v })}
+                          />
+                        </td>
+                        <td className="py-2 px-1">
+                          <NumInput
+                            value={it.discount}
+                            onChange={(v) => updateItem(it.id, { discount: v })}
+                          />
+                        </td>
+                      </>
+                    ) : null}
                     <td className="py-2 pl-2 text-right font-numeric font-semibold">
                       {number(lineTotal)}
                     </td>
@@ -731,25 +789,59 @@ export function DocumentEditor({ initial, type }: Props) {
           </table>
         </div>
 
-        <div className="mt-5 ml-auto w-full max-w-xs space-y-2 rounded-2xl bg-surface-2 p-4">
-          <Total label="Sous-total HT" value={totals.subtotal} />
-          <Total label={`CSS (${cssRate} %)`} value={totals.css} />
-          <Total label={`TVA (${vatRate} %)`} value={totals.vat} />
-          <div className="my-2 h-px bg-border" />
-          <Total label="Total TTC" value={totals.total} strong />
+        <div className="mt-5 ml-auto w-full max-w-sm space-y-2 rounded-2xl bg-surface-2 p-4">
+          {commercial ? (
+            <>
+              <Total label="Sous-total HT" value={commercialTotals.grossSubtotal} />
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="text-muted-foreground">Remise %</span>
+                <NumInput
+                  value={docDiscount}
+                  onChange={(v) =>
+                    setDoc((d) => ({
+                      ...d,
+                      discount: Math.min(100, Math.max(0, v)),
+                    }))
+                  }
+                  className="w-24 rounded-lg border border-border/60 bg-transparent px-2 py-1.5 text-right font-numeric focus:border-primary focus:outline-none"
+                />
+              </div>
+              {commercialTotals.discountAmount > 0 ? (
+                <Total label="Montant remise" value={-commercialTotals.discountAmount} />
+              ) : null}
+              <Total label="HT net" value={commercialTotals.subtotal} />
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="text-muted-foreground">CSS %</span>
+                <NumInput
+                  value={cssRate}
+                  onChange={(v) => setDocumentRates(vatRate, Math.max(0, v))}
+                  className="w-24 rounded-lg border border-border/60 bg-transparent px-2 py-1.5 text-right font-numeric focus:border-primary focus:outline-none"
+                />
+              </div>
+              <Total label="CSS" value={commercialTotals.css} />
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="text-muted-foreground">TVA %</span>
+                <NumInput
+                  value={vatRate}
+                  onChange={(v) => setDocumentRates(Math.max(0, v), cssRate)}
+                  className="w-24 rounded-lg border border-border/60 bg-transparent px-2 py-1.5 text-right font-numeric focus:border-primary focus:outline-none"
+                />
+              </div>
+              <Total label="TVA" value={commercialTotals.vat} />
+              <div className="my-2 h-px bg-border" />
+              <Total label="Total TTC" value={commercialTotals.total} strong />
+            </>
+          ) : (
+            <>
+              <Total label="Sous-total HT" value={legacyTotals.subtotal} />
+              <Total label={`CSS (${cssRate} %)`} value={legacyTotals.css} />
+              <Total label={`TVA (${vatRate} %)`} value={legacyTotals.vat} />
+              <div className="my-2 h-px bg-border" />
+              <Total label="Total TTC" value={legacyTotals.total} strong />
+            </>
+          )}
         </div>
       </div>
-      ) : (
-        <div className="glass-panel rounded-3xl p-5">
-          <div className="ml-auto w-full max-w-xs space-y-2 rounded-2xl bg-surface-2 p-4">
-            <Total label="Sous-total HT" value={totals.subtotal} />
-            <Total label={`CSS (${cssRate} %)`} value={totals.css} />
-            <Total label={`TVA (${vatRate} %)`} value={totals.vat} />
-            <div className="my-2 h-px bg-border" />
-            <Total label="Total TTC" value={totals.total} strong />
-          </div>
-        </div>
-      )}
 
       <div className="glass-panel rounded-3xl p-5">
         <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -810,12 +902,21 @@ export function DocumentEditor({ initial, type }: Props) {
   );
 }
 
-function AnimateEmpty({ items, colSpan = 7 }: { items: LineItem[]; colSpan?: number }) {
+function AnimateEmpty({
+  items,
+  colSpan = 7,
+  emptyHint,
+}: {
+  items: LineItem[];
+  colSpan?: number;
+  emptyHint?: string;
+}) {
   if (items.length > 0) return null;
   return (
     <tr>
       <td colSpan={colSpan} className="py-8 text-center text-sm text-muted-foreground">
-        Aucune ligne — ajoutez une prestation depuis le catalogue ou une ligne libre.
+        {emptyHint ??
+          "Aucune ligne — ajoutez une prestation depuis le catalogue ou une ligne libre."}
       </td>
     </tr>
   );
@@ -887,10 +988,12 @@ function NumInput({
   value,
   onChange,
   step = 1,
+  className,
 }: {
   value: number;
   onChange: (v: number) => void;
   step?: number;
+  className?: string;
 }) {
   return (
     <input
@@ -898,7 +1001,10 @@ function NumInput({
       step={step}
       value={value}
       onChange={(e) => onChange(Number(e.target.value))}
-      className="w-full rounded-lg border border-border/60 bg-transparent px-2 py-1.5 text-right font-numeric focus:border-primary focus:outline-none"
+      className={
+        className ??
+        "w-full rounded-lg border border-border/60 bg-transparent px-2 py-1.5 text-right font-numeric focus:border-primary focus:outline-none"
+      }
     />
   );
 }
@@ -950,6 +1056,7 @@ function defaultDoc(
     dueDate: due,
     items: [] as LineItem[],
     subtotal: 0,
+    discount: 0,
     tps: 0,
     css: 0,
     vat: 0,

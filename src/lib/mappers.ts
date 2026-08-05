@@ -164,6 +164,7 @@ export function mapDocument(row: {
   issueDate: Date;
   dueDate: Date;
   subtotal: Decimal;
+  discount?: Decimal;
   tps: Decimal;
   css: Decimal;
   vat: Decimal;
@@ -231,6 +232,7 @@ export function mapDocument(row: {
   const vat = decimalToNumber(row.vat);
   const css = decimalToNumber(row.css);
   const commercial = row.type === "invoice" || row.type === "quotation";
+  const discount = row.discount != null ? decimalToNumber(row.discount) : 0;
 
   return {
     id: row.id,
@@ -244,6 +246,7 @@ export function mapDocument(row: {
     dueDate: row.dueDate.toISOString().slice(0, 10),
     items,
     subtotal,
+    discount: commercial ? discount : 0,
     tps: commercial ? 0 : decimalToNumber(row.tps),
     css,
     vat,

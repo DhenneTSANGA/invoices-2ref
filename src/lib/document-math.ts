@@ -3,8 +3,13 @@ import type { LineItem } from "@/store/types";
 export const DEFAULT_VAT_RATE = 18;
 export const DEFAULT_CSS_RATE = 1;
 
+function lineGross(item: LineItem) {
+  return item.quantity * item.unitPrice;
+}
+
+/** Base ligne avec remise ligne (courriers / legacy). */
 function lineBase(item: LineItem) {
-  return item.quantity * item.unitPrice * (1 - (item.discount || 0) / 100);
+  return lineGross(item) * (1 - (item.discount || 0) / 100);
 }
 
 export function computeTotals(items: LineItem[]) {
@@ -15,16 +20,55 @@ export function computeTotals(items: LineItem[]) {
   return { subtotal, tps, css, vat, total: subtotal + tps + css + vat };
 }
 
-/** Factures & devis : HT + CSS + TVA (pas de TPS). */
-export function computeDocumentTotals(items: LineItem[]) {
-  const normalized = items.map((it) => ({
-    ...it,
-    tpsRate: 0,
-    cssRate: it.cssRate ?? DEFAULT_CSS_RATE,
-    vatRate: it.vatRate ?? DEFAULT_VAT_RATE,
-  }));
-  const { subtotal, css, vat } = computeTotals(normalized);
-  return { subtotal, tps: 0, css, vat, total: subtotal + css + vat };
+export type DocumentTotalsOptions = {
+  /** Remise globale % sur le sous-total HT brut. */
+  discount?: number;
+  vatRate?: number;
+  cssRate?: number;
+};
+
+export type DocumentTotals = {
+  /** Somme des lignes HT avant remise document. */
+  grossSubtotal: number;
+  /** Montant de la remise document. */
+  discountAmount: number;
+  /** HT net (base taxable CSS / TVA). */
+  subtotal: number;
+  tps: number;
+  css: number;
+  vat: number;
+  total: number;
+};
+
+/**
+ * Factures & devis : HT brut → remise document → CSS + TVA sur le HT net.
+ * Les remises / taux par ligne sont ignorés pour le calcul (taux document uniques).
+ */
+export function computeDocumentTotals(
+  items: LineItem[],
+  opts: DocumentTotalsOptions = {},
+): DocumentTotals {
+  const { vatRate, cssRate } = {
+    vatRate: opts.vatRate ?? documentTaxRates(items).vatRate,
+    cssRate: opts.cssRate ?? documentTaxRates(items).cssRate,
+  };
+  const discountPct = Math.min(100, Math.max(0, opts.discount ?? 0));
+
+  const grossSubtotal = items.reduce((a, b) => a + lineGross(b), 0);
+  const discountAmount = Math.round(grossSubtotal * (discountPct / 100));
+  const subtotal = Math.max(0, Math.round(grossSubtotal) - discountAmount);
+  const css = Math.round(subtotal * (Math.max(0, cssRate) / 100));
+  const vat = Math.round(subtotal * (Math.max(0, vatRate) / 100));
+
+  return {
+    grossSubtotal: Math.round(grossSubtotal),
+    discountAmount,
+    subtotal,
+    tps: 0,
+    css,
+    vat,
+    total: subtotal + css + vat,
+  };
 }
 
 /** Facteur TTC = HT × (1 + CSS% + TVA%). */
@@ -87,6 +131,21 @@ export function documentTaxRates(items: LineItem[]) {
     vatRate: items[0]?.vatRate ?? DEFAULT_VAT_RATE,
     cssRate: items[0]?.cssRate ?? DEFAULT_CSS_RATE,
   };
+}
+
+/** Applique les taux document à toutes les lignes. */
+export function withDocumentTaxRates(
+  items: LineItem[],
+  vatRate: number,
+  cssRate: number,
+): LineItem[] {
+  return items.map((it) => ({
+    ...it,
+    vatRate,
+    cssRate,
+    discount: 0,
+    tpsRate: 0,
+  }));
 }
 
 export function parseExecutionDays(executionTerms?: string | null, fallback = 15): number {

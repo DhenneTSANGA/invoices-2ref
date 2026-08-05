@@ -17,6 +17,12 @@ import {
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { currency, shortDate } from "@/lib/format";
 import type { Client } from "@/store/types";
+import {
+  CLIENT_COUNTRIES,
+  CLIENT_LEGAL_FORMS,
+  CLIENT_REPRESENTATIVE_TITLES,
+  citiesForCountry,
+} from "@/lib/client-form-options";
 
 export const Route = createFileRoute("/_app/clients/$id")({
   head: () => ({ meta: [{ title: "Fiche client — 2R Hub" }] }),
@@ -111,7 +117,12 @@ function EditClient() {
           <Section title="Identité de l'entreprise">
             <Field label="Dénomination sociale" value={form.name} onChange={(v) => setForm({ ...form, name: v })} />
             <Field label="Sigle" value={form.sigle} onChange={(v) => setForm({ ...form, sigle: v })} />
-            <Field label="Forme juridique" value={form.legalForm} onChange={(v) => setForm({ ...form, legalForm: v })} />
+            <Select
+              label="Forme juridique"
+              value={form.legalForm}
+              onChange={(v) => setForm({ ...form, legalForm: v })}
+              options={[...CLIENT_LEGAL_FORMS]}
+            />
             <Field label="Capital social" value={form.shareCapital} onChange={(v) => setForm({ ...form, shareCapital: v })} />
             <Field label="Activité" value={form.activity} onChange={(v) => setForm({ ...form, activity: v })} />
             <Field label="Nature de l’activité" value={form.activityDetail} onChange={(v) => setForm({ ...form, activityDetail: v })} colSpan />
@@ -127,7 +138,13 @@ function EditClient() {
 
           <Section title="Représentant légal & contact">
             <Field label="Représentant légal" value={form.contactName} onChange={(v) => setForm({ ...form, contactName: v })} />
-            <Field label="Qualité" value={form.representativeTitle} onChange={(v) => setForm({ ...form, representativeTitle: v })} />
+            <Select
+              label="Qualité"
+              value={form.representativeTitle}
+              onChange={(v) => setForm({ ...form, representativeTitle: v })}
+              options={[...CLIENT_REPRESENTATIVE_TITLES]}
+              placeholder="Sélectionner…"
+            />
             <Field label="Email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} />
             <Field label="Téléphone" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} />
           </Section>
@@ -135,8 +152,30 @@ function EditClient() {
           <Section title="Adresse">
             <Field label="Quartier" value={form.address} onChange={(v) => setForm({ ...form, address: v })} colSpan />
             <Field label="Boîte postale (BP)" value={form.bp} onChange={(v) => setForm({ ...form, bp: v })} />
-            <Field label="Ville" value={form.city} onChange={(v) => setForm({ ...form, city: v })} />
-            <Field label="Pays" value={form.country} onChange={(v) => setForm({ ...form, country: v })} />
+            <Select
+              label="Pays"
+              value={form.country}
+              onChange={(v) => {
+                const cities = citiesForCountry(v);
+                setForm({
+                  ...form,
+                  country: v,
+                  city: cities.includes(form.city) ? form.city : "",
+                });
+              }}
+              options={[...CLIENT_COUNTRIES]}
+            />
+            {citiesForCountry(form.country).length > 0 ? (
+              <Select
+                label="Ville"
+                value={form.city}
+                onChange={(v) => setForm({ ...form, city: v })}
+                options={citiesForCountry(form.country)}
+                placeholder="Sélectionner…"
+              />
+            ) : (
+              <Field label="Ville" value={form.city} onChange={(v) => setForm({ ...form, city: v })} />
+            )}
           </Section>
 
           <Section title="Fiche ANPI (optionnel)">
@@ -233,6 +272,42 @@ function Field({
         onChange={(e) => onChange(e.target.value)}
         className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
       />
+    </label>
+  );
+}
+
+function Select({
+  label,
+  value,
+  onChange,
+  options,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: string[];
+  placeholder?: string;
+}) {
+  const opts =
+    value && !options.includes(value) ? [value, ...options] : options;
+  return (
+    <label className="block">
+      <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        {label}
+      </span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="mt-1 w-full rounded-xl border border-border/60 bg-surface px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
+      >
+        {placeholder ? <option value="">{placeholder}</option> : null}
+        {opts.map((o) => (
+          <option key={o} value={o}>
+            {o}
+          </option>
+        ))}
+      </select>
     </label>
   );
 }

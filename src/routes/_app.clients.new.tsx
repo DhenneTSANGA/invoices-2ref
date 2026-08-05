@@ -9,6 +9,12 @@ import {
   fileToBase64Payload,
 } from "@/components/clients/ClientFicheUpload";
 import type { Client } from "@/store/types";
+import {
+  CLIENT_COUNTRIES,
+  CLIENT_LEGAL_FORMS,
+  CLIENT_REPRESENTATIVE_TITLES,
+  citiesForCountry,
+} from "@/lib/client-form-options";
 
 export const Route = createFileRoute("/_app/clients/new")({
   head: () => ({ meta: [{ title: "Nouveau client — 2R Hub" }] }),
@@ -131,14 +137,7 @@ function NewClient() {
             label="Forme juridique"
             value={form.legalForm}
             onChange={(v) => setForm({ ...form, legalForm: v })}
-            options={[
-              "SARL",
-              "SA",
-              "SAS",
-              "SNC",
-              "Entreprise individuelle",
-              "Personne physique",
-            ]}
+            options={[...CLIENT_LEGAL_FORMS]}
           />
           <Field
             label="Capital social"
@@ -193,10 +192,12 @@ function NewClient() {
             value={form.contactName}
             onChange={(v) => setForm({ ...form, contactName: v })}
           />
-          <Field
+          <Select
             label="Qualité"
             value={form.representativeTitle}
             onChange={(v) => setForm({ ...form, representativeTitle: v })}
+            options={[...CLIENT_REPRESENTATIVE_TITLES]}
+            placeholder="Sélectionner…"
           />
           <Field
             label="Email"
@@ -223,17 +224,34 @@ function NewClient() {
             value={form.bp}
             onChange={(v) => setForm({ ...form, bp: v })}
           />
-          <Field
-            label="Ville"
-            value={form.city}
-            onChange={(v) => setForm({ ...form, city: v })}
-          />
-          <Field
+          <Select
             label="Pays"
             value={form.country}
-            onChange={(v) => setForm({ ...form, country: v })}
-            colSpan={2}
+            onChange={(v) => {
+              const cities = citiesForCountry(v);
+              setForm({
+                ...form,
+                country: v,
+                city: cities.includes(form.city) ? form.city : "",
+              });
+            }}
+            options={[...CLIENT_COUNTRIES]}
           />
+          {citiesForCountry(form.country).length > 0 ? (
+            <Select
+              label="Ville"
+              value={form.city}
+              onChange={(v) => setForm({ ...form, city: v })}
+              options={citiesForCountry(form.country)}
+              placeholder="Sélectionner…"
+            />
+          ) : (
+            <Field
+              label="Ville"
+              value={form.city}
+              onChange={(v) => setForm({ ...form, city: v })}
+            />
+          )}
         </Section>
 
         <Section title="Fiche ANPI (optionnel)">
@@ -336,14 +354,20 @@ function Select({
   value,
   onChange,
   options,
+  placeholder,
+  colSpan,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   options: string[];
+  placeholder?: string;
+  colSpan?: number;
 }) {
+  const opts =
+    value && !options.includes(value) ? [value, ...options] : options;
   return (
-    <label className="block">
+    <label className={colSpan === 2 ? "sm:col-span-2 block" : "block"}>
       <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
         {label}
       </span>
@@ -352,7 +376,12 @@ function Select({
         onChange={(e) => onChange(e.target.value)}
         className="mt-1 w-full rounded-xl border border-border/60 bg-surface px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
       >
-        {options.map((o) => (
+        {placeholder ? (
+          <option value="" disabled={false}>
+            {placeholder}
+          </option>
+        ) : null}
+        {opts.map((o) => (
           <option key={o} value={o}>
             {o}
           </option>
