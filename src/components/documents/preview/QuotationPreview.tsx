@@ -20,6 +20,7 @@ import { DOCUMENT_COLORS } from "@/lib/cabinets";
 import {
   clientDisplayName,
   clientRepresentativeLine,
+  formatClientBp,
 } from "@/lib/client-address";
 import { ManagerSignature } from "@/components/signature/ManagerSignature";
 
@@ -45,6 +46,7 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
   const clientLines = client
     ? partyAddressLines([
         client.address,
+        formatClientBp(client.bp),
         [client.city, client.country].filter(Boolean).join(", "),
         partyContactLine([
           clientRepresentativeLine(client),

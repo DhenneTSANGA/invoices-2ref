@@ -16,6 +16,7 @@ import { ManagerSignature } from "@/components/signature/ManagerSignature";
 import {
   clientDisplayName,
   clientRepresentativeLine,
+  formatClientBp,
 } from "@/lib/client-address";
 
 type Props = { doc: Document; compact?: boolean; variant?: "full" | "thumb"; className?: string };
@@ -46,6 +47,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
   const clientLines = client
     ? partyAddressLines([
         client.address,
+        formatClientBp(client.bp),
         [client.city, client.country].filter(Boolean).join(", "),
         partyContactLine([
           clientRepresentativeLine(client),

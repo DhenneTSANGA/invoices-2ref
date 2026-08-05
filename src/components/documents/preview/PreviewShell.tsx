@@ -36,21 +36,31 @@ export function PreviewShell({
         fillPage
           ? "rounded-none shadow-none ring-0"
           : "shadow-float ring-1 ring-black/5",
-        !fillPage && !isThumb && "aspect-[1/1.414] overflow-hidden rounded-2xl",
+        // Aperçu écran : hauteur mini A4, mais s’allonge pour afficher toutes les lignes
+        // (l’ancien aspect-ratio + overflow-hidden coupait les désignations).
+        !fillPage && !isThumb && "rounded-2xl",
         isThumb ? "w-[820px] max-w-none overflow-hidden rounded-xl" : "w-full max-w-[820px]",
         className,
       )}
       style={{
         ["--preview-accent" as string]: accent,
-        ...(fillPage ? { minHeight: A4_MIN_HEIGHT } : undefined),
+        ...(fillPage
+          ? { minHeight: A4_MIN_HEIGHT }
+          : !isThumb
+            ? { minHeight: A4_MIN_HEIGHT }
+            : undefined),
       }}
     >
       <div
         className={cn(
           "flex flex-col p-7 pb-5 text-[14px] leading-relaxed",
-          fillPage ? "min-h-[inherit]" : "h-full",
+          fillPage ? "min-h-[inherit]" : "min-h-full",
         )}
-        style={fillPage ? { minHeight: A4_MIN_HEIGHT } : undefined}
+        style={
+          fillPage || !isThumb
+            ? { minHeight: A4_MIN_HEIGHT }
+            : undefined
+        }
       >
         {children}
       </div>
