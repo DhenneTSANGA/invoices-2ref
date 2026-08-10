@@ -242,7 +242,11 @@ function InvoiceDetail() {
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
               <div className="rounded-xl bg-surface-2 p-2"><div className="text-muted-foreground">Sous-total HT</div><div className="font-numeric font-semibold">{currency(doc.subtotal)}</div></div>
-              <div className="rounded-xl bg-surface-2 p-2"><div className="text-muted-foreground">TVA</div><div className="font-numeric font-semibold">{currency(doc.vat)}</div></div>
+              {doc.tps > 0 ? (
+                <div className="rounded-xl bg-surface-2 p-2"><div className="text-muted-foreground">TPS</div><div className="font-numeric font-semibold">{currency(doc.tps)}</div></div>
+              ) : (
+                <div className="rounded-xl bg-surface-2 p-2"><div className="text-muted-foreground">TVA</div><div className="font-numeric font-semibold">{currency(doc.vat)}</div></div>
+              )}
             </div>
           </div>
 

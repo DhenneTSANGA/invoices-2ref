@@ -8,6 +8,7 @@ import {
   documentTaxRates,
   DEFAULT_VAT_RATE,
   DEFAULT_CSS_RATE,
+  DEFAULT_TPS_RATE,
   parseExecutionDays,
   formatExecutionTerms,
   breakdownFromTtc,
@@ -18,6 +19,7 @@ import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModa
 import { downloadDocumentPdf } from "@/lib/pdf/downloadDocumentPdf";
 import { number } from "@/lib/format";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { LoadingState } from "@/components/common/LoadingState";
 import {
   useClients,
@@ -124,6 +126,12 @@ export function DocumentEditor({ initial, type }: Props) {
   const [docCssRate, setDocCssRate] = useState(() =>
     documentTaxRates(initial?.items ?? []).cssRate,
   );
+  const [docTpsRate, setDocTpsRate] = useState(() =>
+    commercial ? documentTaxRates(initial?.items ?? []).tpsRate : 0,
+  );
+  const [ttcTpsRate, setTtcTpsRate] = useState(() =>
+    commercial ? documentTaxRates(initial?.items ?? []).tpsRate : 0,
+  );
   /** Focus auto sur le champ description après ajout d’une ligne. */
   const [focusDescriptionLineId, setFocusDescriptionLineId] = useState<
     string | null
@@ -144,15 +152,22 @@ export function DocumentEditor({ initial, type }: Props) {
   const executionDays = parseExecutionDays(doc.executionTerms);
   const vatRate = commercial ? docVatRate : documentTaxRates(doc.items).vatRate;
   const cssRate = commercial ? docCssRate : documentTaxRates(doc.items).cssRate;
+  const tpsRate = commercial ? docTpsRate : 0;
+  const tpsEnabled = commercial && tpsRate > 0;
   const docDiscount = doc.discount ?? 0;
 
   const ttcAmount = Number(ttcInput.replace(/\s/g, "").replace(",", ".")) || 0;
   const ttcBreakdown = useMemo(
     () =>
       ttcAmount > 0
-        ? breakdownFromTtc(ttcAmount, ttcVatRate, ttcCssRate)
+        ? breakdownFromTtc(
+            ttcAmount,
+            ttcVatRate,
+            ttcCssRate,
+            commercial ? ttcTpsRate : 0,
+          )
         : null,
-    [ttcAmount, ttcVatRate, ttcCssRate],
+    [ttcAmount, ttcVatRate, ttcCssRate, ttcTpsRate, commercial],
   );
 
   const applyTtcLine = () => {
@@ -177,7 +192,7 @@ export function DocumentEditor({ initial, type }: Props) {
           vatRate: ttcVatRate,
           cssRate: ttcCssRate,
           discount: 0,
-          tpsRate: 0,
+          tpsRate: commercial ? ttcTpsRate : 0,
         },
       ],
     }));
@@ -193,20 +208,28 @@ export function DocumentEditor({ initial, type }: Props) {
     if (mode === "ttc") {
       setTtcVatRate(docVatRate);
       setTtcCssRate(docCssRate);
+      setTtcTpsRate(docTpsRate);
       setTtcInput("");
       setTtcDescription("Prestation");
     }
     setAmountMode(mode);
   };
 
-  const setDocumentRates = (nextVat: number, nextCss: number) => {
+  const setDocumentRates = (
+    nextVat: number,
+    nextCss: number,
+    nextTps = tpsRate,
+  ) => {
+    const tps = commercial ? Math.max(0, nextTps) : 0;
     setDocVatRate(nextVat);
     setDocCssRate(nextCss);
+    setDocTpsRate(tps);
     setTtcVatRate(nextVat);
     setTtcCssRate(nextCss);
+    setTtcTpsRate(tps);
     setDoc((d) => ({
       ...d,
-      items: withDocumentTaxRates(d.items, nextVat, nextCss),
+      items: withDocumentTaxRates(d.items, nextVat, nextCss, tps),
     }));
   };
 
@@ -216,8 +239,9 @@ export function DocumentEditor({ initial, type }: Props) {
         discount: docDiscount,
         vatRate,
         cssRate,
+        tpsRate,
       }),
-    [doc.items, docDiscount, vatRate, cssRate],
+    [doc.items, docDiscount, vatRate, cssRate, tpsRate],
   );
   const legacyTotals = useMemo(() => computeTotals(doc.items), [doc.items]);
   const totals = commercial ? commercialTotals : legacyTotals;
@@ -233,7 +257,7 @@ export function DocumentEditor({ initial, type }: Props) {
     items: commercial
       ? doc.items.map((it) => ({
           ...it,
-          tpsRate: 0,
+          tpsRate,
           discount: 0,
           vatRate,
           cssRate,
@@ -260,7 +284,7 @@ export function DocumentEditor({ initial, type }: Props) {
           unitPrice: 0,
           vatRate: commercial ? docVatRate : DEFAULT_VAT_RATE,
           discount: 0,
-          tpsRate: 0,
+          tpsRate: commercial ? docTpsRate : 0,
           cssRate: commercial ? docCssRate : DEFAULT_CSS_RATE,
         },
       ],
@@ -284,7 +308,7 @@ export function DocumentEditor({ initial, type }: Props) {
           unitPrice: s.unitPrice,
           vatRate: commercial ? docVatRate : s.vatRate || DEFAULT_VAT_RATE,
           discount: 0,
-          tpsRate: 0,
+          tpsRate: commercial ? docTpsRate : 0,
           cssRate: commercial ? docCssRate : DEFAULT_CSS_RATE,
         },
       ],
@@ -338,13 +362,13 @@ export function DocumentEditor({ initial, type }: Props) {
       unitPrice: it.unitPrice,
       vatRate: it.vatRate,
       discount: commercial ? 0 : (it.discount ?? 0),
-      tpsRate: commercial ? 0 : (it.tpsRate ?? 0),
+      tpsRate: commercial ? tpsRate : (it.tpsRate ?? 0),
       cssRate: commercial ? (it.cssRate ?? DEFAULT_CSS_RATE) : (it.cssRate ?? 0),
     })),
     subtotal: merged.subtotal,
     discount: commercial ? (merged.discount ?? 0) : 0,
-    tps: commercial ? 0 : merged.tps,
-    css: commercial ? merged.css : merged.css,
+    tps: merged.tps,
+    css: merged.css,
     vat: merged.vat,
     total: merged.total,
   });
@@ -606,7 +630,7 @@ export function DocumentEditor({ initial, type }: Props) {
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
             {amountMode === "ht"
-              ? "Mode classique : vous saisissez les lignes en HT, puis CSS et TVA sont calculées."
+              ? "Mode classique : vous saisissez les lignes en HT, puis CSS et TVA — ou TPS à la place de la TVA si activée."
               : "Mode client TTC : saisissez une prestation, vérifiez la décomposition, puis cliquez Appliquer. Répétez pour chaque ligne."}
           </p>
         </div>
@@ -616,8 +640,9 @@ export function DocumentEditor({ initial, type }: Props) {
         <div className="glass-panel rounded-3xl p-5">
           <h3 className="font-display font-semibold">Montant TTC</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Indiquez le total TTC communiqué par le client. Vérifiez HT, CSS et
-            TVA, puis cliquez Appliquer pour ajouter la prestation à la facture.
+            Indiquez le total TTC communiqué par le client. Vérifiez HT, CSS
+            {tpsEnabled ? " et TPS" : " et TVA"}, puis cliquez Appliquer pour
+            ajouter la prestation.
           </p>
           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="block sm:col-span-2">
@@ -651,23 +676,25 @@ export function DocumentEditor({ initial, type }: Props) {
                 className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm font-numeric focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </label>
-            <label className="block">
-              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                TVA %
-              </span>
-              <input
-                type="number"
-                min={0}
-                step={0.1}
-                value={ttcVatRate}
-                onChange={(e) => {
-                  const v = Number(e.target.value) || 0;
-                  setTtcVatRate(v);
-                  setDocumentRates(v, ttcCssRate);
-                }}
-                className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm font-numeric focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-            </label>
+            {!tpsEnabled ? (
+              <label className="block">
+                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  TVA %
+                </span>
+                <input
+                  type="number"
+                  min={0}
+                  step={0.1}
+                  value={ttcVatRate}
+                  onChange={(e) => {
+                    const v = Number(e.target.value) || 0;
+                    setTtcVatRate(v);
+                    setDocumentRates(v, ttcCssRate, ttcTpsRate);
+                  }}
+                  className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm font-numeric focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </label>
+            ) : null}
             <label className="block">
               <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 CSS %
@@ -680,11 +707,30 @@ export function DocumentEditor({ initial, type }: Props) {
                 onChange={(e) => {
                   const v = Number(e.target.value) || 0;
                   setTtcCssRate(v);
-                  setDocumentRates(ttcVatRate, v);
+                  setDocumentRates(ttcVatRate, v, ttcTpsRate);
                 }}
                 className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm font-numeric focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </label>
+            {tpsEnabled ? (
+              <label className="block">
+                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  TPS %
+                </span>
+                <input
+                  type="number"
+                  min={0}
+                  step={0.1}
+                  value={ttcTpsRate}
+                  onChange={(e) => {
+                    const v = Number(e.target.value) || 0;
+                    setTtcTpsRate(v);
+                    setDocumentRates(ttcVatRate, ttcCssRate, v);
+                  }}
+                  className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm font-numeric focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </label>
+            ) : null}
           </div>
 
           {ttcBreakdown ? (
@@ -697,6 +743,16 @@ export function DocumentEditor({ initial, type }: Props) {
                   {number(ttcBreakdown.subtotal)}
                 </div>
               </div>
+              {tpsEnabled ? (
+                <div className="rounded-2xl bg-surface-2 px-3 py-2.5">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    TPS ({ttcTpsRate} %)
+                  </div>
+                  <div className="mt-0.5 font-numeric text-sm font-semibold">
+                    {number(ttcBreakdown.tps)}
+                  </div>
+                </div>
+              ) : null}
               <div className="rounded-2xl bg-surface-2 px-3 py-2.5">
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
                   CSS ({ttcCssRate} %)
@@ -705,14 +761,16 @@ export function DocumentEditor({ initial, type }: Props) {
                   {number(ttcBreakdown.css)}
                 </div>
               </div>
-              <div className="rounded-2xl bg-surface-2 px-3 py-2.5">
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                  TVA ({ttcVatRate} %)
+              {!tpsEnabled ? (
+                <div className="rounded-2xl bg-surface-2 px-3 py-2.5">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    TVA ({ttcVatRate} %)
+                  </div>
+                  <div className="mt-0.5 font-numeric text-sm font-semibold">
+                    {number(ttcBreakdown.vat)}
+                  </div>
                 </div>
-                <div className="mt-0.5 font-numeric text-sm font-semibold">
-                  {number(ttcBreakdown.vat)}
-                </div>
-              </div>
+              ) : null}
               <div className="rounded-2xl bg-surface-2 px-3 py-2.5">
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
                   TTC
@@ -909,23 +967,68 @@ export function DocumentEditor({ initial, type }: Props) {
               ) : null}
               <Total label="HT net" value={commercialTotals.subtotal} />
               <div className="flex items-center justify-between gap-3 text-sm">
+                <label className="flex cursor-pointer items-center gap-2 text-muted-foreground">
+                  <Switch
+                    checked={tpsEnabled}
+                    onCheckedChange={(on) =>
+                      setDocumentRates(
+                        vatRate,
+                        cssRate,
+                        on ? (tpsRate > 0 ? tpsRate : DEFAULT_TPS_RATE) : 0,
+                      )
+                    }
+                  />
+                  <span>
+                    Appliquer la TPS
+                    {tpsEnabled ? (
+                      <span className="ml-1 text-[11px] text-muted-foreground/80">
+                        (TVA exclue)
+                      </span>
+                    ) : null}
+                  </span>
+                </label>
+              </div>
+              {tpsEnabled ? (
+                <>
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <span className="text-muted-foreground">TPS %</span>
+                    <NumInput
+                      value={tpsRate}
+                      onChange={(v) =>
+                        setDocumentRates(vatRate, cssRate, Math.max(0, v))
+                      }
+                      className="w-24 rounded-lg border border-border/60 bg-transparent px-2 py-1.5 text-right font-numeric focus:border-primary focus:outline-none"
+                    />
+                  </div>
+                  <Total label="TPS" value={commercialTotals.tps} />
+                </>
+              ) : null}
+              <div className="flex items-center justify-between gap-3 text-sm">
                 <span className="text-muted-foreground">CSS %</span>
                 <NumInput
                   value={cssRate}
-                  onChange={(v) => setDocumentRates(vatRate, Math.max(0, v))}
+                  onChange={(v) =>
+                    setDocumentRates(vatRate, Math.max(0, v), tpsRate)
+                  }
                   className="w-24 rounded-lg border border-border/60 bg-transparent px-2 py-1.5 text-right font-numeric focus:border-primary focus:outline-none"
                 />
               </div>
               <Total label="CSS" value={commercialTotals.css} />
-              <div className="flex items-center justify-between gap-3 text-sm">
-                <span className="text-muted-foreground">TVA %</span>
-                <NumInput
-                  value={vatRate}
-                  onChange={(v) => setDocumentRates(Math.max(0, v), cssRate)}
-                  className="w-24 rounded-lg border border-border/60 bg-transparent px-2 py-1.5 text-right font-numeric focus:border-primary focus:outline-none"
-                />
-              </div>
-              <Total label="TVA" value={commercialTotals.vat} />
+              {!tpsEnabled ? (
+                <>
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <span className="text-muted-foreground">TVA %</span>
+                    <NumInput
+                      value={vatRate}
+                      onChange={(v) =>
+                        setDocumentRates(Math.max(0, v), cssRate, tpsRate)
+                      }
+                      className="w-24 rounded-lg border border-border/60 bg-transparent px-2 py-1.5 text-right font-numeric focus:border-primary focus:outline-none"
+                    />
+                  </div>
+                  <Total label="TVA" value={commercialTotals.vat} />
+                </>
+              ) : null}
               <div className="my-2 h-px bg-border" />
               <Total label="Total TTC" value={commercialTotals.total} strong />
             </>

@@ -2,6 +2,8 @@ import type { LineItem } from "@/store/types";
 
 export const DEFAULT_VAT_RATE = 18;
 export const DEFAULT_CSS_RATE = 1;
+/** Taux proposé quand l’utilisateur active la TPS sur une facture (Congo). */
+export const DEFAULT_TPS_RATE = 5;
 
 function lineGross(item: LineItem) {
   return item.quantity * item.unitPrice;
@@ -25,6 +27,8 @@ export type DocumentTotalsOptions = {
   discount?: number;
   vatRate?: number;
   cssRate?: number;
+  /** 0 = TPS non appliquée (ne pas afficher). */
+  tpsRate?: number;
 };
 
 export type DocumentTotals = {
@@ -40,43 +44,58 @@ export type DocumentTotals = {
   total: number;
 };
 
+/** TPS active → pas de TVA (factures & devis). */
+export function effectiveCommercialVatRate(
+  vatRate: number,
+  tpsRate: number,
+): number {
+  return tpsRate > 0 ? 0 : Math.max(0, vatRate);
+}
+
 /**
- * Factures & devis : HT brut → remise document → CSS + TVA sur le HT net.
- * Les remises / taux par ligne sont ignorés pour le calcul (taux document uniques).
+ * Factures & devis : HT brut → remise → TPS (opt.) + CSS + TVA sur le HT net.
+ * Si TPS > 0, la TVA est exclue du calcul et du total.
  */
 export function computeDocumentTotals(
   items: LineItem[],
   opts: DocumentTotalsOptions = {},
 ): DocumentTotals {
-  const { vatRate, cssRate } = {
-    vatRate: opts.vatRate ?? documentTaxRates(items).vatRate,
-    cssRate: opts.cssRate ?? documentTaxRates(items).cssRate,
-  };
+  const rates = documentTaxRates(items);
+  const vatRate = opts.vatRate ?? rates.vatRate;
+  const cssRate = opts.cssRate ?? rates.cssRate;
+  const tpsRate = opts.tpsRate ?? rates.tpsRate;
+  const effectiveVat = effectiveCommercialVatRate(vatRate, tpsRate);
   const discountPct = Math.min(100, Math.max(0, opts.discount ?? 0));
 
   const grossSubtotal = items.reduce((a, b) => a + lineGross(b), 0);
   const discountAmount = Math.round(grossSubtotal * (discountPct / 100));
   const subtotal = Math.max(0, Math.round(grossSubtotal) - discountAmount);
+  const tps = Math.round(subtotal * (Math.max(0, tpsRate) / 100));
   const css = Math.round(subtotal * (Math.max(0, cssRate) / 100));
-  const vat = Math.round(subtotal * (Math.max(0, vatRate) / 100));
+  const vat = Math.round(subtotal * (effectiveVat / 100));
 
   return {
     grossSubtotal: Math.round(grossSubtotal),
     discountAmount,
     subtotal,
-    tps: 0,
+    tps,
     css,
     vat,
-    total: subtotal + css + vat,
+    total: subtotal + tps + css + vat,
   };
 }
 
-/** Facteur TTC = HT × (1 + CSS% + TVA%). */
+/** Facteur TTC = HT × (1 + TPS% + CSS% + TVA%). TPS active → TVA exclue. */
 export function commercialTaxFactor(
   vatRate = DEFAULT_VAT_RATE,
   cssRate = DEFAULT_CSS_RATE,
+  tpsRate = 0,
 ): number {
-  return 1 + (Math.max(0, cssRate) + Math.max(0, vatRate)) / 100;
+  const effectiveVat = effectiveCommercialVatRate(vatRate, tpsRate);
+  return (
+    1 +
+    (Math.max(0, tpsRate) + Math.max(0, cssRate) + effectiveVat) / 100
+  );
 }
 
 /** TTC → HT (arrondi à l’unité XAF). */
@@ -84,8 +103,9 @@ export function htFromTtc(
   ttc: number,
   vatRate = DEFAULT_VAT_RATE,
   cssRate = DEFAULT_CSS_RATE,
+  tpsRate = 0,
 ): number {
-  const factor = commercialTaxFactor(vatRate, cssRate);
+  const factor = commercialTaxFactor(vatRate, cssRate, tpsRate);
   if (!Number.isFinite(ttc) || ttc === 0) return 0;
   if (factor <= 0) return Math.round(ttc);
   return Math.round(ttc / factor);
@@ -96,9 +116,10 @@ export function ttcFromHt(
   ht: number,
   vatRate = DEFAULT_VAT_RATE,
   cssRate = DEFAULT_CSS_RATE,
+  tpsRate = 0,
 ): number {
   if (!Number.isFinite(ht) || ht === 0) return 0;
-  return Math.round(ht * commercialTaxFactor(vatRate, cssRate));
+  return Math.round(ht * commercialTaxFactor(vatRate, cssRate, tpsRate));
 }
 
 /** Décomposition d’un montant TTC (ligne ou total). */
@@ -106,16 +127,20 @@ export function breakdownFromTtc(
   ttc: number,
   vatRate = DEFAULT_VAT_RATE,
   cssRate = DEFAULT_CSS_RATE,
+  tpsRate = 0,
 ) {
-  const subtotal = htFromTtc(ttc, vatRate, cssRate);
+  const effectiveVat = effectiveCommercialVatRate(vatRate, tpsRate);
+  const subtotal = htFromTtc(ttc, vatRate, cssRate, tpsRate);
+  const tps = Math.round(subtotal * (Math.max(0, tpsRate) / 100));
   const css = Math.round(subtotal * (Math.max(0, cssRate) / 100));
-  const vat = Math.round(subtotal * (Math.max(0, vatRate) / 100));
-  const computed = subtotal + css + vat;
+  const vat = Math.round(subtotal * (effectiveVat / 100));
+  const computed = subtotal + tps + css + vat;
   const drift = Math.round(ttc) - computed;
   return {
     subtotal,
-    css,
-    vat: vat + drift,
+    tps,
+    css: css + (tpsRate > 0 ? drift : 0),
+    vat: vat + (tpsRate === 0 ? drift : 0),
     total: Math.round(ttc),
   };
 }
@@ -125,11 +150,13 @@ export const computeVatOnlyTotals = computeDocumentTotals;
 /** @deprecated Utiliser {@link computeDocumentTotals} */
 export const computeInvoiceTotals = computeDocumentTotals;
 
-/** Taux document (1ʳᵉ ligne ou défauts). */
+/** Taux document (max TPS sur les lignes ; TVA/CSS de la 1ʳᵉ ligne ou défauts). */
 export function documentTaxRates(items: LineItem[]) {
+  const tpsRate = items.reduce((m, it) => Math.max(m, it.tpsRate || 0), 0);
   return {
     vatRate: items[0]?.vatRate ?? DEFAULT_VAT_RATE,
     cssRate: items[0]?.cssRate ?? DEFAULT_CSS_RATE,
+    tpsRate,
   };
 }
 
@@ -138,13 +165,14 @@ export function withDocumentTaxRates(
   items: LineItem[],
   vatRate: number,
   cssRate: number,
+  tpsRate = 0,
 ): LineItem[] {
   return items.map((it) => ({
     ...it,
     vatRate,
     cssRate,
     discount: 0,
-    tpsRate: 0,
+    tpsRate: Math.max(0, tpsRate),
   }));
 }
 

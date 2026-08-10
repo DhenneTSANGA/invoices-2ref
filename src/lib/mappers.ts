@@ -221,10 +221,7 @@ export function mapDocument(row: {
       unitPrice: decimalToNumber(l.unitPrice),
       vatRate: decimalToNumber(l.vatRate),
       discount: decimalToNumber(l.discount),
-      tpsRate:
-        row.type === "invoice" || row.type === "quotation"
-          ? 0
-          : decimalToNumber(l.tpsRate),
+      tpsRate: decimalToNumber(l.tpsRate),
       cssRate: decimalToNumber(l.cssRate),
     }));
 
@@ -232,6 +229,7 @@ export function mapDocument(row: {
   const vat = decimalToNumber(row.vat);
   const css = decimalToNumber(row.css);
   const commercial = row.type === "invoice" || row.type === "quotation";
+  const tps = decimalToNumber(row.tps);
   const discount = row.discount != null ? decimalToNumber(row.discount) : 0;
 
   return {
@@ -247,10 +245,10 @@ export function mapDocument(row: {
     items,
     subtotal,
     discount: commercial ? discount : 0,
-    tps: commercial ? 0 : decimalToNumber(row.tps),
+    tps,
     css,
     vat,
-    total: commercial ? subtotal + css + vat : decimalToNumber(row.total),
+    total: commercial ? subtotal + tps + css + vat : decimalToNumber(row.total),
     currency: row.currency,
     notes: row.notes ?? undefined,
     paymentTerms: row.paymentTerms ?? undefined,

@@ -178,6 +178,12 @@ function QuotationDetail() {
               <div className="text-xs uppercase tracking-wider text-muted-foreground">Total TTC</div>
               <div className="font-display text-3xl font-bold text-gradient-primary">{currency(doc.total)}</div>
             </div>
+            {doc.tps > 0 ? (
+              <div className="mt-3 rounded-xl bg-surface-2 p-2 text-xs">
+                <div className="text-muted-foreground">TPS incluse</div>
+                <div className="font-numeric font-semibold">{currency(doc.tps)}</div>
+              </div>
+            ) : null}
             <Link to="/invoices/new" className="mt-4 block w-full rounded-xl bg-gradient-primary px-3 py-2 text-center text-sm font-medium text-primary-foreground shadow-glow">Convertir en facture</Link>
           </div>
           <DocumentCreatorCard creator={doc.createdBy} />

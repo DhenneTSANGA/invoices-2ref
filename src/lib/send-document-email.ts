@@ -190,7 +190,9 @@ function buildCommercialEmailHtml(params: {
     params.css > 0
       ? `<tr><td style="padding:6px 12px;color:#64748B;font-size:13px;">CSS</td><td style="padding:6px 12px;text-align:right;font-size:13px;">${escapeHtml(money(params.css, params.currency))}</td></tr>`
       : "",
-    `<tr><td style="padding:6px 12px;color:#64748B;font-size:13px;">TVA</td><td style="padding:6px 12px;text-align:right;font-size:13px;">${escapeHtml(money(params.vat, params.currency))}</td></tr>`,
+    params.tps <= 0
+      ? `<tr><td style="padding:6px 12px;color:#64748B;font-size:13px;">TVA</td><td style="padding:6px 12px;text-align:right;font-size:13px;">${escapeHtml(money(params.vat, params.currency))}</td></tr>`
+      : "",
   ].join("");
 
   const emitterLines = [

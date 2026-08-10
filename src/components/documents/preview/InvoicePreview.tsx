@@ -398,19 +398,42 @@ function TotalsBlock({
   accent: string;
   compact?: boolean;
 }) {
-  const { vatRate, cssRate } = documentTaxRates(doc.items);
+  const rates = documentTaxRates(doc.items);
+  /** Max sur toutes les lignes — évite de rater la TPS si seule la 1ʳᵉ ligne est à 0. */
+  const tpsRate = Math.max(
+    rates.tpsRate,
+    ...doc.items.map((it) => it.tpsRate || 0),
+  );
+  const vatRate = rates.vatRate;
+  const cssRate = rates.cssRate;
   const discountPct = doc.discount ?? 0;
+
+  /** TPS active dès qu’un taux ou un montant TPS est présent (TVA alors exclue). */
+  const tpsActive = tpsRate > 0 || (doc.tps ?? 0) > 0;
+
   const computed = computeDocumentTotals(doc.items, {
     discount: discountPct,
     vatRate,
     cssRate,
+    tpsRate: tpsActive ? (tpsRate > 0 ? tpsRate : rates.tpsRate) : 0,
   });
+
   const grossSubtotal = computed.grossSubtotal || doc.subtotal;
   const discountAmount = computed.discountAmount;
-  const subtotal = doc.subtotal || computed.subtotal;
-  const css = doc.css ?? computed.css;
-  const vat = doc.vat || computed.vat;
-  const total = doc.total || computed.total;
+  const subtotal = computed.subtotal || doc.subtotal;
+  const tps = tpsActive ? Math.max(computed.tps, doc.tps ?? 0) : 0;
+  const css = computed.css || doc.css || 0;
+  const vat = tpsActive ? 0 : (computed.vat || doc.vat || 0);
+  const total = tpsActive
+    ? subtotal + tps + css
+    : doc.total || computed.total;
+
+  const displayTpsRate =
+    tpsRate > 0
+      ? tpsRate
+      : subtotal > 0 && tps > 0
+        ? Math.round((tps / subtotal) * 10000) / 100
+        : 0;
 
   return (
     <div className="w-full">
@@ -440,6 +463,17 @@ function TotalsBlock({
             compact={compact}
           />
         ) : null}
+        {tpsActive ? (
+          <AmountRow
+            label={
+              displayTpsRate > 0 ? `TPS (${displayTpsRate} %)` : "TPS"
+            }
+            value={number(tps)}
+            currency={doc.currency}
+            accent={accent}
+            compact={compact}
+          />
+        ) : null}
         <AmountRow
           label={`CSS (${cssRate} %)`}
           value={number(css)}
@@ -447,13 +481,15 @@ function TotalsBlock({
           accent={accent}
           compact={compact}
         />
-        <AmountRow
-          label={`TVA (${vatRate} %)`}
-          value={number(vat)}
-          currency={doc.currency}
-          accent={accent}
-          compact={compact}
-        />
+        {!tpsActive ? (
+          <AmountRow
+            label={`TVA (${vatRate} %)`}
+            value={number(vat)}
+            currency={doc.currency}
+            accent={accent}
+            compact={compact}
+          />
+        ) : null}
         <AmountRow
           label="Total TTC"
           value={number(total)}

@@ -497,11 +497,7 @@ async function upsertDocumentHandler(
         : Number.isFinite(item.discount)
           ? item.discount
           : 0,
-      tpsRate: commercial
-        ? 0
-        : Number.isFinite(item.tpsRate)
-          ? item.tpsRate
-          : 0,
+      tpsRate: Number.isFinite(item.tpsRate) ? Math.max(0, item.tpsRate) : 0,
       cssRate: Number.isFinite(item.cssRate) ? item.cssRate ?? 0 : 0,
       position,
     }));
@@ -519,6 +515,16 @@ async function upsertDocumentHandler(
       ? Math.min(100, Math.max(0, Number(data.discount) || 0))
       : 0;
 
+    const subtotal = Number.isFinite(data.subtotal) ? data.subtotal : 0;
+    const tps = Math.max(0, data.tps ?? 0);
+    const css = data.css ?? 0;
+    const vat =
+      tps > 0
+        ? 0
+        : Number.isFinite(data.vat)
+          ? data.vat
+          : 0;
+
     const docData = {
       cabinet: activeCabinet,
       type: data.type,
@@ -528,16 +534,12 @@ async function upsertDocumentHandler(
       status: data.status,
       issueDate: new Date(data.issueDate),
       dueDate: new Date(data.dueDate),
-      subtotal: Number.isFinite(data.subtotal) ? data.subtotal : 0,
+      subtotal,
       discount: docDiscount,
-      tps: commercial ? 0 : (data.tps ?? 0),
-      css: commercial ? (data.css ?? 0) : (data.css ?? 0),
-      vat: Number.isFinite(data.vat) ? data.vat : 0,
-      total: commercial
-        ? (Number.isFinite(data.subtotal) ? data.subtotal : 0) +
-          (data.css ?? 0) +
-          (Number.isFinite(data.vat) ? data.vat : 0)
-        : data.total,
+      tps,
+      css,
+      vat,
+      total: commercial ? subtotal + tps + css + vat : data.total,
       currency: data.currency,
       notes: data.notes ?? null,
       paymentTerms: data.paymentTerms ?? null,
@@ -818,15 +820,16 @@ export const processDueSubscriptions = createServerFn({ method: "POST" }).handle
           unitPrice: l.unitPrice,
           vatRate: l.vatRate,
           discount: l.discount,
-          tpsRate: 0,
+          tpsRate: l.tpsRate,
           cssRate: l.cssRate,
           position,
         }));
 
         const subtotal = Number(template.subtotal);
+        const tps = Number(template.tps);
         const css = Number(template.css);
         const vat = Number(template.vat);
-        const total = subtotal + css + vat;
+        const total = subtotal + tps + css + vat;
 
         const created = await prisma.document.create({
           data: {
@@ -840,7 +843,7 @@ export const processDueSubscriptions = createServerFn({ method: "POST" }).handle
             dueDate,
             subtotal,
             discount: Number(template.discount ?? 0),
-            tps: 0,
+            tps,
             css,
             vat,
             total,
