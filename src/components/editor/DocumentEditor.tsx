@@ -681,13 +681,11 @@ export function DocumentEditor({ initial, type }: Props) {
                 <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   TVA %
                 </span>
-                <input
-                  type="number"
-                  min={0}
-                  step={0.1}
+                <NumInput
                   value={ttcVatRate}
-                  onChange={(e) => {
-                    const v = Number(e.target.value) || 0;
+                  step={0.01}
+                  min={0}
+                  onChange={(v) => {
                     setTtcVatRate(v);
                     setDocumentRates(v, ttcCssRate, ttcTpsRate);
                   }}
@@ -699,13 +697,11 @@ export function DocumentEditor({ initial, type }: Props) {
               <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 CSS %
               </span>
-              <input
-                type="number"
-                min={0}
-                step={0.1}
+              <NumInput
                 value={ttcCssRate}
-                onChange={(e) => {
-                  const v = Number(e.target.value) || 0;
+                step={0.01}
+                min={0}
+                onChange={(v) => {
                   setTtcCssRate(v);
                   setDocumentRates(ttcVatRate, v, ttcTpsRate);
                 }}
@@ -717,13 +713,11 @@ export function DocumentEditor({ initial, type }: Props) {
                 <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   TPS %
                 </span>
-                <input
-                  type="number"
-                  min={0}
-                  step={0.1}
+                <NumInput
                   value={ttcTpsRate}
-                  onChange={(e) => {
-                    const v = Number(e.target.value) || 0;
+                  step={0.01}
+                  min={0}
+                  onChange={(v) => {
                     setTtcTpsRate(v);
                     setDocumentRates(ttcVatRate, ttcCssRate, v);
                   }}
@@ -909,18 +903,24 @@ export function DocumentEditor({ initial, type }: Props) {
                         <td className="py-2 px-1">
                           <NumInput
                             value={it.vatRate}
+                            step={0.01}
+                            min={0}
                             onChange={(v) => updateItem(it.id, { vatRate: v })}
                           />
                         </td>
                         <td className="py-2 px-1">
                           <NumInput
                             value={it.cssRate ?? DEFAULT_CSS_RATE}
+                            step={0.01}
+                            min={0}
                             onChange={(v) => updateItem(it.id, { cssRate: v })}
                           />
                         </td>
                         <td className="py-2 px-1">
                           <NumInput
                             value={it.discount}
+                            step={0.01}
+                            min={0}
                             onChange={(v) => updateItem(it.id, { discount: v })}
                           />
                         </td>
@@ -953,6 +953,8 @@ export function DocumentEditor({ initial, type }: Props) {
                 <span className="text-muted-foreground">Remise %</span>
                 <NumInput
                   value={docDiscount}
+                  step={0.01}
+                  min={0}
                   onChange={(v) =>
                     setDoc((d) => ({
                       ...d,
@@ -994,6 +996,8 @@ export function DocumentEditor({ initial, type }: Props) {
                     <span className="text-muted-foreground">TPS %</span>
                     <NumInput
                       value={tpsRate}
+                      step={0.01}
+                      min={0}
                       onChange={(v) =>
                         setDocumentRates(vatRate, cssRate, Math.max(0, v))
                       }
@@ -1007,6 +1011,8 @@ export function DocumentEditor({ initial, type }: Props) {
                 <span className="text-muted-foreground">CSS %</span>
                 <NumInput
                   value={cssRate}
+                  step={0.01}
+                  min={0}
                   onChange={(v) =>
                     setDocumentRates(vatRate, Math.max(0, v), tpsRate)
                   }
@@ -1020,6 +1026,8 @@ export function DocumentEditor({ initial, type }: Props) {
                     <span className="text-muted-foreground">TVA %</span>
                     <NumInput
                       value={vatRate}
+                      step={0.01}
+                      min={0}
                       onChange={(v) =>
                         setDocumentRates(Math.max(0, v), cssRate, tpsRate)
                       }
@@ -1215,23 +1223,83 @@ function Select({
   );
 }
 
+/** Accepte « 5,10 » / « 5.10 » et garde la saisie en cours (virgule, point). */
+function parseDecimalInput(raw: string): number | null {
+  const cleaned = raw.trim().replace(/\s/g, "").replace(",", ".");
+  if (cleaned === "" || cleaned === "-" || cleaned === "." || cleaned === "-.") {
+    return null;
+  }
+  // Saisie partielle du type « 5. » / « 5, » — pas encore un nombre final
+  if (/^-?\d+[.,]$/.test(raw.trim())) return null;
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : null;
+}
+
+function formatDecimalDisplay(value: number, step: number): string {
+  if (!Number.isFinite(value)) return "";
+  if (step >= 1 && Number.isInteger(value)) return String(value);
+  const decimals =
+    step > 0 && step < 1
+      ? Math.min(4, Math.max(1, Math.round(-Math.log10(step))))
+      : 2;
+  return String(Number(value.toFixed(decimals)));
+}
+
 function NumInput({
   value,
   onChange,
   step = 1,
   className,
+  min,
 }: {
   value: number;
   onChange: (v: number) => void;
   step?: number;
   className?: string;
+  min?: number;
 }) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const display =
+    draft !== null ? draft : formatDecimalDisplay(value, step);
+
+  const commit = (raw: string) => {
+    const parsed = parseDecimalInput(raw);
+    if (parsed === null) {
+      setDraft(null);
+      onChange(min !== undefined ? Math.max(min, 0) : 0);
+      return;
+    }
+    const next = min !== undefined ? Math.max(min, parsed) : parsed;
+    setDraft(null);
+    onChange(next);
+  };
+
   return (
     <input
-      type="number"
-      step={step}
-      value={value}
-      onChange={(e) => onChange(Number(e.target.value))}
+      type="text"
+      inputMode="decimal"
+      autoComplete="off"
+      value={display}
+      onFocus={() => setDraft(formatDecimalDisplay(value, step))}
+      onChange={(e) => {
+        const raw = e.target.value;
+        // Autorise chiffres, un séparateur ., ou ,
+        if (raw !== "" && !/^-?\d*[.,]?\d*$/.test(raw)) return;
+        setDraft(raw);
+        const parsed = parseDecimalInput(raw);
+        if (parsed !== null) {
+          const next = min !== undefined ? Math.max(min, parsed) : parsed;
+          onChange(next);
+        }
+      }}
+      onBlur={() => {
+        if (draft !== null) commit(draft);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && draft !== null) {
+          e.currentTarget.blur();
+        }
+      }}
       className={
         className ??
         "w-full rounded-lg border border-border/60 bg-transparent px-2 py-1.5 text-right font-numeric focus:border-primary focus:outline-none"
