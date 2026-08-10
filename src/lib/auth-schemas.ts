@@ -205,6 +205,7 @@ export const serviceInputSchema = z.object({
 export const lineItemSchema = z.object({
   id: z.string().optional(),
   serviceId: z.string().optional().nullable(),
+  sectionId: z.string().optional().nullable(),
   description: z.string(),
   quantity: z.coerce.number(),
   unitPrice: z.coerce.number(),
@@ -212,6 +213,12 @@ export const lineItemSchema = z.object({
   discount: z.coerce.number().optional().default(0),
   tpsRate: z.coerce.number().optional().default(0),
   cssRate: z.coerce.number().optional().default(0),
+});
+
+export const documentSectionSchema = z.object({
+  id: z.string().min(1),
+  title: z.string(),
+  position: z.coerce.number().optional().default(0),
 });
 
 export const documentInputSchema = z.object({
@@ -243,6 +250,7 @@ export const documentInputSchema = z.object({
   closing: z.string().optional().nullable(),
   signatoryTitle: z.string().optional().nullable(),
   recipientOverride: z.string().optional().nullable(),
+  sections: z.array(documentSectionSchema).optional().default([]),
   items: z.array(lineItemSchema),
   subtotal: z.number(),
   /** Remise globale % sur le HT (factures / devis). */

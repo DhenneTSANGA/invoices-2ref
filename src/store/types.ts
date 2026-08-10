@@ -90,6 +90,8 @@ export type Service = {
 export type LineItem = {
   id: string;
   serviceId?: string;
+  /** Section / tâche parente (optionnel). */
+  sectionId?: string | null;
   description: string;
   quantity: number;
   unitPrice: number;
@@ -97,6 +99,13 @@ export type LineItem = {
   discount: number;
   tpsRate: number;
   cssRate: number;
+};
+
+/** Titre de regroupement optionnel (ex. « AUDIT FISCAL ») sur facture / devis. */
+export type DocumentSection = {
+  id: string;
+  title: string;
+  position: number;
 };
 
 export type DocumentType = "quotation" | "invoice" | "letter";
@@ -116,6 +125,8 @@ export type Document = {
   issueDate: string;
   dueDate: string;
   items: LineItem[];
+  /** Sections optionnelles (vides = facture / devis classique). */
+  sections?: DocumentSection[];
   subtotal: number;
   /** Remise globale % (factures / devis). */
   discount?: number;

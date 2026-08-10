@@ -303,6 +303,7 @@ model Document {
   subscriptionChildren Document[] @relation("SubscriptionGenerations")
   mailMergeCampaign MailMergeCampaign? @relation(fields: [mailMergeCampaignId], references: [id], onDelete: SetNull)
   lines         DocumentLine[]
+  sections      DocumentSection[]
   notifications Notification[]
   pdfTraces     DocumentPdfTrace[]
   signatureRequests LetterSignatureRequest[]
@@ -320,9 +321,24 @@ model Document {
   @@map("documents")
 }
 
+/** Section / tâche optionnelle regroupant des lignes (facture / devis structurés). */
+model DocumentSection {
+  id         String @id @default(cuid())
+  documentId String
+  title      String
+  position   Int    @default(0)
+
+  document Document       @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  lines    DocumentLine[]
+
+  @@index([documentId])
+  @@map("document_sections")
+}
+
 model DocumentLine {
   id          String  @id @default(cuid())
   documentId  String
+  sectionId   String?
   serviceId   String?
   description String
   quantity    Decimal @db.Decimal(18, 3)
@@ -333,10 +349,12 @@ model DocumentLine {
   cssRate     Decimal @default(0) @db.Decimal(5, 2)
   position    Int     @default(0)
 
-  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  service  Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  document Document         @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  section  DocumentSection? @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  service  Service?         @relation(fields: [serviceId], references: [id], onDelete: SetNull)
 
   @@index([documentId])
+  @@index([sectionId])
   @@index([serviceId])
   @@map("document_lines")
 }

@@ -39,6 +39,7 @@ import { sendDocumentEmail } from "@/lib/send-document-email";
 
 const docInclude = {
   lines: { orderBy: { position: "asc" as const } },
+  sections: { orderBy: { position: "asc" as const } },
   createdBy: true,
   client: true,
 };
@@ -485,22 +486,58 @@ async function upsertDocumentHandler(
 
     const commercial = data.type === "invoice" || data.type === "quotation";
 
-    const lines = data.items.map((item, position) => ({
-      serviceId:
-        item.serviceId && item.serviceId.trim() ? item.serviceId.trim() : null,
-      description: item.description,
-      quantity: Number.isFinite(item.quantity) ? item.quantity : 0,
-      unitPrice: Number.isFinite(item.unitPrice) ? item.unitPrice : 0,
-      vatRate: Number.isFinite(item.vatRate) ? item.vatRate : 0,
-      discount: commercial
-        ? 0
-        : Number.isFinite(item.discount)
-          ? item.discount
-          : 0,
-      tpsRate: Number.isFinite(item.tpsRate) ? Math.max(0, item.tpsRate) : 0,
-      cssRate: Number.isFinite(item.cssRate) ? item.cssRate ?? 0 : 0,
-      position,
-    }));
+    const buildLineRows = (sectionIdMap: Map<string, string>) =>
+      data.items.map((item, position) => ({
+        serviceId:
+          item.serviceId && item.serviceId.trim() ? item.serviceId.trim() : null,
+        description: item.description,
+        quantity: Number.isFinite(item.quantity) ? item.quantity : 0,
+        unitPrice: Number.isFinite(item.unitPrice) ? item.unitPrice : 0,
+        vatRate: Number.isFinite(item.vatRate) ? item.vatRate : 0,
+        discount: commercial
+          ? 0
+          : Number.isFinite(item.discount)
+            ? item.discount
+            : 0,
+        tpsRate: Number.isFinite(item.tpsRate) ? Math.max(0, item.tpsRate) : 0,
+        cssRate: Number.isFinite(item.cssRate) ? item.cssRate ?? 0 : 0,
+        position,
+        sectionId:
+          commercial && item.sectionId
+            ? (sectionIdMap.get(item.sectionId) ?? null)
+            : null,
+      }));
+
+    /** Recrée sections + lignes (ordre : sections d’abord pour les FK). */
+    const replaceSectionsAndLines = async (
+      documentId: string,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      db: any = prisma,
+    ) => {
+      await db.documentLine.deleteMany({ where: { documentId } });
+      await db.documentSection.deleteMany({ where: { documentId } });
+
+      const sectionIdMap = new Map<string, string>();
+      const sectionsIn = commercial ? (data.sections ?? []) : [];
+      for (let i = 0; i < sectionsIn.length; i++) {
+        const s = sectionsIn[i];
+        const created = await db.documentSection.create({
+          data: {
+            documentId,
+            title: s.title.trim() || `Tâche ${i + 1}`,
+            position: typeof s.position === "number" ? s.position : i,
+          },
+        });
+        sectionIdMap.set(s.id, created.id);
+      }
+
+      const lineRows = buildLineRows(sectionIdMap);
+      if (lineRows.length > 0) {
+        await db.documentLine.createMany({
+          data: lineRows.map((l) => ({ ...l, documentId })),
+        });
+      }
+    };
 
     let number = data.number;
     if (!data.id && isCommercialDocType(data.type)) {
@@ -564,32 +601,36 @@ async function upsertDocumentHandler(
 
       let updated;
       try {
-        updated = await prisma.document.update({
-          where: { id: data.id },
-          data: {
-            ...docData,
-            createdById: existing.createdById,
-            lines: {
-              deleteMany: {},
-              create: lines,
+        updated = await prisma.$transaction(async (tx) => {
+          await tx.document.update({
+            where: { id: data.id },
+            data: {
+              ...docData,
+              createdById: existing.createdById,
             },
-          },
-          include: docInclude,
+          });
+          await replaceSectionsAndLines(data.id!, tx);
+          return tx.document.findFirstOrThrow({
+            where: { id: data.id },
+            include: docInclude,
+          });
         });
       } catch (err) {
         if (!isPrismaColumnMissing(err, "discount")) throw err;
         const { discount: _d, ...withoutDiscount } = docData;
-        updated = await prisma.document.update({
-          where: { id: data.id },
-          data: {
-            ...withoutDiscount,
-            createdById: existing.createdById,
-            lines: {
-              deleteMany: {},
-              create: lines,
+        updated = await prisma.$transaction(async (tx) => {
+          await tx.document.update({
+            where: { id: data.id },
+            data: {
+              ...withoutDiscount,
+              createdById: existing.createdById,
             },
-          },
-          include: docInclude,
+          });
+          await replaceSectionsAndLines(data.id!, tx);
+          return tx.document.findFirstOrThrow({
+            where: { id: data.id },
+            include: docInclude,
+          });
         });
       }
       if (
@@ -619,22 +660,28 @@ async function upsertDocumentHandler(
 
     let created;
     try {
-      created = await prisma.document.create({
-        data: {
-          ...docData,
-          lines: { create: lines },
-        },
-        include: docInclude,
+      created = await prisma.$transaction(async (tx) => {
+        const row = await tx.document.create({
+          data: { ...docData },
+        });
+        await replaceSectionsAndLines(row.id, tx);
+        return tx.document.findFirstOrThrow({
+          where: { id: row.id },
+          include: docInclude,
+        });
       });
     } catch (err) {
       if (!isPrismaColumnMissing(err, "discount")) throw err;
       const { discount: _d, ...withoutDiscount } = docData;
-      created = await prisma.document.create({
-        data: {
-          ...withoutDiscount,
-          lines: { create: lines },
-        },
-        include: docInclude,
+      created = await prisma.$transaction(async (tx) => {
+        const row = await tx.document.create({
+          data: { ...withoutDiscount },
+        });
+        await replaceSectionsAndLines(row.id, tx);
+        return tx.document.findFirstOrThrow({
+          where: { id: row.id },
+          include: docInclude,
+        });
       });
     }
     if (data.status !== "draft") {
@@ -793,7 +840,10 @@ export const processDueSubscriptions = createServerFn({ method: "POST" }).handle
           ? {}
           : { cabinet: session.activeCabinet }),
       },
-      include: { lines: { orderBy: { position: "asc" } } },
+      include: {
+        lines: { orderBy: { position: "asc" } },
+        sections: { orderBy: { position: "asc" } },
+      },
     });
 
     const generated: string[] = [];
@@ -813,46 +863,69 @@ export const processDueSubscriptions = createServerFn({ method: "POST" }).handle
         const dueDate = new Date(todayUtc);
         dueDate.setUTCDate(dueDate.getUTCDate() + 30);
 
-        const lines = template.lines.map((l, position) => ({
-          serviceId: l.serviceId,
-          description: l.description,
-          quantity: l.quantity,
-          unitPrice: l.unitPrice,
-          vatRate: l.vatRate,
-          discount: l.discount,
-          tpsRate: l.tpsRate,
-          cssRate: l.cssRate,
-          position,
-        }));
-
         const subtotal = Number(template.subtotal);
         const tps = Number(template.tps);
         const css = Number(template.css);
         const vat = Number(template.vat);
         const total = subtotal + tps + css + vat;
 
-        const created = await prisma.document.create({
-          data: {
-            cabinet: template.cabinet,
-            type: "invoice",
-            number,
-            clientId: template.clientId,
-            createdById: session.staff.id,
-            status: "draft",
-            issueDate,
-            dueDate,
-            subtotal,
-            discount: Number(template.discount ?? 0),
-            tps,
-            css,
-            vat,
-            total,
-            currency: template.currency,
-            notes: template.notes,
-            paymentTerms: template.paymentTerms,
-            subscriptionOfId: template.id,
-            lines: { create: lines },
-          },
+        const created = await prisma.$transaction(async (tx) => {
+          const doc = await tx.document.create({
+            data: {
+              cabinet: template.cabinet,
+              type: "invoice",
+              number,
+              clientId: template.clientId,
+              createdById: session.staff.id,
+              status: "draft",
+              issueDate,
+              dueDate,
+              subtotal,
+              discount: Number(template.discount ?? 0),
+              tps,
+              css,
+              vat,
+              total,
+              currency: template.currency,
+              notes: template.notes,
+              paymentTerms: template.paymentTerms,
+              subscriptionOfId: template.id,
+            },
+          });
+
+          const sectionIdMap = new Map<string, string>();
+          for (const s of template.sections) {
+            const sec = await tx.documentSection.create({
+              data: {
+                documentId: doc.id,
+                title: s.title,
+                position: s.position,
+              },
+            });
+            sectionIdMap.set(s.id, sec.id);
+          }
+
+          if (template.lines.length > 0) {
+            await tx.documentLine.createMany({
+              data: template.lines.map((l, position) => ({
+                documentId: doc.id,
+                serviceId: l.serviceId,
+                description: l.description,
+                quantity: l.quantity,
+                unitPrice: l.unitPrice,
+                vatRate: l.vatRate,
+                discount: l.discount,
+                tpsRate: l.tpsRate,
+                cssRate: l.cssRate,
+                position,
+                sectionId: l.sectionId
+                  ? (sectionIdMap.get(l.sectionId) ?? null)
+                  : null,
+              })),
+            });
+          }
+
+          return doc;
         });
 
         const day = clampSubscriptionDay(template.subscriptionDay ?? 1);

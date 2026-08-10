@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Plus, Trash2, Save, Send, Download, Eye, Loader2, Users, Check, PenLine, Stamp } from "lucide-react";
 import { toast } from "sonner";
@@ -14,7 +14,7 @@ import {
   breakdownFromTtc,
   withDocumentTaxRates,
 } from "@/lib/document-math";
-import type { Document, DocumentType, LineItem } from "@/store/types";
+import type { Document, DocumentSection, DocumentType, LineItem } from "@/store/types";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 import { downloadDocumentPdf } from "@/lib/pdf/downloadDocumentPdf";
 import { number } from "@/lib/format";
@@ -38,9 +38,10 @@ import { documentCanSendEmail } from "@/components/documents/DocumentSignatureAc
 type Props = { initial?: Document; type: DocumentType };
 
 const newId = () => `tmp-${Math.random().toString(36).slice(2, 9)}`;
+const newSectionId = () => `sec-${Math.random().toString(36).slice(2, 9)}`;
 
 function isPersistedId(id: string) {
-  return !id.startsWith("d-") && !id.startsWith("tmp-");
+  return !id.startsWith("d-") && !id.startsWith("tmp-") && !id.startsWith("sec-");
 }
 
 function addDaysIso(isoDate: string, days: number) {
@@ -78,7 +79,12 @@ export function DocumentEditor({ initial, type }: Props) {
           discount: 0,
         }))
       : initial.items.map((it) => ({ ...it, discount: 0 }));
-    return { ...initial, discount: initial.discount ?? 0, items };
+    return {
+      ...initial,
+      discount: initial.discount ?? 0,
+      items,
+      sections: initial.sections ?? [],
+    };
   });
 
   const { data: peekedNumber } = usePeekNextDocumentNumber(
@@ -155,6 +161,9 @@ export function DocumentEditor({ initial, type }: Props) {
   const tpsRate = commercial ? docTpsRate : 0;
   const tpsEnabled = commercial && tpsRate > 0;
   const docDiscount = doc.discount ?? 0;
+  const sections = doc.sections ?? [];
+  const sectionsEnabled = commercial && sections.length > 0;
+  const activeSectionId = sections[sections.length - 1]?.id ?? null;
 
   const ttcAmount = Number(ttcInput.replace(/\s/g, "").replace(",", ".")) || 0;
   const ttcBreakdown = useMemo(
@@ -180,22 +189,28 @@ export function DocumentEditor({ initial, type }: Props) {
       toast.error("Indiquez une description");
       return;
     }
-    setDoc((d) => ({
-      ...d,
-      items: [
-        ...d.items,
-        {
-          id: newId(),
-          description,
-          quantity: 1,
-          unitPrice: ttcBreakdown.subtotal,
-          vatRate: ttcVatRate,
-          cssRate: ttcCssRate,
-          discount: 0,
-          tpsRate: commercial ? ttcTpsRate : 0,
-        },
-      ],
-    }));
+    setDoc((d) => {
+      const secs = d.sections ?? [];
+      const sectionId =
+        secs.length > 0 ? secs[secs.length - 1]!.id : null;
+      return {
+        ...d,
+        items: [
+          ...d.items,
+          {
+            id: newId(),
+            description,
+            quantity: 1,
+            unitPrice: ttcBreakdown.subtotal,
+            vatRate: ttcVatRate,
+            cssRate: ttcCssRate,
+            discount: 0,
+            tpsRate: commercial ? ttcTpsRate : 0,
+            sectionId,
+          },
+        ],
+      };
+    });
     toast.success("Prestation ajoutée", {
       description: `${description} — TTC ${number(ttcBreakdown.total)}`,
     });
@@ -254,6 +269,7 @@ export function DocumentEditor({ initial, type }: Props) {
     total: totals.total,
     discount: commercial ? docDiscount : 0,
     clientId: effectiveClientId,
+    sections: commercial ? sections : [],
     items: commercial
       ? doc.items.map((it) => ({
           ...it,
@@ -261,6 +277,7 @@ export function DocumentEditor({ initial, type }: Props) {
           discount: 0,
           vatRate,
           cssRate,
+          sectionId: sectionsEnabled ? (it.sectionId ?? activeSectionId) : null,
         }))
       : doc.items,
   };
@@ -271,49 +288,119 @@ export function DocumentEditor({ initial, type }: Props) {
       items: d.items.map((i) => (i.id === id ? { ...i, ...patch } : i)),
     }));
 
-  const addEmpty = () => {
+  const addEmpty = (sectionId?: string | null) => {
     const id = newId();
-    setDoc((d) => ({
-      ...d,
-      items: [
-        ...d.items,
-        {
-          id,
-          description: "",
-          quantity: 1,
-          unitPrice: 0,
-          vatRate: commercial ? docVatRate : DEFAULT_VAT_RATE,
-          discount: 0,
-          tpsRate: commercial ? docTpsRate : 0,
-          cssRate: commercial ? docCssRate : DEFAULT_CSS_RATE,
-        },
-      ],
-    }));
+    setDoc((d) => {
+      const secs = d.sections ?? [];
+      const sid =
+        sectionId !== undefined
+          ? sectionId
+          : secs.length > 0
+            ? secs[secs.length - 1]!.id
+            : null;
+      return {
+        ...d,
+        items: [
+          ...d.items,
+          {
+            id,
+            description: "",
+            quantity: 1,
+            unitPrice: 0,
+            vatRate: commercial ? docVatRate : DEFAULT_VAT_RATE,
+            discount: 0,
+            tpsRate: commercial ? docTpsRate : 0,
+            cssRate: commercial ? docCssRate : DEFAULT_CSS_RATE,
+            sectionId: sid,
+          },
+        ],
+      };
+    });
     setFocusDescriptionLineId(id);
   };
 
-  const addFromService = (serviceId: string) => {
+  const addFromService = (serviceId: string, sectionId?: string | null) => {
     const s = services.find((x) => x.id === serviceId);
     if (!s) return;
     const id = newId();
+    setDoc((d) => {
+      const secs = d.sections ?? [];
+      const sid =
+        sectionId !== undefined
+          ? sectionId
+          : secs.length > 0
+            ? secs[secs.length - 1]!.id
+            : null;
+      return {
+        ...d,
+        items: [
+          ...d.items,
+          {
+            id,
+            serviceId: s.id,
+            description: s.name,
+            quantity: 1,
+            unitPrice: s.unitPrice,
+            vatRate: commercial ? docVatRate : s.vatRate || DEFAULT_VAT_RATE,
+            discount: 0,
+            tpsRate: commercial ? docTpsRate : 0,
+            cssRate: commercial ? docCssRate : DEFAULT_CSS_RATE,
+            sectionId: sid,
+          },
+        ],
+      };
+    });
+    setFocusDescriptionLineId(id);
+  };
+
+  const enableSections = (on: boolean) => {
+    if (!commercial) return;
+    if (on) {
+      const sid = newSectionId();
+      setDoc((d) => ({
+        ...d,
+        sections: [{ id: sid, title: "", position: 0 }],
+        items: d.items.map((it) => ({ ...it, sectionId: sid })),
+      }));
+    } else {
+      setDoc((d) => ({
+        ...d,
+        sections: [],
+        items: d.items.map((it) => ({ ...it, sectionId: null })),
+      }));
+    }
+  };
+
+  const addSection = () => {
+    const sid = newSectionId();
     setDoc((d) => ({
       ...d,
-      items: [
-        ...d.items,
+      sections: [
+        ...(d.sections ?? []),
         {
-          id,
-          serviceId: s.id,
-          description: s.name,
-          quantity: 1,
-          unitPrice: s.unitPrice,
-          vatRate: commercial ? docVatRate : s.vatRate || DEFAULT_VAT_RATE,
-          discount: 0,
-          tpsRate: commercial ? docTpsRate : 0,
-          cssRate: commercial ? docCssRate : DEFAULT_CSS_RATE,
+          id: sid,
+          title: "",
+          position: (d.sections ?? []).length,
         },
       ],
     }));
-    setFocusDescriptionLineId(id);
+  };
+
+  const updateSection = (id: string, title: string) => {
+    setDoc((d) => ({
+      ...d,
+      sections: (d.sections ?? []).map((s) =>
+        s.id === id ? { ...s, title } : s,
+      ),
+    }));
+  };
+
+  const removeSection = (id: string) => {
+    setDoc((d) => ({
+      ...d,
+      sections: (d.sections ?? []).filter((s) => s.id !== id),
+      items: d.items.filter((it) => it.sectionId !== id),
+    }));
   };
 
   const removeItem = (id: string) =>
@@ -357,6 +444,7 @@ export function DocumentEditor({ initial, type }: Props) {
     items: merged.items.map((it) => ({
       id: isPersistedId(it.id) ? it.id : undefined,
       serviceId: it.serviceId ?? null,
+      sectionId: commercial ? (it.sectionId ?? null) : null,
       description: it.description,
       quantity: it.quantity,
       unitPrice: it.unitPrice,
@@ -365,6 +453,13 @@ export function DocumentEditor({ initial, type }: Props) {
       tpsRate: commercial ? tpsRate : (it.tpsRate ?? 0),
       cssRate: commercial ? (it.cssRate ?? DEFAULT_CSS_RATE) : (it.cssRate ?? 0),
     })),
+    sections: commercial
+      ? sections.map((s, i) => ({
+          id: s.id,
+          title: s.title,
+          position: i,
+        }))
+      : [],
     subtotal: merged.subtotal,
     discount: commercial ? (merged.discount ?? 0) : 0,
     tps: merged.tps,
@@ -797,153 +892,225 @@ export function DocumentEditor({ initial, type }: Props) {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="font-display font-semibold">
             Lignes de prestation
-            {commercial && amountMode === "ttc" && doc.items.length > 0 ? (
+            {commercial && doc.items.length > 0 ? (
               <span className="ml-2 text-xs font-normal text-muted-foreground">
                 ({doc.items.length})
               </span>
             ) : null}
           </h3>
-          {(!commercial || amountMode === "ht") && (
-          <div className="flex flex-wrap items-center gap-2">
-            <select
-              className="rounded-xl border border-border bg-surface px-3 py-2 text-sm"
-              onChange={(e) => {
-                if (e.target.value) {
-                  addFromService(e.target.value);
-                  e.target.value = "";
-                }
-              }}
-              defaultValue=""
-            >
-              <option value="" disabled>
-                + Depuis le catalogue…
-              </option>
-              {services.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.code} — {s.name}
-                </option>
-              ))}
-            </select>
-            <Button onClick={addEmpty} variant="outline" size="sm" className="rounded-xl">
-              <Plus className="h-4 w-4" /> Ligne libre
-            </Button>
+          <div className="flex flex-wrap items-center gap-3">
+            {commercial ? (
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+                <Switch
+                  checked={sectionsEnabled}
+                  onCheckedChange={enableSections}
+                />
+                Regrouper par tâche
+              </label>
+            ) : null}
+            {commercial && sectionsEnabled ? (
+              <Button
+                type="button"
+                onClick={addSection}
+                variant="outline"
+                size="sm"
+                className="rounded-xl"
+              >
+                <Plus className="h-4 w-4" /> Tâche
+              </Button>
+            ) : null}
+            {(!commercial || amountMode === "ht") && !sectionsEnabled && (
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  className="rounded-xl border border-border bg-surface px-3 py-2 text-sm"
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      addFromService(e.target.value);
+                      e.target.value = "";
+                    }
+                  }}
+                  defaultValue=""
+                >
+                  <option value="" disabled>
+                    + Depuis le catalogue…
+                  </option>
+                  {services.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.code} — {s.name}
+                    </option>
+                  ))}
+                </select>
+                <Button
+                  onClick={() => addEmpty()}
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl"
+                >
+                  <Plus className="h-4 w-4" /> Ligne libre
+                </Button>
+              </div>
+            )}
           </div>
-          )}
         </div>
 
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="text-xs text-muted-foreground">
-              <tr className="border-b border-border/60">
-                <th className="py-2 text-left font-medium">Description</th>
-                <th className="py-2 text-right font-medium w-20">Qté</th>
-                <th className="py-2 text-right font-medium w-28">P.U. HT</th>
-                {!commercial ? (
-                  <>
-                    <th className="py-2 text-right font-medium w-20">TVA %</th>
-                    <th className="py-2 text-right font-medium w-20">CSS %</th>
-                    <th className="py-2 text-right font-medium w-20">Rem. %</th>
-                  </>
-                ) : null}
-                <th className="py-2 text-right font-medium w-28">Total HT</th>
-                <th className="w-10" />
-              </tr>
-            </thead>
-            <tbody>
-              <AnimateEmpty
-                items={doc.items}
-                colSpan={commercial ? 5 : 8}
-                emptyHint={
-                  commercial && amountMode === "ttc"
-                    ? "Aucune ligne — saisissez un montant TTC ci-dessus puis cliquez Appliquer."
-                    : undefined
-                }
-              />
-              {doc.items.map((it) => {
-                const lineTotal = it.quantity * it.unitPrice;
-                return (
-                  <tr
-                    key={it.id}
-                    className="border-b border-border/40"
-                    onClick={(e) => {
-                      const target = e.target as HTMLElement;
-                      if (target.closest("input, button, select, textarea")) return;
-                      descriptionInputRefs.current.get(it.id)?.focus();
-                    }}
-                  >
-                    <td className="py-2 pr-2">
-                      <input
-                        ref={(el) => {
-                          if (el) descriptionInputRefs.current.set(it.id, el);
-                          else descriptionInputRefs.current.delete(it.id);
+        {commercial && sectionsEnabled ? (
+          <div className="mt-4 space-y-4">
+            {sections.map((sec) => {
+              const sectionItems = doc.items.filter(
+                (it) => it.sectionId === sec.id,
+              );
+              return (
+                <div
+                  key={sec.id}
+                  className="overflow-hidden rounded-2xl border border-border/70"
+                >
+                  <div className="flex flex-wrap items-center gap-2 bg-primary/10 px-3 py-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-primary">
+                      Tâche
+                    </span>
+                    <input
+                      className="min-w-[12rem] flex-1 rounded-lg border border-border/60 bg-surface px-2.5 py-1.5 text-sm font-semibold focus:border-primary focus:outline-none"
+                      value={sec.title}
+                      placeholder="Titre général (ex. AUDIT FISCAL)"
+                      onChange={(e) => updateSection(sec.id, e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeSection(sec.id)}
+                      className="rounded-lg p-1.5 text-muted-foreground hover:bg-danger/10 hover:text-danger"
+                      title="Supprimer la tâche"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <div className="overflow-x-auto p-2">
+                    <table className="w-full text-sm">
+                      <thead className="text-xs text-muted-foreground">
+                        <tr className="border-b border-border/60">
+                          <th className="py-2 text-left font-medium">
+                            Description
+                          </th>
+                          <th className="w-20 py-2 text-right font-medium">
+                            Qté
+                          </th>
+                          <th className="w-28 py-2 text-right font-medium">
+                            P.U. HT
+                          </th>
+                          <th className="w-28 py-2 text-right font-medium">
+                            Total HT
+                          </th>
+                          <th className="w-10" />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sectionItems.length === 0 ? (
+                          <tr>
+                            <td
+                              colSpan={5}
+                              className="py-3 text-center text-xs italic text-muted-foreground"
+                            >
+                              Aucune désignation — ajoutez une ligne ci-dessous.
+                            </td>
+                          </tr>
+                        ) : (
+                          sectionItems.map((it) => (
+                            <LineRow
+                              key={it.id}
+                              it={it}
+                              commercial
+                              descriptionInputRefs={descriptionInputRefs}
+                              updateItem={updateItem}
+                              removeItem={removeItem}
+                            />
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  {amountMode === "ht" ? (
+                    <div className="flex flex-wrap items-center gap-2 border-t border-border/50 px-3 py-2">
+                      <select
+                        className="rounded-xl border border-border bg-surface px-3 py-1.5 text-sm"
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            addFromService(e.target.value, sec.id);
+                            e.target.value = "";
+                          }
                         }}
-                        className="w-full rounded-lg border border-border/60 bg-transparent px-2 py-1.5 focus:border-primary focus:outline-none"
-                        value={it.description}
-                        placeholder="Titre / description de la désignation"
-                        onChange={(e) =>
-                          updateItem(it.id, { description: e.target.value })
-                        }
-                      />
-                    </td>
-                    <td className="py-2 px-1">
-                      <NumInput
-                        value={it.quantity}
-                        onChange={(v) => updateItem(it.id, { quantity: v })}
-                      />
-                    </td>
-                    <td className="py-2 px-1">
-                      <NumInput
-                        value={it.unitPrice}
-                        onChange={(v) => updateItem(it.id, { unitPrice: v })}
-                        step={1}
-                      />
-                    </td>
-                    {!commercial ? (
-                      <>
-                        <td className="py-2 px-1">
-                          <NumInput
-                            value={it.vatRate}
-                            step={0.01}
-                            min={0}
-                            onChange={(v) => updateItem(it.id, { vatRate: v })}
-                          />
-                        </td>
-                        <td className="py-2 px-1">
-                          <NumInput
-                            value={it.cssRate ?? DEFAULT_CSS_RATE}
-                            step={0.01}
-                            min={0}
-                            onChange={(v) => updateItem(it.id, { cssRate: v })}
-                          />
-                        </td>
-                        <td className="py-2 px-1">
-                          <NumInput
-                            value={it.discount}
-                            step={0.01}
-                            min={0}
-                            onChange={(v) => updateItem(it.id, { discount: v })}
-                          />
-                        </td>
-                      </>
-                    ) : null}
-                    <td className="py-2 pl-2 text-right font-numeric font-semibold">
-                      {number(lineTotal)}
-                    </td>
-                    <td className="py-2 pl-1">
-                      <button
-                        type="button"
-                        onClick={() => removeItem(it.id)}
-                        className="rounded-lg p-1.5 text-muted-foreground hover:bg-danger/10 hover:text-danger"
+                        defaultValue=""
                       >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                        <option value="" disabled>
+                          + Catalogue…
+                        </option>
+                        {services.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.code} — {s.name}
+                          </option>
+                        ))}
+                      </select>
+                      <Button
+                        type="button"
+                        onClick={() => addEmpty(sec.id)}
+                        variant="outline"
+                        size="sm"
+                        className="rounded-xl"
+                      >
+                        <Plus className="h-4 w-4" /> Désignation
+                      </Button>
+                    </div>
+                  ) : (
+                    <p className="border-t border-border/50 px-3 py-2 text-[11px] text-muted-foreground">
+                      En mode TTC, utilisez « Appliquer » ci-dessus — la ligne
+                      sera ajoutée à la dernière tâche.
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-xs text-muted-foreground">
+                <tr className="border-b border-border/60">
+                  <th className="py-2 text-left font-medium">Description</th>
+                  <th className="w-20 py-2 text-right font-medium">Qté</th>
+                  <th className="w-28 py-2 text-right font-medium">P.U. HT</th>
+                  {!commercial ? (
+                    <>
+                      <th className="w-20 py-2 text-right font-medium">TVA %</th>
+                      <th className="w-20 py-2 text-right font-medium">CSS %</th>
+                      <th className="w-20 py-2 text-right font-medium">Rem. %</th>
+                    </>
+                  ) : null}
+                  <th className="w-28 py-2 text-right font-medium">Total HT</th>
+                  <th className="w-10" />
+                </tr>
+              </thead>
+              <tbody>
+                <AnimateEmpty
+                  items={doc.items}
+                  colSpan={commercial ? 5 : 8}
+                  emptyHint={
+                    commercial && amountMode === "ttc"
+                      ? "Aucune ligne — saisissez un montant TTC ci-dessus puis cliquez Appliquer."
+                      : undefined
+                  }
+                />
+                {doc.items.map((it) => (
+                  <LineRow
+                    key={it.id}
+                    it={it}
+                    commercial={commercial}
+                    descriptionInputRefs={descriptionInputRefs}
+                    updateItem={updateItem}
+                    removeItem={removeItem}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         <div className="mt-5 ml-auto w-full max-w-sm space-y-2 rounded-2xl bg-surface-2 p-4">
           {commercial ? (
@@ -1223,6 +1390,98 @@ function Select({
   );
 }
 
+function LineRow({
+  it,
+  commercial,
+  descriptionInputRefs,
+  updateItem,
+  removeItem,
+}: {
+  it: LineItem;
+  commercial: boolean;
+  descriptionInputRefs: MutableRefObject<Map<string, HTMLInputElement>>;
+  updateItem: (id: string, patch: Partial<LineItem>) => void;
+  removeItem: (id: string) => void;
+}) {
+  const lineTotal = it.quantity * it.unitPrice;
+  return (
+    <tr
+      className="border-b border-border/40"
+      onClick={(e) => {
+        const target = e.target as HTMLElement;
+        if (target.closest("input, button, select, textarea")) return;
+        descriptionInputRefs.current.get(it.id)?.focus();
+      }}
+    >
+      <td className="py-2 pr-2">
+        <input
+          ref={(el) => {
+            if (el) descriptionInputRefs.current.set(it.id, el);
+            else descriptionInputRefs.current.delete(it.id);
+          }}
+          className="w-full rounded-lg border border-border/60 bg-transparent px-2 py-1.5 focus:border-primary focus:outline-none"
+          value={it.description}
+          placeholder="Titre / description de la désignation"
+          onChange={(e) => updateItem(it.id, { description: e.target.value })}
+        />
+      </td>
+      <td className="px-1 py-2">
+        <NumInput
+          value={it.quantity}
+          onChange={(v) => updateItem(it.id, { quantity: v })}
+        />
+      </td>
+      <td className="px-1 py-2">
+        <NumInput
+          value={it.unitPrice}
+          onChange={(v) => updateItem(it.id, { unitPrice: v })}
+          step={1}
+        />
+      </td>
+      {!commercial ? (
+        <>
+          <td className="px-1 py-2">
+            <NumInput
+              value={it.vatRate}
+              step={0.01}
+              min={0}
+              onChange={(v) => updateItem(it.id, { vatRate: v })}
+            />
+          </td>
+          <td className="px-1 py-2">
+            <NumInput
+              value={it.cssRate ?? DEFAULT_CSS_RATE}
+              step={0.01}
+              min={0}
+              onChange={(v) => updateItem(it.id, { cssRate: v })}
+            />
+          </td>
+          <td className="px-1 py-2">
+            <NumInput
+              value={it.discount}
+              step={0.01}
+              min={0}
+              onChange={(v) => updateItem(it.id, { discount: v })}
+            />
+          </td>
+        </>
+      ) : null}
+      <td className="py-2 pl-2 text-right font-numeric font-semibold">
+        {number(lineTotal)}
+      </td>
+      <td className="py-2 pl-1">
+        <button
+          type="button"
+          onClick={() => removeItem(it.id)}
+          className="rounded-lg p-1.5 text-muted-foreground hover:bg-danger/10 hover:text-danger"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </td>
+    </tr>
+  );
+}
+
 /** Accepte « 5,10 » / « 5.10 » et garde la saisie en cours (virgule, point). */
 function parseDecimalInput(raw: string): number | null {
   const cleaned = raw.trim().replace(/\s/g, "").replace(",", ".");
@@ -1354,6 +1613,7 @@ function defaultDoc(
     issueDate: today,
     dueDate: due,
     items: [] as LineItem[],
+    sections: [] as DocumentSection[],
     subtotal: 0,
     discount: 0,
     tps: 0,

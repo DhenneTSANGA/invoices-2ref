@@ -3,6 +3,7 @@ import type {
   Client,
   CompanyInfo,
   Document,
+  DocumentSection,
   LineItem,
   NotificationItem,
   Service,
@@ -190,6 +191,7 @@ export function mapDocument(row: {
   lines: Array<{
     id: string;
     serviceId: string | null;
+    sectionId?: string | null;
     description: string;
     quantity: Decimal;
     unitPrice: Decimal;
@@ -197,6 +199,11 @@ export function mapDocument(row: {
     discount: Decimal;
     tpsRate: Decimal;
     cssRate: Decimal;
+    position: number;
+  }>;
+  sections?: Array<{
+    id: string;
+    title: string;
     position: number;
   }>;
   createdBy?: {
@@ -216,6 +223,7 @@ export function mapDocument(row: {
     .map((l) => ({
       id: l.id,
       serviceId: l.serviceId ?? undefined,
+      sectionId: l.sectionId ?? null,
       description: l.description,
       quantity: decimalToNumber(l.quantity),
       unitPrice: decimalToNumber(l.unitPrice),
@@ -223,6 +231,14 @@ export function mapDocument(row: {
       discount: decimalToNumber(l.discount),
       tpsRate: decimalToNumber(l.tpsRate),
       cssRate: decimalToNumber(l.cssRate),
+    }));
+
+  const sections: DocumentSection[] = [...(row.sections ?? [])]
+    .sort((a, b) => a.position - b.position)
+    .map((s) => ({
+      id: s.id,
+      title: s.title,
+      position: s.position,
     }));
 
   const subtotal = decimalToNumber(row.subtotal);
@@ -243,6 +259,7 @@ export function mapDocument(row: {
     issueDate: row.issueDate.toISOString().slice(0, 10),
     dueDate: row.dueDate.toISOString().slice(0, 10),
     items,
+    sections,
     subtotal,
     discount: commercial ? discount : 0,
     tps,

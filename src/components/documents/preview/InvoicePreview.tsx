@@ -318,7 +318,7 @@ function PartyBlock({
   );
 }
 
-/** Tableau de lignes — sans CSS/TVA (affichés uniquement dans le bloc totaux). */
+/** Tableau de lignes — avec sections (tâches) optionnelles. */
 function ItemsTable({
   doc,
   headerFrom,
@@ -333,11 +333,27 @@ function ItemsTable({
   showTaxColumns?: boolean;
 }) {
   const cell = compact ? "px-2 py-1.5" : "px-2.5 py-2.5";
-  return (
-    <div className={cn("overflow-hidden rounded-lg ring-1 ring-[#E2E8F0]", compact ? "mt-2" : "mt-4")}>
+  const sections = [...(doc.sections ?? [])].sort(
+    (a, b) => a.position - b.position,
+  );
+  const hasSections = sections.length > 0;
+
+  const renderLinesTable = (
+    items: Document["items"],
+    keyPrefix = "",
+    framed = true,
+  ) => (
+    <div
+      className={
+        framed ? "overflow-hidden rounded-lg ring-1 ring-[#E2E8F0]" : "overflow-hidden"
+      }
+    >
       <table className={cn("w-full border-collapse", compact ? "text-[10px]" : "text-[12px]")}>
         <thead>
-          <tr style={{ background: `linear-gradient(90deg, ${headerFrom}, ${headerTo})` }} className="text-white">
+          <tr
+            style={{ background: `linear-gradient(90deg, ${headerFrom}, ${headerTo})` }}
+            className="text-white"
+          >
             <th className={cn(cell, "w-8 text-left font-semibold")}>#</th>
             <th className={cn(cell, "text-left font-semibold")}>Désignation</th>
             <th className={cn(cell, "w-10 text-right font-semibold")}>Qté</th>
@@ -346,23 +362,28 @@ function ItemsTable({
           </tr>
         </thead>
         <tbody>
-          {doc.items.length === 0 && (
+          {items.length === 0 && (
             <tr>
               <td colSpan={5} className={cn(cell, "text-center italic text-[#94A3B8]")}>
                 Aucune ligne.
               </td>
             </tr>
           )}
-          {doc.items.map((it, i) => {
+          {items.map((it, i) => {
             const lineTotal = it.quantity * it.unitPrice;
             return (
-              <tr key={it.id} className={i % 2 === 0 ? "bg-white" : "bg-[#F8FAFC]"}>
+              <tr
+                key={`${keyPrefix}${it.id}`}
+                className={i % 2 === 0 ? "bg-white" : "bg-[#F8FAFC]"}
+              >
                 <td className={cn(cell, "align-top text-[#64748B]")}>
                   {String(i + 1).padStart(2, "0")}
                 </td>
                 <td className={cn(cell, "align-top leading-snug")}>{it.description}</td>
                 <td className={cn(cell, "text-right align-top font-mono")}>{it.quantity}</td>
-                <td className={cn(cell, "text-right align-top font-mono")}>{number(it.unitPrice)}</td>
+                <td className={cn(cell, "text-right align-top font-mono")}>
+                  {number(it.unitPrice)}
+                </td>
                 <td className={cn(cell, "text-right align-top font-mono font-semibold")}>
                   {number(lineTotal)}
                 </td>
@@ -371,6 +392,47 @@ function ItemsTable({
           })}
         </tbody>
       </table>
+    </div>
+  );
+
+  if (!hasSections) {
+    return (
+      <div className={cn(compact ? "mt-2" : "mt-4")}>
+        {renderLinesTable(doc.items)}
+      </div>
+    );
+  }
+
+  const unsectioned = doc.items.filter((it) => !it.sectionId);
+
+  return (
+    <div className={cn("space-y-3", compact ? "mt-2" : "mt-4")}>
+      {sections.map((sec) => {
+        const items = doc.items.filter((it) => it.sectionId === sec.id);
+        return (
+          <div key={sec.id} className="overflow-hidden rounded-lg ring-1 ring-[#E2E8F0]">
+            <div
+              className={cn(
+                "text-center font-bold uppercase tracking-wider text-white",
+                compact ? "px-2 py-1 text-[9px]" : "px-2.5 py-1.5 text-[11px]",
+              )}
+              style={{ background: `linear-gradient(90deg, ${headerFrom}, ${headerTo})` }}
+            >
+              Tâche
+            </div>
+            <div
+              className={cn(
+                "bg-[#EFF6FF] text-center font-semibold uppercase tracking-wide text-[#0F172A]",
+                compact ? "px-2 py-1.5 text-[11px]" : "px-2.5 py-2.5 text-[13px]",
+              )}
+            >
+              {(sec.title.trim() || "—").toUpperCase()}
+            </div>
+            {renderLinesTable(items, `${sec.id}-`, false)}
+          </div>
+        );
+      })}
+      {unsectioned.length > 0 ? renderLinesTable(unsectioned, "loose-") : null}
     </div>
   );
 }
