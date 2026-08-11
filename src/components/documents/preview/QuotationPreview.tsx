@@ -132,11 +132,11 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
                 accent="#64748B"
                 name={company.name}
                 lines={emitterLines}
+                capital={company.capital}
                 nif={company.nif}
                 niu={company.niu}
                 niuLabel={doc.cabinet === "conseil" ? "STAT" : "NIU"}
                 rccm={company.rccm}
-                cnss={company.cnss}
                 muted
                 compact={dense}
               />
@@ -150,8 +150,6 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
                 nif={client?.nif}
                 niu={client?.niu}
                 rccm={client?.rccm}
-                cnss={client?.cnss}
-                cnamgs={client?.cnamgs}
                 bordered
                 compact={dense}
               />

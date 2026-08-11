@@ -52,6 +52,7 @@ export function companyForPreview(
   return {
     name: row.name,
     tagline: resolveTagline(row.tagline, fallback.tagline, cabinet),
+    capital: fallback.capital,
     nif: row.nif,
     niu: row.niu || "—",
     rccm: row.rccm,

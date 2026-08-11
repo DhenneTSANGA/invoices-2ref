@@ -84,6 +84,7 @@ export const COMPANY_DEFAULTS: Record<Cabinet, CompanyInfo> = {
   expertise_fiscale: {
     name: "2R EXPERTISE FISCALE",
     tagline: "Libreville, Port-Gentil et Moanda",
+    capital: "SARL au capital de 10 000 000 F CFA",
     nif: "202601003286 Z",
     niu: "—",
     rccm: "GALBV LBV 2026 B12 B1200162",
@@ -103,6 +104,7 @@ export const COMPANY_DEFAULTS: Record<Cabinet, CompanyInfo> = {
   conseil: {
     name: "2R Conseil",
     tagline: "Entreprise au capital de 1 000 000 FCFA",
+    capital: "Entreprise au capital de 1 000 000 FCFA",
     nif: "202401006569 F",
     niu: "748151N",
     rccm: "GA-LBV-01-2019-B12-00097",

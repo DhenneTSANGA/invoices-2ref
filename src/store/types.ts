@@ -54,6 +54,8 @@ export type Client = {
 export type CompanyInfo = {
   name: string;
   tagline: string;
+  /** Forme / capital social affiché sur l’émetteur (facture / devis). */
+  capital: string;
   nif: string;
   niu: string;
   rccm: string;

@@ -119,11 +119,11 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
                 accent="#64748B"
                 name={company.name}
                 lines={emitterLines}
+                capital={company.capital}
                 nif={company.nif}
                 niu={company.niu}
                 niuLabel={doc.cabinet === "conseil" ? "STAT" : "NIU"}
                 rccm={company.rccm}
-                cnss={company.cnss}
                 muted
                 compact={dense}
               />
@@ -137,8 +137,6 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
                 nif={client?.nif}
                 niu={client?.niu}
                 rccm={client?.rccm}
-                cnss={client?.cnss}
-                cnamgs={client?.cnamgs}
                 bordered
                 compact={dense}
               />
@@ -226,6 +224,7 @@ function PartyBlock({
   accent,
   name,
   lines,
+  capital,
   nif,
   niu,
   niuLabel = "NIU",
@@ -240,6 +239,8 @@ function PartyBlock({
   accent: string;
   name?: string;
   lines?: string[];
+  /** Capital social (émetteur). */
+  capital?: string;
   nif?: string;
   niu?: string;
   niuLabel?: string;
@@ -251,6 +252,7 @@ function PartyBlock({
   compact?: boolean;
 }) {
   const ids = [
+    capital ? { label: "Capital", value: capital } : null,
     nif && nif !== "—" ? { label: "NIF", value: nif } : null,
     niu && niu !== "—" ? { label: niuLabel, value: niu } : null,
     rccm && rccm !== "—" ? { label: "RCCM", value: rccm } : null,
@@ -306,12 +308,21 @@ function PartyBlock({
                 <span
                   key={id.label}
                   className={
-                    id.label === "RCCM" || id.label === "CNSS" || id.label === "CNAMGS"
+                    id.label === "Capital" ||
+                    id.label === "RCCM" ||
+                    id.label === "CNSS" ||
+                    id.label === "CNAMGS"
                       ? "sm:col-span-2"
                       : undefined
                   }
                 >
-                  {id.label}: <b className="text-[#0F172A]">{id.value}</b>
+                  {id.label === "Capital" ? (
+                    <b className="text-[#0F172A]">{id.value}</b>
+                  ) : (
+                    <>
+                      {id.label}: <b className="text-[#0F172A]">{id.value}</b>
+                    </>
+                  )}
                 </span>
               ))}
             </div>
