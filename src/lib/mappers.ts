@@ -265,7 +265,9 @@ export function mapDocument(row: {
     tps,
     css,
     vat,
-    total: commercial ? subtotal + tps + css + vat : decimalToNumber(row.total),
+    total: commercial
+      ? Math.max(0, subtotal - tps + css + vat)
+      : decimalToNumber(row.total),
     currency: row.currency,
     notes: row.notes ?? undefined,
     paymentTerms: row.paymentTerms ?? undefined,

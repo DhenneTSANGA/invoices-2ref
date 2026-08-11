@@ -3,7 +3,7 @@ import type { LineItem } from "@/store/types";
 export const DEFAULT_VAT_RATE = 18;
 export const DEFAULT_CSS_RATE = 1;
 /** Taux proposé quand l’utilisateur active la TPS sur une facture (Congo). */
-export const DEFAULT_TPS_RATE = 5;
+export const DEFAULT_TPS_RATE = 9.5;
 
 function lineGross(item: LineItem) {
   return item.quantity * item.unitPrice;
@@ -14,12 +14,22 @@ function lineBase(item: LineItem) {
   return lineGross(item) * (1 - (item.discount || 0) / 100);
 }
 
+/** Total commercial : HT − TPS + CSS + TVA (TPS = déduction). */
+export function commercialTotal(
+  subtotal: number,
+  tps: number,
+  css: number,
+  vat: number,
+): number {
+  return Math.max(0, Math.round(subtotal) - Math.round(tps) + Math.round(css) + Math.round(vat));
+}
+
 export function computeTotals(items: LineItem[]) {
   const subtotal = items.reduce((a, b) => a + lineBase(b), 0);
   const tps = items.reduce((a, b) => a + lineBase(b) * ((b.tpsRate || 0) / 100), 0);
   const css = items.reduce((a, b) => a + lineBase(b) * ((b.cssRate || 0) / 100), 0);
   const vat = items.reduce((a, b) => a + lineBase(b) * ((b.vatRate || 0) / 100), 0);
-  return { subtotal, tps, css, vat, total: subtotal + tps + css + vat };
+  return { subtotal, tps, css, vat, total: commercialTotal(subtotal, tps, css, vat) };
 }
 
 export type DocumentTotalsOptions = {
@@ -53,8 +63,8 @@ export function effectiveCommercialVatRate(
 }
 
 /**
- * Factures & devis : HT brut → remise → TPS (opt.) + CSS + TVA sur le HT net.
- * Si TPS > 0, la TVA est exclue du calcul et du total.
+ * Factures & devis : HT brut → remise → TPS (opt., déduite) + CSS + TVA sur le HT net.
+ * Si TPS > 0, la TVA est exclue. Total = HT − TPS + CSS (+ TVA).
  */
 export function computeDocumentTotals(
   items: LineItem[],
@@ -81,11 +91,11 @@ export function computeDocumentTotals(
     tps,
     css,
     vat,
-    total: subtotal + tps + css + vat,
+    total: commercialTotal(subtotal, tps, css, vat),
   };
 }
 
-/** Facteur TTC = HT × (1 + TPS% + CSS% + TVA%). TPS active → TVA exclue. */
+/** Facteur TTC = HT × (1 − TPS% + CSS% + TVA%). TPS active → TVA exclue. */
 export function commercialTaxFactor(
   vatRate = DEFAULT_VAT_RATE,
   cssRate = DEFAULT_CSS_RATE,
@@ -94,7 +104,7 @@ export function commercialTaxFactor(
   const effectiveVat = effectiveCommercialVatRate(vatRate, tpsRate);
   return (
     1 +
-    (Math.max(0, tpsRate) + Math.max(0, cssRate) + effectiveVat) / 100
+    (Math.max(0, cssRate) + effectiveVat - Math.max(0, tpsRate)) / 100
   );
 }
 
@@ -134,7 +144,7 @@ export function breakdownFromTtc(
   const tps = Math.round(subtotal * (Math.max(0, tpsRate) / 100));
   const css = Math.round(subtotal * (Math.max(0, cssRate) / 100));
   const vat = Math.round(subtotal * (effectiveVat / 100));
-  const computed = subtotal + tps + css + vat;
+  const computed = commercialTotal(subtotal, tps, css, vat);
   const drift = Math.round(ttc) - computed;
   return {
     subtotal,

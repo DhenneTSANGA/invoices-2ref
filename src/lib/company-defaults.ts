@@ -3,8 +3,27 @@ import { COMPANY_DEFAULTS, type Cabinet } from "@/lib/cabinets";
 
 export { COMPANY_DEFAULTS };
 
+/** Ancien libellé Expertise Fiscale — remplacé automatiquement à l’affichage. */
+const LEGACY_EXPERTISE_TAGLINE =
+  "SARL au capital de 10 000 000 F CFA — Conseil Fiscal";
+
 /** @deprecated Prefer COMPANY_DEFAULTS[cabinet] */
 export const REAL_2REF_COMPANY: CompanyInfo = COMPANY_DEFAULTS.expertise_fiscale;
+
+function resolveTagline(
+  raw: string | null | undefined,
+  fallback: string,
+  cabinet: Cabinet,
+): string {
+  const tagline = (raw ?? fallback).trim() || fallback;
+  if (
+    cabinet === "expertise_fiscale" &&
+    tagline === LEGACY_EXPERTISE_TAGLINE
+  ) {
+    return fallback;
+  }
+  return tagline;
+}
 
 export function companyForPreview(
   row: {
@@ -32,7 +51,7 @@ export function companyForPreview(
   if (!row) return fallback;
   return {
     name: row.name,
-    tagline: row.tagline ?? fallback.tagline,
+    tagline: resolveTagline(row.tagline, fallback.tagline, cabinet),
     nif: row.nif,
     niu: row.niu || "—",
     rccm: row.rccm,

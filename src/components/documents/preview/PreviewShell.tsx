@@ -208,7 +208,7 @@ export function AmountInWords({
 export function PreviewBottomRow({
   left,
   right,
-  compact: _compact,
+  compact,
 }: {
   left: ReactNode;
   right: ReactNode;
@@ -216,7 +216,7 @@ export function PreviewBottomRow({
 }) {
   return (
     <table
-      className="mt-4 w-full border-collapse"
+      className={cn("w-full border-collapse", compact ? "mt-2" : "mt-4")}
       style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}
     >
       <tbody>
@@ -225,7 +225,7 @@ export function PreviewBottomRow({
             style={{
               width: "58%",
               verticalAlign: "top",
-              paddingRight: "20px",
+              paddingRight: compact ? "12px" : "20px",
             }}
           >
             {left}

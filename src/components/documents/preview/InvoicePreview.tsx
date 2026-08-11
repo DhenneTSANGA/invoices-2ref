@@ -164,7 +164,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
         compact={dense}
         left={
           company.bankName || company.bankAccount ? (
-            <div className={cn("rounded-lg bg-[#F1F5F9]", dense ? "p-2.5" : "p-3.5")}>
+            <div className={cn("rounded-lg bg-[#F1F5F9]", dense ? "p-2" : "p-3")}>
               <div
                 className={cn(
                   "font-bold uppercase tracking-wider text-[#64748B]",
@@ -172,6 +172,14 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
                 )}
               >
                 RIB pour le règlement
+              </div>
+              <div
+                className={cn(
+                  "mt-0.5 leading-snug text-[#334155]",
+                  dense ? "text-[9px]" : "text-[11px]",
+                )}
+              >
+                Règlement par virement bancaire ou par chèque.
               </div>
               {company.bankName ? (
                 <div className={cn("mt-0.5 text-[#334155]", dense ? "text-[10px]" : "text-[12px]")}>
@@ -486,8 +494,9 @@ function TotalsBlock({
   const tps = tpsActive ? Math.max(computed.tps, doc.tps ?? 0) : 0;
   const css = computed.css || doc.css || 0;
   const vat = tpsActive ? 0 : (computed.vat || doc.vat || 0);
+  /** TPS déduite ; CSS / TVA ajoutées. */
   const total = tpsActive
-    ? subtotal + tps + css
+    ? Math.max(0, subtotal - tps + css)
     : doc.total || computed.total;
 
   const displayTpsRate =
@@ -530,7 +539,7 @@ function TotalsBlock({
             label={
               displayTpsRate > 0 ? `TPS (${displayTpsRate} %)` : "TPS"
             }
-            value={number(tps)}
+            value={number(-tps)}
             currency={doc.currency}
             accent={accent}
             compact={compact}

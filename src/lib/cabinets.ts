@@ -83,7 +83,7 @@ export function normalizeJobTitleValue(value: string): StaffJobTitleValue | null
 export const COMPANY_DEFAULTS: Record<Cabinet, CompanyInfo> = {
   expertise_fiscale: {
     name: "2R EXPERTISE FISCALE",
-    tagline: "SARL au capital de 10 000 000 F CFA — Conseil Fiscal",
+    tagline: "Libreville, Port-Gentil et Moanda",
     nif: "202601003286 Z",
     niu: "—",
     rccm: "GALBV LBV 2026 B12 B1200162",

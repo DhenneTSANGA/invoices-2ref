@@ -576,7 +576,9 @@ async function upsertDocumentHandler(
       tps,
       css,
       vat,
-      total: commercial ? subtotal + tps + css + vat : data.total,
+      total: commercial
+        ? Math.max(0, subtotal - tps + css + vat)
+        : data.total,
       currency: data.currency,
       notes: data.notes ?? null,
       paymentTerms: data.paymentTerms ?? null,
@@ -867,7 +869,7 @@ export const processDueSubscriptions = createServerFn({ method: "POST" }).handle
         const tps = Number(template.tps);
         const css = Number(template.css);
         const vat = Number(template.vat);
-        const total = subtotal + tps + css + vat;
+        const total = Math.max(0, subtotal - tps + css + vat);
 
         const created = await prisma.$transaction(async (tx) => {
           const doc = await tx.document.create({

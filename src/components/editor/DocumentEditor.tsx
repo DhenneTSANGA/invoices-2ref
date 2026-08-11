@@ -12,6 +12,7 @@ import {
   parseExecutionDays,
   formatExecutionTerms,
   breakdownFromTtc,
+  htFromTtc,
   withDocumentTaxRates,
 } from "@/lib/document-math";
 import type { Document, DocumentSection, DocumentType, LineItem } from "@/store/types";
@@ -125,7 +126,9 @@ export function DocumentEditor({ initial, type }: Props) {
   const [ttcInput, setTtcInput] = useState("");
   const [ttcVatRate, setTtcVatRate] = useState(DEFAULT_VAT_RATE);
   const [ttcCssRate, setTtcCssRate] = useState(DEFAULT_CSS_RATE);
-  const [ttcDescription, setTtcDescription] = useState("Prestation");
+  const [ttcDescription, setTtcDescription] = useState("");
+  /** En mode TTC : choix obligatoire entre TPS (9,5 %) et TVA (18 %). */
+  const [ttcTaxChoice, setTtcTaxChoice] = useState<"tps" | "tva" | null>(null);
   const [docVatRate, setDocVatRate] = useState(() =>
     documentTaxRates(initial?.items ?? []).vatRate,
   );
@@ -135,9 +138,12 @@ export function DocumentEditor({ initial, type }: Props) {
   const [docTpsRate, setDocTpsRate] = useState(() =>
     commercial ? documentTaxRates(initial?.items ?? []).tpsRate : 0,
   );
-  const [ttcTpsRate, setTtcTpsRate] = useState(() =>
-    commercial ? documentTaxRates(initial?.items ?? []).tpsRate : 0,
-  );
+  const [ttcTpsRate, setTtcTpsRate] = useState(0);
+  /**
+   * Montant TTC d’origine par ligne (mode saisie TTC).
+   * Permet de recalculer le HT si les taux changent, sans réappliquer la TPS deux fois.
+   */
+  const ttcOriginsRef = useRef(new Map<string, number>());
   /** Focus auto sur le champ description après ajout d’une ligne. */
   const [focusDescriptionLineId, setFocusDescriptionLineId] = useState<
     string | null
@@ -166,20 +172,25 @@ export function DocumentEditor({ initial, type }: Props) {
   const activeSectionId = sections[sections.length - 1]?.id ?? null;
 
   const ttcAmount = Number(ttcInput.replace(/\s/g, "").replace(",", ".")) || 0;
+  const ttcTpsEnabled = ttcTaxChoice === "tps";
   const ttcBreakdown = useMemo(
     () =>
-      ttcAmount > 0
+      ttcTaxChoice && ttcAmount > 0
         ? breakdownFromTtc(
             ttcAmount,
-            ttcVatRate,
+            DEFAULT_VAT_RATE,
             ttcCssRate,
-            commercial ? ttcTpsRate : 0,
+            ttcTaxChoice === "tps" ? DEFAULT_TPS_RATE : 0,
           )
         : null,
-    [ttcAmount, ttcVatRate, ttcCssRate, ttcTpsRate, commercial],
+    [ttcAmount, ttcCssRate, ttcTaxChoice],
   );
 
   const applyTtcLine = () => {
+    if (!ttcTaxChoice) {
+      toast.error("Choisissez d’abord TPS ou TVA");
+      return;
+    }
     if (!ttcBreakdown || ttcAmount <= 0) {
       toast.error("Saisissez un montant TTC valide");
       return;
@@ -189,43 +200,70 @@ export function DocumentEditor({ initial, type }: Props) {
       toast.error("Indiquez une description");
       return;
     }
+    const lineId = newId();
+    const vat = DEFAULT_VAT_RATE;
+    const css = ttcCssRate;
+    const tps = ttcTaxChoice === "tps" ? DEFAULT_TPS_RATE : 0;
+    const ht = ttcBreakdown.subtotal;
+    const ttcTotal = ttcBreakdown.total;
+
+    setDocVatRate(vat);
+    setDocCssRate(css);
+    setDocTpsRate(tps);
+    setTtcVatRate(vat);
+    setTtcCssRate(css);
+    setTtcTpsRate(tps);
+
+    ttcOriginsRef.current.set(lineId, ttcTotal);
+
     setDoc((d) => {
       const secs = d.sections ?? [];
       const sectionId =
         secs.length > 0 ? secs[secs.length - 1]!.id : null;
+      const itemsWithRates = withDocumentTaxRates(d.items, vat, css, tps).map(
+        (it) => {
+          const origin = ttcOriginsRef.current.get(it.id);
+          if (origin == null || origin <= 0) return it;
+          return {
+            ...it,
+            unitPrice: htFromTtc(origin, vat, css, tps),
+          };
+        },
+      );
       return {
         ...d,
         items: [
-          ...d.items,
+          ...itemsWithRates,
           {
-            id: newId(),
+            id: lineId,
             description,
             quantity: 1,
-            unitPrice: ttcBreakdown.subtotal,
-            vatRate: ttcVatRate,
-            cssRate: ttcCssRate,
+            unitPrice: ht,
+            vatRate: vat,
+            cssRate: css,
             discount: 0,
-            tpsRate: commercial ? ttcTpsRate : 0,
+            tpsRate: tps,
             sectionId,
           },
         ],
       };
     });
-    toast.success("Prestation ajoutée", {
-      description: `${description} — TTC ${number(ttcBreakdown.total)}`,
+    toast.success("Ligne ajoutée", {
+      description: `${description} — TTC ${number(ttcTotal)}`,
     });
     setTtcInput("");
-    setTtcDescription("Prestation");
+    setTtcDescription("");
   };
 
   const selectAmountMode = (mode: "ht" | "ttc") => {
     if (mode === amountMode) return;
     if (mode === "ttc") {
-      setTtcVatRate(docVatRate);
-      setTtcCssRate(docCssRate);
-      setTtcTpsRate(docTpsRate);
+      setTtcVatRate(DEFAULT_VAT_RATE);
+      setTtcCssRate(docCssRate || DEFAULT_CSS_RATE);
+      setTtcTpsRate(0);
+      setTtcTaxChoice(null);
       setTtcInput("");
-      setTtcDescription("Prestation");
+      setTtcDescription("");
     }
     setAmountMode(mode);
   };
@@ -244,8 +282,29 @@ export function DocumentEditor({ initial, type }: Props) {
     setTtcTpsRate(tps);
     setDoc((d) => ({
       ...d,
-      items: withDocumentTaxRates(d.items, nextVat, nextCss, tps),
+      items: withDocumentTaxRates(d.items, nextVat, nextCss, tps).map((it) => {
+        const origin = ttcOriginsRef.current.get(it.id);
+        // Lignes issues du mode TTC : on repart du TTC d’origine (évite TPS × 2).
+        if (origin == null || origin <= 0) return it;
+        return {
+          ...it,
+          unitPrice: htFromTtc(origin, nextVat, nextCss, tps),
+        };
+      }),
     }));
+  };
+
+  const chooseTtcTax = (choice: "tps" | "tva") => {
+    setTtcTaxChoice(choice);
+    if (choice === "tps") {
+      setTtcVatRate(DEFAULT_VAT_RATE);
+      setTtcTpsRate(DEFAULT_TPS_RATE);
+      setDocumentRates(DEFAULT_VAT_RATE, ttcCssRate, DEFAULT_TPS_RATE);
+    } else {
+      setTtcVatRate(DEFAULT_VAT_RATE);
+      setTtcTpsRate(0);
+      setDocumentRates(DEFAULT_VAT_RATE, ttcCssRate, 0);
+    }
   };
 
   const commercialTotals = useMemo(
@@ -403,8 +462,10 @@ export function DocumentEditor({ initial, type }: Props) {
     }));
   };
 
-  const removeItem = (id: string) =>
+  const removeItem = (id: string) => {
+    ttcOriginsRef.current.delete(id);
     setDoc((d) => ({ ...d, items: d.items.filter((i) => i.id !== id) }));
+  };
 
   const listPath =
     type === "invoice"
@@ -725,8 +786,8 @@ export function DocumentEditor({ initial, type }: Props) {
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
             {amountMode === "ht"
-              ? "Mode classique : vous saisissez les lignes en HT, puis CSS et TVA — ou TPS à la place de la TVA si activée."
-              : "Mode client TTC : saisissez une prestation, vérifiez la décomposition, puis cliquez Appliquer. Répétez pour chaque ligne."}
+              ? "Mode classique : lignes en HT, puis CSS et TVA en plus — ou TPS en moins (à la place de la TVA) si activée."
+              : "Mode TTC : choisissez TPS (9,5 %) ou TVA (18 %), saisissez le montant, puis appliquez."}
           </p>
         </div>
       ) : null}
@@ -735,156 +796,156 @@ export function DocumentEditor({ initial, type }: Props) {
         <div className="glass-panel rounded-3xl p-5">
           <h3 className="font-display font-semibold">Montant TTC</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Indiquez le total TTC communiqué par le client. Vérifiez HT, CSS
-            {tpsEnabled ? " et TPS" : " et TVA"}, puis cliquez Appliquer pour
-            ajouter la prestation.
+            Choisissez d’abord la taxe, puis saisissez le montant — HT, taxe et
+            CSS se calculent automatiquement.
           </p>
+
           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label className="block sm:col-span-2">
-              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Description
-              </span>
-              <input
-                type="text"
-                value={ttcDescription}
-                onChange={(e) => setTtcDescription(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-            </label>
-            <label className="block sm:col-span-2">
-              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Montant TTC
-              </span>
-              <input
-                type="number"
-                min={0}
-                step={1}
-                value={ttcInput}
-                onChange={(e) => setTtcInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    applyTtcLine();
-                  }
-                }}
-                placeholder="Ex. 1190000"
-                className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm font-numeric focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-            </label>
-            {!tpsEnabled ? (
-              <label className="block">
-                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  TVA %
-                </span>
-                <NumInput
-                  value={ttcVatRate}
-                  step={0.01}
-                  min={0}
-                  onChange={(v) => {
-                    setTtcVatRate(v);
-                    setDocumentRates(v, ttcCssRate, ttcTpsRate);
-                  }}
-                  className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm font-numeric focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                />
-              </label>
-            ) : null}
-            <label className="block">
-              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                CSS %
-              </span>
-              <NumInput
-                value={ttcCssRate}
-                step={0.01}
-                min={0}
-                onChange={(v) => {
-                  setTtcCssRate(v);
-                  setDocumentRates(ttcVatRate, v, ttcTpsRate);
-                }}
-                className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm font-numeric focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-            </label>
-            {tpsEnabled ? (
-              <label className="block">
-                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  TPS %
-                </span>
-                <NumInput
-                  value={ttcTpsRate}
-                  step={0.01}
-                  min={0}
-                  onChange={(v) => {
-                    setTtcTpsRate(v);
-                    setDocumentRates(ttcVatRate, ttcCssRate, v);
-                  }}
-                  className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm font-numeric focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                />
-              </label>
-            ) : null}
+            <button
+              type="button"
+              onClick={() => chooseTtcTax("tps")}
+              className={
+                ttcTaxChoice === "tps"
+                  ? "rounded-2xl border-2 border-primary bg-primary/10 px-4 py-4 text-left transition"
+                  : "rounded-2xl border border-border/60 bg-surface-2/50 px-4 py-4 text-left transition hover:border-primary/40"
+              }
+            >
+              <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Option 1
+              </div>
+              <div className="mt-1 font-display text-lg font-semibold">
+                TPS {DEFAULT_TPS_RATE} %
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Déduite du HT — la TVA n’est pas appliquée
+              </p>
+            </button>
+            <button
+              type="button"
+              onClick={() => chooseTtcTax("tva")}
+              className={
+                ttcTaxChoice === "tva"
+                  ? "rounded-2xl border-2 border-primary bg-primary/10 px-4 py-4 text-left transition"
+                  : "rounded-2xl border border-border/60 bg-surface-2/50 px-4 py-4 text-left transition hover:border-primary/40"
+              }
+            >
+              <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Option 2
+              </div>
+              <div className="mt-1 font-display text-lg font-semibold">
+                TVA {DEFAULT_VAT_RATE} %
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Ajoutée au HT — pas de TPS
+              </p>
+            </button>
           </div>
 
-          {ttcBreakdown ? (
-            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <div className="rounded-2xl bg-surface-2 px-3 py-2.5">
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                  HT
-                </div>
-                <div className="mt-0.5 font-numeric text-sm font-semibold">
-                  {number(ttcBreakdown.subtotal)}
-                </div>
+          {ttcTaxChoice ? (
+            <>
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <label className="block sm:col-span-2">
+                  <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Description
+                  </span>
+                  <input
+                    type="text"
+                    value={ttcDescription}
+                    onChange={(e) => setTtcDescription(e.target.value)}
+                    placeholder="Ex. Audit fiscal, Honoraire…"
+                    className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </label>
+                <label className="block sm:col-span-2">
+                  <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Montant TTC
+                  </span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={ttcInput}
+                    onChange={(e) => setTtcInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        applyTtcLine();
+                      }
+                    }}
+                    placeholder="Ex. 1190000"
+                    className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm font-numeric focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </label>
               </div>
-              {tpsEnabled ? (
-                <div className="rounded-2xl bg-surface-2 px-3 py-2.5">
-                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                    TPS ({ttcTpsRate} %)
+
+              {ttcBreakdown ? (
+                <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  <div className="rounded-2xl bg-surface-2 px-3 py-2.5">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                      HT
+                    </div>
+                    <div className="mt-0.5 font-numeric text-sm font-semibold">
+                      {number(ttcBreakdown.subtotal)}
+                    </div>
                   </div>
-                  <div className="mt-0.5 font-numeric text-sm font-semibold">
-                    {number(ttcBreakdown.tps)}
+                  {ttcTpsEnabled ? (
+                    <div className="rounded-2xl bg-surface-2 px-3 py-2.5">
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                        TPS ({DEFAULT_TPS_RATE} %)
+                      </div>
+                      <div className="mt-0.5 font-numeric text-sm font-semibold">
+                        {number(-ttcBreakdown.tps)}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl bg-surface-2 px-3 py-2.5">
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                        TVA ({DEFAULT_VAT_RATE} %)
+                      </div>
+                      <div className="mt-0.5 font-numeric text-sm font-semibold">
+                        {number(ttcBreakdown.vat)}
+                      </div>
+                    </div>
+                  )}
+                  <div className="rounded-2xl bg-surface-2 px-3 py-2.5">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                      CSS ({ttcCssRate} %)
+                    </div>
+                    <div className="mt-0.5 font-numeric text-sm font-semibold">
+                      {number(ttcBreakdown.css)}
+                    </div>
+                  </div>
+                  <div className="rounded-2xl bg-surface-2 px-3 py-2.5">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                      TTC
+                    </div>
+                    <div className="mt-0.5 font-numeric text-sm font-bold text-gradient-primary">
+                      {number(ttcBreakdown.total)}
+                    </div>
                   </div>
                 </div>
-              ) : null}
-              <div className="rounded-2xl bg-surface-2 px-3 py-2.5">
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                  CSS ({ttcCssRate} %)
-                </div>
-                <div className="mt-0.5 font-numeric text-sm font-semibold">
-                  {number(ttcBreakdown.css)}
-                </div>
+              ) : (
+                <p className="mt-4 text-sm italic text-muted-foreground">
+                  Saisissez un montant TTC pour voir la décomposition.
+                </p>
+              )}
+
+              <div className="mt-4 flex justify-end">
+                <Button
+                  type="button"
+                  className="rounded-xl bg-gradient-primary text-primary-foreground shadow-glow"
+                  disabled={!ttcBreakdown || ttcAmount <= 0}
+                  onClick={applyTtcLine}
+                >
+                  <Check className="h-4 w-4" /> Appliquer
+                </Button>
               </div>
-              {!tpsEnabled ? (
-                <div className="rounded-2xl bg-surface-2 px-3 py-2.5">
-                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                    TVA ({ttcVatRate} %)
-                  </div>
-                  <div className="mt-0.5 font-numeric text-sm font-semibold">
-                    {number(ttcBreakdown.vat)}
-                  </div>
-                </div>
-              ) : null}
-              <div className="rounded-2xl bg-surface-2 px-3 py-2.5">
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                  TTC
-                </div>
-                <div className="mt-0.5 font-numeric text-sm font-bold text-gradient-primary">
-                  {number(ttcBreakdown.total)}
-                </div>
-              </div>
-            </div>
+            </>
           ) : (
             <p className="mt-4 text-sm italic text-muted-foreground">
-              Saisissez un montant TTC pour voir la décomposition.
+              Sélectionnez TPS ou TVA pour continuer.
             </p>
           )}
-
-          <div className="mt-4 flex justify-end">
-            <Button
-              type="button"
-              className="rounded-xl bg-gradient-primary text-primary-foreground shadow-glow"
-              disabled={!ttcBreakdown || ttcAmount <= 0}
-              onClick={applyTtcLine}
-            >
-              <Check className="h-4 w-4" /> Appliquer
-            </Button>
-          </div>
         </div>
       ) : null}
 
@@ -1135,75 +1196,88 @@ export function DocumentEditor({ initial, type }: Props) {
                 <Total label="Montant remise" value={-commercialTotals.discountAmount} />
               ) : null}
               <Total label="HT net" value={commercialTotals.subtotal} />
-              <div className="flex items-center justify-between gap-3 text-sm">
-                <label className="flex cursor-pointer items-center gap-2 text-muted-foreground">
-                  <Switch
-                    checked={tpsEnabled}
-                    onCheckedChange={(on) =>
-                      setDocumentRates(
-                        vatRate,
-                        cssRate,
-                        on ? (tpsRate > 0 ? tpsRate : DEFAULT_TPS_RATE) : 0,
-                      )
-                    }
-                  />
-                  <span>
-                    Appliquer la TPS
-                    {tpsEnabled ? (
-                      <span className="ml-1 text-[11px] text-muted-foreground/80">
-                        (TVA exclue)
+              {amountMode === "ttc" ? (
+                <>
+                  {tpsEnabled ? (
+                    <Total label={`TPS (${DEFAULT_TPS_RATE} %)`} value={-commercialTotals.tps} />
+                  ) : (
+                    <Total label={`TVA (${DEFAULT_VAT_RATE} %)`} value={commercialTotals.vat} />
+                  )}
+                  <Total label={`CSS (${cssRate} %)`} value={commercialTotals.css} />
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <label className="flex cursor-pointer items-center gap-2 text-muted-foreground">
+                      <Switch
+                        checked={tpsEnabled}
+                        onCheckedChange={(on) =>
+                          setDocumentRates(
+                            vatRate,
+                            cssRate,
+                            on ? (tpsRate > 0 ? tpsRate : DEFAULT_TPS_RATE) : 0,
+                          )
+                        }
+                      />
+                      <span>
+                        Appliquer la TPS
+                        {tpsEnabled ? (
+                          <span className="ml-1 text-[11px] text-muted-foreground/80">
+                            (déduite, TVA exclue)
+                          </span>
+                        ) : null}
                       </span>
-                    ) : null}
-                  </span>
-                </label>
-              </div>
-              {tpsEnabled ? (
-                <>
+                    </label>
+                  </div>
+                  {tpsEnabled ? (
+                    <>
+                      <div className="flex items-center justify-between gap-3 text-sm">
+                        <span className="text-muted-foreground">TPS %</span>
+                        <NumInput
+                          value={tpsRate}
+                          step={0.01}
+                          min={0}
+                          onChange={(v) =>
+                            setDocumentRates(vatRate, cssRate, Math.max(0, v))
+                          }
+                          className="w-24 rounded-lg border border-border/60 bg-transparent px-2 py-1.5 text-right font-numeric focus:border-primary focus:outline-none"
+                        />
+                      </div>
+                      <Total label="TPS" value={-commercialTotals.tps} />
+                    </>
+                  ) : null}
                   <div className="flex items-center justify-between gap-3 text-sm">
-                    <span className="text-muted-foreground">TPS %</span>
+                    <span className="text-muted-foreground">CSS %</span>
                     <NumInput
-                      value={tpsRate}
+                      value={cssRate}
                       step={0.01}
                       min={0}
                       onChange={(v) =>
-                        setDocumentRates(vatRate, cssRate, Math.max(0, v))
+                        setDocumentRates(vatRate, Math.max(0, v), tpsRate)
                       }
                       className="w-24 rounded-lg border border-border/60 bg-transparent px-2 py-1.5 text-right font-numeric focus:border-primary focus:outline-none"
                     />
                   </div>
-                  <Total label="TPS" value={commercialTotals.tps} />
+                  <Total label="CSS" value={commercialTotals.css} />
+                  {!tpsEnabled ? (
+                    <>
+                      <div className="flex items-center justify-between gap-3 text-sm">
+                        <span className="text-muted-foreground">TVA %</span>
+                        <NumInput
+                          value={vatRate}
+                          step={0.01}
+                          min={0}
+                          onChange={(v) =>
+                            setDocumentRates(Math.max(0, v), cssRate, tpsRate)
+                          }
+                          className="w-24 rounded-lg border border-border/60 bg-transparent px-2 py-1.5 text-right font-numeric focus:border-primary focus:outline-none"
+                        />
+                      </div>
+                      <Total label="TVA" value={commercialTotals.vat} />
+                    </>
+                  ) : null}
                 </>
-              ) : null}
-              <div className="flex items-center justify-between gap-3 text-sm">
-                <span className="text-muted-foreground">CSS %</span>
-                <NumInput
-                  value={cssRate}
-                  step={0.01}
-                  min={0}
-                  onChange={(v) =>
-                    setDocumentRates(vatRate, Math.max(0, v), tpsRate)
-                  }
-                  className="w-24 rounded-lg border border-border/60 bg-transparent px-2 py-1.5 text-right font-numeric focus:border-primary focus:outline-none"
-                />
-              </div>
-              <Total label="CSS" value={commercialTotals.css} />
-              {!tpsEnabled ? (
-                <>
-                  <div className="flex items-center justify-between gap-3 text-sm">
-                    <span className="text-muted-foreground">TVA %</span>
-                    <NumInput
-                      value={vatRate}
-                      step={0.01}
-                      min={0}
-                      onChange={(v) =>
-                        setDocumentRates(Math.max(0, v), cssRate, tpsRate)
-                      }
-                      className="w-24 rounded-lg border border-border/60 bg-transparent px-2 py-1.5 text-right font-numeric focus:border-primary focus:outline-none"
-                    />
-                  </div>
-                  <Total label="TVA" value={commercialTotals.vat} />
-                </>
-              ) : null}
+              )}
               <div className="my-2 h-px bg-border" />
               <Total label="Total TTC" value={commercialTotals.total} strong />
             </>
