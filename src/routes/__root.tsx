@@ -11,24 +11,55 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { Logo } from "@/components/common/Logo";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
+  const path =
+    typeof window !== "undefined" ? window.location.pathname : "";
+
   return (
     <div className="aurora-bg flex min-h-screen items-center justify-center px-4">
-      <div className="glass-panel rounded-3xl px-10 py-12 text-center max-w-md">
-        <div className="text-[6rem] font-bold leading-none text-gradient-primary">404</div>
-        <h2 className="mt-2 text-xl font-semibold">Page introuvable</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Cette page n'existe pas ou a été déplacée.
+      <div className="glass-panel rounded-3xl px-10 py-14 text-center max-w-lg">
+        <div className="mx-auto mb-6 flex justify-center">
+          <Logo size="lg" className="rounded-lg" />
+        </div>
+
+        <div className="text-[5rem] font-bold leading-none text-gradient-primary">
+          404
+        </div>
+
+        <h2 className="mt-3 text-xl font-semibold">
+          Page introuvable
+        </h2>
+
+        <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+          L'adresse que vous avez saisie ne correspond à aucune page existante.
+          <br />
+          Vérifiez l'URL ou revenez à un espace connu.
         </p>
-        <Link
-          to="/dashboard"
-          className="mt-6 inline-flex items-center justify-center rounded-[14px] bg-gradient-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-glow transition-transform hover:scale-[1.02] active:scale-[0.98]"
-        >
-          Retour au tableau de bord
-        </Link>
+
+        {path && (
+          <p className="mt-3 rounded-xl bg-muted/60 px-4 py-2 font-mono text-xs text-muted-foreground break-all">
+            {path}
+          </p>
+        )}
+
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+          <Link
+            to="/dashboard"
+            className="inline-flex items-center justify-center rounded-[14px] bg-gradient-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-glow transition-transform hover:scale-[1.02] active:scale-[0.98]"
+          >
+            Tableau de bord
+          </Link>
+          <Link
+            to="/"
+            className="inline-flex items-center justify-center rounded-[14px] border border-border px-5 py-2.5 text-sm font-medium transition-colors hover:bg-muted"
+          >
+            Accueil
+          </Link>
+        </div>
       </div>
     </div>
   );
