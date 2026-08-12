@@ -3,7 +3,7 @@ import { Search, FileText, ReceiptText, Users, Package } from "lucide-react";
 import { useState } from "react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { LoadingState } from "@/components/common/LoadingState";
-import { useClients, useDocuments, useServices } from "@/hooks/use-data";
+import { useClients, useDocumentsList, useServices } from "@/hooks/use-data";
 
 export const Route = createFileRoute("/_app/search")({
   head: () => ({ meta: [{ title: "Recherche globale — 2R Hub" }] }),
@@ -12,9 +12,9 @@ export const Route = createFileRoute("/_app/search")({
 
 function SearchPage() {
   const [q, setQ] = useState("");
-  const { data: clients = [], isLoading: loadingClients } = useClients();
-  const { data: docs = [], isLoading: loadingDocs } = useDocuments();
-  const { data: services = [], isLoading: loadingServices } = useServices();
+  const { data: clients = [], isPending: loadingClients } = useClients();
+  const { data: docs = [], isPending: loadingDocs } = useDocumentsList();
+  const { data: services = [], isPending: loadingServices } = useServices();
 
   if (loadingClients || loadingDocs || loadingServices) {
     return (

@@ -15,6 +15,7 @@ import { NavIcon } from "./NavIcon";
 import { CabinetSwitcher } from "./CabinetSwitcher";
 import { canSwitchCabinet, isAdmin, isSuperAdmin, roleLabel } from "@/lib/roles";
 import { CABINET_LABELS } from "@/lib/cabinets";
+import { prefetchForNavPath } from "@/lib/prefetch-app-data";
 
 function selectPathname(s: { location: { pathname: string } }) {
   return s.location.pathname;
@@ -151,6 +152,8 @@ function MobileSection({
   pathname: string;
   onNavigate: () => void;
 }) {
+  const { queryClient } = useRouteContext({ from: "__root__" });
+
   return (
     <div>
       <div className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -164,6 +167,8 @@ function MobileSection({
               <Link
                 to={item.to}
                 preload="intent"
+                onMouseEnter={() => prefetchForNavPath(queryClient, item.to)}
+                onFocus={() => prefetchForNavPath(queryClient, item.to)}
                 onClick={onNavigate}
                 className={cn(
                   "group flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-medium transition-colors",

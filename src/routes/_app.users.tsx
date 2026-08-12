@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { LoadingState } from "@/components/common/LoadingState";
-import { useSession } from "@/hooks/use-data";
+import { useSession, adminRequestsKey, cabinetStaffKey } from "@/hooks/use-data";
 import {
   createStaffWithPassword,
   deleteStaffMember,
@@ -36,7 +36,7 @@ import {
   roleLabel,
 } from "@/lib/roles";
 import { CABINET_LABELS, STAFF_JOB_TITLES, jobTitleLabel } from "@/lib/cabinets";
-import { getCurrentSession } from "@/lib/session.functions";
+import type { AppSession } from "@/lib/session.functions";
 import { humanAuthError } from "@/lib/auth-errors";
 import { cn } from "@/lib/utils";
 import {
@@ -49,8 +49,8 @@ import {
 
 export const Route = createFileRoute("/_app/users")({
   head: () => ({ meta: [{ title: "Équipe — 2R Hub" }] }),
-  beforeLoad: async () => {
-    const session = await getCurrentSession();
+  beforeLoad: ({ context }) => {
+    const session = (context as { session?: NonNullable<AppSession> }).session;
     if (!session || !canManageAdminRequests(session.staff.role)) {
       throw redirect({ to: "/home" });
     }
@@ -58,8 +58,8 @@ export const Route = createFileRoute("/_app/users")({
   component: UsersPage,
 });
 
-const requestsKey = ["admin-requests"] as const;
-const staffKey = ["cabinet-staff"] as const;
+const requestsKey = adminRequestsKey;
+const staffKey = cabinetStaffKey;
 
 function UsersPage() {
   const { data: session } = useSession();
@@ -67,13 +67,15 @@ function UsersPage() {
   const isSuper = session ? canPromoteOrDemoteAdmins(session.staff.role) : false;
   const canCreate = session ? canInviteStaff(session.staff.role) : false;
 
-  const { data: requests = [], isLoading: loadingRequests } = useQuery({
+  const { data: requests = [], isPending: loadingRequests } = useQuery({
     queryKey: requestsKey,
     queryFn: () => listAdminRequests(),
+    staleTime: 60_000,
   });
-  const { data: staff = [], isLoading: loadingStaff } = useQuery({
+  const { data: staff = [], isPending: loadingStaff } = useQuery({
     queryKey: staffKey,
     queryFn: () => listCabinetStaff(),
+    staleTime: 60_000,
   });
 
   const review = useMutation({

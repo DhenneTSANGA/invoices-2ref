@@ -54,7 +54,7 @@ function DocumentsHubPage() {
 
   const typeFilter = focus ? "all" : (typeParam ?? "all");
 
-  const { data: documents = [], isLoading } = useAllDocuments(
+  const { data: documents = [], isPending: isLoading } = useAllDocuments(
     typeFilter === "all" ? undefined : typeFilter,
   );
   const { data: clients = [] } = useClients();

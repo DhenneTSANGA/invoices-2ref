@@ -7,16 +7,16 @@ import { StatCard } from "@/components/common/StatCard";
 import { PageHeader } from "@/components/common/PageHeader";
 import { LoadingState } from "@/components/common/LoadingState";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { useClients, useDocuments, useSession } from "@/hooks/use-data";
+import { useClients, useDocumentsList, useSession } from "@/hooks/use-data";
 import { currency, shortDate } from "@/lib/format";
 import type { Activity, Document } from "@/store/types";
 import { canAccessDashboard } from "@/lib/roles";
-import { getCurrentSession } from "@/lib/session.functions";
+import type { AppSession } from "@/lib/session.functions";
 
 export const Route = createFileRoute("/_app/dashboard")({
   head: () => ({ meta: [{ title: "Tableau de bord — 2R Hub" }, { name: "description", content: "Vue d'ensemble de votre activité." }] }),
-  beforeLoad: async () => {
-    const session = await getCurrentSession();
+  beforeLoad: ({ context }) => {
+    const session = (context as { session?: NonNullable<AppSession> }).session;
     if (session && !canAccessDashboard(session.staff.role)) {
       throw redirect({ to: "/home" });
     }
@@ -84,8 +84,8 @@ function buildActivities(documents: Document[], clients: { id: string; name: str
 }
 
 function Dashboard() {
-  const { data: documents = [], isLoading: loadingDocs } = useDocuments();
-  const { data: clients = [], isLoading: loadingClients } = useClients();
+  const { data: documents = [], isPending: loadingDocs } = useDocumentsList();
+  const { data: clients = [], isPending: loadingClients } = useClients();
   const { data: session } = useSession();
 
   if (loadingDocs || loadingClients) {

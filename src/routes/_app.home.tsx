@@ -4,16 +4,16 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { LoadingState } from "@/components/common/LoadingState";
 import { StatCard } from "@/components/common/StatCard";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { useClients, useDocuments, useSession } from "@/hooks/use-data";
+import { useClients, useDocumentsList, useSession } from "@/hooks/use-data";
 import { currency, shortDate } from "@/lib/format";
 import { canAccessDashboard } from "@/lib/roles";
 import { CABINET_LABELS } from "@/lib/cabinets";
-import { getCurrentSession } from "@/lib/session.functions";
+import type { AppSession } from "@/lib/session.functions";
 
 export const Route = createFileRoute("/_app/home")({
   head: () => ({ meta: [{ title: "Accueil — 2R Hub" }] }),
-  beforeLoad: async () => {
-    const session = await getCurrentSession();
+  beforeLoad: ({ context }) => {
+    const session = (context as { session?: NonNullable<AppSession> }).session;
     if (session && canAccessDashboard(session.staff.role)) {
       throw redirect({ to: "/dashboard" });
     }
@@ -23,8 +23,8 @@ export const Route = createFileRoute("/_app/home")({
 
 function HomePage() {
   const { data: session } = useSession();
-  const { data: documents = [], isLoading: loadingDocs } = useDocuments();
-  const { data: clients = [], isLoading: loadingClients } = useClients();
+  const { data: documents = [], isPending: loadingDocs } = useDocumentsList();
+  const { data: clients = [], isPending: loadingClients } = useClients();
 
   if (loadingDocs || loadingClients) {
     return (

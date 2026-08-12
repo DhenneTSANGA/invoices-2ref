@@ -1,4 +1,4 @@
-import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect, useNavigate, isRedirect } from "@tanstack/react-router";
 import { Logo } from "@/components/common/Logo";
 import { AuthVisualPanel } from "@/components/auth/AuthVisualPanel";
 import { useEffect, useState } from "react";
@@ -43,19 +43,25 @@ export const Route = createFileRoute("/login")({
     ],
   }),
   beforeLoad: async () => {
-    const boot = await getAuthBootstrap();
-    if (boot?.status === "account_removed") {
-      throw redirect({ to: "/compte-supprime" });
+    try {
+      const boot = await getAuthBootstrap();
+      if (boot?.status === "account_removed") {
+        throw redirect({ to: "/compte-supprime" });
+      }
+      if (boot?.status === "access_denied") return;
+      if (boot?.status === "needs_password") {
+        throw redirect({ to: "/auth/set-password" });
+      }
+      if (boot?.status === "needs_onboarding") {
+        throw redirect({ to: "/onboarding" });
+      }
+      const session = await getCurrentSession();
+      if (session) throw redirect({ to: homePathForRole(session.staff.role) });
+    } catch (err) {
+      if (isRedirect(err)) throw err;
+      // DB / réseau : afficher le formulaire plutôt qu’un écran d’erreur bloquant
+      console.error("[login] beforeLoad:", err);
     }
-    if (boot?.status === "access_denied") return;
-    if (boot?.status === "needs_password") {
-      throw redirect({ to: "/auth/set-password" });
-    }
-    if (boot?.status === "needs_onboarding") {
-      throw redirect({ to: "/onboarding" });
-    }
-    const session = await getCurrentSession();
-    if (session) throw redirect({ to: homePathForRole(session.staff.role) });
   },
   component: LoginPage,
 });

@@ -14,6 +14,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Logo } from "@/components/common/Logo";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { Toaster } from "@/components/ui/sonner";
+import { formatPrismaError } from "@/lib/prisma-errors";
 
 function NotFoundComponent() {
   const path =
@@ -72,13 +73,20 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
   }, [error]);
 
+  const msg = String(error?.message ?? "");
+  const isDb =
+    msg.includes("Can't reach database server") ||
+    msg.includes("P1001") ||
+    msg.includes("PrismaClientInitializationError");
+  const detail = isDb
+    ? "Impossible de joindre la base Supabase. Vérifiez que le projet n’est pas en pause, puis réessayez."
+    : formatPrismaError(error, "Réessayez ou retournez à l'accueil.");
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="glass-panel rounded-3xl px-8 py-10 text-center max-w-md">
         <h1 className="text-xl font-semibold">Une erreur est survenue</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Réessayez ou retournez à l'accueil.
-        </p>
+        <p className="mt-2 text-sm text-muted-foreground">{detail}</p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
             onClick={() => { router.invalidate(); reset(); }}
@@ -86,8 +94,8 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
           >
             Réessayer
           </button>
-          <a href="/dashboard" className="rounded-[14px] border border-border px-4 py-2 text-sm font-medium">
-            Tableau de bord
+          <a href="/login" className="rounded-[14px] border border-border px-4 py-2 text-sm font-medium">
+            Connexion
           </a>
         </div>
       </div>

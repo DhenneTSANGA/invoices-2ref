@@ -12,16 +12,22 @@ export async function isAccountRevoked(opts: {
   const authUserId = opts.authUserId?.trim() || null;
   if (!email && !authUserId) return false;
 
-  const row = await prisma.revokedAccount.findFirst({
-    where: {
-      OR: [
-        ...(email ? [{ email }] : []),
-        ...(authUserId ? [{ authUserId }] : []),
-      ],
-    },
-    select: { id: true },
-  });
-  return Boolean(row);
+  try {
+    const row = await prisma.revokedAccount.findFirst({
+      where: {
+        OR: [
+          ...(email ? [{ email }] : []),
+          ...(authUserId ? [{ authUserId }] : []),
+        ],
+      },
+      select: { id: true },
+    });
+    return Boolean(row);
+  } catch (err) {
+    // Ne pas faire tomber login / bootstrap si la DB est momentanément injoignable
+    console.error("[isAccountRevoked]", err);
+    return false;
+  }
 }
 
 export async function recordRevokedAccount(opts: {

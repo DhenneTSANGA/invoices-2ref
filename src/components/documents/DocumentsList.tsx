@@ -44,7 +44,7 @@ function statusesFor(type: DocumentType): DocumentStatus[] {
 
 export function DocumentsList({ type }: { type: DocumentType }) {
   const { data: session } = useSession();
-  const { data: documents = [], isLoading } = useDocuments(type);
+  const { data: documents = [], isPending: isLoading } = useDocuments(type);
   const { data: clients = [] } = useClients();
   const setStatusMutation = useSetDocumentStatus();
   const sendEmailMutation = useSendDocumentEmail();

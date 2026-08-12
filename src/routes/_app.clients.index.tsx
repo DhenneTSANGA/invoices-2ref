@@ -18,7 +18,7 @@ export const Route = createFileRoute("/_app/clients/")({
 });
 
 function ClientsPage() {
-  const { data: clients = [], isLoading } = useClients();
+  const { data: clients = [], isPending: isLoading } = useClients();
   const { data: documents = [] } = useDocuments();
   const { data: session } = useSession();
   const deleteClient = useDeleteClient();

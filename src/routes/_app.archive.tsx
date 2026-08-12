@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Archive } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { LoadingState } from "@/components/common/LoadingState";
-import { useClients, useDocuments, useSession } from "@/hooks/use-data";
+import { useClients, useDocumentsList, useSession } from "@/hooks/use-data";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { currency, shortDate } from "@/lib/format";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -14,8 +14,8 @@ export const Route = createFileRoute("/_app/archive")({
 
 function ArchivePage() {
   const { data: session } = useSession();
-  const { data: documents = [], isLoading: loadingDocs } = useDocuments();
-  const { data: clients = [], isLoading: loadingClients } = useClients();
+  const { data: documents = [], isPending: loadingDocs } = useDocumentsList();
+  const { data: clients = [], isPending: loadingClients } = useClients();
 
   if (loadingDocs || loadingClients) {
     return (

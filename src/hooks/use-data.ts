@@ -199,15 +199,49 @@ export function useDocuments(
       listDocuments({
         data: { type, ...(cabinetScope ? { cabinetScope } : {}) },
       }),
-    staleTime: 30_000,
+    staleTime: 60_000,
   });
+}
+
+function mergeDocumentsById(docs: Document[]): Document[] {
+  const map = new Map<string, Document>();
+  for (const d of docs) map.set(d.id, d);
+  return Array.from(map.values());
+}
+
+/**
+ * Liste « tous documents » : affiche d’abord le cache devis/factures/courriels
+ * déjà chargé (navigation rapide), puis bascule sur la liste complète.
+ */
+export function useDocumentsList(
+  cabinetScope?: "conseil" | "expertise_fiscale",
+) {
+  const full = useDocuments(undefined, cabinetScope);
+  const invoices = useDocuments("invoice", cabinetScope);
+  const quotations = useDocuments("quotation", cabinetScope);
+  const letters = useDocuments("letter", cabinetScope);
+
+  const partialReady = Boolean(
+    invoices.data || quotations.data || letters.data,
+  );
+  const partial = mergeDocumentsById([
+    ...(invoices.data ?? []),
+    ...(quotations.data ?? []),
+    ...(letters.data ?? []),
+  ]);
+
+  return {
+    data: full.data ?? (partialReady ? partial : []),
+    isPending: full.isPending && !partialReady,
+    isFetching: full.isFetching,
+  };
 }
 
 export function useAllDocuments(
   type?: DocumentType,
   cabinetScope?: "conseil" | "expertise_fiscale",
 ) {
-  return useQuery({
+  const full = useQuery({
     queryKey: type
       ? ([...allDocumentsKey, type, cabinetScope ?? "active"] as const)
       : ([...allDocumentsKey, cabinetScope ?? "active"] as const),
@@ -215,8 +249,47 @@ export function useAllDocuments(
       listAllDocuments({
         data: { type, ...(cabinetScope ? { cabinetScope } : {}) },
       }),
-    staleTime: 30_000,
+    staleTime: 60_000,
   });
+
+  const invoices = useDocuments("invoice", cabinetScope);
+  const quotations = useDocuments("quotation", cabinetScope);
+  const letters = useDocuments("letter", cabinetScope);
+
+  if (type === "invoice") {
+    return {
+      ...full,
+      data: full.data ?? invoices.data,
+      isPending: full.isPending && !invoices.data,
+    };
+  }
+  if (type === "quotation") {
+    return {
+      ...full,
+      data: full.data ?? quotations.data,
+      isPending: full.isPending && !quotations.data,
+    };
+  }
+  if (type === "letter") {
+    return {
+      ...full,
+      data: full.data ?? letters.data,
+      isPending: full.isPending && !letters.data,
+    };
+  }
+
+  const partialReady = Boolean(invoices.data || quotations.data || letters.data);
+  const partial = mergeDocumentsById([
+    ...(invoices.data ?? []),
+    ...(quotations.data ?? []),
+    ...(letters.data ?? []),
+  ]);
+
+  return {
+    ...full,
+    data: full.data ?? (partialReady ? partial : undefined),
+    isPending: full.isPending && !partialReady,
+  };
 }
 
 export function useDocument(id: string) {
@@ -224,7 +297,7 @@ export function useDocument(id: string) {
     queryKey: ["document", id],
     queryFn: () => getDocument({ data: { id } }),
     enabled: !!id,
-    staleTime: 30_000,
+    staleTime: 60_000,
   });
 }
 
@@ -313,7 +386,7 @@ export function useMails(direction: "outbound" | "inbound" | "all" = "all") {
   return useQuery({
     queryKey: [...mailsKey, cabinet, direction],
     queryFn: () => listMails({ data: { direction, limit: 80 } }),
-    staleTime: 30_000,
+    staleTime: 60_000,
     enabled: Boolean(session),
   });
 }
@@ -450,10 +523,13 @@ export function useNotifications() {
   return useQuery({
     queryKey: notificationsKey,
     queryFn: () => listNotifications(),
-    staleTime: 2_000,
+    staleTime: 30_000,
     refetchInterval: POLL_MS,
   });
 }
+
+export const adminRequestsKey = ["admin-requests"] as const;
+export const cabinetStaffKey = ["cabinet-staff"] as const;
 
 export function useMarkAllNotificationsRead() {
   const qc = useQueryClient();

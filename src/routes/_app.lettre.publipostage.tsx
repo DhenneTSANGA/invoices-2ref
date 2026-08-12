@@ -148,7 +148,7 @@ function MailMergePage() {
   const qc = useQueryClient();
   const { data: session } = useSession();
   const canSign = session ? isAdmin(session.staff.role) : false;
-  const { data: clients = [], isLoading: loadingClients } = useClients();
+  const { data: clients = [], isPending: loadingClients } = useClients();
 
   const { data: campaigns = [], isLoading: loadingCampaigns } = useQuery({
     queryKey: campaignsKey,

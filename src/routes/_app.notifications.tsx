@@ -28,7 +28,7 @@ const typeColor = {
 
 function NotificationsPage() {
   const navigate = useNavigate();
-  const { data: notifications = [], isLoading } = useNotifications();
+  const { data: notifications = [], isPending: isLoading } = useNotifications();
   const markAllMutation = useMarkAllNotificationsRead();
   const markOneMutation = useMarkNotificationRead();
   const unread = notifications.filter((n) => !n.read).length;

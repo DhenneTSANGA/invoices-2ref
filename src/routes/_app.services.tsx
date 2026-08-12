@@ -48,7 +48,7 @@ const emptyForm: ServiceForm = {
 };
 
 function ServicesPage() {
-  const { data: services = [], isLoading } = useServices();
+  const { data: services = [], isPending: isLoading } = useServices();
   const { data: session } = useSession();
   const upsert = useUpsertService();
   const remove = useDeleteService();

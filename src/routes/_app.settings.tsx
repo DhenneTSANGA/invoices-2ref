@@ -15,14 +15,14 @@ import { COMPANY_DEFAULTS } from "@/lib/company-defaults";
 import type { CompanyInfo } from "@/store/types";
 import { cn } from "@/lib/utils";
 import { canEditCompanySettings } from "@/lib/roles";
-import { getCurrentSession } from "@/lib/session.functions";
+import type { AppSession } from "@/lib/session.functions";
 import { SignaturePad } from "@/components/signature/SignaturePad";
 import { ManagerSignature } from "@/components/signature/ManagerSignature";
 
 export const Route = createFileRoute("/_app/settings")({
   head: () => ({ meta: [{ title: "Paramètres — 2R Hub" }] }),
-  beforeLoad: async () => {
-    const session = await getCurrentSession();
+  beforeLoad: ({ context }) => {
+    const session = (context as { session?: NonNullable<AppSession> }).session;
     if (session && !canEditCompanySettings(session.staff.role)) {
       throw redirect({ to: "/home" });
     }
@@ -39,7 +39,7 @@ const tabs = [
 
 function SettingsPage() {
   const { data: session } = useSession();
-  const { data: company, isLoading: loadingCompany } = useCompany();
+  const { data: company, isPending: loadingCompany } = useCompany();
   const updateCompany = useUpdateCompany();
   const uploadSignature = useUploadCompanySignature();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -104,7 +104,7 @@ function SettingsPage() {
     reader.readAsDataURL(file);
   };
 
-  if (loadingCompany) {
+  if (loadingCompany && !company) {
     return (
       <LoadingState
         icon={Building2}

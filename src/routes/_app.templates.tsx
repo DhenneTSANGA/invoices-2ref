@@ -1,9 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FileText, ReceiptText, Mail, Eye } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
-import { LoadingState } from "@/components/common/LoadingState";
 import { DocumentPreview } from "@/components/documents/DocumentPreview";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 import type { Document, DocumentType } from "@/store/types";
@@ -54,19 +53,14 @@ const META: {
 ];
 
 function Templates() {
-  const { isLoading } = useClients();
   const sampleDocs = useSampleDocs();
   const [preview, setPreview] = useState<Document | null>(null);
+  const [showThumbs, setShowThumbs] = useState(false);
 
-  if (isLoading) {
-    return (
-      <LoadingState
-        icon={FileText}
-        title="Chargement des modèles"
-        description="Préparation des aperçus de documents…"
-      />
-    );
-  }
+  useEffect(() => {
+    const id = window.setTimeout(() => setShowThumbs(true), 0);
+    return () => window.clearTimeout(id);
+  }, []);
 
   return (
     <div>
@@ -100,9 +94,13 @@ function Templates() {
                 title="Aperçu plein écran"
               >
                 <div className="relative mx-auto overflow-hidden" style={{ width: 820 * 0.28, height: 820 * 1.414 * 0.28 }}>
-                  <div className="pointer-events-none absolute left-0 top-0 origin-top-left scale-[0.28]">
-                    <DocumentPreview doc={doc} variant="thumb" />
-                  </div>
+                  {showThumbs ? (
+                    <div className="pointer-events-none absolute left-0 top-0 origin-top-left scale-[0.28]">
+                      <DocumentPreview doc={doc} variant="thumb" />
+                    </div>
+                  ) : (
+                    <div className="absolute inset-0 animate-pulse rounded-xl bg-muted/50" />
+                  )}
                 </div>
                 <div className="mt-2 flex items-center justify-center gap-1 text-[10px] font-medium text-muted-foreground">
                   <Eye className="h-3 w-3" /> Aperçu

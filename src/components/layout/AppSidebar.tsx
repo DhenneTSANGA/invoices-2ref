@@ -9,6 +9,7 @@ import { canSwitchCabinet, isAdmin, isSuperAdmin, roleLabel } from "@/lib/roles"
 import { primaryNav, secondaryNav, navForRole, type NavItem } from "./nav-items";
 import { NavIcon } from "./NavIcon";
 import { CabinetSwitcher } from "./CabinetSwitcher";
+import { prefetchForNavPath } from "@/lib/prefetch-app-data";
 
 function selectPathname(s: { location: { pathname: string } }) {
   return s.location.pathname;
@@ -178,6 +179,8 @@ function NavSection({
   pathname: string;
   collapsed: boolean;
 }) {
+  const { queryClient } = useRouteContext({ from: "__root__" });
+
   return (
     <div>
       {!collapsed && <div className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{title}</div>}
@@ -189,6 +192,8 @@ function NavSection({
               <Link
                 to={item.to}
                 preload="intent"
+                onMouseEnter={() => prefetchForNavPath(queryClient, item.to)}
+                onFocus={() => prefetchForNavPath(queryClient, item.to)}
                 className={cn(
                   "group relative flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition-all",
                   active ? "text-primary-foreground" : "text-foreground/80 hover:text-foreground hover:bg-muted/70",

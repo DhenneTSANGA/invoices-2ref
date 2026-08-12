@@ -95,7 +95,7 @@ function MailsPage() {
   const [clearOpen, setClearOpen] = useState(false);
   const threadEndRef = useRef<HTMLDivElement>(null);
   const { data: session } = useSession();
-  const { data, isLoading, isFetching } = useMails("all");
+  const { data, isPending: isLoading, isFetching } = useMails("all");
   const { data: detail, isLoading: loadingDetail } = useMail(selectedId);
   const syncMutation = useSyncMails();
   const clearMutation = useClearMailHistory();
