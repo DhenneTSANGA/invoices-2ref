@@ -796,7 +796,7 @@ export function DocumentEditor({ initial, type }: Props) {
         <div className="glass-panel rounded-3xl p-5">
           <h3 className="font-display font-semibold">Montant TTC</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Choisissez d’abord la taxe, puis saisissez le montant — HT, taxe et
+            Choisissez d’abord entre tps et tva, puis saisissez le montant TTC — HT, taxe et
             CSS se calculent automatiquement.
           </p>
 
