@@ -14,6 +14,9 @@ import {
 } from "@/lib/notification-toast-state";
 import { notificationNavTarget } from "@/lib/notification-nav";
 
+/** Au-delà de ce seuil de non lues, plus de toast — seul le badge cloche augmente. */
+const MAX_TOAST_UNREAD = 4;
+
 /** Polling + toasts quand un autre collaborateur met à jour un document. */
 export function NotificationSync() {
   const qc = useQueryClient();
@@ -44,24 +47,30 @@ export function NotificationSync() {
       fresh.map((n) => n.id),
     );
 
-    for (const n of fresh) {
-      toast(n.title, {
-        description: n.body,
-        className:
-          "!bg-yellow-400 !text-yellow-950 !border-yellow-500 [&_[data-description]]:!text-yellow-900",
-        action: {
-          label: "Voir",
-          onClick: () => {
-            if (!n.read) markRead(n.id);
-            const target = notificationNavTarget(n);
-            void navigate({
-              to: target.to,
-              ...(target.params ? { params: target.params } : {}),
-              ...(target.search ? { search: target.search } : {}),
-            });
+    const unread = notifications.filter((n) => !n.read).length;
+    /** Trop de non lues → silence côté toast, le compteur cloche suffit. */
+    const showToasts = unread <= MAX_TOAST_UNREAD;
+
+    if (showToasts) {
+      for (const n of fresh) {
+        toast(n.title, {
+          description: n.body,
+          className:
+            "!bg-yellow-400 !text-yellow-950 !border-yellow-500 [&_[data-description]]:!text-yellow-900",
+          action: {
+            label: "Voir",
+            onClick: () => {
+              if (!n.read) markRead(n.id);
+              const target = notificationNavTarget(n);
+              void navigate({
+                to: target.to,
+                ...(target.params ? { params: target.params } : {}),
+                ...(target.search ? { search: target.search } : {}),
+              });
+            },
           },
-        },
-      });
+        });
+      }
     }
 
     void qc.invalidateQueries({ queryKey: documentsKey() });
