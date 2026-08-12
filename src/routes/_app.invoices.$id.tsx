@@ -230,8 +230,9 @@ function InvoiceDetail() {
             <div className="mt-4 space-y-2 text-sm">
               <Row label="Client" value={client?.name ?? "—"} />
               <Row label="Émission" value={longDate(doc.issueDate)} />
-              <Row label="Échéance" value={longDate(doc.dueDate)} />
-              <Row label="Conditions" value={doc.paymentTerms ?? "—"} />
+              {doc.dueDate ? (
+                <Row label="Échéance" value={longDate(doc.dueDate)} />
+              ) : null}
               {doc.status === "paid" && (
                 <Row label="Règlement" value={paymentMethodLabel(doc.paymentMethod)} />
               )}

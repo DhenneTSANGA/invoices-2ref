@@ -163,7 +163,7 @@ export function mapDocument(row: {
   createdById: string;
   status: Document["status"];
   issueDate: Date;
-  dueDate: Date;
+  dueDate: Date | null;
   subtotal: Decimal;
   discount?: Decimal;
   tps: Decimal;
@@ -257,7 +257,7 @@ export function mapDocument(row: {
     createdById: row.createdById,
     status: row.status,
     issueDate: row.issueDate.toISOString().slice(0, 10),
-    dueDate: row.dueDate.toISOString().slice(0, 10),
+    dueDate: row.dueDate ? row.dueDate.toISOString().slice(0, 10) : null,
     items,
     sections,
     subtotal,

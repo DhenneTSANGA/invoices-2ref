@@ -238,7 +238,7 @@ export const documentInputSchema = z.object({
     "cancelled",
   ]),
   issueDate: z.string(),
-  dueDate: z.string(),
+  dueDate: z.string().optional().nullable(),
   currency: z.string().default("XAF"),
   notes: z.string().optional().nullable(),
   paymentTerms: z.string().optional().nullable(),

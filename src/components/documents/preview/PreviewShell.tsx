@@ -66,16 +66,33 @@ export function PreviewLogo({
   className?: string;
   compact?: boolean;
 }) {
+  const safeCabinet: Cabinet =
+    cabinet === "conseil" || cabinet === "expertise_fiscale"
+      ? cabinet
+      : "expertise_fiscale";
+  const primarySrc = CABINET_LOGOS[safeCabinet];
+  const fallbackSrc =
+    safeCabinet === "conseil"
+      ? CABINET_LOGOS.expertise_fiscale
+      : CABINET_LOGOS.conseil;
+  const heightClass = compact ? "h-16" : "h-32";
+
   return (
     <img
-      src={CABINET_LOGOS[cabinet]}
-      alt={CABINET_LABELS[cabinet]}
-      crossOrigin="anonymous"
-      referrerPolicy="no-referrer"
-      decoding="sync"
+      src={primarySrc}
+      alt={CABINET_LABELS[safeCabinet]}
+      // crossOrigin seulement utile pour captures PDF d’URLs absolues ;
+      // sur /public local, il peut empêcher l’affichage du logo.
+      decoding="async"
+      onError={(e) => {
+        const el = e.currentTarget;
+        if (el.dataset.fallback === "1") return;
+        el.dataset.fallback = "1";
+        el.src = fallbackSrc;
+      }}
       className={cn(
-        "w-auto shrink-0 object-contain",
-        compact ? "h-16" : "h-32",
+        "block w-auto max-w-[180px] shrink-0 object-contain",
+        heightClass,
         className,
       )}
     />

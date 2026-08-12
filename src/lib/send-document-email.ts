@@ -157,7 +157,7 @@ function buildCommercialEmailHtml(params: {
   clientCnss?: string;
   clientCnamgs?: string;
   issueDate: string;
-  dueDate: string;
+  dueDate?: string | null;
   currency: string;
   lines: { description: string; quantity: number; unitPrice: number; total: number }[];
   subtotal: number;
@@ -262,8 +262,14 @@ function buildCommercialEmailHtml(params: {
     </table>
 
     <div style="margin-bottom:16px;font-size:12px;color:#475569;">
-      <span style="margin-right:16px;">Émission : <strong style="color:#0F172A;">${escapeHtml(params.issueDate)}</strong></span>
-      <span>Échéance : <strong style="color:#0F172A;">${escapeHtml(params.dueDate)}</strong></span>
+      <span${params.dueDate ? ' style="margin-right:16px;"' : ""}>Émission : <strong style="color:#0F172A;">${escapeHtml(params.issueDate)}</strong></span>
+      ${
+        params.dueDate
+          ? params.type === "quotation"
+            ? `<span>Validité jusqu'au : <strong style="color:#0F172A;">${escapeHtml(params.dueDate)}</strong></span>`
+            : `<span>Échéance : <strong style="color:#0F172A;">${escapeHtml(params.dueDate)}</strong></span>`
+          : ""
+      }
     </div>
 
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border-radius:10px;overflow:hidden;border:1px solid #E2E8F0;">
@@ -529,7 +535,7 @@ export const sendDocumentEmail = createServerFn({ method: "POST" })
         clientCnss: doc.client.cnss || undefined,
         clientCnamgs: doc.client.cnamgs || undefined,
         issueDate: formatDate(doc.issueDate),
-        dueDate: formatDate(doc.dueDate),
+        dueDate: doc.dueDate ? formatDate(doc.dueDate) : null,
         currency,
         lines,
         subtotal: Number(doc.subtotal),

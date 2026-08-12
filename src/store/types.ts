@@ -125,7 +125,8 @@ export type Document = {
   createdBy?: StaffMember;
   status: DocumentStatus;
   issueDate: string;
-  dueDate: string;
+  /** Optionnel — vide = aucune échéance affichée. */
+  dueDate?: string | null;
   items: LineItem[];
   /** Sections optionnelles (vides = facture / devis classique). */
   sections?: DocumentSection[];

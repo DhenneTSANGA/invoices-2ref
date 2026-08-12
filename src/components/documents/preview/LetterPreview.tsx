@@ -41,7 +41,9 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
       className={className}
     >
       <div className={cn("flex items-start justify-between", dense ? "gap-3" : "gap-4")}>
-        <PreviewLogo cabinet={doc.cabinet} className="h-28" />
+        <div className="shrink-0">
+          <PreviewLogo cabinet={doc.cabinet} className="h-28" />
+        </div>
         <div className={cn("text-right text-[#475569]", dense ? "pt-1 text-[11px]" : "pt-2 text-[13px]")}>
           {city}, le {longDate(doc.issueDate)}.
         </div>
@@ -126,7 +128,20 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
         />
       </div>
 
-      <LegalFooter {...company} niuLabel={niuLabel} compact={dense} />
+      <LegalFooter
+        name={company.name}
+        address={company.address}
+        city={company.city}
+        nif={company.nif}
+        niu={company.niu}
+        rccm={company.rccm}
+        cnss={company.cnss}
+        phone={company.phone}
+        email={company.email}
+        website={company.website}
+        niuLabel={niuLabel}
+        compact={dense}
+      />
     </PreviewShell>
   );
 });

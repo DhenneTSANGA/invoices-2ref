@@ -11,7 +11,7 @@ import {
   PreviewBottomRow,
 } from "./PreviewShell";
 import { computeDocumentTotals, documentTaxRates } from "@/lib/document-math";
-import { DOCUMENT_COLORS } from "@/lib/cabinets";
+import { COMPANY_DEFAULTS, DOCUMENT_COLORS } from "@/lib/cabinets";
 import { ManagerSignature } from "@/components/signature/ManagerSignature";
 import {
   clientDisplayName,
@@ -70,7 +70,9 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
         style={{ borderColor: accent }}
       >
         <div className="flex min-w-0 items-center gap-2.5">
-          <PreviewLogo cabinet={doc.cabinet} className="h-32" />
+          <div className="shrink-0">
+            <PreviewLogo cabinet={doc.cabinet} className="h-32" />
+          </div>
           <div className="min-w-0">
             <div
               className={cn(
@@ -119,7 +121,9 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
                 accent="#64748B"
                 name={company.name}
                 lines={emitterLines}
-                capital={company.capital}
+                capital={
+                  company.capital || COMPANY_DEFAULTS[doc.cabinet]?.capital
+                }
                 nif={company.nif}
                 niu={company.niu}
                 niuLabel={doc.cabinet === "conseil" ? "STAT" : "NIU"}
@@ -152,8 +156,11 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
         )}
       >
         <span>Date d'émission : <b className="text-[#0F172A]">{longDate(doc.issueDate)}</b></span>
-        <span>Échéance : <b className="text-[#0F172A]">{longDate(doc.dueDate)}</b></span>
-        {doc.paymentTerms && <span>Conditions : <b className="text-[#0F172A]">{doc.paymentTerms}</b></span>}
+        {doc.dueDate ? (
+          <span>
+            Échéance : <b className="text-[#0F172A]">{longDate(doc.dueDate)}</b>
+          </span>
+        ) : null}
       </div>
 
       <ItemsTable doc={doc} headerFrom={accent} headerTo={accentTo} compact={dense} />
@@ -214,7 +221,20 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
         />
       </div>
 
-      <LegalFooter {...company} niuLabel={doc.cabinet === "conseil" ? "STAT" : "NIU"} compact={dense} />
+      <LegalFooter
+        name={company.name}
+        address={company.address}
+        city={company.city}
+        nif={company.nif}
+        niu={company.niu}
+        rccm={company.rccm}
+        cnss={company.cnss}
+        phone={company.phone}
+        email={company.email}
+        website={company.website}
+        niuLabel={doc.cabinet === "conseil" ? "STAT" : "NIU"}
+        compact={dense}
+      />
     </PreviewShell>
   );
 });

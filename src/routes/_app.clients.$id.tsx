@@ -22,6 +22,7 @@ import {
   CLIENT_LEGAL_FORMS,
   CLIENT_REPRESENTATIVE_TITLES,
   citiesForCountry,
+  normalizeLegalForm,
 } from "@/lib/client-form-options";
 
 export const Route = createFileRoute("/_app/clients/$id")({
@@ -46,7 +47,9 @@ function EditClient() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (client) setForm(client);
+    if (client) {
+      setForm({ ...client, legalForm: normalizeLegalForm(client.legalForm) });
+    }
   }, [client]);
 
   if (isLoading) {

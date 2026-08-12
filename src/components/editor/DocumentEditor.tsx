@@ -490,7 +490,7 @@ export function DocumentEditor({ initial, type }: Props) {
     clientId: merged.clientId,
     status: status === "sent" ? ("draft" as const) : status,
     issueDate: merged.issueDate,
-    dueDate: merged.dueDate,
+    dueDate: merged.dueDate?.trim() ? merged.dueDate : null,
     currency: merged.currency,
     notes: merged.notes ?? null,
     paymentTerms: type === "quotation" ? null : (merged.paymentTerms ?? null),
@@ -680,33 +680,68 @@ export function DocumentEditor({ initial, type }: Props) {
             value={doc.issueDate}
             onChange={(v) => {
               const issueDate = v;
-              if (type === "quotation") {
-                const days = doc.validityDays ?? 30;
+              if (
+                commercial &&
+                doc.dueDate &&
+                (doc.validityDays ?? 0) > 0
+              ) {
                 setDoc({
                   ...doc,
                   issueDate,
-                  dueDate: addDaysIso(issueDate, days),
+                  dueDate: addDaysIso(
+                    issueDate,
+                    type === "quotation" ? (doc.validityDays ?? 30) : 30,
+                  ),
                 });
               } else {
                 setDoc({ ...doc, issueDate });
               }
             }}
           />
-          {type === "invoice" ? (
-            <>
-              <Field
-                label="Échéance"
-                type="date"
-                value={doc.dueDate}
-                onChange={(v) => setDoc({ ...doc, dueDate: v })}
-              />
-              <Field
-                label="Conditions"
-                value={doc.paymentTerms ?? ""}
-                onChange={(v) => setDoc({ ...doc, paymentTerms: v })}
-              />
-            </>
-          ) : (
+          {commercial ? (
+            <div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  {type === "quotation" ? "Validité jusqu’au" : "Échéance"}
+                </span>
+                <Switch
+                  checked={Boolean(doc.dueDate)}
+                  onCheckedChange={(on) => {
+                    if (on) {
+                      const days =
+                        type === "quotation"
+                          ? (doc.validityDays ?? 30)
+                          : 30;
+                      setDoc({
+                        ...doc,
+                        dueDate: addDaysIso(doc.issueDate, days),
+                      });
+                    } else {
+                      setDoc({ ...doc, dueDate: null });
+                    }
+                  }}
+                />
+              </div>
+              {doc.dueDate ? (
+                <input
+                  type="date"
+                  className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
+                  value={doc.dueDate}
+                  onChange={(e) =>
+                    setDoc({
+                      ...doc,
+                      dueDate: e.target.value.trim() ? e.target.value : null,
+                    })
+                  }
+                />
+              ) : (
+                <div className="mt-1 flex h-[42px] items-center rounded-xl border border-dashed border-border/50 px-3 text-xs text-muted-foreground">
+                  Non affichée
+                </div>
+              )}
+            </div>
+          ) : null}
+          {type === "quotation" ? (
             <>
               <Field
                 label="Validité (jours)"
@@ -717,15 +752,11 @@ export function DocumentEditor({ initial, type }: Props) {
                   setDoc({
                     ...doc,
                     validityDays: days,
-                    dueDate: addDaysIso(doc.issueDate, days),
+                    ...(doc.dueDate
+                      ? { dueDate: addDaysIso(doc.issueDate, days) }
+                      : {}),
                   });
                 }}
-              />
-              <Field
-                label="Validité jusqu'au"
-                type="date"
-                value={doc.dueDate}
-                onChange={(v) => setDoc({ ...doc, dueDate: v })}
               />
               <Field
                 label="Délai de réalisation (jours)"
@@ -745,7 +776,7 @@ export function DocumentEditor({ initial, type }: Props) {
                 onChange={(v) => setDoc({ ...doc, executionTerms: v })}
               />
             </>
-          )}
+          ) : null}
           <Field
             label="Devise"
             value={doc.currency}
@@ -1676,7 +1707,6 @@ function defaultDoc(
   cabinet: Cabinet = "expertise_fiscale",
 ): Document {
   const today = new Date().toISOString().slice(0, 10);
-  const due = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
   const base = {
     id: `d-${Date.now()}`,
     cabinet,
@@ -1685,7 +1715,7 @@ function defaultDoc(
     createdById: "staff-mireille",
     status: "draft" as const,
     issueDate: today,
-    dueDate: due,
+    dueDate: null as string | null,
     items: [] as LineItem[],
     sections: [] as DocumentSection[],
     subtotal: 0,

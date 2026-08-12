@@ -570,7 +570,10 @@ async function upsertDocumentHandler(
       createdById: staff.id,
       status: data.status,
       issueDate: new Date(data.issueDate),
-      dueDate: new Date(data.dueDate),
+      dueDate:
+        data.dueDate && String(data.dueDate).trim()
+          ? new Date(data.dueDate)
+          : null,
       subtotal,
       discount: docDiscount,
       tps,

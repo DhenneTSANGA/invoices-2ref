@@ -13,6 +13,7 @@ import {
   CLIENT_COUNTRIES,
   CLIENT_LEGAL_FORMS,
   CLIENT_REPRESENTATIVE_TITLES,
+  DEFAULT_CLIENT_LEGAL_FORM,
   citiesForCountry,
 } from "@/lib/client-form-options";
 
@@ -33,7 +34,7 @@ const empty: Omit<
 > = {
   name: "",
   sigle: "",
-  legalForm: "SARL",
+  legalForm: DEFAULT_CLIENT_LEGAL_FORM,
   shareCapital: "",
   nif: "",
   niu: "",

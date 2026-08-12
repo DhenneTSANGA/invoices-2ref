@@ -68,7 +68,7 @@ function buildActivities(documents: Document[], clients: { id: string; name: str
     if (d.status === "paid") {
       acts.push({ id: `${d.id}-paid`, kind: "invoice_paid", title: `Facture ${d.number} payée`, description: `${currency(d.total)} encaissés`, at: d.issueDate });
     } else if (d.status === "overdue") {
-      acts.push({ id: `${d.id}-overdue`, kind: "invoice_overdue", title: `Facture ${d.number} en retard`, description: "Relance recommandée", at: d.dueDate });
+      acts.push({ id: `${d.id}-overdue`, kind: "invoice_overdue", title: `Facture ${d.number} en retard`, description: "Relance recommandée", at: d.dueDate ?? d.issueDate });
     } else if (d.status === "sent" && d.type === "invoice") {
       acts.push({ id: `${d.id}-sent`, kind: "invoice_sent", title: `Facture ${d.number} envoyée`, description: "En attente de règlement", at: d.issueDate });
     } else if (d.status === "accepted" && d.type === "quotation") {

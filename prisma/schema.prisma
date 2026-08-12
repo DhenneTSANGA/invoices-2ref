@@ -263,7 +263,8 @@ model Document {
   createdById       String
   status            DocumentStatus @default(draft)
   issueDate         DateTime       @db.Date
-  dueDate           DateTime       @db.Date
+  /** Optionnel — si null, aucune échéance affichée sur facture / devis. */
+  dueDate           DateTime?      @db.Date
   subtotal          Decimal        @db.Decimal(18, 2)
   /** Remise globale % sur le sous-total HT (factures / devis). */
   discount          Decimal        @default(0) @db.Decimal(5, 2)
