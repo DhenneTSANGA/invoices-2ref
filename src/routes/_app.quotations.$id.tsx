@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Download, Send, CheckCircle2, XCircle, Eye, Loader2, FileText } from "lucide-react";
+import { ArrowLeft, Send, CheckCircle2, XCircle, Eye, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { LoadingState } from "@/components/common/LoadingState";
@@ -9,11 +9,12 @@ import {
   useClients,
   useSetDocumentStatus,
   useSendDocumentEmail,
-  useDownloadDocumentPdf,
   useSession,
 } from "@/hooks/use-data";
 import { DocumentPreview } from "@/components/documents/DocumentPreview";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
+import { DocumentPdfButton } from "@/components/documents/DocumentPdfButton";
+import { OmitSignatureToggle } from "@/components/documents/OmitSignatureToggle";
 import {
   DocumentSignatureActions,
   documentCanSendEmail,
@@ -38,8 +39,8 @@ function QuotationDetail() {
   const client = clients.find((c) => c.id === doc?.clientId);
   const setStatusMutation = useSetDocumentStatus();
   const sendEmailMutation = useSendDocumentEmail();
-  const downloadPdfMutation = useDownloadDocumentPdf();
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [omitSignature, setOmitSignature] = useState(false);
   const [previewSeen, setPreviewSeen] = useState(false);
 
   const adminLike = session ? isAdmin(session.staff.role) : false;
@@ -99,24 +100,6 @@ function QuotationDetail() {
     });
   };
 
-  const downloadPdf = () => {
-    const toastId = toast.loading("Génération du PDF…");
-    downloadPdfMutation.mutate(doc, {
-      onSuccess: () =>
-        toast.success("PDF téléchargé", {
-          id: toastId,
-          description: `${doc.number}.pdf`,
-        }),
-      onError: (err) => {
-        console.error(err);
-        toast.error("Impossible de générer le PDF", {
-          id: toastId,
-          description: err instanceof Error ? err.message : undefined,
-        });
-      },
-    });
-  };
-
   return (
     <div>
       <button onClick={() => history.back()} className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" /> Retour</button>
@@ -126,9 +109,7 @@ function QuotationDetail() {
         actions={
           <>
             <button onClick={() => setPreviewOpen(true)} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted"><Eye className="h-4 w-4" /> Aperçu</button>
-            <button onClick={downloadPdf} disabled={downloadPdfMutation.isPending} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60">
-              {downloadPdfMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} PDF
-            </button>
+            <DocumentPdfButton doc={doc} appearance="header" omitSignature={omitSignature} />
             <DocumentSignatureActions doc={doc} previewSeen={previewSeen} compact />
             <button onClick={sendByEmail} disabled={sendEmailMutation.isPending || !canSend} className={doc.status === "signed" ? "inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow disabled:opacity-60" : "inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60"}><Send className="h-4 w-4" /> {sendEmailMutation.isPending ? "Envoi…" : "Envoyer"}</button>
             <button onClick={() => patchStatus("accepted", "Devis accepté")} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-success px-4 py-2 text-sm font-medium text-success-foreground shadow"><CheckCircle2 className="h-4 w-4" /> Accepter</button>
@@ -190,9 +171,12 @@ function QuotationDetail() {
           <DocumentPdfTracesPanel documentId={doc.id} />
         </aside>
         <div>
-          <div className="mb-3 flex items-center justify-between">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div className="text-xs uppercase tracking-wider text-muted-foreground">Aperçu</div>
-            <button type="button" onClick={() => setPreviewOpen(true)} className="text-xs font-medium text-primary hover:underline">Plein écran</button>
+            <div className="flex items-center gap-3">
+              <OmitSignatureToggle checked={omitSignature} onCheckedChange={setOmitSignature} />
+              <button type="button" onClick={() => setPreviewOpen(true)} className="text-xs font-medium text-primary hover:underline">Plein écran</button>
+            </div>
           </div>
           <div
             className="cursor-pointer"
@@ -202,7 +186,7 @@ function QuotationDetail() {
             }}
             onMouseEnter={() => setPreviewSeen(true)}
           >
-            <DocumentPreview doc={doc} />
+            <DocumentPreview doc={doc} omitSignature={omitSignature} />
           </div>
         </div>
       </div>
@@ -214,6 +198,8 @@ function QuotationDetail() {
           setPreviewOpen(o);
           if (o) setPreviewSeen(true);
         }}
+        omitSignature={omitSignature}
+        onOmitSignatureChange={setOmitSignature}
       />
     </div>
   );

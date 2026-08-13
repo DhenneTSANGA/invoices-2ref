@@ -16,7 +16,13 @@ import { ManagerSignature } from "@/components/signature/ManagerSignature";
 import { clientDisplayName, clientDocumentLines } from "@/lib/client-address";
 import { cn } from "@/lib/utils";
 
-type Props = { doc: Document; compact?: boolean; variant?: "full" | "thumb"; className?: string };
+type Props = {
+  doc: Document;
+  compact?: boolean;
+  variant?: "full" | "thumb";
+  className?: string;
+  omitSignature?: boolean;
+};
 
 function partyContactLine(parts: Array<string | undefined | null>) {
   return parts.map((p) => p?.trim()).filter(Boolean).join(" · ");
@@ -27,7 +33,7 @@ function partyAddressLines(parts: Array<string | undefined | null>) {
 }
 
 export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function InvoicePreview(
-  { doc, compact, variant = "full", className },
+  { doc, compact, variant = "full", className, omitSignature },
   ref,
 ) {
   const { company, client } = usePreviewData(doc);
@@ -50,13 +56,13 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
       <div
         className={cn(
           "flex items-start justify-between border-b-2",
-          dense ? "gap-3 pb-2.5" : "gap-4 pb-5",
+          dense ? "gap-3 pb-2.5" : "gap-4 pb-3",
         )}
         style={{ borderColor: accent }}
       >
         <div className="flex min-w-0 items-center gap-2.5">
           <div className="shrink-0">
-            <PreviewLogo cabinet={doc.cabinet} className="h-32" />
+            <PreviewLogo cabinet={doc.cabinet} className="h-40" />
           </div>
           <div className="min-w-0">
             <div
@@ -95,7 +101,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
       </div>
 
       <table
-        className={cn(dense ? "mt-2.5" : "mt-5")}
+        className={cn(dense ? "mt-2.5" : "mt-3")}
         style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}
       >
         <tbody>
@@ -137,7 +143,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
       <div
         className={cn(
           "flex flex-wrap text-[#475569]",
-          dense ? "mt-2 gap-x-5 gap-y-0.5 text-[10px]" : "mt-4 gap-x-6 gap-y-1 text-[12px]",
+          dense ? "mt-2 gap-x-5 gap-y-0.5 text-[10px]" : "mt-2.5 gap-x-6 gap-y-1 text-[12px]",
         )}
       >
         <span>
@@ -154,7 +160,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
         compact={dense}
         left={
           company.bankName || company.bankAccount ? (
-            <div className={cn("rounded-lg bg-[#F1F5F9]", dense ? "p-2" : "p-3")}>
+            <div className={cn("rounded-lg bg-[#F1F5F9]", dense ? "p-2" : "p-2.5")}>
               <div
                 className={cn(
                   "font-bold uppercase tracking-wider text-[#64748B]",
@@ -191,11 +197,11 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
         right={<TotalsBlock doc={doc} accent={accent} compact={dense} />}
       />
 
-      <div className={cn("w-full", dense ? "mt-2" : "mt-4")}>
+      <div className={cn("w-full", dense ? "mt-2" : "mt-2.5")}>
         <AmountInWords amount={doc.total} currency={doc.currency} accent={accent} compact={dense} />
       </div>
 
-      <div className={cn("flex justify-end", dense ? "mt-2" : "mt-4")}>
+      <div className={cn("flex justify-end", dense ? "mt-2" : "mt-2")}>
         <ManagerSignature
           applied={doc.status === "signed" || doc.status === "sent" || doc.status === "paid"}
           managerName={company.managerName?.trim() || ""}
@@ -203,6 +209,8 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
           signatoryTitle="Le Gérant"
           accent={accent}
           compact={dense}
+          forPdf={compact}
+          omitStamp={omitSignature}
         />
       </div>
 
@@ -265,7 +273,7 @@ function PartyBlock({
     cnamgs ? { label: "CNAMGS", value: cnamgs } : null,
   ].filter(Boolean) as Array<{ label: string; value: string }>;
 
-  const pad = compact ? "p-2.5" : "p-3.5";
+  const pad = compact ? "p-2" : "p-2.5";
 
   return (
     <div
@@ -356,7 +364,7 @@ function ItemsTable({
   /** @deprecated Ignoré — taxes uniquement dans les totaux. */
   showTaxColumns?: boolean;
 }) {
-  const cell = compact ? "px-2 py-1.5" : "px-2.5 py-2.5";
+  const cell = compact ? "px-2 py-1.5" : "px-2.5 py-1.5";
   const sections = [...(doc.sections ?? [])].sort(
     (a, b) => a.position - b.position,
   );
@@ -447,7 +455,7 @@ function ItemsTable({
             <div
               className={cn(
                 "bg-[#EFF6FF] text-center font-semibold uppercase tracking-wide text-[#0F172A]",
-                compact ? "px-2 py-1.5 text-[11px]" : "px-2.5 py-2.5 text-[13px]",
+                compact ? "px-2 py-1.5 text-[11px]" : "px-2.5 py-1.5 text-[13px]",
               )}
             >
               {(sec.title.trim() || "—").toUpperCase()}

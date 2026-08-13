@@ -2,10 +2,8 @@ import { useState, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   ArrowLeft,
-  Download,
   Send,
   Eye,
-  Loader2,
   Mail,
   PenLine,
   Stamp,
@@ -18,7 +16,6 @@ import {
   useDocument,
   useClients,
   useSendDocumentEmail,
-  useDownloadDocumentPdf,
   useSession,
   useLetterSignatureRequest,
   useRequestLetterSignature,
@@ -27,6 +24,8 @@ import {
 } from "@/hooks/use-data";
 import { DocumentPreview } from "@/components/documents/DocumentPreview";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
+import { DocumentPdfButton } from "@/components/documents/DocumentPdfButton";
+import { OmitSignatureToggle } from "@/components/documents/OmitSignatureToggle";
 import { DocumentPdfTracesPanel } from "@/components/documents/DocumentPdfTracesPanel";
 import { SignedDocumentReadyBanner } from "@/components/documents/SignedDocumentReadyBanner";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -48,11 +47,11 @@ function LetterDetail() {
   const { data: signatureReq } = useLetterSignatureRequest(id);
   const client = clients.find((c) => c.id === doc?.clientId);
   const sendEmailMutation = useSendDocumentEmail();
-  const downloadPdfMutation = useDownloadDocumentPdf();
   const requestSignMutation = useRequestLetterSignature();
   const signMutation = useSignLetterDocument();
   const rejectMutation = useRejectLetterSignature();
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [omitSignature, setOmitSignature] = useState(false);
   const [editing, setEditing] = useState(false);
   /** L’admin doit avoir consulté l’aperçu sur cette page avant de signer. */
   const [previewSeen, setPreviewSeen] = useState(false);
@@ -112,21 +111,6 @@ function LetterDetail() {
     (isCreator || adminLike);
   const canEdit = doc.status === "draft" && (isCreator || adminLike);
 
-  const downloadPdf = () => {
-    const toastId = toast.loading("Génération du PDF…");
-    downloadPdfMutation.mutate(doc, {
-      onSuccess: () =>
-        toast.success("PDF téléchargé", {
-          id: toastId,
-          description: `${doc.number}.pdf`,
-        }),
-      onError: (err) => {
-        console.error(err);
-        toast.error("Impossible de générer le PDF", { id: toastId });
-      },
-    });
-  };
-
   const markPreviewSeen = () => setPreviewSeen(true);
 
   return (
@@ -151,18 +135,7 @@ function LetterDetail() {
             >
               <Eye className="h-4 w-4" /> Aperçu
             </button>
-            <button
-              onClick={downloadPdf}
-              disabled={downloadPdfMutation.isPending}
-              className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60"
-            >
-              {downloadPdfMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Download className="h-4 w-4" />
-              )}{" "}
-              PDF
-            </button>
+            <DocumentPdfButton doc={doc} appearance="header" omitSignature={omitSignature} />
             {canEdit && (
               <button
                 onClick={() => setEditing(true)}
@@ -289,6 +262,9 @@ function LetterDetail() {
 
       {doc.status === "signed" && <SignedDocumentReadyBanner type={doc.type} />}
 
+      <div className="mb-3 flex flex-wrap items-center justify-end gap-3">
+        <OmitSignatureToggle checked={omitSignature} onCheckedChange={setOmitSignature} />
+      </div>
       <div
         className={cn(
           "mb-6 cursor-pointer rounded-2xl transition",
@@ -300,7 +276,7 @@ function LetterDetail() {
         }}
         onMouseEnter={markPreviewSeen}
       >
-        <DocumentPreview doc={doc} />
+        <DocumentPreview doc={doc} omitSignature={omitSignature} />
       </div>
       <DocumentPdfTracesPanel documentId={doc.id} />
       <DocumentPreviewModal
@@ -310,6 +286,8 @@ function LetterDetail() {
           if (open) markPreviewSeen();
           setPreviewOpen(open);
         }}
+        omitSignature={omitSignature}
+        onOmitSignatureChange={setOmitSignature}
       />
     </div>
   );

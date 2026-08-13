@@ -8,10 +8,16 @@ import { ManagerSignature } from "@/components/signature/ManagerSignature";
 import { clientLetterRecipientLines } from "@/lib/client-address";
 import { cn } from "@/lib/utils";
 
-type Props = { doc: Document; compact?: boolean; variant?: "full" | "thumb"; className?: string };
+type Props = {
+  doc: Document;
+  compact?: boolean;
+  variant?: "full" | "thumb";
+  className?: string;
+  omitSignature?: boolean;
+};
 
 export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPreview(
-  { doc, compact, variant = "full", className },
+  { doc, compact, variant = "full", className, omitSignature },
   ref,
 ) {
   const { company, client } = usePreviewData(doc);
@@ -42,7 +48,7 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
     >
       <div className={cn("flex items-start justify-between", dense ? "gap-3" : "gap-4")}>
         <div className="shrink-0">
-          <PreviewLogo cabinet={doc.cabinet} className="h-28" />
+          <PreviewLogo cabinet={doc.cabinet} className="h-40" />
         </div>
         <div className={cn("text-right text-[#475569]", dense ? "pt-1 text-[11px]" : "pt-2 text-[13px]")}>
           {city}, le {longDate(doc.issueDate)}.
@@ -125,6 +131,8 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
           applied={showStamp}
           accent={accent}
           compact={isThumb}
+          forPdf={compact}
+          omitStamp={omitSignature}
         />
       </div>
 

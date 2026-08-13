@@ -4,8 +4,11 @@ import { CABINET_LOGOS, CABINET_LABELS, type Cabinet } from "@/lib/cabinets";
 import { amountInWords } from "@/lib/format";
 
 const PREVIEW_WIDTH = 820;
-/** Hauteur A4 proportionnelle à 820px de large — ancre le pied de page en bas. */
-export const A4_MIN_HEIGHT = Math.round(PREVIEW_WIDTH * 1.414213562);
+/** Hauteur A4 (297/210) à 820px de large — ancre le pied de page en bas. */
+export const A4_MIN_HEIGHT = Math.round(PREVIEW_WIDTH * (297 / 210));
+/** Marge papier comme la facture imprimée de référence (~18 mm). */
+const PAGE_MARGIN_MM = 18;
+const PAGE_PADDING_PX = Math.round((PREVIEW_WIDTH * PAGE_MARGIN_MM) / 210);
 
 type ShellProps = {
   children: ReactNode;
@@ -48,8 +51,11 @@ export function PreviewShell({
       }}
     >
       <div
-        className="flex min-h-full flex-col p-7 pb-5 text-[14px] leading-relaxed"
-        style={{ minHeight: !isThumb ? A4_MIN_HEIGHT : undefined }}
+        className="flex min-h-full flex-col text-[14px] leading-relaxed"
+        style={{
+          minHeight: !isThumb ? A4_MIN_HEIGHT : undefined,
+          padding: PAGE_PADDING_PX,
+        }}
       >
         {children}
       </div>
@@ -75,7 +81,7 @@ export function PreviewLogo({
     safeCabinet === "conseil"
       ? CABINET_LOGOS.expertise_fiscale
       : CABINET_LOGOS.conseil;
-  const heightClass = compact ? "h-16" : "h-32";
+  const heightClass = compact ? "h-20" : "h-40";
 
   return (
     <img
@@ -91,7 +97,7 @@ export function PreviewLogo({
         el.src = fallbackSrc;
       }}
       className={cn(
-        "block w-auto max-w-[180px] shrink-0 object-contain",
+        "block w-auto max-w-[240px] shrink-0 object-contain",
         heightClass,
         className,
       )}
@@ -171,7 +177,7 @@ export function LegalFooter({
     <div
       className={cn(
         "mt-auto shrink-0 border-t border-[#E2E8F0] text-center leading-snug text-[#64748B]",
-        compact ? "pt-2 text-[9px]" : "pt-3.5 text-[11px]",
+        compact ? "pt-2 text-[9px]" : "pt-2 text-[11px]",
       )}
     >
       {legalParts.join(" · ")}
@@ -198,7 +204,7 @@ export function AmountInWords({
     <div
       className={cn(
         "rounded-lg border text-center",
-        compact ? "px-2.5 py-1.5" : "px-3 py-2.5",
+        compact ? "px-2.5 py-1.5" : "px-3 py-1.5",
       )}
       style={{ borderColor: `${accent}33`, background: `${accent}08` }}
     >
@@ -238,7 +244,7 @@ export function PreviewBottomRow({
             style={{
               width: "58%",
               verticalAlign: "top",
-              paddingRight: compact ? "12px" : "20px",
+              paddingRight: compact ? "12px" : "12px",
             }}
           >
             {left}

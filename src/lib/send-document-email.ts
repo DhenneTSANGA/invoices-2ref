@@ -386,17 +386,16 @@ ${escapeHtml(params.body)}
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:36px;">
       <tr>
         <td></td>
-        <td width="240" align="center" style="padding:12px 8px;">
-          <div style="font-size:13px;font-weight:600;color:${accent};">${escapeHtml(params.signatoryTitle || "Le Gérant")}</div>
+        <td width="440" align="right" style="padding:12px 0 12px 20px;">
           ${
             signatureUrl
-              ? `<div style="margin-top:12px;"><img src="${escapeHtml(signatureUrl)}" alt="Signature" width="240" style="max-width:240px;height:auto;display:inline-block;" /></div>`
+              ? `<div><img src="${escapeHtml(signatureUrl)}" alt="Signature" width="440" style="max-width:440px;height:auto;display:inline-block;" /></div>`
               : ""
           }
           ${
             params.managerName
-              ? `<div style="margin-top:12px;font-size:14px;font-weight:600;color:#0F172A;">${escapeHtml(params.managerName)}</div>`
-              : `<div style="margin-top:18px;font-size:12px;font-style:italic;color:#94A3B8;">Signé</div>`
+              ? `<div style="margin-top:2px;padding-right:8px;font-size:14px;font-weight:600;color:#0F172A;text-align:right;">${escapeHtml(params.managerName)}</div>`
+              : `<div style="margin-top:4px;font-size:12px;font-style:italic;color:#94A3B8;">Signé</div>`
           }
         </td>
       </tr>

@@ -27,50 +27,78 @@ function waitFrames(n = 2) {
   });
 }
 
-/** Convertit les images distantes en data-URL pour une capture PDF fiable (CORS). */
+/** Dessine l’image sur fond blanc : fige les couleurs (pas de teinte CSS / currentColor). */
+function rasterizeImageOnWhite(source: CanvasImageSource, width: number, height: number) {
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, width);
+  canvas.height = Math.max(1, height);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("canvas");
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/png");
+}
+
+function isolateImgColors(img: HTMLImageElement) {
+  img.style.color = "transparent";
+  img.style.backgroundColor = "#ffffff";
+  img.style.filter = "none";
+  img.style.mixBlendMode = "normal";
+  img.style.setProperty("-webkit-print-color-adjust", "exact");
+  img.style.setProperty("print-color-adjust", "exact");
+}
+
+/** Convertit les images en PNG opaque pour une capture PDF aux couleurs d’origine. */
 async function inlineImagesForPdf(root: ParentNode) {
   const images = Array.from(root.querySelectorAll("img"));
   await Promise.all(
     images.map(async (img) => {
       const src = (img.currentSrc || img.src || "").trim();
-      if (!src || src.startsWith("data:") || src.startsWith("blob:")) {
-        if (img.decode) {
-          try {
-            await img.decode();
-          } catch {
-            /* ignore */
-          }
-        }
-        return;
-      }
+      if (!src) return;
+
+      const applyRaster = (source: HTMLImageElement) => {
+        const w = Math.max(1, source.naturalWidth || img.naturalWidth || img.width);
+        const h = Math.max(1, source.naturalHeight || img.naturalHeight || img.height);
+        img.removeAttribute("crossorigin");
+        img.src = rasterizeImageOnWhite(source, w, h);
+        isolateImgColors(img);
+      };
+
       try {
+        if (src.startsWith("data:") || src.startsWith("blob:")) {
+          if (img.decode) {
+            try {
+              await img.decode();
+            } catch {
+              /* ignore */
+            }
+          }
+          applyRaster(img);
+          return;
+        }
+
         const dataUrl = await new Promise<string>((resolve, reject) => {
           const probe = new Image();
           probe.crossOrigin = "anonymous";
           probe.referrerPolicy = "no-referrer";
           probe.onload = () => {
             try {
-              const canvas = document.createElement("canvas");
-              canvas.width = Math.max(1, probe.naturalWidth);
-              canvas.height = Math.max(1, probe.naturalHeight);
-              const ctx = canvas.getContext("2d");
-              if (!ctx) {
-                reject(new Error("canvas"));
-                return;
-              }
-              ctx.drawImage(probe, 0, 0);
-              resolve(canvas.toDataURL("image/png"));
+              const w = Math.max(1, probe.naturalWidth);
+              const h = Math.max(1, probe.naturalHeight);
+              resolve(rasterizeImageOnWhite(probe, w, h));
             } catch (e) {
               reject(e);
             }
           };
           probe.onerror = () => reject(new Error("load"));
-          // Cache-bust pour forcer un chargement CORS propre
           const sep = src.includes("?") ? "&" : "?";
           probe.src = `${src}${sep}pdf=1`;
         });
         img.removeAttribute("crossorigin");
         img.src = dataUrl;
+        isolateImgColors(img);
         if (img.decode) {
           try {
             await img.decode();
@@ -79,8 +107,8 @@ async function inlineImagesForPdf(root: ParentNode) {
           }
         }
       } catch {
-        // Garde l’URL d’origine ; la capture pourra échouer sur cette image seule
         img.crossOrigin = "anonymous";
+        isolateImgColors(img);
         if (!img.complete) {
           await new Promise<void>((resolve) => {
             img.onload = () => resolve();
@@ -95,7 +123,10 @@ async function inlineImagesForPdf(root: ParentNode) {
 /**
  * Rend DocumentPreview hors champ et construit le PDF (bytes + base64).
  */
-export async function buildDocumentPdfFromDoc(doc: Document): Promise<BuiltPdf> {
+export async function buildDocumentPdfFromDoc(
+  doc: Document,
+  options?: { omitSignature?: boolean },
+): Promise<BuiltPdf> {
   const [company, clients, singleClient] = await Promise.all([
     getCompanyForCabinet({ data: { cabinet: doc.cabinet } }).catch(
       () => COMPANY_DEFAULTS[doc.cabinet],
@@ -151,7 +182,7 @@ export async function buildDocumentPdfFromDoc(doc: Document): Promise<BuiltPdf> 
       root!.render(
         <QueryClientProvider client={queryClient}>
           {/* Même rendu que l’aperçu écran (pas de densification) */}
-          <DocumentPreview doc={doc} compact />
+          <DocumentPreview doc={doc} compact omitSignature={options?.omitSignature} />
         </QueryClientProvider>,
       );
     });
@@ -184,8 +215,11 @@ export async function buildDocumentPdfFromDoc(doc: Document): Promise<BuiltPdf> 
  * Génère le PDF, l'enregistre comme trace (Storage + DB), puis télécharge localement.
  * Les documents non persistés (brouillon tmp) sont seulement téléchargés.
  */
-export async function downloadDocumentPdf(doc: Document): Promise<void> {
-  const built = await buildDocumentPdfFromDoc(doc);
+export async function downloadDocumentPdf(
+  doc: Document,
+  options?: { omitSignature?: boolean },
+): Promise<void> {
+  const built = await buildDocumentPdfFromDoc(doc, options);
   const persisted =
     Boolean(doc.id) &&
     !doc.id.startsWith("d-") &&

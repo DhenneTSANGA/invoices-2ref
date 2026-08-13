@@ -1,8 +1,9 @@
-import { Download, Loader2, X } from "lucide-react";
-import { toast } from "sonner";
+import { useState } from "react";
+import { X } from "lucide-react";
 import type { Document } from "@/store/types";
 import { DocumentPreview } from "@/components/documents/DocumentPreview";
-import { useDownloadDocumentPdf } from "@/hooks/use-data";
+import { DocumentPdfButton } from "@/components/documents/DocumentPdfButton";
+import { OmitSignatureToggle } from "@/components/documents/OmitSignatureToggle";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,28 +17,20 @@ type Props = {
   doc: Document;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  omitSignature?: boolean;
+  onOmitSignatureChange?: (checked: boolean) => void;
 };
 
-export function DocumentPreviewModal({ doc, open, onOpenChange }: Props) {
-  const downloadPdfMutation = useDownloadDocumentPdf();
-
-  const downloadPdf = () => {
-    const toastId = toast.loading("Génération du PDF…");
-    downloadPdfMutation.mutate(doc, {
-      onSuccess: () =>
-        toast.success("PDF téléchargé", {
-          id: toastId,
-          description: `${doc.number}.pdf`,
-        }),
-      onError: (err) => {
-        console.error(err);
-        toast.error("Impossible de générer le PDF", {
-          id: toastId,
-          description: err instanceof Error ? err.message : undefined,
-        });
-      },
-    });
-  };
+export function DocumentPreviewModal({
+  doc,
+  open,
+  onOpenChange,
+  omitSignature: omitSignatureProp,
+  onOmitSignatureChange,
+}: Props) {
+  const [omitLocal, setOmitLocal] = useState(false);
+  const omitSignature = omitSignatureProp ?? omitLocal;
+  const setOmitSignature = onOmitSignatureChange ?? setOmitLocal;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -53,17 +46,18 @@ export function DocumentPreviewModal({ doc, open, onOpenChange }: Props) {
               Visualisation plein écran du document
             </DialogDescription>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <OmitSignatureToggle
+              checked={omitSignature}
+              onCheckedChange={setOmitSignature}
+              className="text-white/80"
+            />
+            <DocumentPdfButton
+              doc={doc}
               size="sm"
-              className="rounded-xl border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white"
-              disabled={downloadPdfMutation.isPending}
-              onClick={downloadPdf}
-            >
-              {downloadPdfMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-              PDF
-            </Button>
+              omitSignature={omitSignature}
+              className="border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+            />
             <Button
               variant="outline"
               size="sm"
@@ -86,7 +80,7 @@ export function DocumentPreviewModal({ doc, open, onOpenChange }: Props) {
             onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.stopPropagation()}
           >
-            <DocumentPreview doc={doc} />
+            <DocumentPreview doc={doc} omitSignature={omitSignature} />
           </div>
         </div>
       </DialogContent>

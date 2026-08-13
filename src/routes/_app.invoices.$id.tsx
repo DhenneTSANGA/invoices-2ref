@@ -2,13 +2,11 @@ import { useState, useEffect } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   ArrowLeft,
-  Download,
   Send,
   CheckCircle2,
   XCircle,
   Edit3,
   Eye,
-  Loader2,
   FileText,
   Repeat,
   PauseCircle,
@@ -22,11 +20,12 @@ import {
   useSetDocumentStatus,
   useSendDocumentEmail,
   useSetInvoiceSubscription,
-  useDownloadDocumentPdf,
   useSession,
 } from "@/hooks/use-data";
 import { DocumentPreview } from "@/components/documents/DocumentPreview";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
+import { DocumentPdfButton } from "@/components/documents/DocumentPdfButton";
+import { OmitSignatureToggle } from "@/components/documents/OmitSignatureToggle";
 import { MarkAsPaidDialog } from "@/components/documents/MarkAsPaidDialog";
 import { SubscriptionDialog } from "@/components/documents/SubscriptionDialog";
 import {
@@ -55,9 +54,9 @@ function InvoiceDetail() {
   const client = clients.find((c) => c.id === doc?.clientId);
   const setStatusMutation = useSetDocumentStatus();
   const sendEmailMutation = useSendDocumentEmail();
-  const downloadPdfMutation = useDownloadDocumentPdf();
   const subscriptionMutation = useSetInvoiceSubscription();
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [omitSignature, setOmitSignature] = useState(false);
   const [paidOpen, setPaidOpen] = useState(false);
   const [subOpen, setSubOpen] = useState(false);
   const [previewSeen, setPreviewSeen] = useState(false);
@@ -139,24 +138,6 @@ function InvoiceDetail() {
     });
   };
 
-  const downloadPdf = () => {
-    const toastId = toast.loading("Génération du PDF…");
-    downloadPdfMutation.mutate(doc, {
-      onSuccess: () =>
-        toast.success("PDF téléchargé", {
-          id: toastId,
-          description: `${doc.number}.pdf — signature physique possible`,
-        }),
-      onError: (err) => {
-        console.error(err);
-        toast.error("Impossible de générer le PDF", {
-          id: toastId,
-          description: err instanceof Error ? err.message : undefined,
-        });
-      },
-    });
-  };
-
   const pauseSubscription = () => {
     subscriptionMutation.mutate(
       { id: doc.id, enabled: false },
@@ -183,9 +164,7 @@ function InvoiceDetail() {
               <Edit3 className="h-4 w-4" /> Modifier
             </Link>
             <button onClick={() => setPreviewOpen(true)} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted"><Eye className="h-4 w-4" /> Aperçu</button>
-            <button onClick={downloadPdf} disabled={downloadPdfMutation.isPending} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60">
-              {downloadPdfMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} PDF
-            </button>
+            <DocumentPdfButton doc={doc} appearance="header" omitSignature={omitSignature} />
             <DocumentSignatureActions doc={doc} previewSeen={previewSeen} compact />
             <button onClick={sendByEmail} disabled={sendEmailMutation.isPending || !canSend} className={doc.status === "signed" ? "inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow disabled:opacity-60" : "inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60"}><Send className="h-4 w-4" /> {sendEmailMutation.isPending ? "Envoi…" : "Envoyer"}</button>
             {doc.status !== "paid" && doc.status !== "cancelled" && (
@@ -324,9 +303,12 @@ function InvoiceDetail() {
         </aside>
 
         <div>
-          <div className="mb-3 flex items-center justify-between">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div className="text-xs uppercase tracking-wider text-muted-foreground">Aperçu</div>
-            <button type="button" onClick={() => setPreviewOpen(true)} className="text-xs font-medium text-primary hover:underline">Plein écran</button>
+            <div className="flex items-center gap-3">
+              <OmitSignatureToggle checked={omitSignature} onCheckedChange={setOmitSignature} />
+              <button type="button" onClick={() => setPreviewOpen(true)} className="text-xs font-medium text-primary hover:underline">Plein écran</button>
+            </div>
           </div>
           <div
             className="cursor-pointer"
@@ -336,7 +318,7 @@ function InvoiceDetail() {
             }}
             onMouseEnter={() => setPreviewSeen(true)}
           >
-            <DocumentPreview doc={doc} />
+            <DocumentPreview doc={doc} omitSignature={omitSignature} />
           </div>
         </div>
       </div>
@@ -348,6 +330,8 @@ function InvoiceDetail() {
           setPreviewOpen(o);
           if (o) setPreviewSeen(true);
         }}
+        omitSignature={omitSignature}
+        onOmitSignatureChange={setOmitSignature}
       />
       <MarkAsPaidDialog
         open={paidOpen}

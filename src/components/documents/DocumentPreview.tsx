@@ -9,6 +9,8 @@ type Props = {
   compact?: boolean;
   variant?: "full" | "thumb";
   className?: string;
+  /** PDF / aperçu d’impression : pas de tampon électronique. */
+  omitSignature?: boolean;
 };
 
 export const DocumentPreview = forwardRef<HTMLDivElement, Props>(function DocumentPreview(props, ref) {

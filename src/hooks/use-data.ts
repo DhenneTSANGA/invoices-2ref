@@ -457,11 +457,17 @@ export function useDocumentPdfTraces(documentId: string | undefined) {
   });
 }
 
+export type DownloadDocumentPdfInput = {
+  doc: Document;
+  omitSignature?: boolean;
+};
+
 export function useDownloadDocumentPdf() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (doc: Document) => downloadDocumentPdf(doc),
-    onSuccess: (_res, doc) => {
+    mutationFn: ({ doc, omitSignature }: DownloadDocumentPdfInput) =>
+      downloadDocumentPdf(doc, { omitSignature }),
+    onSuccess: (_res, { doc }) => {
       if (doc.id) {
         void qc.invalidateQueries({ queryKey: documentPdfTracesKey(doc.id) });
       }

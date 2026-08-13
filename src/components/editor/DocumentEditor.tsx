@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Plus, Trash2, Save, Send, Download, Eye, Loader2, Users, Check, PenLine, Stamp } from "lucide-react";
+import { Plus, Trash2, Save, Send, Eye, Users, Check, PenLine, Stamp } from "lucide-react";
 import { toast } from "sonner";
 import {
   computeTotals,
@@ -17,7 +17,8 @@ import {
 } from "@/lib/document-math";
 import type { Document, DocumentSection, DocumentType, LineItem } from "@/store/types";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
-import { downloadDocumentPdf } from "@/lib/pdf/downloadDocumentPdf";
+import { DocumentPdfButton } from "@/components/documents/DocumentPdfButton";
+import { OmitSignatureToggle } from "@/components/documents/OmitSignatureToggle";
 import { number } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -122,7 +123,7 @@ export function DocumentEditor({ initial, type }: Props) {
   }, [isNew, commercial, peekedNumber?.number]);
 
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [exporting, setExporting] = useState(false);
+  const [omitSignature, setOmitSignature] = useState(false);
   const [saving, setSaving] = useState(false);
   /** Choix avant saisie : lignes HT classiques, ou montant TTC global. */
   const [amountMode, setAmountMode] = useState<"ht" | "ttc">("ht");
@@ -619,26 +620,6 @@ export function DocumentEditor({ initial, type }: Props) {
       toast.error(err instanceof Error ? err.message : "Signature impossible");
     } finally {
       setSaving(false);
-    }
-  };
-
-  const downloadPdf = async () => {
-    setExporting(true);
-    const toastId = toast.loading("Génération du PDF…");
-    try {
-      await downloadDocumentPdf(merged);
-      toast.success("PDF téléchargé", {
-        id: toastId,
-        description: `${merged.number}.pdf`,
-      });
-    } catch (err) {
-      console.error(err);
-      toast.error("Impossible de générer le PDF", {
-        id: toastId,
-        description: err instanceof Error ? err.message : undefined,
-      });
-    } finally {
-      setExporting(false);
     }
   };
 
@@ -1306,7 +1287,8 @@ export function DocumentEditor({ initial, type }: Props) {
         />
       </div>
 
-      <div className="flex flex-wrap items-center justify-end gap-2">
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        <OmitSignatureToggle checked={omitSignature} onCheckedChange={setOmitSignature} />
         <Button
           variant="outline"
           className="rounded-xl"
@@ -1314,19 +1296,7 @@ export function DocumentEditor({ initial, type }: Props) {
         >
           <Eye className="h-4 w-4" /> Aperçu
         </Button>
-        <Button
-          variant="outline"
-          className="rounded-xl"
-          disabled={exporting}
-          onClick={downloadPdf}
-        >
-          {exporting ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Download className="h-4 w-4" />
-          )}
-          PDF
-        </Button>
+        <DocumentPdfButton doc={merged} omitSignature={omitSignature} />
         <Button
           variant="outline"
           className="rounded-xl"
@@ -1378,6 +1348,8 @@ export function DocumentEditor({ initial, type }: Props) {
         doc={merged}
         open={previewOpen}
         onOpenChange={setPreviewOpen}
+        omitSignature={omitSignature}
+        onOmitSignatureChange={setOmitSignature}
       />
     </div>
   );

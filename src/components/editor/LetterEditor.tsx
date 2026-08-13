@@ -3,9 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import {
   Save,
   Send,
-  Download,
   Eye,
-  Loader2,
   FileText,
   UserRound,
   PenLine,
@@ -15,7 +13,8 @@ import {
 import { toast } from "sonner";
 import type { Document } from "@/store/types";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
-import { downloadDocumentPdf } from "@/lib/pdf/downloadDocumentPdf";
+import { DocumentPdfButton } from "@/components/documents/DocumentPdfButton";
+import { OmitSignatureToggle } from "@/components/documents/OmitSignatureToggle";
 import { Button } from "@/components/ui/button";
 import { LoadingState } from "@/components/common/LoadingState";
 import {
@@ -71,7 +70,7 @@ export function LetterEditor({ initial }: Props) {
   );
 
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [exporting, setExporting] = useState(false);
+  const [omitSignature, setOmitSignature] = useState(false);
 
   useEffect(() => {
     if (initial) return;
@@ -193,23 +192,6 @@ export function LetterEditor({ initial }: Props) {
       void navigate({ to: "/lettre" });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Envoi impossible");
-    }
-  };
-
-  const downloadPdf = async () => {
-    setExporting(true);
-    const toastId = toast.loading("Génération du PDF…");
-    try {
-      await downloadDocumentPdf(previewDoc);
-      toast.success("PDF téléchargé", { id: toastId, description: `${doc.number}.pdf` });
-    } catch (err) {
-      console.error(err);
-      toast.error("Impossible de générer le PDF", {
-        id: toastId,
-        description: err instanceof Error ? err.message : undefined,
-      });
-    } finally {
-      setExporting(false);
     }
   };
 
@@ -341,19 +323,12 @@ export function LetterEditor({ initial }: Props) {
           />
         </Section>
 
-        <div className="flex flex-wrap items-center justify-end gap-2 rounded-3xl border border-border/50 bg-surface/80 p-3 backdrop-blur">
+        <div className="flex flex-wrap items-center justify-end gap-3 rounded-3xl border border-border/50 bg-surface/80 p-3 backdrop-blur">
+          <OmitSignatureToggle checked={omitSignature} onCheckedChange={setOmitSignature} />
           <Button variant="outline" className="rounded-xl" onClick={() => setPreviewOpen(true)}>
             <Eye className="h-4 w-4" /> Aperçu
           </Button>
-          <Button
-            variant="outline"
-            className="rounded-xl"
-            disabled={exporting}
-            onClick={downloadPdf}
-          >
-            {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-            PDF
-          </Button>
+          <DocumentPdfButton doc={previewDoc} omitSignature={omitSignature} />
           <Button
             variant="outline"
             className="rounded-xl"
@@ -394,7 +369,13 @@ export function LetterEditor({ initial }: Props) {
         </div>
       </div>
 
-      <DocumentPreviewModal doc={previewDoc} open={previewOpen} onOpenChange={setPreviewOpen} />
+      <DocumentPreviewModal
+        doc={previewDoc}
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        omitSignature={omitSignature}
+        onOmitSignatureChange={setOmitSignature}
+      />
     </div>
   );
 }

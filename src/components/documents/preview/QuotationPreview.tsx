@@ -21,12 +21,18 @@ import { clientDisplayName, clientDocumentLines } from "@/lib/client-address";
 import { ManagerSignature } from "@/components/signature/ManagerSignature";
 import { cn } from "@/lib/utils";
 
-type Props = { doc: Document; compact?: boolean; variant?: "full" | "thumb"; className?: string };
+type Props = {
+  doc: Document;
+  compact?: boolean;
+  variant?: "full" | "thumb";
+  className?: string;
+  omitSignature?: boolean;
+};
 
 const { accent: ACCENT, accentTo: ACCENT_TO } = DOCUMENT_COLORS.quotation;
 
 export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function QuotationPreview(
-  { doc, compact, variant = "full", className },
+  { doc, compact, variant = "full", className, omitSignature },
   ref,
 ) {
   const { company, client } = usePreviewData(doc);
@@ -55,7 +61,7 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
       >
         <div className="flex min-w-0 items-center gap-2.5">
           <div className="shrink-0">
-            <PreviewLogo cabinet={doc.cabinet} className="h-32" />
+            <PreviewLogo cabinet={doc.cabinet} className="h-40" />
           </div>
           <div className="min-w-0">
             <div
@@ -206,6 +212,8 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
           signatoryTitle="Le Gérant"
           accent={ACCENT}
           compact={dense}
+          forPdf={compact}
+          omitStamp={omitSignature}
         />
       </div>
 
