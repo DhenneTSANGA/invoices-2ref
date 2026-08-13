@@ -18,7 +18,6 @@ import {
 import type { Document, DocumentSection, DocumentType, LineItem } from "@/store/types";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 import { DocumentPdfButton } from "@/components/documents/DocumentPdfButton";
-import { OmitSignatureToggle } from "@/components/documents/OmitSignatureToggle";
 import { number } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -123,7 +122,6 @@ export function DocumentEditor({ initial, type }: Props) {
   }, [isNew, commercial, peekedNumber?.number]);
 
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [omitSignature, setOmitSignature] = useState(false);
   const [saving, setSaving] = useState(false);
   /** Choix avant saisie : lignes HT classiques, ou montant TTC global. */
   const [amountMode, setAmountMode] = useState<"ht" | "ttc">("ht");
@@ -1287,8 +1285,7 @@ export function DocumentEditor({ initial, type }: Props) {
         />
       </div>
 
-      <div className="flex flex-wrap items-center justify-end gap-3">
-        <OmitSignatureToggle checked={omitSignature} onCheckedChange={setOmitSignature} />
+      <div className="flex flex-wrap items-center justify-end gap-2">
         <Button
           variant="outline"
           className="rounded-xl"
@@ -1296,7 +1293,7 @@ export function DocumentEditor({ initial, type }: Props) {
         >
           <Eye className="h-4 w-4" /> Aperçu
         </Button>
-        <DocumentPdfButton doc={merged} omitSignature={omitSignature} />
+        <DocumentPdfButton doc={merged} />
         <Button
           variant="outline"
           className="rounded-xl"
@@ -1348,8 +1345,6 @@ export function DocumentEditor({ initial, type }: Props) {
         doc={merged}
         open={previewOpen}
         onOpenChange={setPreviewOpen}
-        omitSignature={omitSignature}
-        onOmitSignatureChange={setOmitSignature}
       />
     </div>
   );

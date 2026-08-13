@@ -14,7 +14,6 @@ import {
 import { DocumentPreview } from "@/components/documents/DocumentPreview";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 import { DocumentPdfButton } from "@/components/documents/DocumentPdfButton";
-import { OmitSignatureToggle } from "@/components/documents/OmitSignatureToggle";
 import {
   DocumentSignatureActions,
   documentCanSendEmail,
@@ -40,7 +39,6 @@ function QuotationDetail() {
   const setStatusMutation = useSetDocumentStatus();
   const sendEmailMutation = useSendDocumentEmail();
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [omitSignature, setOmitSignature] = useState(false);
   const [previewSeen, setPreviewSeen] = useState(false);
 
   const adminLike = session ? isAdmin(session.staff.role) : false;
@@ -109,7 +107,7 @@ function QuotationDetail() {
         actions={
           <>
             <button onClick={() => setPreviewOpen(true)} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted"><Eye className="h-4 w-4" /> Aperçu</button>
-            <DocumentPdfButton doc={doc} appearance="header" omitSignature={omitSignature} />
+            <DocumentPdfButton doc={doc} appearance="header" />
             <DocumentSignatureActions doc={doc} previewSeen={previewSeen} compact />
             <button onClick={sendByEmail} disabled={sendEmailMutation.isPending || !canSend} className={doc.status === "signed" ? "inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow disabled:opacity-60" : "inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60"}><Send className="h-4 w-4" /> {sendEmailMutation.isPending ? "Envoi…" : "Envoyer"}</button>
             <button onClick={() => patchStatus("accepted", "Devis accepté")} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-success px-4 py-2 text-sm font-medium text-success-foreground shadow"><CheckCircle2 className="h-4 w-4" /> Accepter</button>
@@ -171,12 +169,9 @@ function QuotationDetail() {
           <DocumentPdfTracesPanel documentId={doc.id} />
         </aside>
         <div>
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="mb-3 flex items-center justify-between">
             <div className="text-xs uppercase tracking-wider text-muted-foreground">Aperçu</div>
-            <div className="flex items-center gap-3">
-              <OmitSignatureToggle checked={omitSignature} onCheckedChange={setOmitSignature} />
-              <button type="button" onClick={() => setPreviewOpen(true)} className="text-xs font-medium text-primary hover:underline">Plein écran</button>
-            </div>
+            <button type="button" onClick={() => setPreviewOpen(true)} className="text-xs font-medium text-primary hover:underline">Plein écran</button>
           </div>
           <div
             className="cursor-pointer"
@@ -186,7 +181,7 @@ function QuotationDetail() {
             }}
             onMouseEnter={() => setPreviewSeen(true)}
           >
-            <DocumentPreview doc={doc} omitSignature={omitSignature} />
+            <DocumentPreview doc={doc} />
           </div>
         </div>
       </div>
@@ -198,8 +193,6 @@ function QuotationDetail() {
           setPreviewOpen(o);
           if (o) setPreviewSeen(true);
         }}
-        omitSignature={omitSignature}
-        onOmitSignatureChange={setOmitSignature}
       />
     </div>
   );

@@ -127,6 +127,7 @@ export async function buildDocumentPdfFromDoc(
   doc: Document,
   options?: { omitSignature?: boolean },
 ): Promise<BuiltPdf> {
+  const omitSignature = options?.omitSignature ?? true;
   const [company, clients, singleClient] = await Promise.all([
     getCompanyForCabinet({ data: { cabinet: doc.cabinet } }).catch(
       () => COMPANY_DEFAULTS[doc.cabinet],
@@ -181,8 +182,8 @@ export async function buildDocumentPdfFromDoc(
     flushSync(() => {
       root!.render(
         <QueryClientProvider client={queryClient}>
-          {/* Même rendu que l’aperçu écran (pas de densification) */}
-          <DocumentPreview doc={doc} compact omitSignature={options?.omitSignature} />
+          {/* Impression : pas de tampon. E-mail : omitSignature false. */}
+          <DocumentPreview doc={doc} compact omitSignature={omitSignature} />
         </QueryClientProvider>,
       );
     });
@@ -215,11 +216,8 @@ export async function buildDocumentPdfFromDoc(
  * Génère le PDF, l'enregistre comme trace (Storage + DB), puis télécharge localement.
  * Les documents non persistés (brouillon tmp) sont seulement téléchargés.
  */
-export async function downloadDocumentPdf(
-  doc: Document,
-  options?: { omitSignature?: boolean },
-): Promise<void> {
-  const built = await buildDocumentPdfFromDoc(doc, options);
+export async function downloadDocumentPdf(doc: Document): Promise<void> {
+  const built = await buildDocumentPdfFromDoc(doc, { omitSignature: true });
   const persisted =
     Boolean(doc.id) &&
     !doc.id.startsWith("d-") &&

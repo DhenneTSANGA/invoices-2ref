@@ -14,7 +14,6 @@ import { toast } from "sonner";
 import type { Document } from "@/store/types";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 import { DocumentPdfButton } from "@/components/documents/DocumentPdfButton";
-import { OmitSignatureToggle } from "@/components/documents/OmitSignatureToggle";
 import { Button } from "@/components/ui/button";
 import { LoadingState } from "@/components/common/LoadingState";
 import {
@@ -70,7 +69,6 @@ export function LetterEditor({ initial }: Props) {
   );
 
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [omitSignature, setOmitSignature] = useState(false);
 
   useEffect(() => {
     if (initial) return;
@@ -323,12 +321,11 @@ export function LetterEditor({ initial }: Props) {
           />
         </Section>
 
-        <div className="flex flex-wrap items-center justify-end gap-3 rounded-3xl border border-border/50 bg-surface/80 p-3 backdrop-blur">
-          <OmitSignatureToggle checked={omitSignature} onCheckedChange={setOmitSignature} />
+        <div className="flex flex-wrap items-center justify-end gap-2 rounded-3xl border border-border/50 bg-surface/80 p-3 backdrop-blur">
           <Button variant="outline" className="rounded-xl" onClick={() => setPreviewOpen(true)}>
             <Eye className="h-4 w-4" /> Aperçu
           </Button>
-          <DocumentPdfButton doc={previewDoc} omitSignature={omitSignature} />
+          <DocumentPdfButton doc={previewDoc} />
           <Button
             variant="outline"
             className="rounded-xl"
@@ -369,13 +366,7 @@ export function LetterEditor({ initial }: Props) {
         </div>
       </div>
 
-      <DocumentPreviewModal
-        doc={previewDoc}
-        open={previewOpen}
-        onOpenChange={setPreviewOpen}
-        omitSignature={omitSignature}
-        onOmitSignatureChange={setOmitSignature}
-      />
+      <DocumentPreviewModal doc={previewDoc} open={previewOpen} onOpenChange={setPreviewOpen} />
     </div>
   );
 }

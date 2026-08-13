@@ -201,7 +201,13 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
       />
 
       <div className={cn("w-full", dense ? "mt-2" : "mt-4")}>
-        <AmountInWords amount={doc.total} currency={doc.currency} accent={ACCENT} compact={dense} />
+        <AmountInWords
+          amount={doc.total}
+          currency={doc.currency}
+          accent={ACCENT}
+          compact={dense}
+          intro="Arrêtée le présent devis à la somme de"
+        />
       </div>
 
       <div className={cn("flex justify-end", dense ? "mt-2" : "mt-4")}>

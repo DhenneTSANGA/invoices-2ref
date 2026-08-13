@@ -1,9 +1,7 @@
-import { useState } from "react";
 import { X } from "lucide-react";
 import type { Document } from "@/store/types";
 import { DocumentPreview } from "@/components/documents/DocumentPreview";
 import { DocumentPdfButton } from "@/components/documents/DocumentPdfButton";
-import { OmitSignatureToggle } from "@/components/documents/OmitSignatureToggle";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,21 +15,9 @@ type Props = {
   doc: Document;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  omitSignature?: boolean;
-  onOmitSignatureChange?: (checked: boolean) => void;
 };
 
-export function DocumentPreviewModal({
-  doc,
-  open,
-  onOpenChange,
-  omitSignature: omitSignatureProp,
-  onOmitSignatureChange,
-}: Props) {
-  const [omitLocal, setOmitLocal] = useState(false);
-  const omitSignature = omitSignatureProp ?? omitLocal;
-  const setOmitSignature = onOmitSignatureChange ?? setOmitLocal;
-
+export function DocumentPreviewModal({ doc, open, onOpenChange }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -47,15 +33,9 @@ export function DocumentPreviewModal({
             </DialogDescription>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-3">
-            <OmitSignatureToggle
-              checked={omitSignature}
-              onCheckedChange={setOmitSignature}
-              className="text-white/80"
-            />
             <DocumentPdfButton
               doc={doc}
               size="sm"
-              omitSignature={omitSignature}
               className="border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white"
             />
             <Button
@@ -80,7 +60,7 @@ export function DocumentPreviewModal({
             onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.stopPropagation()}
           >
-            <DocumentPreview doc={doc} omitSignature={omitSignature} />
+            <DocumentPreview doc={doc} />
           </div>
         </div>
       </DialogContent>

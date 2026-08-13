@@ -429,7 +429,7 @@ export function useSendDocumentEmail() {
       if (typeof input === "string") {
         return sendDocumentEmail({ data: { id: input } });
       }
-      const built = await buildDocumentPdfFromDoc(input);
+      const built = await buildDocumentPdfFromDoc(input, { omitSignature: false });
       return sendDocumentEmail({
         data: {
           id: input.id,
@@ -457,17 +457,11 @@ export function useDocumentPdfTraces(documentId: string | undefined) {
   });
 }
 
-export type DownloadDocumentPdfInput = {
-  doc: Document;
-  omitSignature?: boolean;
-};
-
 export function useDownloadDocumentPdf() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ doc, omitSignature }: DownloadDocumentPdfInput) =>
-      downloadDocumentPdf(doc, { omitSignature }),
-    onSuccess: (_res, { doc }) => {
+    mutationFn: (doc: Document) => downloadDocumentPdf(doc),
+    onSuccess: (_res, doc) => {
       if (doc.id) {
         void qc.invalidateQueries({ queryKey: documentPdfTracesKey(doc.id) });
       }

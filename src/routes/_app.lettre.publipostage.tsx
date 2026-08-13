@@ -352,7 +352,7 @@ function MailMergePage() {
         continue;
       }
       try {
-        const pdf = await buildDocumentPdfFromDoc(doc);
+        const pdf = await buildDocumentPdfFromDoc(doc, { omitSignature: false });
         await sendDocumentEmail({
           data: {
             id: doc.id,

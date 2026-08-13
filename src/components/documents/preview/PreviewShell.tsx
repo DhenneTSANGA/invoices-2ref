@@ -176,13 +176,16 @@ export function LegalFooter({
   return (
     <div
       className={cn(
-        "mt-auto shrink-0 border-t border-[#E2E8F0] text-center leading-snug text-[#64748B]",
-        compact ? "pt-2 text-[9px]" : "pt-2 text-[11px]",
+        "mt-auto shrink-0 border-t border-[#E2E8F0] text-center leading-tight text-[#64748B]",
+        compact ? "pt-2 text-[8px]" : "pt-2 text-[10px]",
       )}
     >
-      {legalParts.join(" · ")}
-      <br />
-      {[phone, email, website].filter(Boolean).join(" · ")}
+      <div className="overflow-hidden text-ellipsis whitespace-nowrap">
+        {legalParts.join(" · ")}
+      </div>
+      <div className="overflow-hidden text-ellipsis whitespace-nowrap">
+        {[phone, email, website].filter(Boolean).join(" · ")}
+      </div>
     </div>
   );
 }
@@ -193,11 +196,13 @@ export function AmountInWords({
   currency = "XAF",
   accent = "#01004C",
   compact,
+  intro = "Arrêtée la présente facture à la somme de",
 }: {
   amount: number;
   currency?: string;
   accent?: string;
   compact?: boolean;
+  intro?: string;
 }) {
   const words = amountInWords(amount, currency);
   return (
@@ -208,13 +213,18 @@ export function AmountInWords({
       )}
       style={{ borderColor: `${accent}33`, background: `${accent}08` }}
     >
-      <div className={cn("text-[#64748B]", compact ? "text-[11px]" : "text-[13px]")}>
-        Arrêtée la présente facture à la somme de
+      <div
+        className={cn(
+          "whitespace-nowrap text-[#64748B]",
+          compact ? "text-[10px]" : "text-[12px]",
+        )}
+      >
+        {intro}
       </div>
       <p
         className={cn(
           "break-words font-bold leading-snug text-[#0F172A]",
-          compact ? "mt-1 text-[12px]" : "mt-1.5 text-[15px]",
+          compact ? "mt-0.5 text-[11px]" : "mt-1 text-[14px]",
         )}
       >
         {words}

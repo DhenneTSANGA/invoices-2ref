@@ -25,7 +25,6 @@ import {
 import { DocumentPreview } from "@/components/documents/DocumentPreview";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 import { DocumentPdfButton } from "@/components/documents/DocumentPdfButton";
-import { OmitSignatureToggle } from "@/components/documents/OmitSignatureToggle";
 import { DocumentPdfTracesPanel } from "@/components/documents/DocumentPdfTracesPanel";
 import { SignedDocumentReadyBanner } from "@/components/documents/SignedDocumentReadyBanner";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -51,7 +50,6 @@ function LetterDetail() {
   const signMutation = useSignLetterDocument();
   const rejectMutation = useRejectLetterSignature();
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [omitSignature, setOmitSignature] = useState(false);
   const [editing, setEditing] = useState(false);
   /** L’admin doit avoir consulté l’aperçu sur cette page avant de signer. */
   const [previewSeen, setPreviewSeen] = useState(false);
@@ -135,7 +133,7 @@ function LetterDetail() {
             >
               <Eye className="h-4 w-4" /> Aperçu
             </button>
-            <DocumentPdfButton doc={doc} appearance="header" omitSignature={omitSignature} />
+            <DocumentPdfButton doc={doc} appearance="header" />
             {canEdit && (
               <button
                 onClick={() => setEditing(true)}
@@ -262,9 +260,6 @@ function LetterDetail() {
 
       {doc.status === "signed" && <SignedDocumentReadyBanner type={doc.type} />}
 
-      <div className="mb-3 flex flex-wrap items-center justify-end gap-3">
-        <OmitSignatureToggle checked={omitSignature} onCheckedChange={setOmitSignature} />
-      </div>
       <div
         className={cn(
           "mb-6 cursor-pointer rounded-2xl transition",
@@ -276,7 +271,7 @@ function LetterDetail() {
         }}
         onMouseEnter={markPreviewSeen}
       >
-        <DocumentPreview doc={doc} omitSignature={omitSignature} />
+        <DocumentPreview doc={doc} />
       </div>
       <DocumentPdfTracesPanel documentId={doc.id} />
       <DocumentPreviewModal
@@ -286,8 +281,6 @@ function LetterDetail() {
           if (open) markPreviewSeen();
           setPreviewOpen(open);
         }}
-        omitSignature={omitSignature}
-        onOmitSignatureChange={setOmitSignature}
       />
     </div>
   );
