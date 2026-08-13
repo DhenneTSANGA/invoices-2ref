@@ -46,7 +46,7 @@ export function ManagerSignature({
     <div
       className={cn(
         "translate-x-3 text-center",
-        compact ? "w-48" : "w-[32rem] max-w-full",
+        compact ? "w-48" : "w-[30rem] max-w-full",
         className,
       )}
     >
@@ -59,7 +59,7 @@ export function ManagerSignature({
           decoding="sync"
           className={cn(
             "mx-auto bg-white object-contain object-right [print-color-adjust:exact] [-webkit-print-color-adjust:exact]",
-            compact ? "max-h-20 max-w-[11rem]" : "h-auto max-h-[17rem] w-full",
+            compact ? "max-h-20 max-w-[11rem]" : "h-auto max-h-64 w-full",
           )}
           style={{ color: "transparent", mixBlendMode: "normal", filter: "none" }}
         />
