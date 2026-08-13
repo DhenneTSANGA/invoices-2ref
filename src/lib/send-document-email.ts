@@ -386,10 +386,10 @@ ${escapeHtml(params.body)}
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:36px;">
       <tr>
         <td></td>
-        <td width="410" align="right" style="padding:12px 0 12px 20px;">
+        <td width="380" align="right" style="padding:12px 0 12px 20px;">
           ${
             signatureUrl
-              ? `<div><img src="${escapeHtml(signatureUrl)}" alt="Signature" width="410" style="max-width:410px;height:auto;display:inline-block;" /></div>`
+              ? `<div><img src="${escapeHtml(signatureUrl)}" alt="Signature" width="380" style="max-width:380px;height:auto;display:inline-block;" /></div>`
               : ""
           }
           ${
