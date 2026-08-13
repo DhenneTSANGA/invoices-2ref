@@ -83,14 +83,14 @@ export function normalizeJobTitleValue(value: string): StaffJobTitleValue | null
 export const COMPANY_DEFAULTS: Record<Cabinet, CompanyInfo> = {
   expertise_fiscale: {
     name: "2R EXPERTISE FISCALE",
-    tagline: "Libreville, Port-Gentil et Moanda",
+    tagline: "Libreville - Port-Gentil",
     capital: "SARL au capital de 10 000 000 F CFA",
     nif: "202601003286 Z",
     niu: "—",
     rccm: "GALBV LBV 2026 B12 B1200162",
     cnss: "",
     address: "BP 20 478, Cité Bas de Gué-Gué",
-    city: "Libreville, Gabon",
+    city: "Libreville - Port-Gentil, Gabon",
     phone: "011 44 39 64 / 065 10 99 10",
     email: "expertise.fiscale@2ref.ga",
     website: "www.2ref.ga",

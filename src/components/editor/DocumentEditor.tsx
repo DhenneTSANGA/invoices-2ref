@@ -85,6 +85,9 @@ export function DocumentEditor({ initial, type }: Props) {
       discount: initial.discount ?? 0,
       items,
       sections: initial.sections ?? [],
+      dueDate:
+        initial.dueDate?.trim() ||
+        addDaysIso(initial.issueDate, initial.validityDays ?? 30),
     };
   });
 
@@ -490,7 +493,11 @@ export function DocumentEditor({ initial, type }: Props) {
     clientId: merged.clientId,
     status: status === "sent" ? ("draft" as const) : status,
     issueDate: merged.issueDate,
-    dueDate: merged.dueDate?.trim() ? merged.dueDate : null,
+    dueDate: merged.dueDate?.trim()
+      ? merged.dueDate
+      : commercial
+        ? addDaysIso(merged.issueDate, type === "quotation" ? (merged.validityDays ?? 30) : 30)
+        : null,
     currency: merged.currency,
     notes: merged.notes ?? null,
     paymentTerms: type === "quotation" ? null : (merged.paymentTerms ?? null),
@@ -680,18 +687,13 @@ export function DocumentEditor({ initial, type }: Props) {
             value={doc.issueDate}
             onChange={(v) => {
               const issueDate = v;
-              if (
-                commercial &&
-                doc.dueDate &&
-                (doc.validityDays ?? 0) > 0
-              ) {
+              if (commercial) {
+                const days =
+                  type === "quotation" ? (doc.validityDays ?? 30) : 30;
                 setDoc({
                   ...doc,
                   issueDate,
-                  dueDate: addDaysIso(
-                    issueDate,
-                    type === "quotation" ? (doc.validityDays ?? 30) : 30,
-                  ),
+                  dueDate: addDaysIso(issueDate, days),
                 });
               } else {
                 setDoc({ ...doc, issueDate });
@@ -699,47 +701,17 @@ export function DocumentEditor({ initial, type }: Props) {
             }}
           />
           {commercial ? (
-            <div>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  {type === "quotation" ? "Validité jusqu’au" : "Échéance"}
-                </span>
-                <Switch
-                  checked={Boolean(doc.dueDate)}
-                  onCheckedChange={(on) => {
-                    if (on) {
-                      const days =
-                        type === "quotation"
-                          ? (doc.validityDays ?? 30)
-                          : 30;
-                      setDoc({
-                        ...doc,
-                        dueDate: addDaysIso(doc.issueDate, days),
-                      });
-                    } else {
-                      setDoc({ ...doc, dueDate: null });
-                    }
-                  }}
-                />
-              </div>
-              {doc.dueDate ? (
-                <input
-                  type="date"
-                  className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
-                  value={doc.dueDate}
-                  onChange={(e) =>
-                    setDoc({
-                      ...doc,
-                      dueDate: e.target.value.trim() ? e.target.value : null,
-                    })
-                  }
-                />
-              ) : (
-                <div className="mt-1 flex h-[42px] items-center rounded-xl border border-dashed border-border/50 px-3 text-xs text-muted-foreground">
-                  Non affichée
-                </div>
-              )}
-            </div>
+            <Field
+              label="Date d'échéance"
+              type="date"
+              value={doc.dueDate || addDaysIso(doc.issueDate, type === "quotation" ? (doc.validityDays ?? 30) : 30)}
+              onChange={(v) =>
+                setDoc({
+                  ...doc,
+                  dueDate: v.trim() || addDaysIso(doc.issueDate, 30),
+                })
+              }
+            />
           ) : null}
           {type === "quotation" ? (
             <>
@@ -752,9 +724,7 @@ export function DocumentEditor({ initial, type }: Props) {
                   setDoc({
                     ...doc,
                     validityDays: days,
-                    ...(doc.dueDate
-                      ? { dueDate: addDaysIso(doc.issueDate, days) }
-                      : {}),
+                    dueDate: addDaysIso(doc.issueDate, days),
                   });
                 }}
               />
@@ -997,7 +967,7 @@ export function DocumentEditor({ initial, type }: Props) {
                   checked={sectionsEnabled}
                   onCheckedChange={enableSections}
                 />
-                Regrouper par tâche
+                Regrouper par prestation(s)
               </label>
             ) : null}
             {commercial && sectionsEnabled ? (
@@ -1008,7 +978,7 @@ export function DocumentEditor({ initial, type }: Props) {
                 size="sm"
                 className="rounded-xl"
               >
-                <Plus className="h-4 w-4" /> Tâche
+                <Plus className="h-4 w-4" /> Prestation
               </Button>
             ) : null}
             {(!commercial || amountMode === "ht") && !sectionsEnabled && (
@@ -1058,7 +1028,7 @@ export function DocumentEditor({ initial, type }: Props) {
                 >
                   <div className="flex flex-wrap items-center gap-2 bg-primary/10 px-3 py-2">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-primary">
-                      Tâche
+                      Prestation(s)
                     </span>
                     <input
                       className="min-w-[12rem] flex-1 rounded-lg border border-border/60 bg-surface px-2.5 py-1.5 text-sm font-semibold focus:border-primary focus:outline-none"
@@ -1715,7 +1685,7 @@ function defaultDoc(
     createdById: "staff-mireille",
     status: "draft" as const,
     issueDate: today,
-    dueDate: null as string | null,
+    dueDate: addDaysIso(today, 30) as string | null,
     items: [] as LineItem[],
     sections: [] as DocumentSection[],
     subtotal: 0,

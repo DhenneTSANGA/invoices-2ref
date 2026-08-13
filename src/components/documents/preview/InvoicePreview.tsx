@@ -13,11 +13,7 @@ import {
 import { computeDocumentTotals, documentTaxRates } from "@/lib/document-math";
 import { COMPANY_DEFAULTS, DOCUMENT_COLORS } from "@/lib/cabinets";
 import { ManagerSignature } from "@/components/signature/ManagerSignature";
-import {
-  clientDisplayName,
-  clientRepresentativeLine,
-  formatClientBp,
-} from "@/lib/client-address";
+import { clientDisplayName, clientDocumentLines } from "@/lib/client-address";
 import { cn } from "@/lib/utils";
 
 type Props = { doc: Document; compact?: boolean; variant?: "full" | "thumb"; className?: string };
@@ -47,18 +43,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
     company.website,
   ]);
 
-  const clientLines = client
-    ? partyAddressLines([
-        client.address,
-        formatClientBp(client.bp),
-        [client.city, client.country].filter(Boolean).join(", "),
-        partyContactLine([
-          clientRepresentativeLine(client),
-          client.email,
-          client.phone,
-        ]),
-      ])
-    : undefined;
+  const clientLines = client ? clientDocumentLines(client) : undefined;
 
   return (
     <PreviewShell innerRef={ref} accent={accent} compact={compact} isThumb={isThumb} className={className}>
@@ -135,13 +120,13 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
             <td style={{ width: "50%", verticalAlign: "top", paddingLeft: "12px" }}>
               <PartyBlock
                 title="Client"
-                accent={accent}
+                accent="#64748B"
                 name={client ? clientDisplayName(client) : undefined}
                 lines={clientLines}
                 nif={client?.nif}
                 niu={client?.niu}
                 rccm={client?.rccm}
-                bordered
+                muted
                 compact={dense}
               />
             </td>
@@ -155,12 +140,12 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
           dense ? "mt-2 gap-x-5 gap-y-0.5 text-[10px]" : "mt-4 gap-x-6 gap-y-1 text-[12px]",
         )}
       >
-        <span>Date d'émission : <b className="text-[#0F172A]">{longDate(doc.issueDate)}</b></span>
-        {doc.dueDate ? (
-          <span>
-            Échéance : <b className="text-[#0F172A]">{longDate(doc.dueDate)}</b>
-          </span>
-        ) : null}
+        <span>
+          Date d&apos;échéance :{" "}
+          <b className="text-[#0F172A]">
+            {longDate(doc.dueDate || doc.issueDate)}
+          </b>
+        </span>
       </div>
 
       <ItemsTable doc={doc} headerFrom={accent} headerTo={accentTo} compact={dense} />
@@ -457,7 +442,7 @@ function ItemsTable({
               )}
               style={{ background: `linear-gradient(90deg, ${headerFrom}, ${headerTo})` }}
             >
-              Tâche
+              Prestation(s)
             </div>
             <div
               className={cn(

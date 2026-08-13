@@ -6,6 +6,8 @@ export { COMPANY_DEFAULTS };
 /** Ancien libellé Expertise Fiscale — remplacé automatiquement à l’affichage. */
 const LEGACY_EXPERTISE_TAGLINE =
   "SARL au capital de 10 000 000 F CFA — Conseil Fiscal";
+const LEGACY_CITIES_TAGLINE = "Libreville, Port-Gentil et Moanda";
+const LEGACY_EXPERTISE_CITY = "Libreville, Gabon";
 
 /** @deprecated Prefer COMPANY_DEFAULTS[cabinet] */
 export const REAL_2REF_COMPANY: CompanyInfo = COMPANY_DEFAULTS.expertise_fiscale;
@@ -18,11 +20,23 @@ function resolveTagline(
   const tagline = (raw ?? fallback).trim() || fallback;
   if (
     cabinet === "expertise_fiscale" &&
-    tagline === LEGACY_EXPERTISE_TAGLINE
+    (tagline === LEGACY_EXPERTISE_TAGLINE || tagline === LEGACY_CITIES_TAGLINE)
   ) {
     return fallback;
   }
   return tagline;
+}
+
+function resolveCity(
+  raw: string | null | undefined,
+  fallback: string,
+  cabinet: Cabinet,
+): string {
+  const city = (raw ?? fallback).trim() || fallback;
+  if (cabinet === "expertise_fiscale" && city === LEGACY_EXPERTISE_CITY) {
+    return fallback;
+  }
+  return city;
 }
 
 export function companyForPreview(
@@ -58,7 +72,7 @@ export function companyForPreview(
     rccm: row.rccm,
     cnss: row.cnss ?? "",
     address: row.address,
-    city: row.city,
+    city: resolveCity(row.city, fallback.city, cabinet),
     phone: row.phone,
     email: row.email,
     website: row.website ?? "",

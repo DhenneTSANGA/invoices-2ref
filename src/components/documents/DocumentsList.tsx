@@ -261,7 +261,7 @@ export function DocumentsList({ type }: { type: DocumentType }) {
                     <td className="px-5 py-3">{c?.name}</td>
                     <td className={cn("px-5 py-3", row.muted)}>{shortDate(d.issueDate)}</td>
                     <td className={cn("px-5 py-3", row.muted)}>
-                      {d.dueDate ? shortDate(d.dueDate) : "—"}
+                      {shortDate(d.dueDate || d.issueDate)}
                     </td>
                     <td className="px-5 py-3">
                       <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center">

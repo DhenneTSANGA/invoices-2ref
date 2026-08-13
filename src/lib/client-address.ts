@@ -6,6 +6,47 @@ export function formatClientBp(bp: string | null | undefined): string {
   return `BP ${raw}`;
 }
 
+/**
+ * Ligne d’adresse type émetteur : « BP 2963, Nouveau-Port, Lot 007 ».
+ * Si l’adresse contient déjà la BP, on ne la répète pas.
+ */
+export function clientStreetLine(client: {
+  address?: string | null;
+  bp?: string | null;
+}): string {
+  const address = client.address?.trim() ?? "";
+  const bp = formatClientBp(client.bp);
+  if (bp && address) {
+    if (
+      address.toLowerCase().includes(bp.toLowerCase()) ||
+      /^BP\b/i.test(address)
+    ) {
+      return address;
+    }
+    return `${bp}, ${address}`;
+  }
+  return bp || address;
+}
+
+/** Lignes d’identité client sur facture / devis (même ordre que l’émetteur). */
+export function clientDocumentLines(client: {
+  address?: string | null;
+  bp?: string | null;
+  city?: string | null;
+  country?: string | null;
+  phone?: string | null;
+  email?: string | null;
+}): string[] {
+  const contact = [client.phone?.trim(), client.email?.trim()]
+    .filter(Boolean)
+    .join(" · ");
+  return [
+    clientStreetLine(client),
+    [client.city?.trim(), client.country?.trim()].filter(Boolean).join(", "),
+    contact,
+  ].filter(Boolean);
+}
+
 /** Ligne postale pour courriers : BP — ville — pays. */
 export function clientLetterPostalLine(client: {
   bp?: string | null;

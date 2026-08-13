@@ -19,7 +19,12 @@ import { documentTypeLabel } from "@/lib/document-status-labels";
 import { canWriteDocument, isAdmin, isSuperAdmin } from "@/lib/roles";
 import type { CompanyInfo, DocumentType } from "@/store/types";
 import { logOutboundMail } from "@/lib/mail-log";
-import { clientLetterRecipientLines, clientDisplayName, clientRepresentativeLine } from "@/lib/client-address";
+import {
+  clientLetterRecipientLines,
+  clientDisplayName,
+  clientRepresentativeLine,
+  clientDocumentLines,
+} from "@/lib/client-address";
 
 async function requireSession() {
   const session = await getCurrentSession();
@@ -130,8 +135,7 @@ function emailShell(params: {
           <tr>
             <td style="padding:20px 28px 28px;">
               <div style="border-top:1px solid #E2E8F0;padding-top:14px;font-size:11px;line-height:1.55;color:#94A3B8;text-align:center;">
-                ${escapeHtml(legalBits.join(" · "))}<br/>
-                Document conforme aux usages OHADA / zone CEMAC
+                ${escapeHtml(legalBits.join(" · "))}
               </div>
             </td>
           </tr>
@@ -150,8 +154,7 @@ function buildCommercialEmailHtml(params: {
   number: string;
   clientName: string;
   contactName: string;
-  clientAddress?: string;
-  clientCity?: string;
+  clientLines: string[];
   clientNif?: string;
   clientRccm?: string;
   clientCnss?: string;
@@ -201,13 +204,7 @@ function buildCommercialEmailHtml(params: {
     [params.company.phone, params.company.email].filter(Boolean).join(" · "),
   ].filter(Boolean);
 
-  const clientLines = [
-    params.clientAddress,
-    params.clientCity,
-    params.contactName && params.contactName !== params.clientName
-      ? params.contactName
-      : "",
-  ].filter(Boolean);
+  const clientLines = params.clientLines;
 
   const clientLegalBits = [
     params.clientNif ? `NIF : ${params.clientNif}` : "",
@@ -242,8 +239,8 @@ function buildCommercialEmailHtml(params: {
           </div>
         </td>
         <td width="52%" valign="top" style="padding-left:8px;">
-          <div style="border:2px solid ${accent}33;border-radius:10px;padding:14px 16px;">
-            <div style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:${accent};">Client</div>
+          <div style="background:#F1F5F9;border-radius:10px;padding:14px 16px;">
+            <div style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#64748B;">Client</div>
             <div style="margin-top:6px;font-size:14px;font-weight:600;color:#0F172A;">${escapeHtml(params.clientName)}</div>
             ${clientLines
               .map(
@@ -262,14 +259,7 @@ function buildCommercialEmailHtml(params: {
     </table>
 
     <div style="margin-bottom:16px;font-size:12px;color:#475569;">
-      <span${params.dueDate ? ' style="margin-right:16px;"' : ""}>Émission : <strong style="color:#0F172A;">${escapeHtml(params.issueDate)}</strong></span>
-      ${
-        params.dueDate
-          ? params.type === "quotation"
-            ? `<span>Validité jusqu'au : <strong style="color:#0F172A;">${escapeHtml(params.dueDate)}</strong></span>`
-            : `<span>Échéance : <strong style="color:#0F172A;">${escapeHtml(params.dueDate)}</strong></span>`
-          : ""
-      }
+      <span>Date d'échéance : <strong style="color:#0F172A;">${escapeHtml(params.dueDate || params.issueDate)}</strong></span>
     </div>
 
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border-radius:10px;overflow:hidden;border:1px solid #E2E8F0;">
@@ -528,8 +518,7 @@ export const sendDocumentEmail = createServerFn({ method: "POST" })
         number: doc.number,
         clientName: clientDisplayName(doc.client),
         contactName: clientRepresentativeLine(doc.client) || doc.client.contactName,
-        clientAddress: doc.client.address || undefined,
-        clientCity: [doc.client.city, doc.client.country].filter(Boolean).join(", ") || undefined,
+        clientLines: clientDocumentLines(doc.client),
         clientNif: doc.client.nif || undefined,
         clientRccm: doc.client.rccm || undefined,
         clientCnss: doc.client.cnss || undefined,

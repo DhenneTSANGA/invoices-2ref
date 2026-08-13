@@ -17,11 +17,7 @@ import {
   partyContactLine,
 } from "./InvoicePreview";
 import { COMPANY_DEFAULTS, DOCUMENT_COLORS } from "@/lib/cabinets";
-import {
-  clientDisplayName,
-  clientRepresentativeLine,
-  formatClientBp,
-} from "@/lib/client-address";
+import { clientDisplayName, clientDocumentLines } from "@/lib/client-address";
 import { ManagerSignature } from "@/components/signature/ManagerSignature";
 import { cn } from "@/lib/utils";
 
@@ -46,18 +42,7 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
     company.website,
   ]);
 
-  const clientLines = client
-    ? partyAddressLines([
-        client.address,
-        formatClientBp(client.bp),
-        [client.city, client.country].filter(Boolean).join(", "),
-        partyContactLine([
-          clientRepresentativeLine(client),
-          client.email,
-          client.phone,
-        ]),
-      ])
-    : undefined;
+  const clientLines = client ? clientDocumentLines(client) : undefined;
 
   return (
     <PreviewShell innerRef={ref} accent={ACCENT} compact={compact} isThumb={isThumb} className={className}>
@@ -148,13 +133,13 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
             <td style={{ width: "50%", verticalAlign: "top", paddingLeft: "12px" }}>
               <PartyBlock
                 title="Client"
-                accent={ACCENT}
+                accent="#64748B"
                 name={client ? clientDisplayName(client) : undefined}
                 lines={clientLines}
                 nif={client?.nif}
                 niu={client?.niu}
                 rccm={client?.rccm}
-                bordered
+                muted
                 compact={dense}
               />
             </td>
@@ -168,13 +153,12 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
           dense ? "mt-2 gap-x-5 gap-y-0.5 text-[10px]" : "mt-4 gap-x-6 gap-y-1 text-[12px]",
         )}
       >
-        <span>Émission : <b className="text-[#0F172A]">{longDate(doc.issueDate)}</b></span>
-        {doc.dueDate ? (
-          <span>
-            Validité jusqu'au :{" "}
-            <b className="text-[#0F172A]">{longDate(doc.dueDate)}</b>
-          </span>
-        ) : null}
+        <span>
+          Date d&apos;échéance :{" "}
+          <b className="text-[#0F172A]">
+            {longDate(doc.dueDate || doc.issueDate)}
+          </b>
+        </span>
       </div>
 
       <ItemsTable doc={doc} headerFrom={ACCENT} headerTo={ACCENT_TO} compact={dense} />

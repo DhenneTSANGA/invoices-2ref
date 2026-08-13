@@ -523,7 +523,7 @@ async function upsertDocumentHandler(
         const createdSections = await db.documentSection.createManyAndReturn({
           data: sectionsIn.map((s, i) => ({
             documentId,
-            title: s.title.trim() || `Tâche ${i + 1}`,
+            title: s.title.trim() || `Prestation ${i + 1}`,
             position: typeof s.position === "number" ? s.position : i,
           })),
         });
@@ -566,6 +566,22 @@ async function upsertDocumentHandler(
           ? data.vat
           : 0;
 
+    const dueDateValue = (() => {
+      if (data.dueDate && String(data.dueDate).trim()) {
+        return new Date(data.dueDate);
+      }
+      if (commercial) {
+        const issue = new Date(data.issueDate);
+        const days =
+          data.type === "quotation"
+            ? Math.max(1, data.validityDays ?? 30)
+            : 30;
+        issue.setDate(issue.getDate() + days);
+        return issue;
+      }
+      return null;
+    })();
+
     const docData = {
       cabinet: activeCabinet,
       type: data.type,
@@ -574,10 +590,7 @@ async function upsertDocumentHandler(
       createdById: staff.id,
       status: data.status,
       issueDate: new Date(data.issueDate),
-      dueDate:
-        data.dueDate && String(data.dueDate).trim()
-          ? new Date(data.dueDate)
-          : null,
+      dueDate: dueDateValue,
       subtotal,
       discount: docDiscount,
       tps,

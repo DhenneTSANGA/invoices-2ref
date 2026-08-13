@@ -177,10 +177,6 @@ export function LegalFooter({
       {legalParts.join(" · ")}
       <br />
       {[phone, email, website].filter(Boolean).join(" · ")}
-      <br />
-      <span className={compact ? "text-[8px]" : "text-[10px]"}>
-        Document conforme aux usages OHADA / zone CEMAC — montants en Francs CFA (XAF)
-      </span>
     </div>
   );
 }
@@ -207,7 +203,7 @@ export function AmountInWords({
       style={{ borderColor: `${accent}33`, background: `${accent}08` }}
     >
       <div className={cn("text-[#64748B]", compact ? "text-[11px]" : "text-[13px]")}>
-        Arrêté à la somme de
+        Arrêtée la présente facture à la somme de
       </div>
       <p
         className={cn(
