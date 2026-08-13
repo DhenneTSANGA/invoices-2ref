@@ -519,16 +519,18 @@ async function upsertDocumentHandler(
 
       const sectionIdMap = new Map<string, string>();
       const sectionsIn = commercial ? (data.sections ?? []) : [];
-      for (let i = 0; i < sectionsIn.length; i++) {
-        const s = sectionsIn[i];
-        const created = await db.documentSection.create({
-          data: {
+      if (sectionsIn.length > 0) {
+        const createdSections = await db.documentSection.createManyAndReturn({
+          data: sectionsIn.map((s, i) => ({
             documentId,
             title: s.title.trim() || `Tâche ${i + 1}`,
             position: typeof s.position === "number" ? s.position : i,
-          },
+          })),
         });
-        sectionIdMap.set(s.id, created.id);
+        for (let i = 0; i < sectionsIn.length; i++) {
+          const created = createdSections[i];
+          if (created) sectionIdMap.set(sectionsIn[i].id, created.id);
+        }
       }
 
       const lineRows = buildLineRows(sectionIdMap);
@@ -538,6 +540,8 @@ async function upsertDocumentHandler(
         });
       }
     };
+
+    const txOpts = { maxWait: 10_000, timeout: 30_000 } as const;
 
     let number = data.number;
     if (!data.id && isCommercialDocType(data.type)) {
@@ -619,7 +623,7 @@ async function upsertDocumentHandler(
             where: { id: data.id },
             include: docInclude,
           });
-        });
+        }, txOpts);
       } catch (err) {
         if (!isPrismaColumnMissing(err, "discount")) throw err;
         const { discount: _d, ...withoutDiscount } = docData;
@@ -636,7 +640,7 @@ async function upsertDocumentHandler(
             where: { id: data.id },
             include: docInclude,
           });
-        });
+        }, txOpts);
       }
       if (
         (existing.type === "letter" ||
@@ -674,7 +678,7 @@ async function upsertDocumentHandler(
           where: { id: row.id },
           include: docInclude,
         });
-      });
+      }, txOpts);
     } catch (err) {
       if (!isPrismaColumnMissing(err, "discount")) throw err;
       const { discount: _d, ...withoutDiscount } = docData;
@@ -687,7 +691,7 @@ async function upsertDocumentHandler(
           where: { id: row.id },
           include: docInclude,
         });
-      });
+      }, txOpts);
     }
     if (data.status !== "draft") {
       await broadcastDocumentStatusChange({

@@ -36,6 +36,8 @@ export function formatPrismaError(err: unknown, fallback = "Erreur base de donn�
       }
       case "P2025":
         return "Enregistrement introuvable.";
+      case "P2028":
+        return `${fallback} : la transaction base de données a expiré ou a été interrompue (connexion lente ou pooler). Réessayez ; si ça continue, vérifiez que Supabase est joignable.`;
       default:
         return `${fallback} (${err.code}).`;
     }

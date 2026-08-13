@@ -32,7 +32,7 @@ export function ManagerSignature({
   const name = managerName?.trim() || "";
 
   return (
-    <div className={cn("text-center", compact ? "w-48" : "w-64", className)}>
+    <div className={cn("text-center", compact ? "w-48" : "w-72", className)}>
       {signatoryTitle ? (
         <div
           className={cn(
@@ -49,7 +49,7 @@ export function ManagerSignature({
         <div
           className={cn(
             "mt-3 flex flex-col items-center justify-center gap-2",
-            compact ? "min-h-[5rem]" : "min-h-[7rem]",
+            compact ? "min-h-[5rem]" : "min-h-[10rem]",
           )}
         >
           {url ? (
@@ -61,7 +61,7 @@ export function ManagerSignature({
               decoding="sync"
               className={cn(
                 "object-contain object-center",
-                compact ? "max-h-20 max-w-[11rem]" : "max-h-28 max-w-[13rem]",
+                compact ? "max-h-20 max-w-[11rem]" : "max-h-44 max-w-[17rem]",
               )}
             />
           ) : null}
@@ -83,7 +83,7 @@ export function ManagerSignature({
           <div
             className={cn(
               "flex flex-col items-center justify-center rounded-lg border border-dashed text-[12px] italic text-[#94A3B8]",
-              compact ? "h-20 w-40" : "h-28 w-52",
+              compact ? "h-20 w-40" : "h-44 w-64",
             )}
             style={{ borderColor: `${accent}44` }}
           >

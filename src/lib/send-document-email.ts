@@ -400,7 +400,7 @@ ${escapeHtml(params.body)}
           <div style="font-size:13px;font-weight:600;color:${accent};">${escapeHtml(params.signatoryTitle || "Le Gérant")}</div>
           ${
             signatureUrl
-              ? `<div style="margin-top:12px;"><img src="${escapeHtml(signatureUrl)}" alt="Signature" width="180" style="max-width:180px;height:auto;display:inline-block;" /></div>`
+              ? `<div style="margin-top:12px;"><img src="${escapeHtml(signatureUrl)}" alt="Signature" width="240" style="max-width:240px;height:auto;display:inline-block;" /></div>`
               : ""
           }
           ${
