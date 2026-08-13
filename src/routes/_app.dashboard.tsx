@@ -88,6 +88,13 @@ function Dashboard() {
   const { data: clients = [], isPending: loadingClients } = useClients();
   const { data: session } = useSession();
 
+  const revenueData = useMemo(() => buildRevenueData(documents), [documents]);
+  const docsData = useMemo(() => buildWeeklyDocs(documents), [documents]);
+  const activities = useMemo(
+    () => buildActivities(documents, clients),
+    [documents, clients],
+  );
+
   if (loadingDocs || loadingClients) {
     return (
       <LoadingState
@@ -102,10 +109,6 @@ function Dashboard() {
   const quotations = documents.filter((d) => d.type === "quotation");
   const paid = invoices.filter((d) => d.status === "paid").reduce((a, b) => a + b.total, 0);
   const pending = invoices.filter((d) => d.status === "sent" || d.status === "overdue").reduce((a, b) => a + b.total, 0);
-
-  const revenueData = useMemo(() => buildRevenueData(documents), [documents]);
-  const docsData = useMemo(() => buildWeeklyDocs(documents), [documents]);
-  const activities = useMemo(() => buildActivities(documents, clients), [documents, clients]);
 
   const statusData = [
     { name: "Payées", value: invoices.filter((d) => d.status === "paid").length, color: "var(--success)" },
