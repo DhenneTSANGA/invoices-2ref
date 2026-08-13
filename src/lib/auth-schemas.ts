@@ -252,7 +252,7 @@ export const documentInputSchema = z.object({
   recipientOverride: z.string().optional().nullable(),
   sections: z.array(documentSectionSchema).optional().default([]),
   items: z.array(lineItemSchema),
-  subtotal: z.number(),
+  subtotal: z.coerce.number(),
   /** Remise globale % sur le HT (factures / devis). */
   discount: z.coerce.number().min(0).max(100).optional().default(0),
   tps: z.coerce.number().optional().default(0),

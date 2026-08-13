@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Send, CheckCircle2, XCircle, Eye, FileText } from "lucide-react";
+import { createFileRoute, Link, Outlet, useChildMatches } from "@tanstack/react-router";
+import { ArrowLeft, Send, CheckCircle2, XCircle, Edit3, Eye, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { LoadingState } from "@/components/common/LoadingState";
@@ -31,6 +31,15 @@ export const Route = createFileRoute("/_app/quotations/$id")({
 });
 
 function QuotationDetail() {
+  const childMatches = useChildMatches();
+  if (childMatches.length > 0) {
+    return <Outlet />;
+  }
+
+  return <QuotationDetailPage />;
+}
+
+function QuotationDetailPage() {
   const { id } = Route.useParams();
   const { data: session } = useSession();
   const { data: doc, isLoading } = useDocument(id);
@@ -106,6 +115,13 @@ function QuotationDetail() {
         subtitle={`${client?.name ?? ""} · ${longDate(doc.issueDate)}`}
         actions={
           <>
+            <Link
+              to="/quotations/$id/edit"
+              params={{ id: doc.id }}
+              className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted"
+            >
+              <Edit3 className="h-4 w-4" /> Modifier
+            </Link>
             <button onClick={() => setPreviewOpen(true)} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted"><Eye className="h-4 w-4" /> Aperçu</button>
             <DocumentPdfButton doc={doc} appearance="header" />
             <DocumentSignatureActions doc={doc} previewSeen={previewSeen} compact />

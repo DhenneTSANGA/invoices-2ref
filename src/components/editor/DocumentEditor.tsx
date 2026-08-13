@@ -24,6 +24,7 @@ import { Switch } from "@/components/ui/switch";
 import { LoadingState } from "@/components/common/LoadingState";
 import {
   useClients,
+  useClient,
   useServices,
   useUpsertDocument,
   useSendDocumentEmail,
@@ -51,12 +52,46 @@ function addDaysIso(isoDate: string, days: number) {
   return d.toISOString().slice(0, 10);
 }
 
+function finiteNumber(n: unknown, fallback = 0): number {
+  const v = typeof n === "number" ? n : Number(n);
+  return Number.isFinite(v) ? v : fallback;
+}
+
+function formatSaveError(err: unknown): string {
+  if (!(err instanceof Error) || !err.message) {
+    return "Enregistrement impossible";
+  }
+  const msg = err.message.trim();
+  if (msg.startsWith("[") || msg.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(msg) as
+        | Array<{ path?: Array<string | number>; message?: string }>
+        | { message?: string };
+      if (Array.isArray(parsed) && parsed[0]) {
+        const issue = parsed[0];
+        const path = issue.path?.length ? `${issue.path.join(".")}: ` : "";
+        return `Données invalides — ${path}${issue.message ?? "vérifiez le formulaire"}`;
+      }
+      if (parsed && typeof parsed === "object" && "message" in parsed) {
+        return String(parsed.message);
+      }
+    } catch {
+      /* toast brut ci-dessous */
+    }
+  }
+  return msg;
+}
+
 export function DocumentEditor({ initial, type }: Props) {
   const navigate = useNavigate();
   const { data: session } = useSession();
   const activeCabinet: Cabinet =
     initial?.cabinet ?? session?.activeCabinet ?? "expertise_fiscale";
-  const { data: clients = [], isLoading: loadingClients } = useClients();
+  /** Clients du cabinet du document (évite un éditeur vide si le SA a changé de cabinet). */
+  const { data: clients = [], isLoading: loadingClients } = useClients(
+    initial?.cabinet ?? activeCabinet,
+  );
+  const { data: docClient } = useClient(initial?.clientId ?? "");
   const { data: services = [] } = useServices();
   const upsertMutation = useUpsertDocument();
   const sendEmailMutation = useSendDocumentEmail();
@@ -66,6 +101,17 @@ export function DocumentEditor({ initial, type }: Props) {
   const isNew = !initial;
   const commercial = type === "invoice" || type === "quotation";
   const adminLike = session ? isAdmin(session.staff.role) : false;
+
+  const clientOptions = (() => {
+    const map = new Map(clients.map((c) => [c.id, c.name]));
+    if (docClient && !map.has(docClient.id)) {
+      map.set(docClient.id, docClient.name);
+    }
+    if (initial?.clientId && !map.has(initial.clientId)) {
+      map.set(initial.clientId, "Client du document");
+    }
+    return Array.from(map.entries()).map(([value, label]) => ({ value, label }));
+  })();
 
   const [doc, setDoc] = useState<Document>(() => {
     if (!initial) return defaultDoc(type, "", activeCabinet);
@@ -485,12 +531,33 @@ export function DocumentEditor({ initial, type }: Props) {
 
   const alreadySigned = documentCanSendEmail(doc);
 
-  const buildPayload = (status: Document["status"] = "draft") => ({
-    ...(isPersistedId(merged.id) ? { id: merged.id } : {}),
+  const buildPayload = (status: Document["status"] = "draft") => {
+    // Ne pas écraser un statut « figé » (signé / envoyé / payé…) en brouillon
+    // lors d’un simple enregistrement de contenu.
+    const locked = new Set([
+      "signed",
+      "sent",
+      "paid",
+      "accepted",
+      "overdue",
+    ]);
+    const nextStatus =
+      status === "sent"
+        ? ("draft" as const)
+        : status === "draft" && locked.has(merged.status)
+          ? merged.status
+          : status;
+
+    const persistedId =
+      (isPersistedId(merged.id) ? merged.id : null) ||
+      (initial && isPersistedId(initial.id) ? initial.id : null);
+
+    return {
+    ...(persistedId ? { id: persistedId } : {}),
     type,
     number: merged.number,
     clientId: merged.clientId,
-    status: status === "sent" ? ("draft" as const) : status,
+    status: nextStatus,
     issueDate: merged.issueDate,
     dueDate: merged.dueDate?.trim()
       ? merged.dueDate
@@ -510,15 +577,17 @@ export function DocumentEditor({ initial, type }: Props) {
     recipientOverride: merged.recipientOverride ?? null,
     items: merged.items.map((it) => ({
       id: isPersistedId(it.id) ? it.id : undefined,
-      serviceId: it.serviceId ?? null,
+      serviceId: it.serviceId?.trim() ? it.serviceId.trim() : null,
       sectionId: commercial ? (it.sectionId ?? null) : null,
       description: it.description,
-      quantity: it.quantity,
-      unitPrice: it.unitPrice,
-      vatRate: it.vatRate,
-      discount: commercial ? 0 : (it.discount ?? 0),
-      tpsRate: commercial ? tpsRate : (it.tpsRate ?? 0),
-      cssRate: commercial ? (it.cssRate ?? DEFAULT_CSS_RATE) : (it.cssRate ?? 0),
+      quantity: finiteNumber(it.quantity, 0),
+      unitPrice: finiteNumber(it.unitPrice, 0),
+      vatRate: finiteNumber(it.vatRate, 0),
+      discount: commercial ? 0 : finiteNumber(it.discount, 0),
+      tpsRate: commercial ? tpsRate : finiteNumber(it.tpsRate, 0),
+      cssRate: commercial
+        ? finiteNumber(it.cssRate, DEFAULT_CSS_RATE)
+        : finiteNumber(it.cssRate, 0),
     })),
     sections: commercial
       ? sections.map((s, i) => ({
@@ -527,13 +596,14 @@ export function DocumentEditor({ initial, type }: Props) {
           position: i,
         }))
       : [],
-    subtotal: merged.subtotal,
-    discount: commercial ? (merged.discount ?? 0) : 0,
-    tps: merged.tps,
-    css: merged.css,
-    vat: merged.vat,
-    total: merged.total,
-  });
+    subtotal: finiteNumber(merged.subtotal, 0),
+    discount: commercial ? finiteNumber(merged.discount, 0) : 0,
+    tps: finiteNumber(merged.tps, 0),
+    css: finiteNumber(merged.css, 0),
+    vat: finiteNumber(merged.vat, 0),
+    total: finiteNumber(merged.total, 0),
+  };
+  };
 
   const persistDraft = async () => {
     if (!merged.clientId) {
@@ -552,6 +622,10 @@ export function DocumentEditor({ initial, type }: Props) {
   const save = async (status: Document["status"] = "draft") => {
     if (!merged.clientId) {
       toast.error("Sélectionnez un client");
+      return;
+    }
+    if (commercial && merged.items.length === 0) {
+      toast.error("Ajoutez au moins une prestation");
       return;
     }
     setSaving(true);
@@ -580,7 +654,7 @@ export function DocumentEditor({ initial, type }: Props) {
         void navigate({ to: listPath });
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Enregistrement impossible");
+      toast.error(formatSaveError(err));
     } finally {
       setSaving(false);
     }
@@ -631,13 +705,17 @@ export function DocumentEditor({ initial, type }: Props) {
     );
   }
 
-  if (clients.length === 0) {
+  if (clientOptions.length === 0) {
     return (
       <div className="glass-panel rounded-3xl p-8 text-center">
         <p className="text-sm text-muted-foreground">
           Créez au moins un client avant d&apos;émettre un document.
         </p>
-        <Button className="mt-4 rounded-xl" onClick={() => navigate({ to: "/clients/new" })}>
+        <Button
+          type="button"
+          className="mt-4 rounded-xl"
+          onClick={() => navigate({ to: "/clients/new" })}
+        >
           Nouveau client
         </Button>
       </div>
@@ -658,7 +736,7 @@ export function DocumentEditor({ initial, type }: Props) {
             label="Client"
             value={effectiveClientId}
             onChange={(v) => setDoc({ ...doc, clientId: v })}
-            options={clients.map((c) => ({ value: c.id, label: c.name }))}
+            options={clientOptions}
           />
           <Field
             label="Date d'émission"
@@ -1287,6 +1365,7 @@ export function DocumentEditor({ initial, type }: Props) {
 
       <div className="flex flex-wrap items-center justify-end gap-2">
         <Button
+          type="button"
           variant="outline"
           className="rounded-xl"
           onClick={() => setPreviewOpen(true)}
@@ -1295,15 +1374,17 @@ export function DocumentEditor({ initial, type }: Props) {
         </Button>
         <DocumentPdfButton doc={merged} />
         <Button
+          type="button"
           variant="outline"
           className="rounded-xl"
           disabled={saving}
-          onClick={() => save("draft")}
+          onClick={() => void save("draft")}
         >
           <Save className="h-4 w-4" /> Enregistrer
         </Button>
         {commercial && !alreadySigned && !adminLike && (
           <Button
+            type="button"
             className="rounded-xl bg-amber-600 text-white hover:bg-amber-600/90"
             disabled={saving || requestSignMutation.isPending}
             onClick={() => void requestSignature()}
@@ -1316,6 +1397,7 @@ export function DocumentEditor({ initial, type }: Props) {
         )}
         {commercial && !alreadySigned && adminLike && (
           <Button
+            type="button"
             className="rounded-xl bg-gradient-primary text-primary-foreground shadow-glow"
             disabled={saving || signMutation.isPending}
             onClick={() => void signNow()}
@@ -1325,9 +1407,10 @@ export function DocumentEditor({ initial, type }: Props) {
           </Button>
         )}
         <Button
+          type="button"
           className="rounded-xl bg-gradient-primary text-primary-foreground shadow-glow hover:opacity-95"
           disabled={saving}
-          onClick={() => save("sent")}
+          onClick={() => void save("sent")}
         >
           <Send className="h-4 w-4" /> Envoyer
         </Button>

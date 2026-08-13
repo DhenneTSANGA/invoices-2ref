@@ -53,6 +53,7 @@ import { Route as AppInvoicesNewRouteImport } from './routes/_app.invoices.new'
 import { Route as AppInvoicesIdRouteImport } from './routes/_app.invoices.$id'
 import { Route as AppClientsNewRouteImport } from './routes/_app.clients.new'
 import { Route as AppClientsIdRouteImport } from './routes/_app.clients.$id'
+import { Route as AppQuotationsIdEditRouteImport } from './routes/_app.quotations.$id.edit'
 import { Route as AppInvoicesIdEditRouteImport } from './routes/_app.invoices.$id.edit'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -274,6 +275,11 @@ const AppClientsIdRoute = AppClientsIdRouteImport.update({
   path: '/clients/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppQuotationsIdEditRoute = AppQuotationsIdEditRouteImport.update({
+  id: '/edit',
+  path: '/edit',
+  getParentRoute: () => AppQuotationsIdRoute,
+} as any)
 const AppInvoicesIdEditRoute = AppInvoicesIdEditRouteImport.update({
   id: '/edit',
   path: '/edit',
@@ -316,7 +322,7 @@ export interface FileRoutesByFullPath {
   '/lettre/$id': typeof AppLettreIdRoute
   '/lettre/new': typeof AppLettreNewRoute
   '/lettre/publipostage': typeof AppLettrePublipostageRoute
-  '/quotations/$id': typeof AppQuotationsIdRoute
+  '/quotations/$id': typeof AppQuotationsIdRouteWithChildren
   '/quotations/new': typeof AppQuotationsNewRoute
   '/api/staff/sync': typeof ApiStaffSyncRoute
   '/clients/': typeof AppClientsIndexRoute
@@ -325,6 +331,7 @@ export interface FileRoutesByFullPath {
   '/lettre/': typeof AppLettreIndexRoute
   '/quotations/': typeof AppQuotationsIndexRoute
   '/invoices/$id/edit': typeof AppInvoicesIdEditRoute
+  '/quotations/$id/edit': typeof AppQuotationsIdEditRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -359,7 +366,7 @@ export interface FileRoutesByTo {
   '/lettre/$id': typeof AppLettreIdRoute
   '/lettre/new': typeof AppLettreNewRoute
   '/lettre/publipostage': typeof AppLettrePublipostageRoute
-  '/quotations/$id': typeof AppQuotationsIdRoute
+  '/quotations/$id': typeof AppQuotationsIdRouteWithChildren
   '/quotations/new': typeof AppQuotationsNewRoute
   '/api/staff/sync': typeof ApiStaffSyncRoute
   '/clients': typeof AppClientsIndexRoute
@@ -368,6 +375,7 @@ export interface FileRoutesByTo {
   '/lettre': typeof AppLettreIndexRoute
   '/quotations': typeof AppQuotationsIndexRoute
   '/invoices/$id/edit': typeof AppInvoicesIdEditRoute
+  '/quotations/$id/edit': typeof AppQuotationsIdEditRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -407,7 +415,7 @@ export interface FileRoutesById {
   '/_app/lettre/$id': typeof AppLettreIdRoute
   '/_app/lettre/new': typeof AppLettreNewRoute
   '/_app/lettre/publipostage': typeof AppLettrePublipostageRoute
-  '/_app/quotations/$id': typeof AppQuotationsIdRoute
+  '/_app/quotations/$id': typeof AppQuotationsIdRouteWithChildren
   '/_app/quotations/new': typeof AppQuotationsNewRoute
   '/api/staff/sync': typeof ApiStaffSyncRoute
   '/_app/clients/': typeof AppClientsIndexRoute
@@ -416,6 +424,7 @@ export interface FileRoutesById {
   '/_app/lettre/': typeof AppLettreIndexRoute
   '/_app/quotations/': typeof AppQuotationsIndexRoute
   '/_app/invoices/$id/edit': typeof AppInvoicesIdEditRoute
+  '/_app/quotations/$id/edit': typeof AppQuotationsIdEditRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -464,6 +473,7 @@ export interface FileRouteTypes {
     | '/lettre/'
     | '/quotations/'
     | '/invoices/$id/edit'
+    | '/quotations/$id/edit'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -507,6 +517,7 @@ export interface FileRouteTypes {
     | '/lettre'
     | '/quotations'
     | '/invoices/$id/edit'
+    | '/quotations/$id/edit'
   id:
     | '__root__'
     | '/'
@@ -554,6 +565,7 @@ export interface FileRouteTypes {
     | '/_app/lettre/'
     | '/_app/quotations/'
     | '/_app/invoices/$id/edit'
+    | '/_app/quotations/$id/edit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -882,6 +894,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppClientsIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/quotations/$id/edit': {
+      id: '/_app/quotations/$id/edit'
+      path: '/edit'
+      fullPath: '/quotations/$id/edit'
+      preLoaderRoute: typeof AppQuotationsIdEditRouteImport
+      parentRoute: typeof AppQuotationsIdRoute
+    }
     '/_app/invoices/$id/edit': {
       id: '/_app/invoices/$id/edit'
       path: '/edit'
@@ -938,14 +957,26 @@ const AppLettreRouteWithChildren = AppLettreRoute._addFileChildren(
   AppLettreRouteChildren,
 )
 
+interface AppQuotationsIdRouteChildren {
+  AppQuotationsIdEditRoute: typeof AppQuotationsIdEditRoute
+}
+
+const AppQuotationsIdRouteChildren: AppQuotationsIdRouteChildren = {
+  AppQuotationsIdEditRoute: AppQuotationsIdEditRoute,
+}
+
+const AppQuotationsIdRouteWithChildren = AppQuotationsIdRoute._addFileChildren(
+  AppQuotationsIdRouteChildren,
+)
+
 interface AppQuotationsRouteChildren {
-  AppQuotationsIdRoute: typeof AppQuotationsIdRoute
+  AppQuotationsIdRoute: typeof AppQuotationsIdRouteWithChildren
   AppQuotationsNewRoute: typeof AppQuotationsNewRoute
   AppQuotationsIndexRoute: typeof AppQuotationsIndexRoute
 }
 
 const AppQuotationsRouteChildren: AppQuotationsRouteChildren = {
-  AppQuotationsIdRoute: AppQuotationsIdRoute,
+  AppQuotationsIdRoute: AppQuotationsIdRouteWithChildren,
   AppQuotationsNewRoute: AppQuotationsNewRoute,
   AppQuotationsIndexRoute: AppQuotationsIndexRoute,
 }

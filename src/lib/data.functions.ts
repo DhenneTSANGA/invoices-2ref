@@ -482,35 +482,43 @@ async function upsertDocumentHandler(
 ) {
     const session = await requireSession();
     const { staff, activeCabinet } = session;
-    await assertClientInCabinet(data.clientId, activeCabinet);
-
     const commercial = data.type === "invoice" || data.type === "quotation";
 
-    const buildLineRows = (sectionIdMap: Map<string, string>) =>
-      data.items.map((item, position) => ({
-        serviceId:
-          item.serviceId && item.serviceId.trim() ? item.serviceId.trim() : null,
-        description: item.description,
-        quantity: Number.isFinite(item.quantity) ? item.quantity : 0,
-        unitPrice: Number.isFinite(item.unitPrice) ? item.unitPrice : 0,
-        vatRate: Number.isFinite(item.vatRate) ? item.vatRate : 0,
-        discount: commercial
-          ? 0
-          : Number.isFinite(item.discount)
-            ? item.discount
-            : 0,
-        tpsRate: Number.isFinite(item.tpsRate) ? Math.max(0, item.tpsRate) : 0,
-        cssRate: Number.isFinite(item.cssRate) ? item.cssRate ?? 0 : 0,
-        position,
-        sectionId:
-          commercial && item.sectionId
-            ? (sectionIdMap.get(item.sectionId) ?? null)
-            : null,
-      }));
+    const buildLineRows = (
+      sectionIdMap: Map<string, string>,
+      validServiceIds: Set<string>,
+    ) =>
+      data.items.map((item, position) => {
+        const rawServiceId =
+          item.serviceId && item.serviceId.trim() ? item.serviceId.trim() : null;
+        return {
+          serviceId:
+            rawServiceId && validServiceIds.has(rawServiceId)
+              ? rawServiceId
+              : null,
+          description: item.description,
+          quantity: Number.isFinite(item.quantity) ? item.quantity : 0,
+          unitPrice: Number.isFinite(item.unitPrice) ? item.unitPrice : 0,
+          vatRate: Number.isFinite(item.vatRate) ? item.vatRate : 0,
+          discount: commercial
+            ? 0
+            : Number.isFinite(item.discount)
+              ? item.discount
+              : 0,
+          tpsRate: Number.isFinite(item.tpsRate) ? Math.max(0, item.tpsRate) : 0,
+          cssRate: Number.isFinite(item.cssRate) ? item.cssRate ?? 0 : 0,
+          position,
+          sectionId:
+            commercial && item.sectionId
+              ? (sectionIdMap.get(item.sectionId) ?? null)
+              : null,
+        };
+      });
 
     /** Recrée sections + lignes (ordre : sections d’abord pour les FK). */
     const replaceSectionsAndLines = async (
       documentId: string,
+      cabinet: Cabinet,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       db: any = prisma,
     ) => {
@@ -520,20 +528,36 @@ async function upsertDocumentHandler(
       const sectionIdMap = new Map<string, string>();
       const sectionsIn = commercial ? (data.sections ?? []) : [];
       if (sectionsIn.length > 0) {
-        const createdSections = await db.documentSection.createManyAndReturn({
-          data: sectionsIn.map((s, i) => ({
-            documentId,
-            title: s.title.trim() || `Prestation ${i + 1}`,
-            position: typeof s.position === "number" ? s.position : i,
-          })),
-        });
         for (let i = 0; i < sectionsIn.length; i++) {
-          const created = createdSections[i];
-          if (created) sectionIdMap.set(sectionsIn[i].id, created.id);
+          const s = sectionsIn[i]!;
+          const created = await db.documentSection.create({
+            data: {
+              documentId,
+              title: s.title.trim() || `Prestation ${i + 1}`,
+              position: typeof s.position === "number" ? s.position : i,
+            },
+          });
+          sectionIdMap.set(s.id, created.id);
         }
       }
 
-      const lineRows = buildLineRows(sectionIdMap);
+      const requestedServiceIds = [
+        ...new Set(
+          data.items
+            .map((it) => it.serviceId?.trim())
+            .filter((id): id is string => Boolean(id)),
+        ),
+      ];
+      const validServiceIds = new Set<string>();
+      if (requestedServiceIds.length > 0) {
+        const found = await db.service.findMany({
+          where: { id: { in: requestedServiceIds }, cabinet },
+          select: { id: true },
+        });
+        for (const s of found) validServiceIds.add(s.id);
+      }
+
+      const lineRows = buildLineRows(sectionIdMap, validServiceIds);
       if (lineRows.length > 0) {
         await db.documentLine.createMany({
           data: lineRows.map((l) => ({ ...l, documentId })),
@@ -582,6 +606,121 @@ async function upsertDocumentHandler(
       return null;
     })();
 
+    if (data.id) {
+      const existing = await prisma.document.findFirst({
+        where: isSuperAdmin(staff.role)
+          ? { id: data.id }
+          : { id: data.id, cabinet: activeCabinet },
+      });
+      if (!existing) throw new Error("Document introuvable");
+      if (!canWriteDocument(staff.role, staff.id, existing.createdById)) {
+        throw new Error("Accès refusé — document en lecture seule");
+      }
+      if (existing.type !== data.type) {
+        throw new Error("Type de document incoherent");
+      }
+
+      await assertClientInCabinet(data.clientId, existing.cabinet);
+
+      // Ne pas repasser en brouillon un document déjà signé / envoyé / payé
+      // quand on enregistre une simple modification de contenu.
+      const lockedStatuses = new Set([
+        "signed",
+        "sent",
+        "paid",
+        "accepted",
+        "overdue",
+      ]);
+      const nextStatus =
+        data.status === "draft" && lockedStatuses.has(existing.status)
+          ? existing.status
+          : data.status;
+
+      const docData = {
+        cabinet: existing.cabinet,
+        type: existing.type,
+        number: existing.number,
+        clientId: data.clientId,
+        createdById: existing.createdById,
+        status: nextStatus,
+        issueDate: new Date(data.issueDate),
+        dueDate: dueDateValue,
+        subtotal,
+        discount: docDiscount,
+        tps,
+        css,
+        vat,
+        total: commercial
+          ? Math.max(0, subtotal - tps + css + vat)
+          : data.total,
+        currency: data.currency,
+        notes: data.notes ?? null,
+        paymentTerms: data.paymentTerms ?? null,
+        validityDays: data.validityDays ?? null,
+        executionTerms: data.executionTerms ?? null,
+        subject: data.subject ?? null,
+        salutation: data.salutation ?? null,
+        body: data.body ?? null,
+        closing: data.closing ?? null,
+        signatoryTitle: data.signatoryTitle ?? null,
+        recipientOverride: data.recipientOverride ?? null,
+      };
+
+      let updated;
+      try {
+        updated = await prisma.$transaction(async (tx) => {
+          await tx.document.update({
+            where: { id: data.id },
+            data: docData,
+          });
+          await replaceSectionsAndLines(data.id!, existing.cabinet, tx);
+          return tx.document.findFirstOrThrow({
+            where: { id: data.id },
+            include: docInclude,
+          });
+        }, txOpts);
+      } catch (err) {
+        if (!isPrismaColumnMissing(err, "discount")) throw err;
+        const { discount: _d, ...withoutDiscount } = docData;
+        updated = await prisma.$transaction(async (tx) => {
+          await tx.document.update({
+            where: { id: data.id },
+            data: withoutDiscount,
+          });
+          await replaceSectionsAndLines(data.id!, existing.cabinet, tx);
+          return tx.document.findFirstOrThrow({
+            where: { id: data.id },
+            include: docInclude,
+          });
+        }, txOpts);
+      }
+      if (
+        (existing.type === "letter" ||
+          existing.type === "invoice" ||
+          existing.type === "quotation") &&
+        existing.status === "draft"
+      ) {
+        const { cancelPendingLetterSignatures } = await import(
+          "@/lib/letter-signature.functions"
+        );
+        await cancelPendingLetterSignatures(existing.id);
+      }
+      if (existing.status !== nextStatus) {
+        await broadcastDocumentStatusChange({
+          actorStaffId: staff.id,
+          actorName: staffDisplayName(staff),
+          documentId: updated.id,
+          documentNumber: updated.number,
+          documentType: updated.type,
+          previousStatus: existing.status,
+          nextStatus,
+        });
+      }
+      return mapDocument(updated);
+    }
+
+    await assertClientInCabinet(data.clientId, activeCabinet);
+
     const docData = {
       cabinet: activeCabinet,
       type: data.type,
@@ -612,81 +751,13 @@ async function upsertDocumentHandler(
       recipientOverride: data.recipientOverride ?? null,
     };
 
-    if (data.id) {
-      const existing = await prisma.document.findFirst({
-        where: { id: data.id, cabinet: activeCabinet },
-      });
-      if (!existing) throw new Error("Document introuvable");
-      if (!canWriteDocument(staff.role, staff.id, existing.createdById)) {
-        throw new Error("Accès refusé — document en lecture seule");
-      }
-
-      let updated;
-      try {
-        updated = await prisma.$transaction(async (tx) => {
-          await tx.document.update({
-            where: { id: data.id },
-            data: {
-              ...docData,
-              createdById: existing.createdById,
-            },
-          });
-          await replaceSectionsAndLines(data.id!, tx);
-          return tx.document.findFirstOrThrow({
-            where: { id: data.id },
-            include: docInclude,
-          });
-        }, txOpts);
-      } catch (err) {
-        if (!isPrismaColumnMissing(err, "discount")) throw err;
-        const { discount: _d, ...withoutDiscount } = docData;
-        updated = await prisma.$transaction(async (tx) => {
-          await tx.document.update({
-            where: { id: data.id },
-            data: {
-              ...withoutDiscount,
-              createdById: existing.createdById,
-            },
-          });
-          await replaceSectionsAndLines(data.id!, tx);
-          return tx.document.findFirstOrThrow({
-            where: { id: data.id },
-            include: docInclude,
-          });
-        }, txOpts);
-      }
-      if (
-        (existing.type === "letter" ||
-          existing.type === "invoice" ||
-          existing.type === "quotation") &&
-        existing.status === "draft"
-      ) {
-        const { cancelPendingLetterSignatures } = await import(
-          "@/lib/letter-signature.functions"
-        );
-        await cancelPendingLetterSignatures(existing.id);
-      }
-      if (existing.status !== data.status) {
-        await broadcastDocumentStatusChange({
-          actorStaffId: staff.id,
-          actorName: staffDisplayName(staff),
-          documentId: updated.id,
-          documentNumber: updated.number,
-          documentType: updated.type,
-          previousStatus: existing.status,
-          nextStatus: data.status,
-        });
-      }
-      return mapDocument(updated);
-    }
-
     let created;
     try {
       created = await prisma.$transaction(async (tx) => {
         const row = await tx.document.create({
           data: { ...docData },
         });
-        await replaceSectionsAndLines(row.id, tx);
+        await replaceSectionsAndLines(row.id, activeCabinet, tx);
         return tx.document.findFirstOrThrow({
           where: { id: row.id },
           include: docInclude,
@@ -699,7 +770,7 @@ async function upsertDocumentHandler(
         const row = await tx.document.create({
           data: { ...withoutDiscount },
         });
-        await replaceSectionsAndLines(row.id, tx);
+        await replaceSectionsAndLines(row.id, activeCabinet, tx);
         return tx.document.findFirstOrThrow({
           where: { id: row.id },
           include: docInclude,

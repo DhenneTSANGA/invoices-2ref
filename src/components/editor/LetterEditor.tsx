@@ -36,7 +36,9 @@ export function LetterEditor({ initial }: Props) {
   const { data: session } = useSession();
   const activeCabinet: Cabinet =
     initial?.cabinet ?? session?.activeCabinet ?? "expertise_fiscale";
-  const { data: clients = [], isLoading: loadingClients } = useClients();
+  const { data: clients = [], isLoading: loadingClients } = useClients(
+    initial?.cabinet ?? activeCabinet,
+  );
   const upsertMutation = useUpsertDocument();
   const sendEmailMutation = useSendDocumentEmail();
   const requestSignMutation = useRequestLetterSignature();
@@ -104,13 +106,16 @@ export function LetterEditor({ initial }: Props) {
       toast.error("Sélectionnez un client");
       return null;
     }
-    const draft = { ...doc, clientId: effectiveClientId, status: "draft" as const };
+    const locked = new Set(["signed", "sent"]);
+    const nextStatus =
+      locked.has(doc.status) ? doc.status : ("draft" as const);
+    const draft = { ...doc, clientId: effectiveClientId, status: nextStatus };
     const saved = await upsertMutation.mutateAsync({
       ...(initial?.id && !initial.id.startsWith("d-") ? { id: draft.id } : {}),
       type: "letter",
       number: draft.number,
       clientId: draft.clientId,
-      status: "draft",
+      status: nextStatus,
       issueDate: draft.issueDate,
       dueDate: draft.dueDate,
       currency: draft.currency,

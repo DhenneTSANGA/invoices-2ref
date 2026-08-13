@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useChildMatches } from "@tanstack/react-router";
 import {
   ArrowLeft,
   Send,
@@ -46,6 +46,16 @@ export const Route = createFileRoute("/_app/invoices/$id")({
 });
 
 function InvoiceDetail() {
+  const childMatches = useChildMatches();
+  // Route enfant (ex. /edit) : laisser l’Outlet afficher la page de modification.
+  if (childMatches.length > 0) {
+    return <Outlet />;
+  }
+
+  return <InvoiceDetailPage />;
+}
+
+function InvoiceDetailPage() {
   const { id } = Route.useParams();
   const { data: session } = useSession();
   const { data: doc, isLoading } = useDocument(id);
