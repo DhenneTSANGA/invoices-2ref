@@ -2,7 +2,7 @@ import { forwardRef } from "react";
 import type { Document } from "@/store/types";
 import { usePreviewData } from "@/hooks/use-preview-data";
 import { longDate } from "@/lib/format";
-import { DOCUMENT_COLORS } from "@/lib/cabinets";
+import { DOCUMENT_COLORS, niuLabelForCabinet } from "@/lib/cabinets";
 import { LegalFooter, PreviewLogo, PreviewShell } from "./PreviewShell";
 import { ManagerSignature } from "@/components/signature/ManagerSignature";
 import { clientLetterRecipientLines } from "@/lib/client-address";
@@ -30,7 +30,7 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
   const managerName = company.managerName?.trim() || "";
   const stampUrl = company.stampUrl?.trim() || "";
   const signatoryTitle = doc.signatoryTitle?.trim() || "Le Gérant";
-  const niuLabel = doc.cabinet === "conseil" ? "STAT" : "NIU";
+  const niuLabel = niuLabelForCabinet(doc.cabinet);
 
   const recipientLines = doc.recipientOverride
     ? doc.recipientOverride

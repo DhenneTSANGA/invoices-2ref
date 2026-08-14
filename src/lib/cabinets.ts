@@ -99,6 +99,7 @@ export const COMPANY_DEFAULTS: Record<Cabinet, CompanyInfo> = {
     mailFromEmail: "2ref@2r-hub.com",
     mailReplyTo: "2ref@2r-hub.com",
     managerName: "M. Richard BICKAPA NIONGUI",
+    managerEmail: "",
     stampUrl: "",
   },
   conseil: {
@@ -119,10 +120,16 @@ export const COMPANY_DEFAULTS: Record<Cabinet, CompanyInfo> = {
     mailFromEmail: "2rconseil@2r-hub.com",
     mailReplyTo: "2rconseil@2r-hub.com",
     managerName: "M. Romaric BOULINGUI",
+    managerEmail: "",
     stampUrl: "",
   },
 };
 
 export function isCabinet(value: unknown): value is Cabinet {
   return value === "conseil" || value === "expertise_fiscale";
+}
+
+/** Libellé fiscal de l’identifiant secondaire (NIU / STAT). */
+export function niuLabelForCabinet(cabinet: Cabinet): "STAT" | "NIU" {
+  return cabinet === "conseil" ? "STAT" : "NIU";
 }

@@ -479,6 +479,11 @@ function MailDetailBody({
         <span>
           <strong className="text-foreground">À</strong> {mail.toEmail}
         </span>
+        {mail.ccEmail ? (
+          <span>
+            <strong className="text-foreground">Cc</strong> {mail.ccEmail}
+          </span>
+        ) : null}
         {mail.lastEvent ? <span>· {mail.lastEvent}</span> : null}
       </div>
       {mail.htmlBody ? (

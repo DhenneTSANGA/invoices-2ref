@@ -1182,6 +1182,7 @@ export const updateCompany = createServerFn({ method: "POST" })
       mailFromEmail: data.mailFromEmail?.trim() || null,
       mailReplyTo: data.mailReplyTo?.trim() || null,
       managerName: data.managerName?.trim() || null,
+      managerEmail: data.managerEmail?.trim() || null,
       stampUrl: data.stampUrl?.trim() || null,
     };
     const row = await prisma.company.upsert({
@@ -1247,6 +1248,7 @@ export const uploadCompanySignature = createServerFn({ method: "POST" })
         mailFromEmail: existing?.mailFromEmail ?? defaults.mailFromEmail,
         mailReplyTo: existing?.mailReplyTo ?? defaults.mailReplyTo,
         managerName: existing?.managerName ?? defaults.managerName,
+        managerEmail: existing?.managerEmail ?? defaults.managerEmail ?? null,
         stampUrl: uploaded.fileUrl,
       },
       update: { stampUrl: uploaded.fileUrl },

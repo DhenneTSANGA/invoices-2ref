@@ -12,6 +12,7 @@ import {
 } from "@/hooks/use-data";
 import { Logo } from "@/components/common/Logo";
 import { COMPANY_DEFAULTS } from "@/lib/company-defaults";
+import { niuLabelForCabinet } from "@/lib/cabinets";
 import type { CompanyInfo } from "@/store/types";
 import { cn } from "@/lib/utils";
 import { canEditCompanySettings } from "@/lib/roles";
@@ -44,8 +45,9 @@ function SettingsPage() {
   const uploadSignature = useUploadCompanySignature();
   const fileRef = useRef<HTMLInputElement>(null);
   const [tab, setTab] = useState("company");
-  const fallback =
-    COMPANY_DEFAULTS[session?.activeCabinet ?? "expertise_fiscale"];
+  const activeCabinet = session?.activeCabinet ?? "expertise_fiscale";
+  const fallback = COMPANY_DEFAULTS[activeCabinet];
+  const niuFieldLabel = niuLabelForCabinet(activeCabinet);
   const [form, setForm] = useState<CompanyInfo>(fallback);
 
   useEffect(() => {
@@ -159,8 +161,17 @@ function SettingsPage() {
                 label="Nom du gérant (signataire des courriels)"
                 value={form.managerName ?? ""}
                 onChange={(v) => setForm({ ...form, managerName: v })}
-                colSpan
               />
+              <F
+                label="E-mail du gérant (copie des envois clients)"
+                value={form.managerEmail ?? ""}
+                onChange={(v) => setForm({ ...form, managerEmail: v })}
+              />
+              <p className="sm:col-span-2 text-xs text-muted-foreground">
+                L’e-mail du gérant est mis en <strong>CC</strong> de chaque
+                facture, devis ou courriel envoyé au client. L’historique
+                conserve cette copie dans l’espace Mails.
+              </p>
 
               <div className="sm:col-span-2 space-y-4 rounded-2xl border border-border/60 bg-muted/20 p-4">
                 <div>
@@ -237,7 +248,7 @@ function SettingsPage() {
           {tab === "fiscal" && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <F label="NIF" value={form.nif} onChange={(v) => setForm({ ...form, nif: v })} />
-              <F label="NIU" value={form.niu === "—" ? "" : form.niu} onChange={(v) => setForm({ ...form, niu: v || "—" })} />
+              <F label={niuFieldLabel} value={form.niu === "—" ? "" : form.niu} onChange={(v) => setForm({ ...form, niu: v || "—" })} />
               <F label="RCCM" value={form.rccm} onChange={(v) => setForm({ ...form, rccm: v })} colSpan />
               <F label="CNSS" value={form.cnss} onChange={(v) => setForm({ ...form, cnss: v })} />
               <F label="Banque" value={form.bankName} onChange={(v) => setForm({ ...form, bankName: v })} />
@@ -258,7 +269,7 @@ function SettingsPage() {
               <div className="rounded-2xl bg-surface-2 p-6">
                 <h4 className="font-display font-semibold">Logo</h4>
                 <div className="mt-3 flex items-center gap-3">
-                  <Logo size="lg" className="rounded-xl" />
+                  <Logo size="lg" cabinet={activeCabinet} className="rounded-xl" />
                   <button className="rounded-xl border border-border bg-surface px-3 py-2 text-sm hover:bg-muted">Téléverser un logo</button>
                 </div>
               </div>

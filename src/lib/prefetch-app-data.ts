@@ -14,6 +14,7 @@ import {
 import {
   listClients,
   getCompany,
+  getCompanyForCabinet,
   listServices,
   listDocuments,
   listAllDocuments,
@@ -25,6 +26,7 @@ import {
   listCabinetStaff,
 } from "@/lib/admin.functions";
 import type { AppSession } from "@/lib/session.functions";
+import { CABINETS } from "@/lib/cabinets";
 
 const LIST_STALE = 60_000;
 const SLOW_STALE = 5 * 60_000;
@@ -46,6 +48,13 @@ export function prefetchCommonAppData(queryClient: QueryClient) {
     queryFn: () => getCompany(),
     staleTime: SLOW_STALE,
   });
+  for (const cabinet of CABINETS) {
+    void queryClient.prefetchQuery({
+      queryKey: [...companyKey, cabinet] as const,
+      queryFn: () => getCompanyForCabinet({ data: { cabinet } }),
+      staleTime: SLOW_STALE,
+    });
+  }
   void queryClient.prefetchQuery({
     queryKey: servicesKey,
     queryFn: () => listServices(),
@@ -198,6 +207,13 @@ export function prefetchForNavPath(queryClient: QueryClient, to: string) {
       queryFn: () => getCompany(),
       staleTime: SLOW_STALE,
     });
+    for (const cabinet of CABINETS) {
+      void queryClient.prefetchQuery({
+        queryKey: [...companyKey, cabinet] as const,
+        queryFn: () => getCompanyForCabinet({ data: { cabinet } }),
+        staleTime: SLOW_STALE,
+      });
+    }
   }
 
   if (to === "/users") {

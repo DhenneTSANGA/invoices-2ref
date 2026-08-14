@@ -4,11 +4,12 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session.functions";
 import { getResend } from "@/lib/resend";
 import { companyForPreview } from "@/lib/company-defaults";
-import { DOCUMENT_COLORS } from "@/lib/cabinets";
+import { DOCUMENT_COLORS, niuLabelForCabinet } from "@/lib/cabinets";
 import {
   escapeHtml,
   requireResendApiKey,
   resolveCabinetMailAddresses,
+  resolveManagerCc,
   resendErrorMessage,
 } from "@/lib/email";
 import {
@@ -199,9 +200,22 @@ function buildCommercialEmailHtml(params: {
   ].join("");
 
   const emitterLines = [
+    params.company.capital,
     params.company.address,
     params.company.city,
     [params.company.phone, params.company.email].filter(Boolean).join(" · "),
+  ].filter(Boolean);
+
+  const emitterLegalBits = [
+    params.company.nif && params.company.nif !== "—"
+      ? `NIF : ${params.company.nif}`
+      : "",
+    params.company.niu && params.company.niu !== "—"
+      ? `${params.niuLabel} : ${params.company.niu}`
+      : "",
+    params.company.rccm && params.company.rccm !== "—"
+      ? `RCCM : ${params.company.rccm}`
+      : "",
   ].filter(Boolean);
 
   const clientLines = params.clientLines;
@@ -236,6 +250,11 @@ function buildCommercialEmailHtml(params: {
                   `<div style="font-size:12px;line-height:1.45;color:#475569;">${escapeHtml(l)}</div>`,
               )
               .join("")}
+            ${
+              emitterLegalBits.length
+                ? `<div style="margin-top:8px;font-size:11px;line-height:1.45;color:#64748B;">${escapeHtml(emitterLegalBits.join(" · "))}</div>`
+                : ""
+            }
           </div>
         </td>
         <td width="52%" valign="top" style="padding-left:8px;">
@@ -292,6 +311,16 @@ function buildCommercialEmailHtml(params: {
         </td>
       </tr>
     </table>
+
+    ${
+      params.type === "invoice" && (params.company.bankName || params.company.bankAccount)
+        ? `<div style="margin-top:20px;background:#F1F5F9;border-radius:10px;padding:12px 14px;font-size:12px;color:#475569;">
+            <strong style="color:#0F172A;">RIB pour le règlement</strong>
+            ${params.company.bankName ? `<div style="margin-top:4px;">Banque : ${escapeHtml(params.company.bankName)}</div>` : ""}
+            ${params.company.bankAccount ? `<div>RIB : ${escapeHtml(params.company.bankAccount)}</div>` : ""}
+          </div>`
+        : ""
+    }
 
     ${
       params.notes
@@ -470,7 +499,8 @@ export const sendDocumentEmail = createServerFn({ method: "POST" })
     const { from, replyTo } = resolveCabinetMailAddresses(company);
     const typeLabel = documentTypeLabel(doc.type as DocumentType);
     const to = doc.client.email.trim();
-    const niuLabel = doc.cabinet === "conseil" ? "STAT" : "NIU";
+    const managerCc = resolveManagerCc(company, to);
+    const niuLabel = niuLabelForCabinet(doc.cabinet);
 
     let subject: string;
     let html: string;
@@ -588,6 +618,7 @@ export const sendDocumentEmail = createServerFn({ method: "POST" })
     const { data: sent, error } = await resend.emails.send({
       from,
       to,
+      ...(managerCc ? { cc: [managerCc] } : {}),
       subject,
       html,
       ...(replyTo ? { replyTo: [replyTo] } : {}),
@@ -604,6 +635,7 @@ export const sendDocumentEmail = createServerFn({ method: "POST" })
       resendId: sent?.id ?? null,
       fromEmail: from,
       toEmail: to,
+      ccEmail: managerCc ?? null,
       subject,
       html,
       documentId: doc.id,

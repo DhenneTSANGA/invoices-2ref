@@ -95,6 +95,27 @@ export function computeDocumentTotals(
   };
 }
 
+/** Montants commerciaux pour une base HT (même logique que computeDocumentTotals, une ligne). */
+function commercialAmountsFromHt(
+  ht: number,
+  vatRate = DEFAULT_VAT_RATE,
+  cssRate = DEFAULT_CSS_RATE,
+  tpsRate = 0,
+) {
+  const subtotal = Math.round(ht);
+  const tps = Math.round(subtotal * (Math.max(0, tpsRate) / 100));
+  const css = Math.round(subtotal * (Math.max(0, cssRate) / 100));
+  const effectiveVat = effectiveCommercialVatRate(vatRate, tpsRate);
+  const vat = Math.round(subtotal * (effectiveVat / 100));
+  return {
+    subtotal,
+    tps,
+    css,
+    vat,
+    total: commercialTotal(subtotal, tps, css, vat),
+  };
+}
+
 /** Facteur TTC = HT × (1 − TPS% + CSS% + TVA%). TPS active → TVA exclue. */
 export function commercialTaxFactor(
   vatRate = DEFAULT_VAT_RATE,
@@ -108,17 +129,34 @@ export function commercialTaxFactor(
   );
 }
 
-/** TTC → HT (arrondi à l’unité XAF). */
+/** TTC → HT : cherche le HT dont le recalcul TVA/CSS/TPS redonne exactement le TTC saisi. */
 export function htFromTtc(
   ttc: number,
   vatRate = DEFAULT_VAT_RATE,
   cssRate = DEFAULT_CSS_RATE,
   tpsRate = 0,
 ): number {
+  const target = Math.round(ttc);
+  if (!Number.isFinite(target) || target === 0) return 0;
+
   const factor = commercialTaxFactor(vatRate, cssRate, tpsRate);
-  if (!Number.isFinite(ttc) || ttc === 0) return 0;
-  if (factor <= 0) return Math.round(ttc);
-  return Math.round(ttc / factor);
+  const guess = factor <= 0 ? target : Math.round(target / factor);
+
+  let bestHt = guess;
+  let bestDiff = Infinity;
+  // ±5 couvre les écarts d’arrondi XAF usuels (ex. 792 000 → HT 665 547, pas 665 546).
+  for (let delta = -5; delta <= 5; delta++) {
+    const candidate = guess + delta;
+    if (candidate <= 0) continue;
+    const { total } = commercialAmountsFromHt(candidate, vatRate, cssRate, tpsRate);
+    const diff = Math.abs(total - target);
+    if (diff === 0) return candidate;
+    if (diff < bestDiff) {
+      bestDiff = diff;
+      bestHt = candidate;
+    }
+  }
+  return bestHt;
 }
 
 /** HT → TTC (arrondi à l’unité XAF). */
@@ -129,7 +167,7 @@ export function ttcFromHt(
   tpsRate = 0,
 ): number {
   if (!Number.isFinite(ht) || ht === 0) return 0;
-  return Math.round(ht * commercialTaxFactor(vatRate, cssRate, tpsRate));
+  return commercialAmountsFromHt(ht, vatRate, cssRate, tpsRate).total;
 }
 
 /** Décomposition d’un montant TTC (ligne ou total). */
@@ -139,19 +177,14 @@ export function breakdownFromTtc(
   cssRate = DEFAULT_CSS_RATE,
   tpsRate = 0,
 ) {
-  const effectiveVat = effectiveCommercialVatRate(vatRate, tpsRate);
   const subtotal = htFromTtc(ttc, vatRate, cssRate, tpsRate);
-  const tps = Math.round(subtotal * (Math.max(0, tpsRate) / 100));
-  const css = Math.round(subtotal * (Math.max(0, cssRate) / 100));
-  const vat = Math.round(subtotal * (effectiveVat / 100));
-  const computed = commercialTotal(subtotal, tps, css, vat);
-  const drift = Math.round(ttc) - computed;
+  const amounts = commercialAmountsFromHt(subtotal, vatRate, cssRate, tpsRate);
   return {
-    subtotal,
-    tps,
-    css: css + (tpsRate > 0 ? drift : 0),
-    vat: vat + (tpsRate === 0 ? drift : 0),
-    total: Math.round(ttc),
+    subtotal: amounts.subtotal,
+    tps: amounts.tps,
+    css: amounts.css,
+    vat: amounts.vat,
+    total: amounts.total,
   };
 }
 

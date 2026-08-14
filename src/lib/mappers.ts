@@ -59,6 +59,7 @@ export function mapCompany(
     mailFromEmail?: string | null;
     mailReplyTo?: string | null;
     managerName?: string | null;
+    managerEmail?: string | null;
     stampUrl?: string | null;
   },
   cabinet?: "conseil" | "expertise_fiscale",

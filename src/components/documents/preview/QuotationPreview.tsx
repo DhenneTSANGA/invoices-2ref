@@ -16,7 +16,7 @@ import {
   partyAddressLines,
   partyContactLine,
 } from "./InvoicePreview";
-import { COMPANY_DEFAULTS, DOCUMENT_COLORS } from "@/lib/cabinets";
+import { COMPANY_DEFAULTS, DOCUMENT_COLORS, niuLabelForCabinet } from "@/lib/cabinets";
 import { clientDisplayName, clientDocumentLines } from "@/lib/client-address";
 import { ManagerSignature } from "@/components/signature/ManagerSignature";
 import { cn } from "@/lib/utils";
@@ -40,6 +40,8 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
   /** Pas de densification : le PDF doit matcher l’aperçu écran. */
   const dense = false;
   const validity = doc.validityDays ?? 30;
+
+  const niuLabel = niuLabelForCabinet(doc.cabinet);
 
   const emitterLines = partyAddressLines([
     company.address,
@@ -130,7 +132,7 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
                 }
                 nif={company.nif}
                 niu={company.niu}
-                niuLabel={doc.cabinet === "conseil" ? "STAT" : "NIU"}
+                niuLabel={niuLabel}
                 rccm={company.rccm}
                 muted
                 compact={dense}
@@ -234,7 +236,7 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
         phone={company.phone}
         email={company.email}
         website={company.website}
-        niuLabel={doc.cabinet === "conseil" ? "STAT" : "NIU"}
+        niuLabel={niuLabel}
         compact={dense}
       />
     </PreviewShell>

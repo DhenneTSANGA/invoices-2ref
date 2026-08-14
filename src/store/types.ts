@@ -73,6 +73,8 @@ export type CompanyInfo = {
   mailReplyTo?: string;
   /** Nom du gérant (signataire). Vide jusqu'à configuration. */
   managerName?: string;
+  /** E-mail du gérant (CC des envois clients). */
+  managerEmail?: string;
   /** URL du cachet. Vide jusqu'à configuration. */
   stampUrl?: string;
 };

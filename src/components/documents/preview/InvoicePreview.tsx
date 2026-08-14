@@ -11,7 +11,7 @@ import {
   PreviewBottomRow,
 } from "./PreviewShell";
 import { computeDocumentTotals, documentTaxRates } from "@/lib/document-math";
-import { COMPANY_DEFAULTS, DOCUMENT_COLORS } from "@/lib/cabinets";
+import { COMPANY_DEFAULTS, DOCUMENT_COLORS, niuLabelForCabinet } from "@/lib/cabinets";
 import { ManagerSignature } from "@/components/signature/ManagerSignature";
 import { clientDisplayName, clientDocumentLines } from "@/lib/client-address";
 import { cn } from "@/lib/utils";
@@ -41,6 +41,8 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
   /** Pas de densification : le PDF doit matcher l’aperçu écran. */
   const dense = false;
   const { accent, accentTo } = DOCUMENT_COLORS.invoice;
+
+  const niuLabel = niuLabelForCabinet(doc.cabinet);
 
   const emitterLines = partyAddressLines([
     company.address,
@@ -117,7 +119,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
                 }
                 nif={company.nif}
                 niu={company.niu}
-                niuLabel={doc.cabinet === "conseil" ? "STAT" : "NIU"}
+                niuLabel={niuLabel}
                 rccm={company.rccm}
                 muted
                 compact={dense}
@@ -225,7 +227,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
         phone={company.phone}
         email={company.email}
         website={company.website}
-        niuLabel={doc.cabinet === "conseil" ? "STAT" : "NIU"}
+        niuLabel={niuLabel}
         compact={dense}
       />
     </PreviewShell>

@@ -39,6 +39,19 @@ function resolveCity(
   return city;
 }
 
+function resolveCapital(
+  row: { tagline: string | null } | null | undefined,
+  fallback: CompanyInfo,
+  cabinet: Cabinet,
+  resolvedTagline: string,
+): string {
+  if (cabinet === "conseil") {
+    const tag = (row?.tagline ?? resolvedTagline).trim();
+    if (tag) return tag;
+  }
+  return fallback.capital;
+}
+
 export function companyForPreview(
   row: {
     name: string;
@@ -57,16 +70,18 @@ export function companyForPreview(
     mailFromEmail?: string | null;
     mailReplyTo?: string | null;
     managerName?: string | null;
+    managerEmail?: string | null;
     stampUrl?: string | null;
   } | null | undefined,
   cabinet: Cabinet = "expertise_fiscale",
 ): CompanyInfo {
   const fallback = COMPANY_DEFAULTS[cabinet];
   if (!row) return fallback;
+  const tagline = resolveTagline(row.tagline, fallback.tagline, cabinet);
   return {
     name: row.name,
-    tagline: resolveTagline(row.tagline, fallback.tagline, cabinet),
-    capital: fallback.capital,
+    tagline,
+    capital: resolveCapital(row, fallback, cabinet, tagline),
     nif: row.nif,
     niu: row.niu || "—",
     rccm: row.rccm,
@@ -90,6 +105,7 @@ export function companyForPreview(
       fallback.mailReplyTo ||
       fallback.email,
     managerName: row.managerName?.trim() || fallback.managerName || "",
+    managerEmail: row.managerEmail?.trim() || fallback.managerEmail || "",
     stampUrl: row.stampUrl?.trim() || fallback.stampUrl || "",
   };
 }

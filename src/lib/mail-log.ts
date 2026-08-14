@@ -21,6 +21,8 @@ export type LogOutboundMailInput = {
   resendId?: string | null;
   fromEmail: string;
   toEmail: string | string[];
+  /** Destinataires en copie (CC). */
+  ccEmail?: string | string[] | null;
   subject: string;
   html?: string | null;
   text?: string | null;
@@ -30,57 +32,84 @@ export type LogOutboundMailInput = {
   lastEvent?: string | null;
 };
 
+function joinEmails(value: string | string[] | null | undefined): string | null {
+  if (!value) return null;
+  if (Array.isArray(value)) {
+    const joined = value.map((e) => e.trim()).filter(Boolean).join(", ");
+    return joined || null;
+  }
+  const trimmed = value.trim();
+  return trimmed || null;
+}
+
 export async function logOutboundMail(input: LogOutboundMailInput) {
   const to = Array.isArray(input.toEmail)
     ? input.toEmail.join(", ")
     : input.toEmail;
+  const ccEmail = joinEmails(input.ccEmail);
   const preview =
     input.text?.trim() ||
     (input.html ? htmlToPreview(input.html) : "");
 
+  const baseCreate = {
+    direction: "outbound" as const,
+    cabinet: input.cabinet ?? null,
+    fromEmail: input.fromEmail,
+    toEmail: to,
+    subject: input.subject,
+    preview,
+    htmlBody: input.html ?? null,
+    textBody: input.text ?? null,
+    documentId: input.documentId ?? null,
+    clientId: input.clientId ?? null,
+    staffId: input.staffId ?? null,
+    lastEvent: input.lastEvent ?? "sent",
+  };
+
   try {
     if (input.resendId) {
-      return await prisma.mailMessage.upsert({
-        where: { resendId: input.resendId },
-        create: {
-          direction: "outbound",
-          cabinet: input.cabinet ?? null,
-          resendId: input.resendId,
-          fromEmail: input.fromEmail,
-          toEmail: to,
-          subject: input.subject,
-          preview,
-          htmlBody: input.html ?? null,
-          textBody: input.text ?? null,
-          documentId: input.documentId ?? null,
-          clientId: input.clientId ?? null,
-          staffId: input.staffId ?? null,
-          lastEvent: input.lastEvent ?? "sent",
-        },
-        update: {
-          lastEvent: input.lastEvent ?? "sent",
-          preview,
-          htmlBody: input.html ?? undefined,
-        },
-      });
+      try {
+        return await prisma.mailMessage.upsert({
+          where: { resendId: input.resendId },
+          create: {
+            ...baseCreate,
+            resendId: input.resendId,
+            ccEmail,
+          },
+          update: {
+            lastEvent: input.lastEvent ?? "sent",
+            preview,
+            htmlBody: input.html ?? undefined,
+            ccEmail: ccEmail ?? undefined,
+          },
+        });
+      } catch (err) {
+        // Client Prisma / schéma sans colonne ccEmail encore.
+        if (!String(err).includes("ccEmail") && !String(err).includes("Unknown argument")) {
+          throw err;
+        }
+        return await prisma.mailMessage.upsert({
+          where: { resendId: input.resendId },
+          create: { ...baseCreate, resendId: input.resendId },
+          update: {
+            lastEvent: input.lastEvent ?? "sent",
+            preview,
+            htmlBody: input.html ?? undefined,
+          },
+        });
+      }
     }
 
-    return await prisma.mailMessage.create({
-      data: {
-        direction: "outbound",
-        cabinet: input.cabinet ?? null,
-        fromEmail: input.fromEmail,
-        toEmail: to,
-        subject: input.subject,
-        preview,
-        htmlBody: input.html ?? null,
-        textBody: input.text ?? null,
-        documentId: input.documentId ?? null,
-        clientId: input.clientId ?? null,
-        staffId: input.staffId ?? null,
-        lastEvent: input.lastEvent ?? "sent",
-      },
-    });
+    try {
+      return await prisma.mailMessage.create({
+        data: { ...baseCreate, ccEmail },
+      });
+    } catch (err) {
+      if (!String(err).includes("ccEmail") && !String(err).includes("Unknown argument")) {
+        throw err;
+      }
+      return await prisma.mailMessage.create({ data: baseCreate });
+    }
   } catch (err) {
     console.warn("[logOutboundMail]", err);
     return null;
@@ -94,6 +123,7 @@ export type MailListItem = {
   resendId: string | null;
   fromEmail: string;
   toEmail: string;
+  ccEmail: string | null;
   subject: string;
   preview: string;
   documentId: string | null;
@@ -110,6 +140,7 @@ export function mapMailRow(row: {
   resendId: string | null;
   fromEmail: string;
   toEmail: string;
+  ccEmail?: string | null;
   subject: string;
   preview: string;
   documentId: string | null;
@@ -130,6 +161,7 @@ export function mapMailRow(row: {
     resendId: row.resendId,
     fromEmail: row.fromEmail,
     toEmail: row.toEmail,
+    ccEmail: row.ccEmail ?? null,
     subject,
     preview: row.preview,
     documentId: row.documentId,

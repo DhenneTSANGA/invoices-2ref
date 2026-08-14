@@ -104,6 +104,8 @@ model Company {
   mailReplyTo   String?
   /** Nom du gérant (signataire des lettres). */
   managerName String?
+  /** E-mail du gérant (mis en CC des envois clients). */
+  managerEmail String?
   /** URL publique du cachet / tampon (Storage ou asset). */
   stampUrl    String?
   createdAt   DateTime @default(now())
@@ -457,6 +459,8 @@ model MailMessage {
   resendId   String?       @unique
   fromEmail  String
   toEmail    String
+  /** Destinataires en copie (CC), séparés par virgule si plusieurs. */
+  ccEmail    String?
   subject    String
   preview    String        @default("")
   htmlBody   String?

@@ -61,6 +61,23 @@ export function resolveCabinetMailAddresses(company: CompanyMailFields): {
   return { from, replyTo, fromAddress };
 }
 
+/**
+ * E-mail du gérant à mettre en CC (hors destinataire principal).
+ * Retourne undefined si absent, invalide, ou égal au destinataire.
+ */
+export function resolveManagerCc(
+  company: { managerEmail?: string | null },
+  toEmail: string,
+): string | undefined {
+  const raw = company.managerEmail?.trim();
+  if (!raw) return undefined;
+  const cc = bareEmail(raw).toLowerCase();
+  if (!cc.includes("@")) return undefined;
+  const to = bareEmail(toEmail).toLowerCase();
+  if (cc === to) return undefined;
+  return bareEmail(raw);
+}
+
 export function resendErrorMessage(error: unknown): string {
   if (!error) return "Erreur Resend inconnue";
   if (typeof error === "string") return error;

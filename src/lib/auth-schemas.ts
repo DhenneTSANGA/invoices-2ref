@@ -151,6 +151,10 @@ export const companyInputSchema = z.object({
     .optional()
     .nullable(),
   managerName: z.string().optional().nullable(),
+  managerEmail: z
+    .union([z.string().email("E-mail du gérant invalide"), z.literal("")])
+    .optional()
+    .nullable(),
   stampUrl: z.string().optional().nullable(),
 });
 
