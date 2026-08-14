@@ -1,7 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Save, Building2, Receipt, Palette, ShieldCheck, Upload } from "lucide-react";
+import { Save, Building2, Receipt, Palette, ShieldCheck, Upload, Check } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { LoadingState } from "@/components/common/LoadingState";
 import {
@@ -13,6 +13,12 @@ import {
 import { Logo } from "@/components/common/Logo";
 import { COMPANY_DEFAULTS } from "@/lib/company-defaults";
 import { niuLabelForCabinet } from "@/lib/cabinets";
+import {
+  applyPrimaryColor,
+  BRAND_COLOR_PRESETS,
+  DEFAULT_PRIMARY_COLOR,
+  normalizePrimaryColor,
+} from "@/lib/brand-theme";
 import type { CompanyInfo } from "@/store/types";
 import { cn } from "@/lib/utils";
 import { canEditCompanySettings } from "@/lib/roles";
@@ -53,6 +59,15 @@ function SettingsPage() {
   useEffect(() => {
     if (company) setForm(company);
   }, [company]);
+
+  const selectedColor =
+    normalizePrimaryColor(form.primaryColor) ?? DEFAULT_PRIMARY_COLOR;
+
+  const pickColor = (hex: string) => {
+    const color = normalizePrimaryColor(hex) ?? DEFAULT_PRIMARY_COLOR;
+    setForm((prev) => ({ ...prev, primaryColor: color }));
+    applyPrimaryColor(color);
+  };
 
   const save = async () => {
     try {
@@ -259,18 +274,60 @@ function SettingsPage() {
             <div className="space-y-4">
               <div className="rounded-2xl bg-gradient-mesh p-6">
                 <h4 className="font-display font-semibold">Couleur primaire</h4>
-                <p className="text-xs text-muted-foreground">Cette couleur est utilisée pour les boutons, accents et entêtes.</p>
-                <div className="mt-4 flex gap-3">
-                  {["#1E40AF", "#0EA5E9", "#7C3AED", "#0D9488", "#DC2626"].map((c) => (
-                    <button key={c} className="h-10 w-10 rounded-2xl shadow-soft ring-2 ring-transparent hover:ring-foreground/30 transition" style={{ background: c }} />
-                  ))}
+                <p className="text-xs text-muted-foreground">
+                  Cette couleur est utilisée pour les boutons, accents et
+                  entêtes de l’interface. Enregistrez pour la conserver.
+                </p>
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  {BRAND_COLOR_PRESETS.map((c) => {
+                    const active = selectedColor === c;
+                    return (
+                      <button
+                        key={c}
+                        type="button"
+                        aria-label={`Choisir ${c}`}
+                        aria-pressed={active}
+                        onClick={() => pickColor(c)}
+                        className={cn(
+                          "relative h-10 w-10 rounded-2xl shadow-soft ring-2 transition",
+                          active
+                            ? "ring-foreground scale-105"
+                            : "ring-transparent hover:ring-foreground/30",
+                        )}
+                        style={{ background: c }}
+                      >
+                        {active ? (
+                          <Check className="absolute inset-0 m-auto h-4 w-4 text-white drop-shadow" />
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                    Personnalisée
+                    <input
+                      type="color"
+                      value={selectedColor}
+                      onChange={(e) => pickColor(e.target.value)}
+                      className="h-10 w-10 cursor-pointer rounded-xl border border-border bg-transparent p-1"
+                    />
+                  </label>
+                </div>
+                <div className="mt-5 flex flex-wrap items-center gap-3">
+                  <span className="rounded-2xl bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow">
+                    Aperçu bouton
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {selectedColor}
+                  </span>
                 </div>
               </div>
               <div className="rounded-2xl bg-surface-2 p-6">
                 <h4 className="font-display font-semibold">Logo</h4>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Le logo affiché sur les documents est celui du cabinet actif.
+                </p>
                 <div className="mt-3 flex items-center gap-3">
                   <Logo size="lg" cabinet={activeCabinet} className="rounded-xl" />
-                  <button className="rounded-xl border border-border bg-surface px-3 py-2 text-sm hover:bg-muted">Téléverser un logo</button>
                 </div>
               </div>
             </div>

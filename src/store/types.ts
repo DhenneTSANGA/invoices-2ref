@@ -77,6 +77,8 @@ export type CompanyInfo = {
   managerEmail?: string;
   /** URL du cachet. Vide jusqu'à configuration. */
   stampUrl?: string;
+  /** Couleur primaire de l’interface (hex). */
+  primaryColor?: string;
 };
 
 export type Service = {

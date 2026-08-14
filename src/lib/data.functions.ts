@@ -1134,14 +1134,38 @@ export const deleteDocument = createServerFn({ method: "POST" })
 
 // ─── Company ───────────────────────────────────────────────────────────────
 
+async function readCompanyPrimaryColor(cabinet: Cabinet) {
+  const rows = await prisma.$queryRaw<Array<{ primaryColor: string | null }>>`
+    SELECT "primaryColor" FROM companies
+    WHERE cabinet = CAST(${cabinet} AS "Cabinet")
+    LIMIT 1
+  `;
+  return rows[0]?.primaryColor ?? null;
+}
+
+function normalizeStoredPrimaryColor(value: string | null | undefined) {
+  const raw = value?.trim();
+  if (!raw) return null;
+  const hex = raw.startsWith("#") ? raw : `#${raw}`;
+  return /^#[0-9A-Fa-f]{6}$/.test(hex) ? hex.toUpperCase() : null;
+}
+
+function mapCompanyRow(
+  row: Parameters<typeof mapCompany>[0],
+  cabinet: Cabinet,
+  primaryColor?: string | null,
+) {
+  return mapCompany({ ...row, primaryColor: primaryColor ?? row.primaryColor }, cabinet);
+}
+
 export const getCompany = createServerFn({ method: "GET" }).handler(async () => {
   const { activeCabinet } = await requireSession();
   const row = await prisma.company.findUnique({
     where: { cabinet: activeCabinet },
   });
-  return row
-    ? mapCompany(row, activeCabinet)
-    : COMPANY_DEFAULTS[activeCabinet];
+  if (!row) return COMPANY_DEFAULTS[activeCabinet];
+  const primaryColor = await readCompanyPrimaryColor(activeCabinet);
+  return mapCompanyRow(row, activeCabinet, primaryColor);
 });
 
 /** Société d'un cabinet précis (preview / PDF d'un document). */
@@ -1152,9 +1176,9 @@ export const getCompanyForCabinet = createServerFn({ method: "GET" })
     const row = await prisma.company.findUnique({
       where: { cabinet: data.cabinet },
     });
-    return row
-      ? mapCompany(row, data.cabinet)
-      : COMPANY_DEFAULTS[data.cabinet];
+    if (!row) return COMPANY_DEFAULTS[data.cabinet];
+    const primaryColor = await readCompanyPrimaryColor(data.cabinet);
+    return mapCompanyRow(row, data.cabinet, primaryColor);
   });
 
 export const updateCompany = createServerFn({ method: "POST" })
@@ -1165,6 +1189,7 @@ export const updateCompany = createServerFn({ method: "POST" })
       throw new Error("Modification réservée aux administrateurs");
     }
     const { activeCabinet } = session;
+    const primaryColor = normalizeStoredPrimaryColor(data.primaryColor);
     const payload = {
       name: data.name,
       tagline: data.tagline ?? null,
@@ -1190,7 +1215,12 @@ export const updateCompany = createServerFn({ method: "POST" })
       create: { ...payload, cabinet: activeCabinet },
       update: payload,
     });
-    return mapCompany(row, activeCabinet);
+    await prisma.$executeRaw`
+      UPDATE companies
+      SET "primaryColor" = ${primaryColor}
+      WHERE cabinet = CAST(${activeCabinet} AS "Cabinet")
+    `;
+    return mapCompanyRow(row, activeCabinet, primaryColor);
   });
 
 /** Enregistre une signature manuscrite (PNG/JPEG/WebP) pour le cabinet actif. */
@@ -1254,7 +1284,7 @@ export const uploadCompanySignature = createServerFn({ method: "POST" })
       update: { stampUrl: uploaded.fileUrl },
     });
 
-    return mapCompany(row, activeCabinet);
+    return mapCompanyRow(row, activeCabinet, await readCompanyPrimaryColor(activeCabinet));
   });
 
 /** Filtre archives côté API selon le rôle. */

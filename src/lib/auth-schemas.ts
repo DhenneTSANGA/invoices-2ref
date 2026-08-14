@@ -156,6 +156,15 @@ export const companyInputSchema = z.object({
     .optional()
     .nullable(),
   stampUrl: z.string().optional().nullable(),
+  primaryColor: z
+    .union([
+      z
+        .string()
+        .regex(/^#?[0-9A-Fa-f]{6}$/, "Couleur hex invalide"),
+      z.literal(""),
+    ])
+    .optional()
+    .nullable(),
 });
 
 export const clientInputSchema = z.object({

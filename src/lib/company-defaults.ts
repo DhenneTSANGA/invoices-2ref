@@ -72,6 +72,7 @@ export function companyForPreview(
     managerName?: string | null;
     managerEmail?: string | null;
     stampUrl?: string | null;
+    primaryColor?: string | null;
   } | null | undefined,
   cabinet: Cabinet = "expertise_fiscale",
 ): CompanyInfo {
@@ -107,5 +108,7 @@ export function companyForPreview(
     managerName: row.managerName?.trim() || fallback.managerName || "",
     managerEmail: row.managerEmail?.trim() || fallback.managerEmail || "",
     stampUrl: row.stampUrl?.trim() || fallback.stampUrl || "",
+    primaryColor:
+      row.primaryColor?.trim() || fallback.primaryColor || "",
   };
 }

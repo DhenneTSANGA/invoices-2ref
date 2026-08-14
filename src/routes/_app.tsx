@@ -14,6 +14,7 @@ import { getAuthBootstrap } from "@/lib/admin.functions";
 import { sessionKey } from "@/hooks/use-data";
 import { prefetchCommonAppData } from "@/lib/prefetch-app-data";
 import { NotificationSync } from "@/components/layout/NotificationSync";
+import { BrandTheme } from "@/components/layout/BrandTheme";
 import type { AppSession } from "@/lib/session.functions";
 
 /** Durée pendant laquelle on réutilise la session client sans re-bootstrap serveur. */
@@ -79,6 +80,7 @@ function AppLayout() {
   return (
     <div className="flex min-h-screen w-full max-w-[100vw] overflow-x-clip">
       <NotificationSync />
+      <BrandTheme />
       <AppSidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <AppTopbar />

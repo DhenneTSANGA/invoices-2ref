@@ -101,6 +101,7 @@ export const COMPANY_DEFAULTS: Record<Cabinet, CompanyInfo> = {
     managerName: "M. Richard BICKAPA NIONGUI",
     managerEmail: "",
     stampUrl: "",
+    primaryColor: "#1E40AF",
   },
   conseil: {
     name: "2R Conseil",
@@ -122,6 +123,7 @@ export const COMPANY_DEFAULTS: Record<Cabinet, CompanyInfo> = {
     managerName: "M. Romaric BOULINGUI",
     managerEmail: "",
     stampUrl: "",
+    primaryColor: "#1E40AF",
   },
 };
 

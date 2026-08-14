@@ -108,6 +108,8 @@ model Company {
   managerEmail String?
   /** URL publique du cachet / tampon (Storage ou asset). */
   stampUrl    String?
+  /** Couleur primaire de l’interface (hex, ex. #1E40AF). */
+  primaryColor String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

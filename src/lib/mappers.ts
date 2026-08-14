@@ -61,6 +61,7 @@ export function mapCompany(
     managerName?: string | null;
     managerEmail?: string | null;
     stampUrl?: string | null;
+    primaryColor?: string | null;
   },
   cabinet?: "conseil" | "expertise_fiscale",
 ): CompanyInfo {
