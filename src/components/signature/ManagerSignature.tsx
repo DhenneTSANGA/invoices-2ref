@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import type { Cabinet } from "@/lib/cabinets";
 
 export type ManagerSignatureProps = {
   /** URL publique de la signature manuscrite (PNG). */
@@ -20,6 +21,8 @@ export type ManagerSignatureProps = {
   forPdf?: boolean;
   /** N’imprime pas l’image même si le document est signé. */
   omitStamp?: boolean;
+  /** Cabinet : 2R Conseil utilise un cadre plus petit que 2REF. */
+  cabinet?: Cabinet;
 };
 
 /**
@@ -36,33 +39,45 @@ export function ManagerSignature({
   pendingLabel = "En attente de signature",
   forPdf = false,
   omitStamp = false,
+  cabinet,
 }: ManagerSignatureProps) {
   const url = signatureUrl?.trim() || "";
   const name = managerName?.trim() || "";
   const showStamp = Boolean(applied && url && !omitStamp);
   const hidePendingFrame = forPdf || omitStamp;
+  const conseil = cabinet === "conseil";
 
   return (
     <div
       className={cn(
         "translate-x-3 text-center",
-        compact ? "w-48" : "w-[28rem] max-w-full",
+        compact ? "w-48" : conseil ? "w-96 max-w-full" : "w-[28rem] max-w-full",
         className,
       )}
     >
       {showStamp ? (
-        <img
-          src={url}
-          alt={name ? `Signature de ${name}` : "Signature électronique"}
-          crossOrigin="anonymous"
-          referrerPolicy="no-referrer"
-          decoding="sync"
+        <div
           className={cn(
-            "mx-auto bg-white object-contain object-right [print-color-adjust:exact] [-webkit-print-color-adjust:exact]",
-            compact ? "max-h-20 max-w-[11rem]" : "h-auto max-h-60 w-full",
+            "ml-auto overflow-hidden bg-white",
+            compact
+              ? conseil
+                ? "h-16 w-40"
+                : "h-20 w-44"
+              : conseil
+                ? "h-48 w-full"
+                : "h-60 w-full",
           )}
-          style={{ color: "transparent", mixBlendMode: "normal", filter: "none" }}
-        />
+        >
+          <img
+            src={url}
+            alt={name ? `Signature de ${name}` : "Signature électronique"}
+            crossOrigin="anonymous"
+            referrerPolicy="no-referrer"
+            decoding="sync"
+            className="h-full w-full object-contain object-right [print-color-adjust:exact] [-webkit-print-color-adjust:exact]"
+            style={{ color: "transparent", mixBlendMode: "normal", filter: "none" }}
+          />
+        </div>
       ) : hidePendingFrame ? (
         <div
           className={cn("mx-auto w-full", compact ? "h-16" : "h-28")}

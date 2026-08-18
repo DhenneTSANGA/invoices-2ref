@@ -133,6 +133,7 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
           compact={isThumb}
           forPdf={compact}
           omitStamp={omitSignature}
+          cabinet={doc.cabinet}
         />
       </div>
 

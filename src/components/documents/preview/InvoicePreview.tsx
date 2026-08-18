@@ -213,6 +213,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
           compact={dense}
           forPdf={compact}
           omitStamp={omitSignature}
+          cabinet={doc.cabinet}
         />
       </div>
 

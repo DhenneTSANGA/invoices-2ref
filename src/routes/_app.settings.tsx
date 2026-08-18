@@ -207,6 +207,7 @@ function SettingsPage() {
                       signatoryTitle="Le Gérant"
                       applied
                       accent="#01004C"
+                      cabinet={activeCabinet}
                     />
                   </div>
                   <div className="min-w-0 flex-1 space-y-3">

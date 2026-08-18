@@ -460,10 +460,16 @@ export function useDocumentPdfTraces(documentId: string | undefined) {
 export function useDownloadDocumentPdf() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (doc: Document) => downloadDocumentPdf(doc),
-    onSuccess: (_res, doc) => {
-      if (doc.id) {
-        void qc.invalidateQueries({ queryKey: documentPdfTracesKey(doc.id) });
+    mutationFn: ({
+      doc,
+      includeSignature,
+    }: {
+      doc: Document;
+      includeSignature?: boolean;
+    }) => downloadDocumentPdf(doc, { includeSignature }),
+    onSuccess: (_res, vars) => {
+      if (vars.doc.id && !vars.includeSignature) {
+        void qc.invalidateQueries({ queryKey: documentPdfTracesKey(vars.doc.id) });
       }
     },
   });

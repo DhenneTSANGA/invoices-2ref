@@ -222,6 +222,7 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
           compact={dense}
           forPdf={compact}
           omitStamp={omitSignature}
+          cabinet={doc.cabinet}
         />
       </div>
 

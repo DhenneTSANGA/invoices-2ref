@@ -357,10 +357,13 @@ function buildLetterEmailHtml(params: {
   signatoryTitle: string;
   managerName: string;
   niuLabel: string;
+  cabinet?: "conseil" | "expertise_fiscale";
 }): string {
   const colors = DOCUMENT_COLORS.letter;
   const { accent } = colors;
   const signatureUrl = params.company.stampUrl?.trim() || "";
+  const sigW = params.cabinet === "conseil" ? 320 : 380;
+  const sigH = params.cabinet === "conseil" ? 192 : 240;
 
   const recipientHtml = escapeHtml(
     params.recipientBlock || "Destinataire",
@@ -418,7 +421,7 @@ ${escapeHtml(params.body)}
         <td width="380" align="right" style="padding:12px 0 12px 20px;">
           ${
             signatureUrl
-              ? `<div><img src="${escapeHtml(signatureUrl)}" alt="Signature" width="380" style="max-width:380px;height:auto;display:inline-block;" /></div>`
+              ? `<div><img src="${escapeHtml(signatureUrl)}" alt="Signature" width="${sigW}" height="${sigH}" style="width:${sigW}px;height:${sigH}px;max-width:${sigW}px;object-fit:contain;object-position:right center;display:block;margin-left:auto;" /></div>`
               : ""
           }
           ${
@@ -525,6 +528,7 @@ export const sendDocumentEmail = createServerFn({ method: "POST" })
         signatoryTitle: doc.signatoryTitle || staff.jobTitle,
         managerName: company.managerName?.trim() || "",
         niuLabel,
+        cabinet: doc.cabinet,
       });
     } else {
       const currency = doc.currency || "XAF";
