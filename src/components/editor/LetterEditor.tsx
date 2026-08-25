@@ -28,6 +28,14 @@ import type { Cabinet } from "@/lib/cabinets";
 import { isAdmin } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 import { clientLetterPostalLine, clientRepresentativeLine, clientDisplayName } from "@/lib/client-address";
+import {
+  DEFAULT_SIGNATORY_TITLE,
+  isAccountantSignatory,
+  resolveSignatoryRole,
+  SIGNATORY_ROLES,
+  signatoryTitleForRole,
+  type SignatoryRole,
+} from "@/lib/signatory";
 
 type Props = { initial?: Document };
 
@@ -66,7 +74,7 @@ export function LetterEditor({ initial }: Props) {
       salutation: "",
       body: "",
       closing: "",
-      signatoryTitle: "Le Gérant",
+      signatoryTitle: DEFAULT_SIGNATORY_TITLE,
     },
   );
 
@@ -100,6 +108,8 @@ export function LetterEditor({ initial }: Props) {
   const previewDoc = { ...doc, clientId: effectiveClientId };
   const selectedClient = clients.find((c) => c.id === effectiveClientId);
   const alreadySigned = doc.status === "signed" || doc.status === "sent";
+  const accountantSignatory = isAccountantSignatory(doc.signatoryTitle);
+  const canOnlineSign = !alreadySigned && !accountantSignatory;
 
   const persistDraft = async () => {
     if (!effectiveClientId) {
@@ -123,7 +133,7 @@ export function LetterEditor({ initial }: Props) {
       salutation: draft.salutation ?? null,
       body: draft.body ?? null,
       closing: draft.closing ?? null,
-      signatoryTitle: draft.signatoryTitle ?? null,
+      signatoryTitle: draft.signatoryTitle?.trim() || DEFAULT_SIGNATORY_TITLE,
       recipientOverride: draft.recipientOverride ?? null,
       items: [],
       subtotal: 0,
@@ -314,16 +324,36 @@ export function LetterEditor({ initial }: Props) {
           icon={<Stamp className="h-4 w-4" />}
           title="Signature"
           hint={
-            adminLike
-              ? "En tant qu’administrateur (gérant), vous pouvez signer directement ce courriel. L’envoi e-mail n’est possible qu’après signature."
-              : "Après enregistrement, demandez la signature de l’administrateur (gérant). L’envoi e-mail n’est possible qu’une fois le courriel signé."
+            accountantSignatory
+              ? "Chef comptable : téléchargez le PDF pour paraphe manuscrit. Pas de signature en ligne ni d’envoi e-mail."
+              : adminLike
+                ? "En tant qu’administrateur, vous pouvez signer directement ce courriel. L’envoi e-mail n’est possible qu’après signature."
+                : "Après enregistrement, demandez la signature de la Direction. L’envoi e-mail n’est possible qu’une fois le courriel signé."
           }
         >
-          <Field
-            label="Fonction du signataire"
-            value={doc.signatoryTitle ?? ""}
-            onChange={(v) => setDoc({ ...doc, signatoryTitle: v })}
-          />
+          <label className="block">
+            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Signataire
+            </span>
+            <select
+              className="mt-1 w-full rounded-xl border border-border/60 bg-surface px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
+              value={resolveSignatoryRole(doc.signatoryTitle)}
+              onChange={(e) =>
+                setDoc({
+                  ...doc,
+                  signatoryTitle: signatoryTitleForRole(
+                    e.target.value as SignatoryRole,
+                  ),
+                })
+              }
+            >
+              {SIGNATORY_ROLES.map((r) => (
+                <option key={r.value} value={r.value}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+          </label>
         </Section>
 
         <div className="flex flex-wrap items-center justify-end gap-2 rounded-3xl border border-border/50 bg-surface/80 p-3 backdrop-blur">
@@ -339,7 +369,7 @@ export function LetterEditor({ initial }: Props) {
           >
             <Save className="h-4 w-4" /> Enregistrer
           </Button>
-          {!alreadySigned && adminLike && (
+          {canOnlineSign && adminLike && (
             <Button
               className="rounded-xl bg-gradient-primary text-primary-foreground shadow-glow"
               disabled={busy}
@@ -349,7 +379,7 @@ export function LetterEditor({ initial }: Props) {
               {signMutation.isPending ? "Signature…" : "Signer"}
             </Button>
           )}
-          {!alreadySigned && !adminLike && (
+          {canOnlineSign && !adminLike && (
             <Button
               className="rounded-xl bg-amber-600 text-white hover:bg-amber-600/90"
               disabled={busy}
@@ -359,7 +389,7 @@ export function LetterEditor({ initial }: Props) {
               {requestSignMutation.isPending ? "Demande…" : "Demander la signature"}
             </Button>
           )}
-          {alreadySigned && (
+          {alreadySigned && !accountantSignatory && (
             <Button
               className="rounded-xl bg-gradient-primary text-primary-foreground shadow-glow"
               disabled={busy}

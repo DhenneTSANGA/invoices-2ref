@@ -20,6 +20,10 @@ import { COMPANY_DEFAULTS, DOCUMENT_COLORS, niuLabelForCabinet } from "@/lib/cab
 import { clientDisplayName, clientDocumentLines } from "@/lib/client-address";
 import { ManagerSignature } from "@/components/signature/ManagerSignature";
 import { cn } from "@/lib/utils";
+import {
+  isAccountantSignatory,
+  signatoryDisplayName,
+} from "@/lib/signatory";
 
 type Props = {
   doc: Document;
@@ -42,6 +46,8 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
   const validity = doc.validityDays ?? 30;
 
   const niuLabel = niuLabelForCabinet(doc.cabinet);
+  const accountantSignatory = isAccountantSignatory(doc.signatoryTitle);
+  const signatoryName = signatoryDisplayName(doc.signatoryTitle);
 
   const emitterLines = partyAddressLines([
     company.address,
@@ -56,31 +62,13 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
     <PreviewShell innerRef={ref} accent={ACCENT} compact={compact} isThumb={isThumb} className={className}>
       <div
         className={cn(
-          "flex items-start justify-between border-b-2",
+          "flex items-center justify-between border-b-2",
           dense ? "gap-3 pb-2.5" : "gap-4 pb-5",
         )}
         style={{ borderColor: ACCENT }}
       >
-        <div className="flex min-w-0 items-center gap-2.5">
-          <div className="shrink-0">
-            <PreviewLogo cabinet={doc.cabinet} className="h-40" />
-          </div>
-          <div className="min-w-0">
-            <div
-              className={cn(
-                "font-display font-bold tracking-tight leading-tight",
-                dense ? "text-base" : "text-xl",
-              )}
-              style={{ color: ACCENT }}
-            >
-              {company.name}
-            </div>
-            {company.tagline ? (
-              <div className={cn("mt-0.5 leading-snug text-[#64748B]", dense ? "text-[10px]" : "text-[12px]")}>
-                {company.tagline}
-              </div>
-            ) : null}
-          </div>
+        <div className="shrink-0">
+          <PreviewLogo cabinet={doc.cabinet} className="h-40" />
         </div>
         <div className="shrink-0 text-right">
           <div
@@ -174,26 +162,52 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
       <PreviewBottomRow
         compact={dense}
         left={
-          doc.executionTerms || doc.notes ? (
-            <div
-              className={cn("rounded-lg", dense ? "p-2.5" : "p-3.5")}
-              style={{
-                background: `${ACCENT_TO}18`,
-                boxShadow: `inset 0 0 0 1px ${ACCENT_TO}88`,
-              }}
-            >
-              <div
-                className={cn(
-                  "font-bold uppercase tracking-wider",
-                  dense ? "text-[9px]" : "text-[11px]",
-                )}
-                style={{ color: ACCENT }}
-              >
-                Conditions de réalisation
-              </div>
-              <p className={cn("text-[#334155]", dense ? "mt-0.5 text-[10px]" : "mt-1 text-[12px]")}>
-                {doc.executionTerms || doc.notes}
-              </p>
+          doc.paymentTerms?.trim() || doc.executionTerms?.trim() ? (
+            <div className={cn("space-y-2", dense ? "space-y-1.5" : "space-y-2")}>
+              {doc.paymentTerms?.trim() ? (
+                <div
+                  className={cn("rounded-lg", dense ? "p-2.5" : "p-3.5")}
+                  style={{
+                    background: `${ACCENT_TO}18`,
+                    boxShadow: `inset 0 0 0 1px ${ACCENT_TO}88`,
+                  }}
+                >
+                  <div
+                    className={cn(
+                      "font-bold uppercase tracking-wider",
+                      dense ? "text-[9px]" : "text-[11px]",
+                    )}
+                    style={{ color: ACCENT }}
+                  >
+                    Modalité de paiement
+                  </div>
+                  <p className={cn("text-[#334155]", dense ? "mt-0.5 text-[10px]" : "mt-1 text-[12px]")}>
+                    {doc.paymentTerms.trim()}
+                  </p>
+                </div>
+              ) : null}
+              {doc.executionTerms?.trim() ? (
+                <div
+                  className={cn("rounded-lg", dense ? "p-2.5" : "p-3.5")}
+                  style={{
+                    background: `${ACCENT_TO}18`,
+                    boxShadow: `inset 0 0 0 1px ${ACCENT_TO}88`,
+                  }}
+                >
+                  <div
+                    className={cn(
+                      "font-bold uppercase tracking-wider",
+                      dense ? "text-[9px]" : "text-[11px]",
+                    )}
+                    style={{ color: ACCENT }}
+                  >
+                    Conditions de réalisation
+                  </div>
+                  <p className={cn("text-[#334155]", dense ? "mt-0.5 text-[10px]" : "mt-1 text-[12px]")}>
+                    {doc.executionTerms.trim()}
+                  </p>
+                </div>
+              ) : null}
             </div>
           ) : (
             <div />
@@ -214,20 +228,26 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
 
       <div className={cn("flex justify-end", dense ? "mt-2" : "mt-4")}>
         <ManagerSignature
-          applied={doc.status === "signed" || doc.status === "sent" || doc.status === "accepted"}
-          managerName={company.managerName?.trim() || ""}
+          applied={
+            !accountantSignatory &&
+            (doc.status === "signed" ||
+              doc.status === "sent" ||
+              doc.status === "accepted")
+          }
+          managerName={signatoryName}
           signatureUrl={company.stampUrl?.trim() || ""}
-          signatoryTitle="Le Gérant"
+          signatoryTitle={signatoryName}
           accent={ACCENT}
           compact={dense}
-          forPdf={compact}
-          omitStamp={omitSignature}
+          forPdf={compact || accountantSignatory}
+          omitStamp={omitSignature || accountantSignatory}
           cabinet={doc.cabinet}
         />
       </div>
 
       <LegalFooter
         name={company.name}
+        capital={company.capital || COMPANY_DEFAULTS[doc.cabinet]?.capital}
         address={company.address}
         city={company.city}
         nif={company.nif}

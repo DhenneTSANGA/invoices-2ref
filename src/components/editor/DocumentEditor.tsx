@@ -36,6 +36,16 @@ import {
 import type { Cabinet } from "@/lib/cabinets";
 import { isAdmin } from "@/lib/roles";
 import { documentCanSendEmail } from "@/components/documents/DocumentSignatureActions";
+import {
+  DEFAULT_SIGNATORY_TITLE,
+  isAccountantSignatory,
+  resolveSignatoryRole,
+  SIGNATORY_ROLES,
+  signatoryTitleForRole,
+  type SignatoryRole,
+} from "@/lib/signatory";
+
+const DEFAULT_PAYMENT_MODALITY = "Le 05 suivant le mois de la prestation";
 
 type Props = { initial?: Document; type: DocumentType };
 
@@ -529,7 +539,13 @@ export function DocumentEditor({ initial, type }: Props) {
         ? ({ to: "/quotations/$id" as const, params: { id } })
         : ({ to: "/lettre/$id" as const, params: { id } });
 
-  const alreadySigned = documentCanSendEmail(doc);
+  const accountantSignatory = isAccountantSignatory(doc.signatoryTitle);
+  const alreadySigned =
+    doc.status === "signed" ||
+    doc.status === "sent" ||
+    doc.status === "paid" ||
+    doc.status === "accepted";
+  const canOnlineSign = commercial && !alreadySigned && !accountantSignatory;
 
   const buildPayload = (status: Document["status"] = "draft") => {
     // Ne pas écraser un statut « figé » (signé / envoyé / payé…) en brouillon
@@ -565,15 +581,16 @@ export function DocumentEditor({ initial, type }: Props) {
         ? addDaysIso(merged.issueDate, type === "quotation" ? (merged.validityDays ?? 30) : 30)
         : null,
     currency: merged.currency,
-    notes: merged.notes ?? null,
-    paymentTerms: type === "quotation" ? null : (merged.paymentTerms ?? null),
+    notes: null,
+    paymentTerms: merged.paymentTerms?.trim() || null,
     validityDays: merged.validityDays ?? null,
     executionTerms: merged.executionTerms ?? null,
     subject: merged.subject ?? null,
     salutation: merged.salutation ?? null,
     body: merged.body ?? null,
     closing: merged.closing ?? null,
-    signatoryTitle: merged.signatoryTitle ?? null,
+    signatoryTitle:
+      merged.signatoryTitle?.trim() || DEFAULT_SIGNATORY_TITLE,
     recipientOverride: merged.recipientOverride ?? null,
     items: merged.items.map((it) => ({
       id: isPersistedId(it.id) ? it.id : undefined,
@@ -801,6 +818,54 @@ export function DocumentEditor({ initial, type }: Props) {
                 label="Conditions de réalisation"
                 value={doc.executionTerms ?? ""}
                 onChange={(v) => setDoc({ ...doc, executionTerms: v })}
+              />
+            </>
+          ) : null}
+          {commercial ? (
+            <>
+              <div className="block space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Modalité de paiement
+                  </span>
+                  <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+                    <Switch
+                      checked={Boolean(doc.paymentTerms?.trim())}
+                      onCheckedChange={(on) =>
+                        setDoc({
+                          ...doc,
+                          paymentTerms: on
+                            ? DEFAULT_PAYMENT_MODALITY
+                            : undefined,
+                        })
+                      }
+                    />
+                    <span>{doc.paymentTerms?.trim() ? "Activée" : "Désactivée"}</span>
+                  </label>
+                </div>
+                {doc.paymentTerms?.trim() ? (
+                  <p className="rounded-xl border border-border/60 bg-muted/30 px-3 py-2.5 text-sm text-foreground">
+                    {doc.paymentTerms.trim()}
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Désactivée : la modalité n’apparaîtra pas sur le document.
+                  </p>
+                )}
+              </div>
+              <Select
+                label="Signataire"
+                value={resolveSignatoryRole(doc.signatoryTitle)}
+                onChange={(v) =>
+                  setDoc({
+                    ...doc,
+                    signatoryTitle: signatoryTitleForRole(v as SignatoryRole),
+                  })
+                }
+                options={SIGNATORY_ROLES.map((r) => ({
+                  value: r.value,
+                  label: r.label,
+                }))}
               />
             </>
           ) : null}
@@ -1351,18 +1416,6 @@ export function DocumentEditor({ initial, type }: Props) {
         </div>
       </div>
 
-      <div className="glass-panel rounded-3xl p-5">
-        <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Notes & mentions
-        </label>
-        <textarea
-          className="mt-2 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2 text-sm focus:border-primary focus:outline-none"
-          rows={3}
-          value={doc.notes ?? ""}
-          onChange={(e) => setDoc({ ...doc, notes: e.target.value })}
-        />
-      </div>
-
       <div className="flex flex-wrap items-center justify-end gap-2">
         <Button
           type="button"
@@ -1382,7 +1435,7 @@ export function DocumentEditor({ initial, type }: Props) {
         >
           <Save className="h-4 w-4" /> Enregistrer
         </Button>
-        {commercial && !alreadySigned && !adminLike && (
+        {canOnlineSign && !adminLike && (
           <Button
             type="button"
             className="rounded-xl bg-amber-600 text-white hover:bg-amber-600/90"
@@ -1395,7 +1448,7 @@ export function DocumentEditor({ initial, type }: Props) {
               : "Demander la signature"}
           </Button>
         )}
-        {commercial && !alreadySigned && adminLike && (
+        {canOnlineSign && adminLike && (
           <Button
             type="button"
             className="rounded-xl bg-gradient-primary text-primary-foreground shadow-glow"
@@ -1406,21 +1459,25 @@ export function DocumentEditor({ initial, type }: Props) {
             {signMutation.isPending ? "Signature…" : "Signer"}
           </Button>
         )}
-        <Button
-          type="button"
-          className="rounded-xl bg-gradient-primary text-primary-foreground shadow-glow hover:opacity-95"
-          disabled={saving}
-          onClick={() => void save("sent")}
-        >
-          <Send className="h-4 w-4" /> Envoyer
-        </Button>
+        {!accountantSignatory ? (
+          <Button
+            type="button"
+            className="rounded-xl bg-gradient-primary text-primary-foreground shadow-glow hover:opacity-95"
+            disabled={saving}
+            onClick={() => void save("sent")}
+          >
+            <Send className="h-4 w-4" /> Envoyer
+          </Button>
+        ) : null}
       </div>
 
       {commercial && !alreadySigned ? (
         <p className="text-right text-xs text-muted-foreground">
-          {adminLike
-            ? "En tant qu’administrateur, vous pouvez signer directement. L’envoi e-mail reste possible après signature (ou PDF physique)."
-            : "Option : demandez la signature du gérant (notification). Le PDF reste disponible pour une signature physique."}
+          {accountantSignatory
+            ? "Signataire Chef comptable : téléchargez le PDF pour paraphe manuscrit. Pas de signature en ligne ni d’envoi e-mail."
+            : adminLike
+              ? "En tant qu’administrateur, vous pouvez signer directement. L’envoi e-mail reste possible après signature (ou PDF physique)."
+              : "Option : demandez la signature de la Direction (notification). Le PDF reste disponible pour une signature physique."}
         </p>
       ) : null}
 
@@ -1459,12 +1516,14 @@ function Field({
   onChange,
   type = "text",
   readOnly = false,
+  placeholder,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   type?: string;
   readOnly?: boolean;
+  placeholder?: string;
 }) {
   return (
     <label className="block">
@@ -1474,6 +1533,7 @@ function Field({
       <input
         type={type}
         readOnly={readOnly}
+        placeholder={placeholder}
         className={`mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition ${
           readOnly ? "cursor-default text-muted-foreground" : ""
         }`}
@@ -1751,15 +1811,16 @@ function defaultDoc(
     return {
       ...base,
       number: "…",
-      notes: "Proposition valable sous réserve d'acceptation écrite.",
       validityDays: 30,
       executionTerms: formatExecutionTerms(15),
+      paymentTerms: DEFAULT_PAYMENT_MODALITY,
+      signatoryTitle: DEFAULT_SIGNATORY_TITLE,
     };
   }
   return {
     ...base,
     number: "…",
-    notes: "Règlement par virement bancaire.",
-    paymentTerms: "30 jours fin de mois",
+    paymentTerms: DEFAULT_PAYMENT_MODALITY,
+    signatoryTitle: DEFAULT_SIGNATORY_TITLE,
   };
 }

@@ -15,6 +15,10 @@ import { COMPANY_DEFAULTS, DOCUMENT_COLORS, niuLabelForCabinet } from "@/lib/cab
 import { ManagerSignature } from "@/components/signature/ManagerSignature";
 import { clientDisplayName, clientDocumentLines } from "@/lib/client-address";
 import { cn } from "@/lib/utils";
+import {
+  isAccountantSignatory,
+  signatoryDisplayName,
+} from "@/lib/signatory";
 
 type Props = {
   doc: Document;
@@ -43,6 +47,8 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
   const { accent, accentTo } = DOCUMENT_COLORS.invoice;
 
   const niuLabel = niuLabelForCabinet(doc.cabinet);
+  const accountantSignatory = isAccountantSignatory(doc.signatoryTitle);
+  const signatoryName = signatoryDisplayName(doc.signatoryTitle);
 
   const emitterLines = partyAddressLines([
     company.address,
@@ -57,31 +63,13 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
     <PreviewShell innerRef={ref} accent={accent} compact={compact} isThumb={isThumb} className={className}>
       <div
         className={cn(
-          "flex items-start justify-between border-b-2",
+          "flex items-center justify-between border-b-2",
           dense ? "gap-3 pb-2.5" : "gap-4 pb-3",
         )}
         style={{ borderColor: accent }}
       >
-        <div className="flex min-w-0 items-center gap-2.5">
-          <div className="shrink-0">
-            <PreviewLogo cabinet={doc.cabinet} className="h-40" />
-          </div>
-          <div className="min-w-0">
-            <div
-              className={cn(
-                "font-display font-bold tracking-tight leading-tight",
-                dense ? "text-base" : "text-xl",
-              )}
-              style={{ color: accent }}
-            >
-              {company.name}
-            </div>
-            {company.tagline ? (
-              <div className={cn("mt-0.5 leading-snug text-[#64748B]", dense ? "text-[10px]" : "text-[12px]")}>
-                {company.tagline}
-              </div>
-            ) : null}
-          </div>
+        <div className="shrink-0">
+          <PreviewLogo cabinet={doc.cabinet} className="h-40" />
         </div>
         <div className="shrink-0 text-right">
           <div
@@ -161,40 +149,60 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
       <PreviewBottomRow
         compact={dense}
         left={
-          company.bankName || company.bankAccount ? (
-            <div className={cn("rounded-lg bg-[#F1F5F9]", dense ? "p-2" : "p-2.5")}>
-              <div
-                className={cn(
-                  "font-bold uppercase tracking-wider text-[#64748B]",
-                  dense ? "text-[9px]" : "text-[11px]",
-                )}
-              >
-                RIB pour le règlement
-              </div>
-              <div
-                className={cn(
-                  "mt-0.5 leading-snug text-[#334155]",
-                  dense ? "text-[9px]" : "text-[11px]",
-                )}
-              >
-                Règlement par virement bancaire ou par chèque.
-              </div>
-              {company.bankName ? (
-                <div className={cn("mt-0.5 text-[#334155]", dense ? "text-[10px]" : "text-[12px]")}>
-                  <span className="text-[#64748B]">Banque : </span>
-                  {company.bankName}
+          <div className={cn("space-y-2", dense ? "space-y-1.5" : "space-y-2")}>
+            {doc.paymentTerms?.trim() ? (
+              <div className={cn("rounded-lg bg-[#F1F5F9]", dense ? "p-2" : "p-2.5")}>
+                <div
+                  className={cn(
+                    "font-bold uppercase tracking-wider text-[#64748B]",
+                    dense ? "text-[9px]" : "text-[11px]",
+                  )}
+                >
+                  Modalité de paiement
                 </div>
-              ) : null}
-              {company.bankAccount ? (
-                <div className={cn("break-words text-[#334155]", dense ? "text-[10px]" : "mt-0.5 text-[12px]")}>
-                  <span className="text-[#64748B]">RIB : </span>
-                  {company.bankAccount}
+                <div
+                  className={cn(
+                    "mt-0.5 leading-snug text-[#334155]",
+                    dense ? "text-[9px]" : "text-[11px]",
+                  )}
+                >
+                  {doc.paymentTerms.trim()}
                 </div>
-              ) : null}
-            </div>
-          ) : (
-            <div />
-          )
+              </div>
+            ) : null}
+            {company.bankName || company.bankAccount ? (
+              <div className={cn("rounded-lg bg-[#F1F5F9]", dense ? "p-2" : "p-2.5")}>
+                <div
+                  className={cn(
+                    "font-bold uppercase tracking-wider text-[#64748B]",
+                    dense ? "text-[9px]" : "text-[11px]",
+                  )}
+                >
+                  RIB pour le règlement
+                </div>
+                <div
+                  className={cn(
+                    "mt-0.5 leading-snug text-[#334155]",
+                    dense ? "text-[9px]" : "text-[11px]",
+                  )}
+                >
+                  Règlement par virement bancaire ou par chèque.
+                </div>
+                {company.bankName ? (
+                  <div className={cn("mt-0.5 text-[#334155]", dense ? "text-[10px]" : "text-[12px]")}>
+                    <span className="text-[#64748B]">Banque : </span>
+                    {company.bankName}
+                  </div>
+                ) : null}
+                {company.bankAccount ? (
+                  <div className={cn("break-words text-[#334155]", dense ? "text-[10px]" : "mt-0.5 text-[12px]")}>
+                    <span className="text-[#64748B]">RIB : </span>
+                    {company.bankAccount}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
         }
         right={<TotalsBlock doc={doc} accent={accent} compact={dense} />}
       />
@@ -205,20 +213,24 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
 
       <div className={cn("flex justify-end", dense ? "mt-2" : "mt-2")}>
         <ManagerSignature
-          applied={doc.status === "signed" || doc.status === "sent" || doc.status === "paid"}
-          managerName={company.managerName?.trim() || ""}
+          applied={
+            !accountantSignatory &&
+            (doc.status === "signed" || doc.status === "sent" || doc.status === "paid")
+          }
+          managerName={signatoryName}
           signatureUrl={company.stampUrl?.trim() || ""}
-          signatoryTitle="Le Gérant"
+          signatoryTitle={signatoryName}
           accent={accent}
           compact={dense}
-          forPdf={compact}
-          omitStamp={omitSignature}
+          forPdf={compact || accountantSignatory}
+          omitStamp={omitSignature || accountantSignatory}
           cabinet={doc.cabinet}
         />
       </div>
 
       <LegalFooter
         name={company.name}
+        capital={company.capital || COMPANY_DEFAULTS[doc.cabinet]?.capital}
         address={company.address}
         city={company.city}
         nif={company.nif}

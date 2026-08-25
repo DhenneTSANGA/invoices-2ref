@@ -31,6 +31,7 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { longDate } from "@/lib/format";
 import { LetterEditor } from "@/components/editor/LetterEditor";
 import { isAdmin } from "@/lib/roles";
+import { isAccountantSignatory } from "@/lib/signatory";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/lettre/$id")({
@@ -100,11 +101,18 @@ function LetterDetail() {
   }
 
   const pending = signatureReq?.status === "pending";
+  const accountantSignatory = isAccountantSignatory(doc.signatoryTitle);
   /** Seuls les membres demandent une signature — admin / SA signent directement. */
   const canRequest =
-    doc.status === "draft" && !pending && isCreator && !adminLike;
-  const canSign = adminLike && doc.status === "draft" && previewSeen;
+    !accountantSignatory &&
+    doc.status === "draft" &&
+    !pending &&
+    isCreator &&
+    !adminLike;
+  const canSign =
+    !accountantSignatory && adminLike && doc.status === "draft" && previewSeen;
   const canSend =
+    !accountantSignatory &&
     (doc.status === "signed" || doc.status === "sent") &&
     (isCreator || adminLike);
   const canEdit = doc.status === "draft" && (isCreator || adminLike);
@@ -208,6 +216,7 @@ function LetterDetail() {
                 <Ban className="h-4 w-4" /> Refuser
               </button>
             )}
+            {!accountantSignatory ? (
             <button
               onClick={() => {
                 if (!canSend) {
@@ -237,6 +246,7 @@ function LetterDetail() {
               <Send className="h-4 w-4" />{" "}
               {sendEmailMutation.isPending ? "Envoi…" : "Envoyer"}
             </button>
+            ) : null}
           </>
         }
       />

@@ -6,6 +6,10 @@ import { getResend } from "@/lib/resend";
 import { companyForPreview } from "@/lib/company-defaults";
 import { DOCUMENT_COLORS, niuLabelForCabinet } from "@/lib/cabinets";
 import {
+  isAccountantSignatory,
+  signatoryDisplayName,
+} from "@/lib/signatory";
+import {
   escapeHtml,
   requireResendApiKey,
   resolveCabinetMailAddresses,
@@ -75,7 +79,7 @@ function emailShell(params: {
   const c = params.company;
   const niuLabel = params.niuLabel ?? "NIU";
   const legalBits = [
-    c.tagline,
+    c.capital?.trim() || c.tagline,
     [c.address, c.city].filter(Boolean).join(", "),
     c.rccm && c.rccm !== "—" ? `RCCM : ${c.rccm}` : "",
     c.nif && c.nif !== "—" ? `NIF : ${c.nif}` : "",
@@ -169,7 +173,8 @@ function buildCommercialEmailHtml(params: {
   css: number;
   vat: number;
   total: number;
-  notes?: string | null;
+  paymentTerms?: string | null;
+  executionTerms?: string | null;
   niuLabel: string;
 }): string {
   const colors = DOCUMENT_COLORS[params.type];
@@ -313,6 +318,15 @@ function buildCommercialEmailHtml(params: {
     </table>
 
     ${
+      params.paymentTerms?.trim()
+        ? `<div style="margin-top:20px;background:#F1F5F9;border-radius:10px;padding:12px 14px;font-size:12px;color:#475569;">
+            <strong style="color:#0F172A;">Modalité de paiement</strong>
+            <div style="margin-top:4px;">${escapeHtml(params.paymentTerms.trim())}</div>
+          </div>`
+        : ""
+    }
+
+    ${
       params.type === "invoice" && (params.company.bankName || params.company.bankAccount)
         ? `<div style="margin-top:20px;background:#F1F5F9;border-radius:10px;padding:12px 14px;font-size:12px;color:#475569;">
             <strong style="color:#0F172A;">RIB pour le règlement</strong>
@@ -323,8 +337,8 @@ function buildCommercialEmailHtml(params: {
     }
 
     ${
-      params.notes
-        ? `<div style="margin-top:20px;background:#F8FAFC;border-radius:10px;padding:12px 14px;font-size:13px;color:#475569;"><strong style="color:#0F172A;">Notes :</strong> ${escapeHtml(params.notes)}</div>`
+      params.executionTerms?.trim()
+        ? `<div style="margin-top:20px;background:#F8FAFC;border-radius:10px;padding:12px 14px;font-size:13px;color:#475569;"><strong style="color:#0F172A;">Conditions de réalisation :</strong> ${escapeHtml(params.executionTerms.trim())}</div>`
         : ""
     }
 
@@ -418,16 +432,16 @@ ${escapeHtml(params.body)}
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:36px;">
       <tr>
         <td></td>
-        <td width="380" align="right" style="padding:12px 0 12px 20px;">
+        <td width="380" align="center" style="padding:12px 0;">
           ${
             signatureUrl
-              ? `<div><img src="${escapeHtml(signatureUrl)}" alt="Signature" width="${sigW}" height="${sigH}" style="width:${sigW}px;height:${sigH}px;max-width:${sigW}px;object-fit:contain;object-position:right center;display:block;margin-left:auto;" /></div>`
+              ? `<div style="text-align:center;"><img src="${escapeHtml(signatureUrl)}" alt="Signature" width="${sigW}" height="${sigH}" style="width:${sigW}px;height:${sigH}px;max-width:${sigW}px;object-fit:contain;object-position:center;display:block;margin:0 auto;" /></div>`
               : ""
           }
           ${
             params.managerName
-              ? `<div style="margin-top:2px;padding-right:8px;font-size:14px;font-weight:600;color:#0F172A;text-align:right;">${escapeHtml(params.managerName)}</div>`
-              : `<div style="margin-top:4px;font-size:12px;font-style:italic;color:#94A3B8;">Signé</div>`
+              ? `<div style="margin-top:2px;font-size:14px;font-weight:600;color:#0F172A;text-align:center;">${escapeHtml(params.managerName)}</div>`
+              : `<div style="margin-top:4px;font-size:12px;font-style:italic;color:#94A3B8;text-align:center;">Signé</div>`
           }
         </td>
       </tr>
@@ -473,6 +487,11 @@ export const sendDocumentEmail = createServerFn({ method: "POST" })
     if (!doc) throw new Error("Document introuvable");
     if (!canWriteDocument(staff.role, staff.id, doc.createdById)) {
       throw new Error("Accès refusé — document en lecture seule");
+    }
+    if (isAccountantSignatory(doc.signatoryTitle)) {
+      throw new Error(
+        "Document signé par le Chef comptable : utilisez le PDF pour paraphe manuscrit (pas d’envoi e-mail).",
+      );
     }
     if (
       doc.type === "letter" ||
@@ -526,7 +545,7 @@ export const sendDocumentEmail = createServerFn({ method: "POST" })
         body: letterBody || "Veuillez trouver notre courrier ci-joint.",
         closing: doc.closing ?? "",
         signatoryTitle: doc.signatoryTitle || staff.jobTitle,
-        managerName: company.managerName?.trim() || "",
+        managerName: signatoryDisplayName(doc.signatoryTitle),
         niuLabel,
         cabinet: doc.cabinet,
       });
@@ -565,7 +584,8 @@ export const sendDocumentEmail = createServerFn({ method: "POST" })
         css: Number(doc.css),
         vat: Number(doc.vat),
         total: Number(doc.total),
-        notes: doc.notes,
+        paymentTerms: doc.paymentTerms,
+        executionTerms: doc.executionTerms,
         niuLabel,
       });
     }

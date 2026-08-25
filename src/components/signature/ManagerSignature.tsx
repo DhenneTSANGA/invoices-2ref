@@ -50,7 +50,7 @@ export function ManagerSignature({
   return (
     <div
       className={cn(
-        "translate-x-3 text-center",
+        "text-center",
         compact ? "w-48" : conseil ? "w-96 max-w-full" : "w-[28rem] max-w-full",
         className,
       )}
@@ -58,7 +58,7 @@ export function ManagerSignature({
       {showStamp ? (
         <div
           className={cn(
-            "ml-auto overflow-hidden bg-white",
+            "mx-auto overflow-hidden bg-white",
             compact
               ? conseil
                 ? "h-16 w-40"
@@ -74,7 +74,7 @@ export function ManagerSignature({
             crossOrigin="anonymous"
             referrerPolicy="no-referrer"
             decoding="sync"
-            className="h-full w-full object-contain object-right [print-color-adjust:exact] [-webkit-print-color-adjust:exact]"
+            className="h-full w-full object-contain object-center [print-color-adjust:exact] [-webkit-print-color-adjust:exact]"
             style={{ color: "transparent", mixBlendMode: "normal", filter: "none" }}
           />
         </div>
@@ -98,8 +98,8 @@ export function ManagerSignature({
       {name ? (
         <div
           className={cn(
-            "text-right font-semibold leading-tight text-[#0F172A]",
-            compact ? "mt-0.5 pr-1 text-[12px]" : "mt-0.5 pr-2 text-[14px]",
+            "text-center font-semibold leading-tight text-[#0F172A]",
+            compact ? "mt-0.5 text-[12px]" : "mt-0.5 text-[14px]",
           )}
         >
           {name}

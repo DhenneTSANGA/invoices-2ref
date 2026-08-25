@@ -2,11 +2,15 @@ import { forwardRef } from "react";
 import type { Document } from "@/store/types";
 import { usePreviewData } from "@/hooks/use-preview-data";
 import { longDate } from "@/lib/format";
-import { DOCUMENT_COLORS, niuLabelForCabinet } from "@/lib/cabinets";
+import { DOCUMENT_COLORS, niuLabelForCabinet, COMPANY_DEFAULTS } from "@/lib/cabinets";
 import { LegalFooter, PreviewLogo, PreviewShell } from "./PreviewShell";
 import { ManagerSignature } from "@/components/signature/ManagerSignature";
 import { clientLetterRecipientLines } from "@/lib/client-address";
 import { cn } from "@/lib/utils";
+import {
+  isAccountantSignatory,
+  signatoryDisplayName,
+} from "@/lib/signatory";
 
 type Props = {
   doc: Document;
@@ -26,10 +30,12 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
   const dense = false;
   const { accent, accentTo } = DOCUMENT_COLORS.letter;
   const city = (company.city.split(",")[0] || company.city).trim();
-  const showStamp = doc.status === "signed" || doc.status === "sent";
-  const managerName = company.managerName?.trim() || "";
+  const accountantSignatory = isAccountantSignatory(doc.signatoryTitle);
+  const signatoryName = signatoryDisplayName(doc.signatoryTitle);
+  const showStamp =
+    !accountantSignatory &&
+    (doc.status === "signed" || doc.status === "sent");
   const stampUrl = company.stampUrl?.trim() || "";
-  const signatoryTitle = doc.signatoryTitle?.trim() || "Le Gérant";
   const niuLabel = niuLabelForCabinet(doc.cabinet);
 
   const recipientLines = doc.recipientOverride
@@ -46,11 +52,11 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
       isThumb={isThumb}
       className={className}
     >
-      <div className={cn("flex items-start justify-between", dense ? "gap-3" : "gap-4")}>
+      <div className={cn("flex items-center justify-between", dense ? "gap-3" : "gap-4")}>
         <div className="shrink-0">
           <PreviewLogo cabinet={doc.cabinet} className="h-40" />
         </div>
-        <div className={cn("text-right text-[#475569]", dense ? "pt-1 text-[11px]" : "pt-2 text-[13px]")}>
+        <div className={cn("text-right text-[#475569]", dense ? "text-[11px]" : "text-[13px]")}>
           {city}, le {longDate(doc.issueDate)}.
         </div>
       </div>
@@ -126,19 +132,20 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
       <div className={cn("flex justify-end", dense ? "mt-5" : "mt-10")}>
         <ManagerSignature
           signatureUrl={stampUrl}
-          managerName={managerName}
-          signatoryTitle={signatoryTitle}
+          managerName={signatoryName}
+          signatoryTitle={signatoryName}
           applied={showStamp}
           accent={accent}
           compact={isThumb}
-          forPdf={compact}
-          omitStamp={omitSignature}
+          forPdf={compact || accountantSignatory}
+          omitStamp={omitSignature || accountantSignatory}
           cabinet={doc.cabinet}
         />
       </div>
 
       <LegalFooter
         name={company.name}
+        capital={company.capital || COMPANY_DEFAULTS[doc.cabinet]?.capital}
         address={company.address}
         city={company.city}
         nif={company.nif}

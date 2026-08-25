@@ -172,7 +172,6 @@ function useSampleDocs(): Record<DocumentType, Document> {
         id: "tpl-invoice",
         type: "invoice" as const,
         number: "FA-2025-0150",
-        notes: "Règlement par virement bancaire.",
         paymentTerms: "30 jours fin de mois",
       },
       quotation: {
@@ -183,7 +182,6 @@ function useSampleDocs(): Record<DocumentType, Document> {
         validityDays: 30,
         executionTerms: "Délai d'exécution : 15 jours ouvrés après acceptation à Libreville.",
         paymentTerms: "Acompte 40 % — solde à livraison.",
-        notes: "Proposition commerciale.",
       },
       letter: {
         ...base,

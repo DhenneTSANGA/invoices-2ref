@@ -147,6 +147,7 @@ export function LegalFooter({
   phone,
   email,
   website,
+  capital,
   niuLabel = "NIU",
   compact,
 }: {
@@ -160,12 +161,15 @@ export function LegalFooter({
   phone: string;
   email: string;
   website: string;
+  /** Forme / capital social (ex. Entreprise au capital de 1 000 000 FCFA). */
+  capital?: string;
   /** Libellé de l’identifiant stocké dans `niu` (ex. STAT pour 2R Conseil). */
   niuLabel?: string;
   compact?: boolean;
 }) {
   const legalParts = [
     name,
+    capital?.trim(),
     [address, city].filter(Boolean).join(", "),
     nif && nif !== "—" && `NIF ${nif}`,
     niu && niu !== "—" && `${niuLabel} ${niu}`,
@@ -180,10 +184,10 @@ export function LegalFooter({
         compact ? "pt-2 text-[8px]" : "pt-2 text-[10px]",
       )}
     >
-      <div className="overflow-hidden text-ellipsis whitespace-nowrap">
+      <div className="px-0.5 leading-snug [overflow-wrap:anywhere]">
         {legalParts.join(" · ")}
       </div>
-      <div className="overflow-hidden text-ellipsis whitespace-nowrap">
+      <div className="px-0.5 leading-snug [overflow-wrap:anywhere]">
         {[phone, email, website].filter(Boolean).join(" · ")}
       </div>
     </div>

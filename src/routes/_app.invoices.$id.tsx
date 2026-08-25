@@ -38,6 +38,7 @@ import { DocumentPdfTracesPanel } from "@/components/documents/DocumentPdfTraces
 import { currency, longDate, shortDate } from "@/lib/format";
 import { paymentMethodLabel } from "@/lib/payment-method";
 import { isAdmin } from "@/lib/roles";
+import { isAccountantSignatory } from "@/lib/signatory";
 import type { PaymentMethod } from "@/store/types";
 
 export const Route = createFileRoute("/_app/invoices/$id")({
@@ -87,6 +88,7 @@ function InvoiceDetailPage() {
   if (!doc) return <div className="glass-panel rounded-3xl p-8 text-center">Document introuvable.</div>;
 
   const canSend = documentCanSendEmail(doc);
+  const accountantSignatory = isAccountantSignatory(doc.signatoryTitle);
 
   const patchStatus = (
     status: typeof doc.status,
@@ -173,8 +175,12 @@ function InvoiceDetailPage() {
             </Link>
             <button onClick={() => setPreviewOpen(true)} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted"><Eye className="h-4 w-4" /> Aperçu</button>
             <DocumentPdfButton doc={doc} appearance="header" />
-            <DocumentSignatureActions doc={doc} previewSeen={previewSeen} compact />
-            <button onClick={sendByEmail} disabled={sendEmailMutation.isPending || !canSend} className={doc.status === "signed" ? "inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow disabled:opacity-60" : "inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60"}><Send className="h-4 w-4" /> {sendEmailMutation.isPending ? "Envoi…" : "Envoyer"}</button>
+            {!accountantSignatory ? (
+              <DocumentSignatureActions doc={doc} previewSeen={previewSeen} compact />
+            ) : null}
+            {!accountantSignatory ? (
+              <button onClick={sendByEmail} disabled={sendEmailMutation.isPending || !canSend} className={doc.status === "signed" ? "inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow disabled:opacity-60" : "inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60"}><Send className="h-4 w-4" /> {sendEmailMutation.isPending ? "Envoi…" : "Envoyer"}</button>
+            ) : null}
             {doc.status !== "paid" && doc.status !== "cancelled" && (
               <button onClick={() => setPaidOpen(true)} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-success px-4 py-2 text-sm font-medium text-success-foreground shadow"><CheckCircle2 className="h-4 w-4" /> Marquer payée</button>
             )}
@@ -183,7 +189,7 @@ function InvoiceDetailPage() {
         }
       />
 
-      {doc.status === "draft" && (
+      {doc.status === "draft" && !accountantSignatory && (
         <div className="glass-panel mb-4 rounded-3xl p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -191,7 +197,7 @@ function InvoiceDetailPage() {
               <p className="mt-0.5 text-xs text-muted-foreground">
                 {adminLike
                   ? "Relisez l’aperçu puis signez (ou refusez la demande). Le PDF reste disponible pour une signature physique."
-                  : "Demandez la signature du gérant (notification). Vous pouvez aussi télécharger le PDF pour une signature physique."}
+                  : "Demandez la signature de la Direction (notification). Vous pouvez aussi télécharger le PDF pour une signature physique."}
               </p>
             </div>
             <DocumentSignatureActions doc={doc} previewSeen={previewSeen} />
@@ -199,7 +205,13 @@ function InvoiceDetailPage() {
         </div>
       )}
 
-      {doc.status === "draft" && (
+      {doc.status === "draft" && accountantSignatory && (
+        <p className="mb-4 text-xs text-muted-foreground">
+          Signataire Chef comptable : téléchargez le PDF pour paraphe manuscrit.
+        </p>
+      )}
+
+      {doc.status === "draft" && !accountantSignatory && (
         <p className="mb-4 text-xs text-muted-foreground">
           L’envoi e-mail nécessite le statut « Signé ».
         </p>

@@ -10,6 +10,7 @@ import {
 import { isAdmin } from "@/lib/roles";
 import type { Document } from "@/store/types";
 import { cn } from "@/lib/utils";
+import { isAccountantSignatory } from "@/lib/signatory";
 
 type Props = {
   doc: Document;
@@ -48,6 +49,9 @@ export function DocumentSignatureActions({
     doc.status === "signed" ||
     doc.status === "sent" ||
     doc.status === "paid";
+
+  /** Chef comptable : pas de signature en ligne — PDF paraphe uniquement. */
+  if (isAccountantSignatory(doc.signatoryTitle)) return null;
 
   /** Membres (créateur) : demander une signature — admin / SA signent directement. */
   const canRequest =
@@ -164,6 +168,7 @@ export function DocumentSignatureActions({
 }
 
 export function documentCanSendEmail(doc: Document): boolean {
+  if (isAccountantSignatory(doc.signatoryTitle)) return false;
   return (
     doc.status === "signed" ||
     doc.status === "sent" ||

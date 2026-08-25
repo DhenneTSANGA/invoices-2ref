@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { formatPrismaError } from "@/lib/prisma-errors";
 import { getCurrentSession } from "@/lib/session.functions";
 import { isAdmin, isSuperAdmin, canWriteDocument } from "@/lib/roles";
+import { isAccountantSignatory } from "@/lib/signatory";
 import { companyForPreview } from "@/lib/company-defaults";
 import { staffDisplayName } from "@/lib/notify-document-status";
 import { documentTypeLabel } from "@/lib/document-status-labels";
@@ -157,6 +158,11 @@ export const requestLetterSignature = createServerFn({ method: "POST" })
       if (doc.status === "cancelled") {
         throw new Error("Document annulé");
       }
+      if (isAccountantSignatory(doc.signatoryTitle)) {
+        throw new Error(
+          "Document Chef comptable : utilisez le PDF pour paraphe manuscrit (pas de signature en ligne).",
+        );
+      }
 
       const pending = await prisma.letterSignatureRequest.findFirst({
         where: { documentId: doc.id, status: "pending" },
@@ -224,6 +230,11 @@ export const signLetterDocument = createServerFn({ method: "POST" })
     }
     if (doc.status === "cancelled") {
       throw new Error("Document annulé");
+    }
+    if (isAccountantSignatory(doc.signatoryTitle)) {
+      throw new Error(
+        "Document Chef comptable : utilisez le PDF pour paraphe manuscrit (pas de signature en ligne).",
+      );
     }
 
     const company = companyForPreview(

@@ -24,6 +24,7 @@ import { DocumentCreatorCard } from "@/components/documents/DocumentCreatorCard"
 import { DocumentPdfTracesPanel } from "@/components/documents/DocumentPdfTracesPanel";
 import { currency, longDate } from "@/lib/format";
 import { isAdmin } from "@/lib/roles";
+import { isAccountantSignatory } from "@/lib/signatory";
 
 export const Route = createFileRoute("/_app/quotations/$id")({
   head: () => ({ meta: [{ title: "Détail devis — 2R Hub" }] }),
@@ -68,6 +69,7 @@ function QuotationDetailPage() {
   if (!doc) return <div className="glass-panel rounded-3xl p-8 text-center">Devis introuvable.</div>;
 
   const canSend = documentCanSendEmail(doc);
+  const accountantSignatory = isAccountantSignatory(doc.signatoryTitle);
 
   const patchStatus = (
     status: typeof doc.status,
@@ -124,8 +126,12 @@ function QuotationDetailPage() {
             </Link>
             <button onClick={() => setPreviewOpen(true)} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted"><Eye className="h-4 w-4" /> Aperçu</button>
             <DocumentPdfButton doc={doc} appearance="header" />
-            <DocumentSignatureActions doc={doc} previewSeen={previewSeen} compact />
-            <button onClick={sendByEmail} disabled={sendEmailMutation.isPending || !canSend} className={doc.status === "signed" ? "inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow disabled:opacity-60" : "inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60"}><Send className="h-4 w-4" /> {sendEmailMutation.isPending ? "Envoi…" : "Envoyer"}</button>
+            {!accountantSignatory ? (
+              <DocumentSignatureActions doc={doc} previewSeen={previewSeen} compact />
+            ) : null}
+            {!accountantSignatory ? (
+              <button onClick={sendByEmail} disabled={sendEmailMutation.isPending || !canSend} className={doc.status === "signed" ? "inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow disabled:opacity-60" : "inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60"}><Send className="h-4 w-4" /> {sendEmailMutation.isPending ? "Envoi…" : "Envoyer"}</button>
+            ) : null}
             <button onClick={() => patchStatus("accepted", "Devis accepté")} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-success px-4 py-2 text-sm font-medium text-success-foreground shadow"><CheckCircle2 className="h-4 w-4" /> Accepter</button>
             <button onClick={() => patchStatus("rejected", "Devis refusé", "warning")} className="inline-flex items-center gap-2 rounded-2xl border border-red-700 bg-red-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-red-700"><XCircle className="h-4 w-4" /> Refuser</button>
             <button onClick={() => patchStatus("cancelled", "Devis annulé", "warning")} className="inline-flex items-center gap-2 rounded-2xl border border-zinc-300 bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-200">Annuler</button>
@@ -133,7 +139,7 @@ function QuotationDetailPage() {
         }
       />
 
-      {doc.status === "draft" && (
+      {doc.status === "draft" && !accountantSignatory && (
         <div className="glass-panel mb-4 rounded-3xl p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -141,7 +147,7 @@ function QuotationDetailPage() {
               <p className="mt-0.5 text-xs text-muted-foreground">
                 {adminLike
                   ? "Relisez l’aperçu puis signez (ou refusez la demande). Le PDF reste disponible pour une signature physique."
-                  : "Demandez la signature du gérant (notification). Vous pouvez aussi télécharger le PDF pour une signature physique."}
+                  : "Demandez la signature de la Direction (notification). Vous pouvez aussi télécharger le PDF pour une signature physique."}
               </p>
             </div>
             <DocumentSignatureActions doc={doc} previewSeen={previewSeen} />
@@ -149,7 +155,13 @@ function QuotationDetailPage() {
         </div>
       )}
 
-      {doc.status === "draft" && (
+      {doc.status === "draft" && accountantSignatory && (
+        <p className="mb-4 text-xs text-muted-foreground">
+          Signataire Chef comptable : téléchargez le PDF pour paraphe manuscrit.
+        </p>
+      )}
+
+      {doc.status === "draft" && !accountantSignatory && (
         <p className="mb-4 text-xs text-muted-foreground">
           L’envoi e-mail nécessite le statut « Signé ».
         </p>
