@@ -14,7 +14,16 @@ const variants: Record<Variant, { tile: string; icon: string }> = {
 };
 
 export function StatCard({
-  label, value, delta, icon: Icon, variant = "default", suffix, prefix, format, index = 0,
+  label,
+  value,
+  delta,
+  icon: Icon,
+  variant = "default",
+  suffix,
+  prefix,
+  hint,
+  format,
+  index = 0,
 }: {
   label: string;
   value: number;
@@ -23,6 +32,8 @@ export function StatCard({
   variant?: Variant;
   suffix?: string;
   prefix?: string;
+  /** Sous-libellé (ex. HT / TTC). */
+  hint?: string;
   format?: (n: number) => string;
   index?: number;
 }) {
@@ -49,6 +60,11 @@ export function StatCard({
             </span>
             {suffix && <span className="text-base opacity-70">{suffix}</span>}
           </div>
+          {hint ? (
+            <p className={cn("mt-1 text-[11px] font-medium", variant === "default" ? "text-muted-foreground" : "opacity-75")}>
+              {hint}
+            </p>
+          ) : null}
           {delta && (
             <div className="mt-2 flex items-center gap-1 text-xs">
               <span className={cn(
