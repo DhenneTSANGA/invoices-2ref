@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "@tanstack/react-router";
+import { useNavigate, useRouter } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { CABINET_LABELS, CABINET_LOGOS, CABINETS, type Cabinet } from "@/lib/cabinets";
 import { setActiveCabinet } from "@/lib/session.functions";
@@ -21,6 +21,7 @@ export function CabinetSwitcher() {
   const { data: session } = useSession();
   const qc = useQueryClient();
   const router = useRouter();
+  const navigate = useNavigate();
   const [switchingTo, setSwitchingTo] = useState<Cabinet | null>(null);
 
   if (!session) return null;
@@ -30,17 +31,20 @@ export function CabinetSwitcher() {
     setSwitchingTo(cabinet);
     try {
       await setActiveCabinet({ data: { cabinet } });
+      // Évite d’afficher un détail de l’ancien cabinet après le switch.
+      qc.removeQueries({ queryKey: ["document"] });
+      qc.removeQueries({ queryKey: ["documents"] });
       await Promise.all([
         qc.invalidateQueries({ queryKey: sessionKey }),
         qc.invalidateQueries({ queryKey: clientsKey }),
         qc.invalidateQueries({ queryKey: companyKey }),
         qc.invalidateQueries({ queryKey: servicesKey }),
         qc.invalidateQueries({ queryKey: allDocumentsKey }),
-        qc.invalidateQueries({ queryKey: ["documents"] }),
         qc.invalidateQueries({ queryKey: notificationsKey }),
         qc.invalidateQueries({ queryKey: mailsKey }),
       ]);
       await router.invalidate();
+      await navigate({ to: "/dashboard", replace: true });
       toast.success(`Cabinet : ${CABINET_LABELS[cabinet]}`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Changement impossible");
