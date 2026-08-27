@@ -282,9 +282,13 @@ function buildCommercialEmailHtml(params: {
       </tr>
     </table>
 
-    <div style="margin-bottom:16px;font-size:12px;color:#475569;">
-      <span>Date d'échéance : <strong style="color:#0F172A;">${escapeHtml(params.dueDate || params.issueDate)}</strong></span>
-    </div>
+    ${
+      params.dueDate
+        ? `<div style="margin-bottom:16px;font-size:12px;color:#475569;">
+      <span>Date d'échéance : <strong style="color:#0F172A;">${escapeHtml(params.dueDate)}</strong></span>
+    </div>`
+        : ""
+    }
 
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border-radius:10px;overflow:hidden;border:1px solid #E2E8F0;">
       <thead>

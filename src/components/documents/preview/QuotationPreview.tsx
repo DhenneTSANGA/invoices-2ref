@@ -149,12 +149,12 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
           dense ? "mt-2 gap-x-5 gap-y-0.5 text-[10px]" : "mt-4 gap-x-6 gap-y-1 text-[12px]",
         )}
       >
-        <span>
-          Date d&apos;échéance :{" "}
-          <b className="text-[#0F172A]">
-            {longDate(doc.dueDate || doc.issueDate)}
-          </b>
-        </span>
+        {doc.dueDate?.trim() ? (
+          <span>
+            Date d&apos;échéance :{" "}
+            <b className="text-[#0F172A]">{longDate(doc.dueDate)}</b>
+          </span>
+        ) : null}
       </div>
 
       <ItemsTable doc={doc} headerFrom={ACCENT} headerTo={ACCENT_TO} compact={dense} />

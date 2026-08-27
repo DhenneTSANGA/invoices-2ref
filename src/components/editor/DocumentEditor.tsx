@@ -141,9 +141,7 @@ export function DocumentEditor({ initial, type }: Props) {
       discount: initial.discount ?? 0,
       items,
       sections: initial.sections ?? [],
-      dueDate:
-        initial.dueDate?.trim() ||
-        addDaysIso(initial.issueDate, initial.validityDays ?? 30),
+      dueDate: initial.dueDate?.trim() || null,
     };
   });
 
@@ -575,14 +573,13 @@ export function DocumentEditor({ initial, type }: Props) {
     clientId: merged.clientId,
     status: nextStatus,
     issueDate: merged.issueDate,
-    dueDate: merged.dueDate?.trim()
-      ? merged.dueDate
-      : commercial
-        ? addDaysIso(merged.issueDate, type === "quotation" ? (merged.validityDays ?? 30) : 30)
-        : null,
+    dueDate: merged.dueDate?.trim() ? merged.dueDate : null,
     currency: merged.currency,
     notes: null,
-    paymentTerms: merged.paymentTerms?.trim() || null,
+    paymentTerms:
+      merged.paymentTerms === undefined || merged.paymentTerms === null
+        ? null
+        : merged.paymentTerms.trim() || null,
     validityDays: merged.validityDays ?? null,
     executionTerms: merged.executionTerms ?? null,
     subject: merged.subject ?? null,
@@ -759,30 +756,17 @@ export function DocumentEditor({ initial, type }: Props) {
             label="Date d'émission"
             type="date"
             value={doc.issueDate}
-            onChange={(v) => {
-              const issueDate = v;
-              if (commercial) {
-                const days =
-                  type === "quotation" ? (doc.validityDays ?? 30) : 30;
-                setDoc({
-                  ...doc,
-                  issueDate,
-                  dueDate: addDaysIso(issueDate, days),
-                });
-              } else {
-                setDoc({ ...doc, issueDate });
-              }
-            }}
+            onChange={(v) => setDoc({ ...doc, issueDate: v })}
           />
           {commercial ? (
             <Field
               label="Date d'échéance"
               type="date"
-              value={doc.dueDate || addDaysIso(doc.issueDate, type === "quotation" ? (doc.validityDays ?? 30) : 30)}
+              value={doc.dueDate ?? ""}
               onChange={(v) =>
                 setDoc({
                   ...doc,
-                  dueDate: v.trim() || addDaysIso(doc.issueDate, 30),
+                  dueDate: v.trim() || null,
                 })
               }
             />
@@ -826,27 +810,35 @@ export function DocumentEditor({ initial, type }: Props) {
               <div className="block space-y-2">
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Modalité de paiement
+                    Modalité de paiement (optionnel)
                   </span>
                   <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
                     <Switch
-                      checked={Boolean(doc.paymentTerms?.trim())}
+                      checked={doc.paymentTerms !== undefined && doc.paymentTerms !== null}
                       onCheckedChange={(on) =>
                         setDoc({
                           ...doc,
-                          paymentTerms: on
-                            ? DEFAULT_PAYMENT_MODALITY
-                            : undefined,
+                          paymentTerms: on ? DEFAULT_PAYMENT_MODALITY : undefined,
                         })
                       }
                     />
-                    <span>{doc.paymentTerms?.trim() ? "Activée" : "Désactivée"}</span>
+                    <span>
+                      {doc.paymentTerms !== undefined && doc.paymentTerms !== null
+                        ? "Activée"
+                        : "Désactivée"}
+                    </span>
                   </label>
                 </div>
-                {doc.paymentTerms?.trim() ? (
-                  <p className="rounded-xl border border-border/60 bg-muted/30 px-3 py-2.5 text-sm text-foreground">
-                    {doc.paymentTerms.trim()}
-                  </p>
+                {doc.paymentTerms !== undefined && doc.paymentTerms !== null ? (
+                  <input
+                    type="text"
+                    value={doc.paymentTerms}
+                    onChange={(e) =>
+                      setDoc({ ...doc, paymentTerms: e.target.value })
+                    }
+                    placeholder={DEFAULT_PAYMENT_MODALITY}
+                    className="w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
+                  />
                 ) : (
                   <p className="text-xs text-muted-foreground">
                     Désactivée : la modalité n’apparaîtra pas sur le document.

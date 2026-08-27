@@ -179,7 +179,7 @@ function QuotationDetailPage() {
             <div className="mt-4 space-y-2 text-sm">
               <Row label="Client" value={client?.name ?? "—"} />
               <Row label="Émission" value={longDate(doc.issueDate)} />
-              <Row label="Échéance" value={longDate(doc.dueDate || doc.issueDate)} />
+              <Row label="Échéance" value={doc.dueDate ? longDate(doc.dueDate) : "—"} />
             </div>
             <div className="mt-4 rounded-2xl bg-gradient-mesh p-4">
               <div className="text-xs uppercase tracking-wider text-muted-foreground">Total TTC</div>

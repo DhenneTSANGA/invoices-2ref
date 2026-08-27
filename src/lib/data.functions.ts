@@ -594,15 +594,6 @@ async function upsertDocumentHandler(
       if (data.dueDate && String(data.dueDate).trim()) {
         return new Date(data.dueDate);
       }
-      if (commercial) {
-        const issue = new Date(data.issueDate);
-        const days =
-          data.type === "quotation"
-            ? Math.max(1, data.validityDays ?? 30)
-            : 30;
-        issue.setDate(issue.getDate() + days);
-        return issue;
-      }
       return null;
     })();
 
