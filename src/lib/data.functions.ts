@@ -36,6 +36,7 @@ import {
   type CommercialDocType,
 } from "@/lib/document-number";
 import { sendDocumentEmail } from "@/lib/send-document-email";
+import { buildInvoiceInputFromQuotation } from "@/lib/convert-quotation-to-invoice";
 
 const docInclude = {
   lines: { orderBy: { position: "asc" as const } },
@@ -479,9 +480,11 @@ export const upsertDocument = createServerFn({ method: "POST" })
 
 async function upsertDocumentHandler(
   data: z.infer<typeof documentInputSchema>,
+  options?: { cabinet?: Cabinet },
 ) {
     const session = await requireSession();
     const { staff, activeCabinet } = session;
+    const targetCabinet = options?.cabinet ?? activeCabinet;
     const commercial = data.type === "invoice" || data.type === "quotation";
 
     const buildLineRows = (
@@ -570,7 +573,7 @@ async function upsertDocumentHandler(
     let number = data.number;
     if (!data.id && isCommercialDocType(data.type)) {
       number = await allocateCommercialNumber(
-        activeCabinet,
+        targetCabinet,
         data.type,
         data.issueDate,
       );
@@ -710,10 +713,10 @@ async function upsertDocumentHandler(
       return mapDocument(updated);
     }
 
-    await assertClientInCabinet(data.clientId, activeCabinet);
+    await assertClientInCabinet(data.clientId, targetCabinet);
 
     const docData = {
-      cabinet: activeCabinet,
+      cabinet: targetCabinet,
       type: data.type,
       number,
       clientId: data.clientId,
@@ -748,7 +751,7 @@ async function upsertDocumentHandler(
         const row = await tx.document.create({
           data: { ...docData },
         });
-        await replaceSectionsAndLines(row.id, activeCabinet, tx);
+        await replaceSectionsAndLines(row.id, targetCabinet, tx);
         return tx.document.findFirstOrThrow({
           where: { id: row.id },
           include: docInclude,
@@ -761,7 +764,7 @@ async function upsertDocumentHandler(
         const row = await tx.document.create({
           data: { ...withoutDiscount },
         });
-        await replaceSectionsAndLines(row.id, activeCabinet, tx);
+        await replaceSectionsAndLines(row.id, targetCabinet, tx);
         return tx.document.findFirstOrThrow({
           where: { id: row.id },
           include: docInclude,
@@ -781,6 +784,59 @@ async function upsertDocumentHandler(
     }
     return mapDocument(created);
 }
+
+export const convertQuotationToInvoice = createServerFn({ method: "POST" })
+  .validator(z.object({ quotationId: z.string() }))
+  .handler(async ({ data }) => {
+    const session = await requireSession();
+    const { staff } = session;
+
+    const quotation = await prisma.document.findFirst({
+      where: isSuperAdmin(staff.role)
+        ? { id: data.quotationId, type: "quotation" }
+        : {
+            id: data.quotationId,
+            type: "quotation",
+            cabinet: session.activeCabinet,
+          },
+      include: docInclude,
+    });
+    if (!quotation) throw new Error("Devis introuvable");
+    if (!canWriteDocument(staff.role, staff.id, quotation.createdById)) {
+      throw new Error("Accès refusé — document en lecture seule");
+    }
+    if (quotation.status === "rejected" || quotation.status === "cancelled") {
+      throw new Error("Ce devis ne peut pas être converti (refusé ou annulé).");
+    }
+
+    const payload = buildInvoiceInputFromQuotation(mapDocument(quotation));
+    const invoice = await upsertDocumentHandler(payload, {
+      cabinet: quotation.cabinet,
+    });
+
+    if (
+      quotation.status === "draft" ||
+      quotation.status === "signed" ||
+      quotation.status === "sent"
+    ) {
+      const previousStatus = quotation.status;
+      await prisma.document.update({
+        where: { id: quotation.id },
+        data: { status: "accepted" },
+      });
+      await broadcastDocumentStatusChange({
+        actorStaffId: staff.id,
+        actorName: staffDisplayName(staff),
+        documentId: quotation.id,
+        documentNumber: quotation.number,
+        documentType: quotation.type,
+        previousStatus,
+        nextStatus: "accepted",
+      });
+    }
+
+    return invoice;
+  });
 
 export const setDocumentStatus = createServerFn({ method: "POST" })
   .validator(

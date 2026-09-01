@@ -14,6 +14,7 @@ import {
   getDocument,
   peekNextDocumentNumber,
   upsertDocument,
+  convertQuotationToInvoice,
   setDocumentStatus,
   deleteDocument,
   getCompany,
@@ -327,6 +328,23 @@ export function useUpsertDocument() {
       qc.invalidateQueries({ queryKey: documentsKey() });
       qc.invalidateQueries({ queryKey: documentsKey(doc.type) });
       qc.invalidateQueries({ queryKey: ["document", doc.id] });
+      qc.invalidateQueries({ queryKey: notificationsKey });
+      qc.invalidateQueries({ queryKey: ["peek-document-number"] });
+    },
+  });
+}
+
+export function useConvertQuotationToInvoice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (quotationId: string) =>
+      convertQuotationToInvoice({ data: { quotationId } }),
+    onSuccess: (invoice, quotationId) => {
+      qc.invalidateQueries({ queryKey: documentsKey() });
+      qc.invalidateQueries({ queryKey: documentsKey("invoice") });
+      qc.invalidateQueries({ queryKey: documentsKey("quotation") });
+      qc.invalidateQueries({ queryKey: ["document", invoice.id] });
+      qc.invalidateQueries({ queryKey: ["document", quotationId] });
       qc.invalidateQueries({ queryKey: notificationsKey });
       qc.invalidateQueries({ queryKey: ["peek-document-number"] });
     },

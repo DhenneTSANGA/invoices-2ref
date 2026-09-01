@@ -17,13 +17,6 @@ const styles: Record<DocumentStatus | "default", RowStyles> = {
     actionBtn: "text-slate-800 hover:bg-slate-500/30",
     viewLink: "bg-slate-900/15 text-slate-900 hover:bg-slate-900 hover:text-white",
   },
-  signed: {
-    row: "bg-amber-500 text-white hover:bg-amber-600",
-    muted: "text-amber-100",
-    select: "border-amber-300/60 bg-white text-slate-900",
-    actionBtn: "text-white hover:bg-white/20",
-    viewLink: "bg-white/20 text-white hover:bg-white hover:text-amber-700",
-  },
   sent: {
     row: "bg-sky-500 text-white hover:bg-sky-600",
     muted: "text-sky-100",

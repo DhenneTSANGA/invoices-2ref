@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { createFileRoute, Link, Outlet, useChildMatches } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useChildMatches, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Send, CheckCircle2, XCircle, Edit3, Eye, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -10,6 +10,7 @@ import {
   useSetDocumentStatus,
   useSendDocumentEmail,
   useSession,
+  useConvertQuotationToInvoice,
 } from "@/hooks/use-data";
 import { DocumentPreview } from "@/components/documents/DocumentPreview";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
@@ -42,12 +43,14 @@ function QuotationDetail() {
 
 function QuotationDetailPage() {
   const { id } = Route.useParams();
+  const navigate = useNavigate();
   const { data: session } = useSession();
   const { data: doc, isLoading } = useDocument(id);
   const { data: clients = [] } = useClients();
   const client = clients.find((c) => c.id === doc?.clientId);
   const setStatusMutation = useSetDocumentStatus();
   const sendEmailMutation = useSendDocumentEmail();
+  const convertMutation = useConvertQuotationToInvoice();
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewSeen, setPreviewSeen] = useState(false);
 
@@ -84,6 +87,24 @@ function QuotationDetailPage() {
         onError: (e) => toast.error(e.message),
       },
     );
+  };
+
+  const canConvert =
+    doc.status !== "rejected" && doc.status !== "cancelled";
+
+  const convertToInvoice = () => {
+    convertMutation.mutate(doc.id, {
+      onSuccess: (invoice) => {
+        toast.success("Facture créée à partir du devis", {
+          description: invoice.number,
+        });
+        void navigate({
+          to: "/invoices/$id/edit",
+          params: { id: invoice.id },
+        });
+      },
+      onError: (e) => toast.error(e.message),
+    });
   };
 
   const sendByEmail = () => {
@@ -191,7 +212,14 @@ function QuotationDetailPage() {
                 <div className="font-numeric font-semibold">{currency(-doc.tps)}</div>
               </div>
             ) : null}
-            <Link to="/invoices/new" className="mt-4 block w-full rounded-xl bg-gradient-primary px-3 py-2 text-center text-sm font-medium text-primary-foreground shadow-glow">Convertir en facture</Link>
+            <button
+              type="button"
+              onClick={convertToInvoice}
+              disabled={convertMutation.isPending || !canConvert}
+              className="mt-4 block w-full rounded-xl bg-gradient-primary px-3 py-2 text-center text-sm font-medium text-primary-foreground shadow-glow disabled:opacity-60"
+            >
+              {convertMutation.isPending ? "Conversion…" : "Convertir en facture"}
+            </button>
           </div>
           <DocumentCreatorCard creator={doc.createdBy} />
           <DocumentPdfTracesPanel documentId={doc.id} />
