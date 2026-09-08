@@ -266,6 +266,7 @@ export const documentInputSchema = z.object({
   closing: z.string().optional().nullable(),
   signatoryTitle: z.string().optional().nullable(),
   recipientOverride: z.string().optional().nullable(),
+  placeCity: z.string().optional().nullable(),
   sections: z.array(documentSectionSchema).optional().default([]),
   items: z.array(lineItemSchema),
   subtotal: z.coerce.number(),

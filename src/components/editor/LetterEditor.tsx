@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import {
   Save,
@@ -23,6 +23,7 @@ import {
   useSession,
   useRequestLetterSignature,
   useSignLetterDocument,
+  usePeekNextLetterNumber,
 } from "@/hooks/use-data";
 import type { Cabinet } from "@/lib/cabinets";
 import { isAdmin } from "@/lib/roles";
@@ -36,8 +37,30 @@ import {
   signatoryTitleForRole,
   type SignatoryRole,
 } from "@/lib/signatory";
+import { LetterSubjectInput } from "@/components/editor/LetterSubjectInput";
+import { LetterRefComposer } from "@/components/editor/LetterRefComposer";
+import { RichTextEditor } from "@/components/editor/RichTextEditor";
+import {
+  buildLetterRef,
+  parseLetterRef,
+} from "@/lib/letter-ref";
+import {
+  DEFAULT_LETTER_PLACE_CITY,
+  LETTER_PLACE_CITIES,
+} from "@/lib/letter-place-city";
 
 type Props = { initial?: Document };
+
+function provisionalLetterNumber(cabinet: Cabinet, issueDate: string) {
+  return buildLetterRef({
+    cabinet,
+    language: "CF",
+    seq: 1,
+    issueDate,
+    subjectAbbrev: "OBJ",
+    service: "SA",
+  });
+}
 
 export function LetterEditor({ initial }: Props) {
   const navigate = useNavigate();
@@ -52,13 +75,17 @@ export function LetterEditor({ initial }: Props) {
   const requestSignMutation = useRequestLetterSignature();
   const signMutation = useSignLetterDocument();
   const adminLike = session ? isAdmin(session.staff.role) : false;
+  const isNew = !initial?.id || initial.id.startsWith("d-");
 
   const [doc, setDoc] = useState<Document>(
     initial ?? {
       id: `d-${Date.now()}`,
       cabinet: activeCabinet,
       type: "letter",
-      number: `LT-2025-${String(10 + Math.floor(Math.random() * 89)).padStart(3, "0")}`,
+      number: provisionalLetterNumber(
+        activeCabinet,
+        new Date().toISOString().slice(0, 10),
+      ),
       clientId: "",
       status: "draft",
       issueDate: new Date().toISOString().slice(0, 10),
@@ -75,10 +102,24 @@ export function LetterEditor({ initial }: Props) {
       body: "",
       closing: "",
       signatoryTitle: DEFAULT_SIGNATORY_TITLE,
+      placeCity: "Libreville",
     },
   );
 
   const [previewOpen, setPreviewOpen] = useState(false);
+
+  const { data: peeked } = usePeekNextLetterNumber(doc.issueDate, isNew);
+
+  const letterSeq = useMemo(() => {
+    if (!isNew) {
+      return parseLetterRef(doc.number)?.seq ?? 1;
+    }
+    return peeked?.seq ?? 1;
+  }, [isNew, doc.number, peeked?.seq]);
+
+  const handleNumberChange = useCallback((number: string) => {
+    setDoc((d) => (d.number === number ? d : { ...d, number }));
+  }, []);
 
   useEffect(() => {
     if (initial) return;
@@ -135,6 +176,7 @@ export function LetterEditor({ initial }: Props) {
       closing: draft.closing ?? null,
       signatoryTitle: draft.signatoryTitle?.trim() || DEFAULT_SIGNATORY_TITLE,
       recipientOverride: draft.recipientOverride ?? null,
+      placeCity: draft.placeCity ?? "Libreville",
       items: [],
       subtotal: 0,
       tps: 0,
@@ -218,26 +260,6 @@ export function LetterEditor({ initial }: Props) {
     <div className="mx-auto w-full max-w-3xl space-y-5">
       <div className="space-y-4">
         <Section
-          icon={<FileText className="h-4 w-4" />}
-          title="Identification"
-          hint="Référence et date d'émission du courrier"
-        >
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field
-              label="Référence"
-              value={doc.number}
-              onChange={(v) => setDoc({ ...doc, number: v })}
-            />
-            <Field
-              label="Date"
-              type="date"
-              value={doc.issueDate}
-              onChange={(v) => setDoc({ ...doc, issueDate: v })}
-            />
-          </div>
-        </Section>
-
-        <Section
           icon={<UserRound className="h-4 w-4" />}
           title="Destinataire"
           hint="Client rattaché ou adresse libre"
@@ -289,33 +311,86 @@ export function LetterEditor({ initial }: Props) {
         </Section>
 
         <Section
+          icon={<FileText className="h-4 w-4" />}
+          title="Identification"
+          hint="Référence structurée et date d'émission"
+        >
+          <div className="space-y-4">
+            <LetterRefComposer
+              cabinet={doc.cabinet}
+              issueDate={doc.issueDate}
+              subject={doc.subject ?? ""}
+              value={doc.number}
+              seq={letterSeq}
+              onChange={handleNumberChange}
+            />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <label className="block">
+                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Ville d’émission
+                </span>
+                <select
+                  className="mt-1.5 w-full rounded-xl border border-border/60 bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  value={doc.placeCity || DEFAULT_LETTER_PLACE_CITY}
+                  onChange={(e) =>
+                    setDoc({ ...doc, placeCity: e.target.value })
+                  }
+                >
+                  {LETTER_PLACE_CITIES.map((city) => (
+                    <option key={city} value={city}>
+                      {city}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <Field
+                label="Date"
+                type="date"
+                value={doc.issueDate}
+                onChange={(v) => setDoc({ ...doc, issueDate: v })}
+              />
+            </div>
+          </div>
+        </Section>
+
+        <Section
           icon={<PenLine className="h-4 w-4" />}
           title="Contenu du courriel"
           hint="Objet, formule d'appel et corps du message"
         >
           <div className="space-y-4">
-            <Field
-              label="Objet"
-              value={doc.subject ?? ""}
-              onChange={(v) => setDoc({ ...doc, subject: v })}
-            />
-            <Field
+            <label className="block">
+              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Objet
+              </span>
+              <div className="mt-1.5">
+                <LetterSubjectInput
+                  value={doc.subject ?? ""}
+                  onChange={(v) => setDoc({ ...doc, subject: v })}
+                  inputClassName="rounded-xl border border-border/60 bg-surface px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+            </label>
+            <RichTextEditor
               label="Formule d'appel"
               value={doc.salutation ?? ""}
               onChange={(v) => setDoc({ ...doc, salutation: v })}
+              placeholder="Madame, Monsieur,"
+              minHeightClass="min-h-[3.5rem]"
             />
-            <TextArea
+            <RichTextEditor
               label="Corps du courriel"
-              rows={11}
               value={doc.body ?? ""}
               onChange={(v) => setDoc({ ...doc, body: v })}
-              className="leading-relaxed"
+              placeholder="Rédigez le corps du message…"
+              minHeightClass="min-h-[12rem]"
             />
-            <TextArea
+            <RichTextEditor
               label="Formule de politesse"
-              rows={2}
               value={doc.closing ?? ""}
               onChange={(v) => setDoc({ ...doc, closing: v })}
+              placeholder="Veuillez agréer…"
+              minHeightClass="min-h-[4.5rem]"
             />
           </div>
         </Section>

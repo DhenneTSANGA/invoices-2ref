@@ -37,6 +37,20 @@ import { buildDocumentPdfFromDoc } from "@/lib/pdf/downloadDocumentPdf";
 import { isAdmin } from "@/lib/roles";
 import { humanAuthError } from "@/lib/auth-errors";
 import type { Client, Document, MailMergeCampaign } from "@/store/types";
+import { LetterSubjectInput } from "@/components/editor/LetterSubjectInput";
+import { RichTextEditor } from "@/components/editor/RichTextEditor";
+import {
+  LETTER_LANGUAGES,
+  LETTER_SERVICES,
+  abbrevForLetterSubject,
+  isPredefinedLetterSubject,
+  normalizeSubjectAbbrev,
+  resolveLetterSubjectAbbrev,
+  type LetterLanguage,
+  type LetterServiceCode,
+} from "@/lib/letter-ref";
+import { isRichTextEmpty } from "@/lib/rich-text";
+import { LETTER_PLACE_CITIES } from "@/lib/letter-place-city";
 
 export const Route = createFileRoute("/_app/lettre/publipostage")({
   head: () => ({ meta: [{ title: "Publipostage — 2R Hub" }] }),
@@ -169,6 +183,10 @@ function MailMergePage() {
   const [guestDraft, setGuestDraft] = useState<GuestRecipient>(emptyGuest);
   const [showGuestForm, setShowGuestForm] = useState(false);
   const [subject, setSubject] = useState("");
+  const [letterLanguage, setLetterLanguage] = useState<LetterLanguage>("CF");
+  const [letterService, setLetterService] = useState<LetterServiceCode>("SA");
+  const [subjectAbbrev, setSubjectAbbrev] = useState("");
+  const [placeCity, setPlaceCity] = useState("Libreville");
   const [salutation, setSalutation] = useState("");
   const [body, setBody] = useState("");
   const [closing, setClosing] = useState("");
@@ -198,6 +216,10 @@ function MailMergePage() {
           body,
           closing,
           signatoryTitle,
+          language: letterLanguage,
+          service: letterService,
+          subjectAbbrev: resolveLetterSubjectAbbrev(subject, subjectAbbrev),
+          placeCity,
         },
       }),
     onSuccess: (campaign) => {
@@ -290,7 +312,7 @@ function MailMergePage() {
       toast.error("Sélectionnez ou ajoutez au moins un destinataire pour l'aperçu");
       return;
     }
-    if (!subject.trim() || !body.trim()) {
+    if (!subject.trim() || isRichTextEmpty(body)) {
       toast.error("Renseignez l'objet et le corps avant l'aperçu");
       return;
     }
@@ -303,7 +325,7 @@ function MailMergePage() {
       toast.error("Sélectionnez ou ajoutez au moins un destinataire");
       return;
     }
-    if (!subject.trim() || !body.trim()) {
+    if (!subject.trim() || isRichTextEmpty(body)) {
       toast.error("L'objet et le corps sont requis");
       return;
     }
@@ -610,39 +632,117 @@ function MailMergePage() {
                   ponctuels : uniquement les champs saisis (le reste reste vide).
                 </span>
               </div>
-              <Field
-                label="Objet"
-                value={subject}
-                onChange={setSubject}
-              />
-              <Field
+              <label className="block">
+                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Objet
+                </span>
+                <div className="mt-1">
+                  <LetterSubjectInput
+                    value={subject}
+                    onChange={setSubject}
+                    inputClassName="rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
+                  />
+                </div>
+              </label>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <label className="block">
+                  <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Langue
+                  </span>
+                  <select
+                    className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
+                    value={letterLanguage}
+                    onChange={(e) =>
+                      setLetterLanguage(e.target.value as LetterLanguage)
+                    }
+                  >
+                    {LETTER_LANGUAGES.map((l) => (
+                      <option key={l.code} value={l.code}>
+                        {l.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Service
+                  </span>
+                  <select
+                    className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
+                    value={letterService}
+                    onChange={(e) =>
+                      setLetterService(e.target.value as LetterServiceCode)
+                    }
+                  >
+                    {LETTER_SERVICES.map((s) => (
+                      <option key={s.code} value={s.code}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {isPredefinedLetterSubject(subject) ? (
+                  <div className="rounded-xl border border-border/60 bg-muted/30 px-3 py-2.5">
+                    <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Abrégé objet (automatique)
+                    </div>
+                    <div className="mt-0.5 font-mono text-sm font-semibold">
+                      {abbrevForLetterSubject(subject)}
+                    </div>
+                  </div>
+                ) : (
+                  <label className="block">
+                    <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                      Abrégé objet
+                    </span>
+                    <input
+                      className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 font-mono text-sm uppercase focus:border-primary focus:outline-none"
+                      value={subjectAbbrev}
+                      placeholder="Ex. RDP (OBJ si vide)"
+                      onChange={(e) =>
+                        setSubjectAbbrev(normalizeSubjectAbbrev(e.target.value))
+                      }
+                    />
+                  </label>
+                )}
+              </div>
+              <label className="block">
+                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Ville d’émission
+                </span>
+                <select
+                  className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
+                  value={placeCity}
+                  onChange={(e) => setPlaceCity(e.target.value)}
+                >
+                  {LETTER_PLACE_CITIES.map((city) => (
+                    <option key={city} value={city}>
+                      {city}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <RichTextEditor
                 label="Formule d'appel"
                 value={salutation}
                 onChange={setSalutation}
                 placeholder="Monsieur le Directeur Général,"
+                minHeightClass="min-h-[3.5rem]"
               />
-              <label className="block">
-                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Corps
-                </span>
-                <textarea
-                  className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
-                  rows={8}
-                  value={body}
-                  onChange={(e) => setBody(e.target.value)}
-                />
-              </label>
-              <label className="block">
-                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Formule de politesse
-                </span>
-                <textarea
-                  className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
-                  rows={3}
-                  value={closing}
-                  onChange={(e) => setClosing(e.target.value)}
-                />
-              </label>
+              <RichTextEditor
+                label="Corps"
+                value={body}
+                onChange={setBody}
+                placeholder="Rédigez le corps du message… Variables {{nom}}, {{contact}}, etc."
+                minHeightClass="min-h-[10rem]"
+              />
+              <RichTextEditor
+                label="Formule de politesse"
+                value={closing}
+                onChange={setClosing}
+                placeholder="Veuillez agréer…"
+                minHeightClass="min-h-[4.5rem]"
+              />
               <Field
                 label="Titre du signataire"
                 value={signatoryTitle}

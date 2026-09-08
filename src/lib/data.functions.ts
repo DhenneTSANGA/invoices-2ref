@@ -35,6 +35,18 @@ import {
   isCommercialDocType,
   type CommercialDocType,
 } from "@/lib/document-number";
+import {
+  buildLetterRef,
+  isLetterLanguage,
+  isLetterServiceCode,
+  letterYearCode,
+  nextLetterSequenceFromNumbers,
+  normalizeSubjectAbbrev,
+  parseLetterRef,
+  resolveLetterSubjectAbbrev,
+  type LetterLanguage,
+  type LetterServiceCode,
+} from "@/lib/letter-ref";
 import { sendDocumentEmail } from "@/lib/send-document-email";
 import { buildInvoiceInputFromQuotation } from "@/lib/convert-quotation-to-invoice";
 import { clientAllowsSubscription } from "@/lib/client-billing";
@@ -60,6 +72,42 @@ async function allocateCommercialNumber(
     type,
     issueDate,
     existingNumbers: rows.map((r) => r.number),
+  });
+}
+
+/** Alloue 2RC/CF/002/026/… en réutilisant langue / service / abrégé du brouillon client. */
+async function allocateLetterNumber(
+  cabinet: Cabinet,
+  issueDate: string | Date,
+  draftNumber: string,
+  subject?: string | null,
+): Promise<string> {
+  const yearCode = letterYearCode(issueDate);
+  const parsed = parseLetterRef(draftNumber);
+  const language: LetterLanguage =
+    parsed && isLetterLanguage(parsed.language) ? parsed.language : "CF";
+  const service: LetterServiceCode =
+    parsed && isLetterServiceCode(parsed.service) ? parsed.service : "SA";
+  const subjectAbbrev = resolveLetterSubjectAbbrev(
+    subject ?? "",
+    parsed?.subjectAbbrev ?? "",
+  );
+
+  const rows = await prisma.document.findMany({
+    where: { cabinet, type: "letter" },
+    select: { number: true },
+  });
+  const seq = nextLetterSequenceFromNumbers(
+    rows.map((r) => r.number),
+    yearCode,
+  );
+  return buildLetterRef({
+    cabinet,
+    language,
+    seq,
+    issueDate,
+    subjectAbbrev,
+    service,
   });
 }
 
@@ -471,6 +519,38 @@ export const peekNextDocumentNumber = createServerFn({ method: "GET" })
     return { number };
   });
 
+/** Aperçu du prochain compteur courrier (séquence seule + réf exemple). */
+export const peekNextLetterNumber = createServerFn({ method: "GET" })
+  .validator(
+    z.object({
+      issueDate: z.string().min(1),
+      language: z.enum(["CF", "CA"]).default("CF"),
+      service: z.enum(["SA", "DIR", "SAF"]).default("SA"),
+      subjectAbbrev: z.string().default("OBJ"),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const { activeCabinet } = await requireSession();
+    const yearCode = letterYearCode(data.issueDate);
+    const rows = await prisma.document.findMany({
+      where: { cabinet: activeCabinet, type: "letter" },
+      select: { number: true },
+    });
+    const seq = nextLetterSequenceFromNumbers(
+      rows.map((r) => r.number),
+      yearCode,
+    );
+    const number = buildLetterRef({
+      cabinet: activeCabinet,
+      language: data.language,
+      seq,
+      issueDate: data.issueDate,
+      subjectAbbrev: data.subjectAbbrev,
+      service: data.service,
+    });
+    return { number, seq };
+  });
+
 export const upsertDocument = createServerFn({ method: "POST" })
   .validator(documentInputSchema)
   .handler(async ({ data }) => {
@@ -580,6 +660,13 @@ async function upsertDocumentHandler(
         data.type,
         data.issueDate,
       );
+    } else if (!data.id && data.type === "letter") {
+      number = await allocateLetterNumber(
+        targetCabinet,
+        data.issueDate,
+        data.number,
+        data.subject,
+      );
     }
 
     const docDiscount = commercial
@@ -636,7 +723,7 @@ async function upsertDocumentHandler(
       const docData = {
         cabinet: existing.cabinet,
         type: existing.type,
-        number: existing.number,
+        number: existing.type === "letter" ? data.number : existing.number,
         clientId: data.clientId,
         createdById: existing.createdById,
         status: nextStatus,
@@ -661,6 +748,7 @@ async function upsertDocumentHandler(
         closing: data.closing ?? null,
         signatoryTitle: data.signatoryTitle ?? null,
         recipientOverride: data.recipientOverride ?? null,
+        placeCity: data.placeCity ?? null,
       };
 
       let updated;
@@ -746,6 +834,7 @@ async function upsertDocumentHandler(
       closing: data.closing ?? null,
       signatoryTitle: data.signatoryTitle ?? null,
       recipientOverride: data.recipientOverride ?? null,
+      placeCity: data.placeCity ?? null,
     };
 
     let created;

@@ -8,6 +8,14 @@ import { isAdmin } from "@/lib/roles";
 import type { MailMergeCampaign } from "@/store/types";
 import { clientLetterRecipientLines, formatClientBp } from "@/lib/client-address";
 import { staffDisplayName } from "@/lib/notify-document-status";
+import {
+  buildLetterRef,
+  letterYearCode,
+  nextLetterSequenceFromNumbers,
+  resolveLetterSubjectAbbrev,
+  type LetterLanguage,
+  type LetterServiceCode,
+} from "@/lib/letter-ref";
 
 async function requireSession() {
   const session = await getCurrentSession();
@@ -78,6 +86,10 @@ const createCampaignSchema = z
     closing: z.string().default(""),
     signatoryTitle: z.string().default("Le Gérant"),
     issueDate: z.string().optional(),
+    language: z.enum(["CF", "CA"]).default("CF"),
+    service: z.enum(["SA", "DIR", "SAF"]).default("SA"),
+    subjectAbbrev: z.string().optional(),
+    placeCity: z.string().optional(),
   })
   .refine((d) => d.clientIds.length + d.guests.length >= 1, {
     message: "Sélectionnez au moins un destinataire",
@@ -131,21 +143,32 @@ function mapCampaign(
   };
 }
 
-async function nextLetterNumber(cabinet: "conseil" | "expertise_fiscale") {
-  const year = new Date().getFullYear();
-  const prefix = `LT-${year}-`;
-  const last = await prisma.document.findFirst({
-    where: { cabinet, type: "letter", number: { startsWith: prefix } },
-    orderBy: { number: "desc" },
+async function nextLetterRef(args: {
+  cabinet: "conseil" | "expertise_fiscale";
+  issueDate: Date;
+  language: LetterLanguage;
+  service: LetterServiceCode;
+  subjectAbbrev: string;
+  existingNumbers: string[];
+}) {
+  const yearCode = letterYearCode(args.issueDate);
+  const seq = nextLetterSequenceFromNumbers(args.existingNumbers, yearCode);
+  return buildLetterRef({
+    cabinet: args.cabinet,
+    language: args.language,
+    seq,
+    issueDate: args.issueDate,
+    subjectAbbrev: args.subjectAbbrev,
+    service: args.service,
+  });
+}
+
+async function loadLetterNumbers(cabinet: "conseil" | "expertise_fiscale") {
+  const rows = await prisma.document.findMany({
+    where: { cabinet, type: "letter" },
     select: { number: true },
   });
-  let seq = 1;
-  if (last?.number) {
-    const part = last.number.slice(prefix.length);
-    const n = Number.parseInt(part, 10);
-    if (Number.isFinite(n)) seq = n + 1;
-  }
-  return `${prefix}${String(seq).padStart(3, "0")}`;
+  return rows.map((r) => r.number);
 }
 
 async function campaignInclude(id: string) {
@@ -319,13 +342,25 @@ export const createMailMergeCampaign = createServerFn({ method: "POST" })
       throw new Error("Aucun destinataire trouvé");
     }
 
-    let nextNumber = await nextLetterNumber(activeCabinet);
+    let numbers = await loadLetterNumbers(activeCabinet);
+    const language = data.language;
+    const service = data.service;
+    const subjectAbbrev = resolveLetterSubjectAbbrev(
+      data.subject,
+      data.subjectAbbrev ?? "",
+    );
 
     for (const client of recipients) {
       const vars = clientVars(client);
-      const number = nextNumber;
-      const seq = Number.parseInt(number.split("-").pop() ?? "1", 10);
-      nextNumber = `LT-${new Date().getFullYear()}-${String(seq + 1).padStart(3, "0")}`;
+      const number = await nextLetterRef({
+        cabinet: activeCabinet,
+        issueDate,
+        language,
+        service,
+        subjectAbbrev,
+        existingNumbers: numbers,
+      });
+      numbers = [...numbers, number];
 
       const recipientOverride = clientLetterRecipientLines(client).join("\n");
 
@@ -351,6 +386,7 @@ export const createMailMergeCampaign = createServerFn({ method: "POST" })
           closing: interpolate(data.closing, vars),
           signatoryTitle: data.signatoryTitle.trim() || "Le Gérant",
           recipientOverride,
+          placeCity: data.placeCity?.trim() || "Libreville",
           mailMergeCampaignId: campaign.id,
         },
       });

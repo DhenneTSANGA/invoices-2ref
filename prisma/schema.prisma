@@ -299,6 +299,8 @@ model Document {
   closing           String?
   signatoryTitle    String?
   recipientOverride String?
+  /** Ville d’émission du courrier (ex. Libreville), pour « Libreville, le … ». */
+  placeCity         String?
   /** Facture modèle d'abonnement mensuel. */
   isSubscription       Boolean   @default(false)
   subscriptionActive   Boolean   @default(false)

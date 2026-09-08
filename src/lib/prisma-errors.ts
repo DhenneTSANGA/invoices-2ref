@@ -1,8 +1,18 @@
 import { Prisma } from "@prisma/client";
 
+function safeInstanceof<T>(
+  err: unknown,
+  ctor: abstract new (...args: never[]) => T,
+): err is T {
+  if (typeof ctor !== "function") return false;
+  const proto = ctor.prototype;
+  if (typeof proto !== "object" || proto === null) return false;
+  return err instanceof ctor;
+}
+
 /** Transforme une erreur Prisma en message utilisateur clair. */
 export function formatPrismaError(err: unknown, fallback = "Erreur base de données"): string {
-  if (err instanceof Prisma.PrismaClientInitializationError) {
+  if (safeInstanceof(err, Prisma.PrismaClientInitializationError)) {
     const msg = err.message ?? "";
     if (msg.includes("DATABASE_URL") || msg.includes("Environment variable not found")) {
       return "Prisma n’est pas connecté : variable DATABASE_URL manquante sur le serveur (secrets de production).";
@@ -12,7 +22,7 @@ export function formatPrismaError(err: unknown, fallback = "Erreur base de donn�
     }
     return "Prisma n’a pas pu s’initialiser. Vérifiez DATABASE_URL et le redéploiement.";
   }
-  if (err instanceof Prisma.PrismaClientKnownRequestError) {
+  if (safeInstanceof(err, Prisma.PrismaClientKnownRequestError)) {
     switch (err.code) {
       case "P2002": {
         const fields = (err.meta?.target as string[] | undefined)?.join(", ");
@@ -42,7 +52,7 @@ export function formatPrismaError(err: unknown, fallback = "Erreur base de donn�
         return `${fallback} (${err.code}).`;
     }
   }
-  if (err instanceof Prisma.PrismaClientValidationError) {
+  if (safeInstanceof(err, Prisma.PrismaClientValidationError)) {
     const msg = err.message;
     if (msg.includes("Unknown argument")) {
       return "Le client Prisma est désynchronisé du schéma. Redéployez l’application (prisma generate).";
@@ -64,7 +74,7 @@ export function formatPrismaError(err: unknown, fallback = "Erreur base de donn�
 
 export function isPrismaColumnMissing(err: unknown, column: string): boolean {
   return (
-    err instanceof Prisma.PrismaClientKnownRequestError &&
+    safeInstanceof(err, Prisma.PrismaClientKnownRequestError) &&
     err.code === "P2022" &&
     String(err.meta?.column ?? "").includes(column)
   );

@@ -192,6 +192,7 @@ export function mapDocument(row: {
   closing: string | null;
   signatoryTitle: string | null;
   recipientOverride: string | null;
+  placeCity?: string | null;
   lines: Array<{
     id: string;
     serviceId: string | null;
@@ -292,6 +293,7 @@ export function mapDocument(row: {
     closing: row.closing ?? undefined,
     signatoryTitle: row.signatoryTitle ?? undefined,
     recipientOverride: row.recipientOverride ?? undefined,
+    placeCity: row.placeCity ?? null,
     createdBy: row.createdBy ? mapStaff(row.createdBy) : undefined,
   };
 }

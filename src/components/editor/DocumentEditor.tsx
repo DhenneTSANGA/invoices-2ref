@@ -44,6 +44,7 @@ import {
   signatoryTitleForRole,
   type SignatoryRole,
 } from "@/lib/signatory";
+import { PrestationTitleInput } from "@/components/editor/PrestationTitleInput";
 
 const DEFAULT_PAYMENT_MODALITY = "Le 05 suivant le mois de la prestation";
 
@@ -1144,11 +1145,9 @@ export function DocumentEditor({ initial, type }: Props) {
                     <span className="text-[11px] font-bold uppercase tracking-wider text-primary">
                       Prestation(s)
                     </span>
-                    <input
-                      className="min-w-[12rem] flex-1 rounded-lg border border-border/60 bg-surface px-2.5 py-1.5 text-sm font-semibold focus:border-primary focus:outline-none"
+                    <PrestationTitleInput
                       value={sec.title}
-                      placeholder="Titre général (ex. AUDIT FISCAL)"
-                      onChange={(e) => updateSection(sec.id, e.target.value)}
+                      onChange={(title) => updateSection(sec.id, title)}
                     />
                     <button
                       type="button"

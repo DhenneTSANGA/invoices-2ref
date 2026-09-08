@@ -30,6 +30,11 @@ import {
   clientRepresentativeLine,
   clientDocumentLines,
 } from "@/lib/client-address";
+import {
+  isRichTextEmpty,
+  richOrPlainToEmailHtml,
+} from "@/lib/rich-text";
+import { letterPlaceCityLabel } from "@/lib/letter-place-city";
 
 async function requireSession() {
   const session = await getCurrentSession();
@@ -418,18 +423,18 @@ function buildLetterEmailHtml(params: {
     </div>
 
     ${
-      params.salutation
-        ? `<p style="margin:0 0 14px;font-size:14px;line-height:1.7;color:#0F172A;">${escapeHtml(params.salutation)}</p>`
+      !isRichTextEmpty(params.salutation)
+        ? `<div style="margin:0 0 14px;font-size:14px;line-height:1.7;color:#0F172A;">${richOrPlainToEmailHtml(params.salutation)}</div>`
         : ""
     }
 
-    <div style="font-size:14px;line-height:1.8;color:#1E293B;white-space:pre-line;text-align:justify;">
-${escapeHtml(params.body)}
+    <div style="font-size:14px;line-height:1.8;color:#1E293B;text-align:justify;">
+${richOrPlainToEmailHtml(params.body)}
     </div>
 
     ${
-      params.closing
-        ? `<div style="margin-top:24px;font-size:14px;line-height:1.75;color:#1E293B;white-space:pre-line;">${escapeHtml(params.closing)}</div>`
+      !isRichTextEmpty(params.closing)
+        ? `<div style="margin-top:24px;font-size:14px;line-height:1.75;color:#1E293B;">${richOrPlainToEmailHtml(params.closing)}</div>`
         : ""
     }
 
@@ -534,7 +539,7 @@ export const sendDocumentEmail = createServerFn({ method: "POST" })
     if (doc.type === "letter") {
       subject = doc.subject?.trim() || `${typeLabel} ${doc.number}`;
       const letterBody = [doc.body].filter(Boolean).join("\n\n");
-      const city = (company.city.split(",")[0] || company.city).trim();
+      const city = letterPlaceCityLabel(doc.placeCity, company.city);
       const recipientBlock = doc.recipientOverride?.trim()
         ? doc.recipientOverride.trim()
         : clientLetterRecipientLines(doc.client).join("\n");

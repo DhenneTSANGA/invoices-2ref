@@ -168,6 +168,8 @@ export type Document = {
   closing?: string;
   signatoryTitle?: string;
   recipientOverride?: string;
+  /** Ville d’émission affichée (« Libreville, le … »). */
+  placeCity?: string | null;
 };
 
 export type MailMergeCampaign = {

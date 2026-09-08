@@ -13,6 +13,7 @@ import {
   listAllDocuments,
   getDocument,
   peekNextDocumentNumber,
+  peekNextLetterNumber,
   upsertDocument,
   convertQuotationToInvoice,
   setDocumentStatus,
@@ -319,6 +320,22 @@ export function usePeekNextDocumentNumber(
   });
 }
 
+/** Aperçu du prochain compteur courrier. */
+export function usePeekNextLetterNumber(
+  issueDate: string,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: ["peek-letter-number", issueDate],
+    queryFn: () =>
+      peekNextLetterNumber({
+        data: { issueDate, language: "CF", service: "SA", subjectAbbrev: "OBJ" },
+      }),
+    enabled: enabled && !!issueDate,
+    staleTime: 5_000,
+  });
+}
+
 export function useUpsertDocument() {
   const qc = useQueryClient();
   return useMutation({
@@ -330,6 +347,7 @@ export function useUpsertDocument() {
       qc.invalidateQueries({ queryKey: ["document", doc.id] });
       qc.invalidateQueries({ queryKey: notificationsKey });
       qc.invalidateQueries({ queryKey: ["peek-document-number"] });
+      qc.invalidateQueries({ queryKey: ["peek-letter-number"] });
     },
   });
 }
