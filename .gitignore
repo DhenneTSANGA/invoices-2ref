@@ -30,6 +30,10 @@ dist-ssr
 .wrangler/
 .dev.vars
 
+# Dump migration base (peut contenir données métier)
+data/
+*.db-dump.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

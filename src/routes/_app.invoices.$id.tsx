@@ -39,6 +39,7 @@ import { currency, longDate, shortDate } from "@/lib/format";
 import { paymentMethodLabel } from "@/lib/payment-method";
 import { isAdmin } from "@/lib/roles";
 import { isAccountantSignatory } from "@/lib/signatory";
+import { clientAllowsSubscription } from "@/lib/client-billing";
 import type { PaymentMethod } from "@/store/types";
 
 export const Route = createFileRoute("/_app/invoices/$id")({
@@ -89,6 +90,7 @@ function InvoiceDetailPage() {
 
   const canSend = documentCanSendEmail(doc);
   const accountantSignatory = isAccountantSignatory(doc.signatoryTitle);
+  const canSubscribe = clientAllowsSubscription(client?.billingProfile);
 
   const patchStatus = (
     status: typeof doc.status,
@@ -282,13 +284,26 @@ function InvoiceDetailPage() {
               {(!doc.isSubscription || !doc.subscriptionActive) && (
                 <button
                   type="button"
-                  onClick={() => setSubOpen(true)}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-primary px-3 py-2 text-xs font-medium text-primary-foreground shadow-glow"
+                  onClick={() => {
+                    if (!canSubscribe) {
+                      toast.error(
+                        "Ce client est ponctuel. Passez son profil en Abonnement ou Mixte pour activer un abonnement.",
+                      );
+                      return;
+                    }
+                    setSubOpen(true);
+                  }}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-primary px-3 py-2 text-xs font-medium text-primary-foreground shadow-glow disabled:opacity-60"
                 >
                   <Repeat className="h-3.5 w-3.5" />
                   {doc.isSubscription ? "Réactiver l’abonnement" : "Ajouter en abonnement"}
                 </button>
               )}
+              {!canSubscribe ? (
+                <p className="text-[11px] text-muted-foreground">
+                  Profil client ponctuel — abonnement indisponible tant que le type n’est pas modifié.
+                </p>
+              ) : null}
               {doc.isSubscription && doc.subscriptionActive && (
                 <button
                   type="button"

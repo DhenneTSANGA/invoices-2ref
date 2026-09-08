@@ -17,7 +17,9 @@
     "prisma:push": "prisma db push",
     "prisma:studio": "prisma studio",
     "prisma:verify": "node scripts/verify-prisma.mjs",
-    "db:seed": "node scripts/seed-demo.mjs"
+    "db:seed": "node scripts/seed-demo.mjs",
+    "db:export": "node scripts/export-db-dump.mjs",
+    "db:import": "node scripts/import-db-dump.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",

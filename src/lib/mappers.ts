@@ -92,6 +92,7 @@ export function mapClient(row: {
   country: string;
   anpiNumber?: string | null;
   anpiDate?: string | null;
+  billingProfile?: "subscription" | "one_off" | "mixed" | null;
   ficheCircuitUrl?: string | null;
   ficheCircuitName?: string | null;
   ficheStatusUrl?: string | null;
@@ -123,6 +124,7 @@ export function mapClient(row: {
     country: row.country,
     anpiNumber: row.anpiNumber ?? "",
     anpiDate: row.anpiDate ?? "",
+    billingProfile: row.billingProfile ?? "mixed",
     ficheCircuitUrl: row.ficheCircuitUrl ?? null,
     ficheCircuitName: row.ficheCircuitName ?? null,
     ficheStatusUrl: row.ficheStatusUrl ?? null,

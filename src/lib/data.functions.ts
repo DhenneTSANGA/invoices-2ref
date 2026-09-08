@@ -37,6 +37,7 @@ import {
 } from "@/lib/document-number";
 import { sendDocumentEmail } from "@/lib/send-document-email";
 import { buildInvoiceInputFromQuotation } from "@/lib/convert-quotation-to-invoice";
+import { clientAllowsSubscription } from "@/lib/client-billing";
 
 const docInclude = {
   lines: { orderBy: { position: "asc" as const } },
@@ -155,6 +156,7 @@ export const createClient = createServerFn({ method: "POST" })
         country: data.country,
         anpiNumber: data.anpiNumber ?? "",
         anpiDate: data.anpiDate ?? "",
+        billingProfile: data.billingProfile ?? "one_off",
         ficheCircuitUrl: data.ficheCircuitUrl ?? null,
         ficheCircuitName: data.ficheCircuitName ?? null,
         ficheStatusUrl: data.ficheStatusUrl ?? null,
@@ -199,6 +201,7 @@ export const updateClient = createServerFn({ method: "POST" })
         country: rest.country,
         anpiNumber: rest.anpiNumber ?? "",
         anpiDate: rest.anpiDate ?? "",
+        billingProfile: rest.billingProfile ?? existing.billingProfile,
         ...(rest.ficheCircuitUrl !== undefined
           ? { ficheCircuitUrl: rest.ficheCircuitUrl, ficheCircuitName: rest.ficheCircuitName ?? null }
           : {}),
@@ -944,6 +947,17 @@ export const setInvoiceSubscription = createServerFn({ method: "POST" })
         include: docInclude,
       });
       return mapDocument(row);
+    }
+
+    const client = await prisma.client.findFirst({
+      where: { id: existing.clientId },
+      select: { billingProfile: true, name: true },
+    });
+    if (!client) throw new Error("Client introuvable");
+    if (!clientAllowsSubscription(client.billingProfile)) {
+      throw new Error(
+        `« ${client.name} » est un client ponctuel. Passez son profil en Abonnement ou Mixte avant d’activer un abonnement.`,
+      );
     }
 
     const day = clampSubscriptionDay(data.dayOfMonth ?? existing.subscriptionDay ?? 1);

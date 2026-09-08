@@ -24,6 +24,10 @@ import {
   citiesForCountry,
   normalizeLegalForm,
 } from "@/lib/client-form-options";
+import {
+  ClientBillingBadge,
+  ClientBillingProfilePicker,
+} from "@/components/clients/ClientBillingProfilePicker";
 
 export const Route = createFileRoute("/_app/clients/$id")({
   head: () => ({ meta: [{ title: "Fiche client — 2R Hub" }] }),
@@ -113,10 +117,25 @@ function EditClient() {
   return (
     <div>
       <button onClick={() => history.back()} className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" /> Retour</button>
-      <PageHeader title={client.name} subtitle={subtitleParts.join(" · ")} />
+      <PageHeader
+        title={client.name}
+        subtitle={
+          <span className="inline-flex flex-wrap items-center gap-2">
+            <span>{subtitleParts.join(" · ")}</span>
+            <ClientBillingBadge profile={form.billingProfile} />
+          </span>
+        }
+      />
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_360px]">
         <form onSubmit={save} className="space-y-5">
+          <Section title="Type de client">
+            <ClientBillingProfilePicker
+              value={form.billingProfile}
+              onChange={(billingProfile) => setForm({ ...form, billingProfile })}
+            />
+          </Section>
+
           <Section title="Identité de l'entreprise">
             <Field label="Dénomination sociale" value={form.name} onChange={(v) => setForm({ ...form, name: v })} />
             <Field label="Sigle" value={form.sigle} onChange={(v) => setForm({ ...form, sigle: v })} />

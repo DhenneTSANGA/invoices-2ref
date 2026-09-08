@@ -37,6 +37,13 @@ enum PaymentMethod {
   bank_transfer
 }
 
+/** Profil de facturation du client. */
+enum ClientBillingProfile {
+  subscription
+  one_off
+  mixed
+}
+
 enum ActivityKind {
   invoice_paid
   invoice_sent
@@ -212,6 +219,8 @@ model Client {
   anpiDate    String   @default("")
   /** Destinataire ponctuel (publipostage) — masqué de la liste clients. */
   isTransient Boolean  @default(false)
+  /** Abonnement / ponctuel / les deux. */
+  billingProfile ClientBillingProfile @default(mixed)
   /** URL publique fiche circuit (Storage). */
   ficheCircuitUrl  String?
   ficheCircuitName String?
@@ -230,6 +239,7 @@ model Client {
   @@index([name])
   @@index([city])
   @@index([createdById])
+  @@index([billingProfile])
   @@map("clients")
 }
 

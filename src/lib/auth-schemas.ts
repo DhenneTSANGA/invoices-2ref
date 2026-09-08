@@ -193,6 +193,9 @@ export const clientInputSchema = z.object({
   ficheCircuitName: z.string().nullable().optional(),
   ficheStatusUrl: z.string().nullable().optional(),
   ficheStatusName: z.string().nullable().optional(),
+  billingProfile: z
+    .enum(["subscription", "one_off", "mixed"])
+    .default("one_off"),
 });
 
 export const clientFicheUploadSchema = z.object({
