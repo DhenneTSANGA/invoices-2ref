@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { createFileRoute, Link, Outlet, useChildMatches } from "@tanstack/react-router";
+import { useState, useEffect, type ReactNode } from "react";
+import { createFileRoute, Link, Outlet, useChildMatches, useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeft,
   Send,
@@ -32,14 +32,19 @@ import {
   documentCanSendEmail,
 } from "@/components/documents/DocumentSignatureActions";
 import { SignedDocumentReadyBanner } from "@/components/documents/SignedDocumentReadyBanner";
-import { StatusBadge } from "@/components/common/StatusBadge";
+import { StatusBadge, statusLabel } from "@/components/common/StatusBadge";
 import { DocumentCreatorCard } from "@/components/documents/DocumentCreatorCard";
 import { DocumentPdfTracesPanel } from "@/components/documents/DocumentPdfTracesPanel";
+import { documentDetailRoute } from "@/lib/document-nav";
 import { currency, longDate, shortDate } from "@/lib/format";
 import { paymentMethodLabel } from "@/lib/payment-method";
 import { isAdmin } from "@/lib/roles";
 import { isAccountantSignatory } from "@/lib/signatory";
-import { clientAllowsSubscription } from "@/lib/client-billing";
+import {
+  clientAllowsSubscription,
+  isSubscriptionGeneratedInvoice,
+  isSubscriptionTemplateInvoice,
+} from "@/lib/client-billing";
 import type { PaymentMethod } from "@/store/types";
 
 export const Route = createFileRoute("/_app/invoices/$id")({
@@ -59,8 +64,10 @@ function InvoiceDetail() {
 
 function InvoiceDetailPage() {
   const { id } = Route.useParams();
+  const navigate = useNavigate();
   const { data: session } = useSession();
   const { data: doc, isLoading } = useDocument(id);
+  const { data: subscriptionTemplate } = useDocument(doc?.subscriptionOfId ?? "");
   const { data: clients = [] } = useClients();
   const client = clients.find((c) => c.id === doc?.clientId);
   const setStatusMutation = useSetDocumentStatus();
@@ -77,6 +84,12 @@ function InvoiceDetailPage() {
     if (adminLike && doc?.status === "draft") setPreviewSeen(true);
   }, [adminLike, doc?.id, doc?.status]);
 
+  useEffect(() => {
+    if (doc && doc.type !== "invoice") {
+      void navigate(documentDetailRoute(doc));
+    }
+  }, [doc, navigate]);
+
   if (isLoading) {
     return (
       <LoadingState
@@ -87,10 +100,26 @@ function InvoiceDetailPage() {
     );
   }
   if (!doc) return <div className="glass-panel rounded-3xl p-8 text-center">Document introuvable.</div>;
+  if (doc.type !== "invoice") return null;
 
   const canSend = documentCanSendEmail(doc);
   const accountantSignatory = isAccountantSignatory(doc.signatoryTitle);
   const canSubscribe = clientAllowsSubscription(client?.billingProfile);
+  const isSubscriptionTemplate = isSubscriptionTemplateInvoice(doc);
+  const isSubscriptionGenerated = isSubscriptionGeneratedInvoice(doc);
+  const showSubscriptionPanel =
+    canSubscribe || isSubscriptionTemplate || isSubscriptionGenerated;
+  const canAddSubscription =
+    canSubscribe &&
+    !isSubscriptionTemplate &&
+    (!doc.isSubscription || !doc.subscriptionActive);
+  const subscriptionTemplateReady = ["signed", "sent"].includes(doc.status);
+  const needsSignatureRecovery =
+    isSubscriptionTemplate &&
+    !subscriptionTemplateReady &&
+    !accountantSignatory &&
+    doc.status !== "paid" &&
+    doc.status !== "cancelled";
 
   const patchStatus = (
     status: typeof doc.status,
@@ -221,6 +250,28 @@ function InvoiceDetailPage() {
 
       {doc.status === "signed" && <SignedDocumentReadyBanner type={doc.type} />}
 
+      {needsSignatureRecovery && (
+        <div className="glass-panel mb-4 rounded-3xl border border-amber-500/30 bg-amber-500/10 p-4">
+          <h3 className="font-display text-sm font-semibold text-amber-950 dark:text-amber-100">
+            Modèle d&apos;abonnement — signature requise
+          </h3>
+          <p className="mt-1.5 text-sm leading-relaxed text-amber-900/90 dark:text-amber-100/90">
+            Le statut « {doc.status === "overdue" ? "En retard" : statusLabel(doc.status)} »
+            empêche la signature en ligne. Repassez la facture en brouillon, signez-la
+            puis envoyez-la pour débloquer la génération automatique.
+          </p>
+          <button
+            type="button"
+            onClick={() =>
+              patchStatus("draft", "Facture modèle repassée en brouillon")
+            }
+            className="mt-3 inline-flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
+          >
+            <Edit3 className="h-4 w-4" /> Repasser en brouillon pour signer
+          </button>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
         <aside className="space-y-4">
           <div className="glass-panel rounded-3xl p-5">
@@ -250,85 +301,141 @@ function InvoiceDetailPage() {
             </div>
           </div>
 
+          {showSubscriptionPanel ? (
           <div className="glass-panel rounded-3xl p-5">
             <div className="flex items-center justify-between gap-2">
               <h4 className="font-display font-semibold">Abonnement</h4>
-              {doc.isSubscription && doc.subscriptionActive && (
+              {isSubscriptionTemplate && doc.subscriptionActive && (
                 <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
-                  Actif
+                  Modèle actif
                 </span>
               )}
-              {doc.isSubscription && !doc.subscriptionActive && (
+              {isSubscriptionTemplate && !doc.subscriptionActive && (
                 <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Pause
+                  Modèle en pause
+                </span>
+              )}
+              {isSubscriptionGenerated && (
+                <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-700 dark:text-violet-300">
+                  Générée auto
                 </span>
               )}
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Une facture d’abonnement reprend ces lignes chaque mois à la date choisie. Vous pouvez encore modifier la désignation.
-            </p>
-            {doc.isSubscription && doc.subscriptionDay ? (
-              <div className="mt-3 space-y-2 text-sm">
-                <Row label="Jour d’envoi" value={`Le ${doc.subscriptionDay} de chaque mois`} />
-                <Row
-                  label="Prochain envoi"
-                  value={
-                    doc.subscriptionNextAt
-                      ? shortDate(doc.subscriptionNextAt)
-                      : "—"
-                  }
-                />
-              </div>
-            ) : null}
-            <div className="mt-3 flex flex-col gap-2">
-              {(!doc.isSubscription || !doc.subscriptionActive) && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!canSubscribe) {
-                      toast.error(
-                        "Ce client est ponctuel. Passez son profil en Abonnement ou Mixte pour activer un abonnement.",
-                      );
-                      return;
-                    }
-                    setSubOpen(true);
-                  }}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-primary px-3 py-2 text-xs font-medium text-primary-foreground shadow-glow disabled:opacity-60"
-                >
-                  <Repeat className="h-3.5 w-3.5" />
-                  {doc.isSubscription ? "Réactiver l’abonnement" : "Ajouter en abonnement"}
-                </button>
-              )}
-              {!canSubscribe ? (
-                <p className="text-[11px] text-muted-foreground">
-                  Profil client ponctuel — abonnement indisponible tant que le type n’est pas modifié.
+
+            {isSubscriptionGenerated ? (
+              <>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Facture mensuelle émise automatiquement à partir du modèle
+                  d&apos;abonnement. Les prochains envois reprendront les lignes
+                  du modèle, pas celles de cette facture.
                 </p>
-              ) : null}
-              {doc.isSubscription && doc.subscriptionActive && (
-                <button
-                  type="button"
-                  onClick={pauseSubscription}
-                  disabled={subscriptionMutation.isPending}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-xs hover:bg-muted disabled:opacity-60"
-                >
-                  <PauseCircle className="h-3.5 w-3.5" /> Mettre en pause
-                </button>
-              )}
-              <Link
-                to="/invoices/$id/edit"
-                params={{ id: doc.id }}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-xs hover:bg-muted"
-              >
-                <Edit3 className="h-3.5 w-3.5" /> Modifier les lignes
-              </Link>
-            </div>
+                <div className="mt-3 space-y-2 text-sm">
+                  {subscriptionTemplate ? (
+                    <Row
+                      label="Modèle"
+                      value={
+                        <Link
+                          to="/invoices/$id"
+                          params={{ id: subscriptionTemplate.id }}
+                          className="font-medium text-primary hover:underline"
+                        >
+                          {subscriptionTemplate.number}
+                        </Link>
+                      }
+                    />
+                  ) : (
+                    <Row label="Modèle" value="—" />
+                  )}
+                  {subscriptionTemplate?.subscriptionDay ? (
+                    <Row
+                      label="Cycle"
+                      value={`Envoi le ${subscriptionTemplate.subscriptionDay} de chaque mois`}
+                    />
+                  ) : null}
+                  <Row
+                    label="Échéance"
+                    value={doc.dueDate ? longDate(doc.dueDate) : "—"}
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Relances auto (15, 20, 25) si cette facture reste impayée
+                    après l&apos;échéance.
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Modèle mensuel : cette facture sert de référence. Chaque mois,
+                  une nouvelle facture (nouveau numéro) est générée et envoyée
+                  automatiquement.
+                </p>
+                {isSubscriptionTemplate && doc.subscriptionDay ? (
+                  <div className="mt-3 space-y-2 text-sm">
+                    <Row label="Jour d’envoi" value={`Le ${doc.subscriptionDay} de chaque mois`} />
+                    <Row
+                      label="Échéance type"
+                      value={
+                        doc.subscriptionDueDay
+                          ? `Le ${doc.subscriptionDueDay}, ${doc.subscriptionDueMonthsOffset ?? 1} mois après l'émission`
+                          : "Même jour, mois suivant"
+                      }
+                    />
+                    <Row
+                      label="Prochain envoi"
+                      value={
+                        doc.subscriptionNextAt
+                          ? shortDate(doc.subscriptionNextAt)
+                          : "—"
+                      }
+                    />
+                    <p className="text-[11px] text-muted-foreground">
+                      Relances auto (15, 20, 25) après dépassement de l&apos;échéance.
+                    </p>
+                  </div>
+                ) : null}
+                <div className="mt-3 flex flex-col gap-2">
+                  {canAddSubscription ? (
+                    <button
+                      type="button"
+                      onClick={() => setSubOpen(true)}
+                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-primary px-3 py-2 text-xs font-medium text-primary-foreground shadow-glow disabled:opacity-60"
+                    >
+                      <Repeat className="h-3.5 w-3.5" />
+                      {doc.isSubscription ? "Réactiver l’abonnement" : "Ajouter en abonnement"}
+                    </button>
+                  ) : null}
+                  {isSubscriptionTemplate && doc.subscriptionActive && (
+                    <button
+                      type="button"
+                      onClick={pauseSubscription}
+                      disabled={subscriptionMutation.isPending}
+                      className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-xs hover:bg-muted disabled:opacity-60"
+                    >
+                      <PauseCircle className="h-3.5 w-3.5" /> Mettre en pause
+                    </button>
+                  )}
+                  {isSubscriptionTemplate && (
+                    <Link
+                      to="/invoices/$id/edit"
+                      params={{ id: doc.id }}
+                      className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-xs hover:bg-muted"
+                    >
+                      <Edit3 className="h-3.5 w-3.5" /> Modifier les lignes du modèle
+                    </Link>
+                  )}
+                </div>
+              </>
+            )}
           </div>
+          ) : null}
 
           <div className="glass-panel rounded-3xl p-5">
             <h4 className="font-display font-semibold">Actions</h4>
             <div className="mt-3 grid grid-cols-2 gap-2">
               <button onClick={() => patchStatus("draft", "Repassée en brouillon")} className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-xs hover:bg-muted"><Edit3 className="h-3.5 w-3.5" /> Brouillon</button>
-              <button onClick={() => patchStatus("overdue", "Marquée en retard", "warning")} className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-xs hover:bg-muted"><XCircle className="h-3.5 w-3.5" /> En retard</button>
+              {!isSubscriptionTemplate && (
+                <button onClick={() => patchStatus("overdue", "Marquée en retard", "warning")} className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-xs hover:bg-muted"><XCircle className="h-3.5 w-3.5" /> En retard</button>
+              )}
             </div>
             <Link to="/invoices/new" className="mt-2 block w-full rounded-xl border border-border bg-surface px-3 py-2 text-center text-xs hover:bg-muted">Dupliquer</Link>
           </div>
@@ -397,6 +504,11 @@ function InvoiceDetailPage() {
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
-  return <div className="flex items-center justify-between border-b border-border/40 py-1.5 last:border-0"><span className="text-muted-foreground">{label}</span><span className="font-medium text-right">{value}</span></div>;
+function Row({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="flex items-center justify-between border-b border-border/40 py-1.5 last:border-0">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium text-right">{value}</span>
+    </div>
+  );
 }

@@ -107,11 +107,7 @@ const NAV_ACTIONS: NavAction[] = [
   { label: "Archives", path: "/archive", icon: Archive },
 ];
 
-function docPath(doc: Document) {
-  if (doc.type === "invoice") return `/invoices/${doc.id}`;
-  if (doc.type === "quotation") return `/quotations/${doc.id}`;
-  return `/lettre/${doc.id}`;
-}
+import { documentDetailPath } from "@/lib/document-nav";
 
 function docIconClass(type: Document["type"]) {
   if (type === "invoice") return "bg-primary/12 text-primary";
@@ -284,7 +280,7 @@ export function CommandPalette({
                   <CommandItem
                     key={d.id}
                     value={`doc ${d.number} ${documentTypeLabel(d.type)}`}
-                    onSelect={() => go(docPath(d))}
+                    onSelect={() => go(documentDetailPath(d))}
                     className="group rounded-xl px-2 data-[selected=true]:bg-muted/60"
                   >
                     <IconBadge icon={Icon} className={docIconClass(d.type)} />

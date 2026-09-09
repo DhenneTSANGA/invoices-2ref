@@ -7,8 +7,17 @@ export const Route = createFileRoute("/_app/invoices/new")({
   head: () => ({ meta: [{ title: "Nouvelle facture — 2R Hub" }] }),
   component: () => (
     <div>
-      <button onClick={() => history.back()} className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" /> Retour</button>
-      <PageHeader title="Nouvelle facture" subtitle="Composez votre facture standard OHADA / CEMAC." />
+      <button
+        type="button"
+        onClick={() => history.back()}
+        className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" /> Retour
+      </button>
+      <PageHeader
+        title="Nouvelle facture"
+        subtitle="Composez votre facture standard OHADA / CEMAC."
+      />
       <DocumentEditor type="invoice" />
     </div>
   ),

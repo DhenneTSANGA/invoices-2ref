@@ -182,6 +182,8 @@ export function mapDocument(row: {
   subscriptionActive?: boolean;
   subscriptionDay?: number | null;
   subscriptionNextAt?: Date | null;
+  subscriptionDueDay?: number | null;
+  subscriptionDueMonthsOffset?: number | null;
   subscriptionOfId?: string | null;
   mailMergeCampaignId?: string | null;
   validityDays: number | null;
@@ -283,6 +285,8 @@ export function mapDocument(row: {
     subscriptionNextAt: row.subscriptionNextAt
       ? row.subscriptionNextAt.toISOString().slice(0, 10)
       : null,
+    subscriptionDueDay: row.subscriptionDueDay ?? null,
+    subscriptionDueMonthsOffset: row.subscriptionDueMonthsOffset ?? 1,
     subscriptionOfId: row.subscriptionOfId ?? null,
     mailMergeCampaignId: row.mailMergeCampaignId ?? null,
     validityDays: row.validityDays ?? undefined,

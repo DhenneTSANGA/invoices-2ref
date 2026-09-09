@@ -182,7 +182,10 @@ export function DocumentsList({ type }: { type: DocumentType }) {
                 <Mails className="h-4 w-4" /> Publipostage
               </Link>
             )}
-            <Link to={L.new} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow">
+            <Link
+              to={L.new}
+              className="inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow"
+            >
               <Plus className="h-4 w-4" /> Nouveau
             </Link>
           </div>
@@ -277,12 +280,12 @@ export function DocumentsList({ type }: { type: DocumentType }) {
                     <td className="px-5 py-3 font-medium font-numeric">
                       <div className="flex flex-wrap items-center gap-1.5">
                         <span>{d.number}</span>
-                        {type === "invoice" && d.isSubscription && (
+                        {type === "invoice" && d.isSubscription && !d.subscriptionOfId && (
                           <span
                             title={
                               d.subscriptionActive
-                                ? `Abonnement · jour ${d.subscriptionDay}`
-                                : "Abonnement en pause"
+                                ? `Modèle abonnement · jour ${d.subscriptionDay}`
+                                : "Modèle abonnement en pause"
                             }
                             className={cn(
                               "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide",
@@ -292,7 +295,16 @@ export function DocumentsList({ type }: { type: DocumentType }) {
                             )}
                           >
                             <Repeat className="h-2.5 w-2.5" />
-                            Abo
+                            Modèle
+                          </span>
+                        )}
+                        {type === "invoice" && d.subscriptionOfId && (
+                          <span
+                            title="Facture générée automatiquement depuis un abonnement"
+                            className="inline-flex items-center gap-0.5 rounded-full bg-violet-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-violet-700 dark:text-violet-300"
+                          >
+                            <Repeat className="h-2.5 w-2.5" />
+                            Auto
                           </span>
                         )}
                       </div>

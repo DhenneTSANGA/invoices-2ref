@@ -13,6 +13,7 @@ import { documentTypeLabel } from "@/lib/document-status-labels";
 import { CABINET_LABELS } from "@/lib/cabinets";
 import { currency, shortDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { documentDetailRoute } from "@/lib/document-nav";
 import type { Document, DocumentType } from "@/store/types";
 
 const searchSchema = z.object({
@@ -33,18 +34,8 @@ const TYPE_FILTERS: { value: "all" | DocumentType; label: string }[] = [
   { value: "letter", label: "Courriels" },
 ];
 
-function detailLink(doc: Document): {
-  to: "/invoices/$id" | "/quotations/$id" | "/lettre/$id";
-  params: { id: string };
-} {
-  switch (doc.type) {
-    case "invoice":
-      return { to: "/invoices/$id", params: { id: doc.id } };
-    case "quotation":
-      return { to: "/quotations/$id", params: { id: doc.id } };
-    case "letter":
-      return { to: "/lettre/$id", params: { id: doc.id } };
-  }
+function detailLink(doc: Document) {
+  return documentDetailRoute(doc);
 }
 
 function DocumentsHubPage() {

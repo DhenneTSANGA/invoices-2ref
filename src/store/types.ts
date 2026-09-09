@@ -156,6 +156,8 @@ export type Document = {
   subscriptionActive?: boolean;
   subscriptionDay?: number | null;
   subscriptionNextAt?: string | null;
+  subscriptionDueDay?: number | null;
+  subscriptionDueMonthsOffset?: number | null;
   subscriptionOfId?: string | null;
   mailMergeCampaignId?: string | null;
   /** Devis */

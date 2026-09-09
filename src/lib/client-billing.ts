@@ -32,6 +32,21 @@ export function clientAllowsSubscription(
   return profile === "subscription" || profile === "mixed";
 }
 
+/** Facture modèle qui déclenche l’envoi mensuel. */
+export function isSubscriptionTemplateInvoice(doc: {
+  isSubscription?: boolean;
+  subscriptionOfId?: string | null;
+}): boolean {
+  return Boolean(doc.isSubscription && !doc.subscriptionOfId);
+}
+
+/** Facture émise automatiquement depuis un modèle d’abonnement. */
+export function isSubscriptionGeneratedInvoice(doc: {
+  subscriptionOfId?: string | null;
+}): boolean {
+  return Boolean(doc.subscriptionOfId);
+}
+
 export function isClientBillingProfile(
   value: string,
 ): value is ClientBillingProfile {

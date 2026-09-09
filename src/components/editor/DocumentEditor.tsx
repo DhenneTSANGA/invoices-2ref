@@ -63,6 +63,14 @@ function addDaysIso(isoDate: string, days: number) {
   return d.toISOString().slice(0, 10);
 }
 
+function defaultInvoiceDueIso(issueDate: string): string {
+  const issue = new Date(`${issueDate.slice(0, 10)}T00:00:00.000Z`);
+  const y = issue.getUTCFullYear();
+  const m = issue.getUTCMonth();
+  const day = issue.getUTCDate();
+  return new Date(Date.UTC(y, m + 1, day)).toISOString().slice(0, 10);
+}
+
 function finiteNumber(n: unknown, fallback = 0): number {
   const v = typeof n === "number" ? n : Number(n);
   return Number.isFinite(v) ? v : fallback;
@@ -1786,7 +1794,7 @@ function defaultDoc(
     createdById: "staff-mireille",
     status: "draft" as const,
     issueDate: today,
-    dueDate: addDaysIso(today, 30) as string | null,
+    dueDate: defaultInvoiceDueIso(today),
     items: [] as LineItem[],
     sections: [] as DocumentSection[],
     subtotal: 0,

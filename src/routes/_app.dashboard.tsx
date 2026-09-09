@@ -33,6 +33,7 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { useClients, useDocumentsList, useSession } from "@/hooks/use-data";
 import { currency, shortDate } from "@/lib/format";
 import type { Activity, Document } from "@/store/types";
+import { documentDetailRoute } from "@/lib/document-nav";
 import { canAccessDashboard } from "@/lib/roles";
 import type { AppSession } from "@/lib/session.functions";
 import {
@@ -595,12 +596,7 @@ function Dashboard() {
                     >
                       <td className="px-4 py-2.5 font-medium">
                         <Link
-                          to={
-                            d.type === "invoice"
-                              ? "/invoices/$id"
-                              : "/quotations/$id"
-                          }
-                          params={{ id: d.id }}
+                          {...documentDetailRoute(d)}
                           className="hover:text-primary"
                         >
                           {d.number}

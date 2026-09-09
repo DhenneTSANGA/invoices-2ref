@@ -5,6 +5,7 @@ import { LoadingState } from "@/components/common/LoadingState";
 import { StatCard } from "@/components/common/StatCard";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { useClients, useDocumentsList, useSession } from "@/hooks/use-data";
+import { documentDetailRoute } from "@/lib/document-nav";
 import { currency, shortDate } from "@/lib/format";
 import { canAccessDashboard } from "@/lib/roles";
 import { CABINET_LABELS } from "@/lib/cabinets";
@@ -100,8 +101,7 @@ function HomePage() {
                   <tr key={d.id} className="border-t border-border/40 hover:bg-muted/50">
                     <td className="px-5 py-3 font-medium">
                       <Link
-                        to={d.type === "invoice" ? "/invoices/$id" : "/quotations/$id"}
-                        params={{ id: d.id }}
+                        {...documentDetailRoute(d)}
                         className="hover:text-primary"
                       >
                         {d.number}

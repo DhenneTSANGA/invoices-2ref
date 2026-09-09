@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useMemo, useState, useEffect } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, Save, FileText, ReceiptText } from "lucide-react";
+import { ArrowLeft, Save, FileText, ReceiptText, Mail } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { LoadingState } from "@/components/common/LoadingState";
 import {
@@ -15,6 +15,7 @@ import {
   fileToBase64Payload,
 } from "@/components/clients/ClientFicheUpload";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { documentDetailRoute } from "@/lib/document-nav";
 import { currency, shortDate } from "@/lib/format";
 import type { Client } from "@/store/types";
 import {
@@ -248,8 +249,14 @@ function EditClient() {
               {docs.length === 0 && <li className="text-sm italic text-muted-foreground">Aucun document.</li>}
               {docs.map((d) => (
                 <li key={d.id}>
-                  <Link to={d.type === "invoice" ? "/invoices/$id" : "/quotations/$id"} params={{ id: d.id }} className="flex items-center gap-2 rounded-xl p-2 hover:bg-muted">
-                    {d.type === "invoice" ? <ReceiptText className="h-4 w-4 text-primary" /> : <FileText className="h-4 w-4 text-accent" />}
+                  <Link {...documentDetailRoute(d)} className="flex items-center gap-2 rounded-xl p-2 hover:bg-muted">
+                    {d.type === "invoice" ? (
+                      <ReceiptText className="h-4 w-4 text-primary" />
+                    ) : d.type === "quotation" ? (
+                      <FileText className="h-4 w-4 text-accent" />
+                    ) : (
+                      <Mail className="h-4 w-4 text-amber-600" />
+                    )}
                     <span className="text-sm font-medium">{d.number}</span>
                     <StatusBadge status={d.status} className="ml-auto" />
                   </Link>

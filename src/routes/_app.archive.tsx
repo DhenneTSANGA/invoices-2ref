@@ -4,6 +4,8 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { LoadingState } from "@/components/common/LoadingState";
 import { useClients, useDocumentsList, useSession } from "@/hooks/use-data";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { documentDetailRoute } from "@/lib/document-nav";
+import { documentTypeLabel } from "@/lib/document-status-labels";
 import { currency, shortDate } from "@/lib/format";
 import { EmptyState } from "@/components/common/EmptyState";
 
@@ -53,8 +55,8 @@ function ArchivePage() {
                 const c = clients.find((x) => x.id === d.clientId);
                 return (
                   <tr key={d.id} className="border-t border-border/40 hover:bg-muted/50">
-                    <td className="px-5 py-3 font-medium font-numeric"><Link to={d.type === "invoice" ? "/invoices/$id" : "/quotations/$id"} params={{ id: d.id }} className="hover:text-primary">{d.number}</Link></td>
-                    <td className="px-5 py-3 capitalize text-muted-foreground">{d.type === "invoice" ? "Facture" : "Devis"}</td>
+                    <td className="px-5 py-3 font-medium font-numeric"><Link {...documentDetailRoute(d)} className="hover:text-primary">{d.number}</Link></td>
+                    <td className="px-5 py-3 text-muted-foreground">{documentTypeLabel(d.type)}</td>
                     <td className="px-5 py-3">{c?.name}</td>
                     <td className="px-5 py-3 text-muted-foreground">{shortDate(d.issueDate)}</td>
                     <td className="px-5 py-3"><StatusBadge status={d.status} /></td>

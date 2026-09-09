@@ -471,32 +471,38 @@ function lineAmount(quantity: number, unitPrice: number, discount: number) {
   return quantity * unitPrice * (1 - (discount || 0) / 100);
 }
 
-export const sendDocumentEmail = createServerFn({ method: "POST" })
-  .validator(
-    z.object({
-      id: z.string(),
-      pdfBase64: z.string().optional(),
-      fileName: z.string().optional(),
-    }),
-  )
-  .handler(async ({ data }) => {
-    const session = await requireSession();
-    const { staff } = session;
-    requireResendApiKey();
+type MailStaff = {
+  id: string;
+  role: "member" | "admin" | "super_admin";
+  jobTitle: string;
+  firstName: string;
+  lastName: string;
+};
 
-    const doc = await prisma.document.findFirst({
-      where: isSuperAdmin(staff.role)
-        ? { id: data.id }
-        : { id: data.id, cabinet: session.activeCabinet },
-      include: {
-        lines: { orderBy: { position: "asc" } },
-        client: true,
-      },
-    });
-    if (!doc) throw new Error("Document introuvable");
-    if (!canWriteDocument(staff.role, staff.id, doc.createdById)) {
-      throw new Error("Accès refusé — document en lecture seule");
-    }
+/** Envoi e-mail document (UI ou tâches planifiées). */
+export async function sendDocumentEmailInternal(params: {
+  documentId: string;
+  staff: MailStaff;
+  pdfBase64?: string;
+  fileName?: string;
+  skipAccessCheck?: boolean;
+}) {
+  requireResendApiKey();
+
+  const doc = await prisma.document.findFirst({
+    where: { id: params.documentId },
+    include: {
+      lines: { orderBy: { position: "asc" } },
+      client: true,
+    },
+  });
+  if (!doc) throw new Error("Document introuvable");
+  if (
+    !params.skipAccessCheck &&
+    !canWriteDocument(params.staff.role, params.staff.id, doc.createdById)
+  ) {
+    throw new Error("Accès refusé — document en lecture seule");
+  }
     if (isAccountantSignatory(doc.signatoryTitle)) {
       throw new Error(
         "Document signé par le Chef comptable : utilisez le PDF pour paraphe manuscrit (pas d’envoi e-mail).",
@@ -513,11 +519,11 @@ export const sendDocumentEmail = createServerFn({ method: "POST" })
         );
       }
     }
-    if (doc.mailMergeCampaignId) {
-      if (!isAdmin(staff.role)) {
-        throw new Error("Envoi du publipostage réservé aux administrateurs");
-      }
+  if (doc.mailMergeCampaignId) {
+    if (!isAdmin(params.staff.role)) {
+      throw new Error("Envoi du publipostage réservé aux administrateurs");
     }
+  }
     if (!doc.client) throw new Error("Client introuvable");
     if (!doc.client.email?.trim()) {
       throw new Error(`Le client « ${doc.client.name} » n'a pas d'adresse email`);
@@ -553,7 +559,7 @@ export const sendDocumentEmail = createServerFn({ method: "POST" })
         salutation: doc.salutation?.trim() || "",
         body: letterBody || "Veuillez trouver notre courrier ci-joint.",
         closing: doc.closing ?? "",
-        signatoryTitle: doc.signatoryTitle || staff.jobTitle,
+        signatoryTitle: doc.signatoryTitle || params.staff.jobTitle,
         managerName: signatoryDisplayName(doc.signatoryTitle),
         niuLabel,
         cabinet: doc.cabinet,
@@ -599,14 +605,14 @@ export const sendDocumentEmail = createServerFn({ method: "POST" })
       });
     }
 
-    const pdfFileName =
-      data.fileName?.trim() ||
-      `${doc.number.replace(/[^\w.\-]+/g, "_")}.pdf`;
+  const pdfFileName =
+    params.fileName?.trim() ||
+    `${doc.number.replace(/[^\w.\-]+/g, "_")}.pdf`;
     let pdfTraceUrl: string | null = null;
 
-    if (data.pdfBase64) {
-      try {
-        const raw = Buffer.from(data.pdfBase64, "base64");
+  if (params.pdfBase64) {
+    try {
+      const raw = Buffer.from(params.pdfBase64, "base64");
         if (raw.byteLength <= 12 * 1024 * 1024) {
           const { uploadDocumentPdfBytes } = await import(
             "@/lib/document-pdf-storage"
@@ -625,30 +631,29 @@ export const sendDocumentEmail = createServerFn({ method: "POST" })
               action: "email",
               fileName: pdfFileName,
               fileUrl: uploaded.fileUrl,
-              staffId: staff.id,
+              staffId: params.staff.id,
             },
           });
           pdfTraceUrl = uploaded.fileUrl;
         }
-      } catch (err) {
-        console.warn("[sendDocumentEmail] trace PDF", err);
-      }
+    } catch (err) {
+      console.warn("[sendDocumentEmail] trace PDF", err);
     }
+  }
 
-    const resend = getResend();
-    const attachments =
-      data.pdfBase64
-        ? [
-            {
-              filename: pdfFileName.endsWith(".pdf")
-                ? pdfFileName
-                : `${pdfFileName}.pdf`,
-              content: Buffer.from(data.pdfBase64, "base64"),
-            },
-          ]
-        : undefined;
+  const resend = getResend();
+  const attachments = params.pdfBase64
+    ? [
+        {
+          filename: pdfFileName.endsWith(".pdf")
+            ? pdfFileName
+            : `${pdfFileName}.pdf`,
+          content: Buffer.from(params.pdfBase64, "base64"),
+        },
+      ]
+    : undefined;
 
-    const { data: sent, error } = await resend.emails.send({
+  const { data: sent, error } = await resend.emails.send({
       from,
       to,
       ...(managerCc ? { cc: [managerCc] } : {}),
@@ -658,59 +663,77 @@ export const sendDocumentEmail = createServerFn({ method: "POST" })
       ...(attachments ? { attachments } : {}),
     });
 
-    if (error) {
-      console.error("[sendDocumentEmail]", doc.number, to, error);
-      throw new Error(resendErrorMessage(error));
-    }
+  if (error) {
+    console.error("[sendDocumentEmail]", doc.number, to, error);
+    throw new Error(resendErrorMessage(error));
+  }
 
-    await logOutboundMail({
-      cabinet: doc.cabinet,
-      resendId: sent?.id ?? null,
-      fromEmail: from,
-      toEmail: to,
-      ccEmail: managerCc ?? null,
-      subject,
-      html,
-      documentId: doc.id,
-      clientId: doc.clientId,
-      staffId: staff.id,
-      lastEvent: "sent",
+  await logOutboundMail({
+    cabinet: doc.cabinet,
+    resendId: sent?.id ?? null,
+    fromEmail: from,
+    toEmail: to,
+    ccEmail: managerCc ?? null,
+    subject,
+    html,
+    documentId: doc.id,
+    clientId: doc.clientId,
+    staffId: params.staff.id,
+    lastEvent: "sent",
+  });
+
+  const previousStatus = doc.status;
+  const updated =
+    previousStatus === "sent"
+      ? doc
+      : await prisma.document.update({
+          where: { id: doc.id },
+          data: { status: "sent" },
+          include: {
+            lines: { orderBy: { position: "asc" } },
+            createdBy: true,
+            client: true,
+          },
+        });
+
+  if (previousStatus !== "sent") {
+    await broadcastDocumentStatusChange({
+      actorStaffId: params.staff.id,
+      actorName: staffDisplayName(params.staff),
+      documentId: updated.id,
+      documentNumber: updated.number,
+      documentType: updated.type as DocumentType,
+      previousStatus: previousStatus as never,
+      nextStatus: "sent",
     });
+  }
 
-    const previousStatus = doc.status;
-    const updated =
-      previousStatus === "sent"
-        ? doc
-        : await prisma.document.update({
-            where: { id: doc.id },
-            data: { status: "sent" },
-            include: {
-              lines: { orderBy: { position: "asc" } },
-              createdBy: true,
-              client: true,
-            },
-          });
+  return {
+    ok: true as const,
+    emailId: sent?.id ?? null,
+    to,
+    subject,
+    documentId: doc.id,
+    number: doc.number,
+    type: doc.type as DocumentType,
+    pdfUrl: pdfTraceUrl,
+  };
+}
 
-    if (previousStatus !== "sent") {
-      await broadcastDocumentStatusChange({
-        actorStaffId: staff.id,
-        actorName: staffDisplayName(staff),
-        documentId: updated.id,
-        documentNumber: updated.number,
-        documentType: updated.type as DocumentType,
-        previousStatus: previousStatus as never,
-        nextStatus: "sent",
-      });
-    }
-
-    return {
-      ok: true as const,
-      emailId: sent?.id ?? null,
-      to,
-      subject,
-      documentId: doc.id,
-      number: doc.number,
-      type: doc.type as DocumentType,
-      pdfUrl: pdfTraceUrl,
-    };
+export const sendDocumentEmail = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      id: z.string(),
+      pdfBase64: z.string().optional(),
+      fileName: z.string().optional(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const session = await requireSession();
+    return sendDocumentEmailInternal({
+      documentId: data.id,
+      staff: session.staff,
+      pdfBase64: data.pdfBase64,
+      fileName: data.fileName,
+    });
   });
