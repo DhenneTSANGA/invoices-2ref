@@ -112,6 +112,7 @@ export function AmountRow({
   strong,
   accent = "#01004C",
   compact,
+  variant = "default",
 }: {
   label: string;
   value: string;
@@ -119,16 +120,32 @@ export function AmountRow({
   strong?: boolean;
   accent?: string;
   compact?: boolean;
+  /** Style facture papier 2R Conseil (barres pleines, fond bleu clair). */
+  variant?: "default" | "reference";
 }) {
+  const isRef = variant === "reference";
+  const rowBg = strong
+    ? { background: accent, color: "#fff" }
+    : isRef
+      ? { background: "#D9E2EF", color: "#0F172A" }
+      : { background: "#fff" };
+
   return (
     <div
       className={cn(
         "flex items-center justify-between",
-        compact ? "px-2.5 py-1.5 text-[11px]" : "px-3.5 py-2.5 text-[13px]",
+        compact ? "px-2.5 py-1.5 text-[11px]" : "px-3 py-2 text-[13px]",
+        isRef && !strong && "border-b border-white/80 last:border-b-0",
       )}
-      style={strong ? { background: `linear-gradient(90deg, ${accent}, ${accent}cc)`, color: "#fff" } : { background: "#fff" }}
+      style={rowBg}
     >
-      <span className={strong ? "font-bold uppercase tracking-wide" : "text-[#475569]"}>{label}</span>
+      <span
+        className={cn(
+          strong ? "font-bold uppercase tracking-wide" : isRef ? "font-semibold text-[#334155]" : "text-[#475569]",
+        )}
+      >
+        {label}
+      </span>
       <span className={`font-mono ${strong ? "font-bold" : "font-semibold text-[#0F172A]"}`}>
         {value} {currency}
       </span>
@@ -201,14 +218,34 @@ export function AmountInWords({
   accent = "#01004C",
   compact,
   intro = "Arrêtée la présente facture à la somme de",
+  variant = "default",
 }: {
   amount: number;
   currency?: string;
   accent?: string;
   compact?: boolean;
   intro?: string;
+  variant?: "default" | "reference";
 }) {
   const words = amountInWords(amount, currency);
+  const isRef = variant === "reference";
+
+  if (isRef) {
+    return (
+      <div className={cn("text-center", compact ? "px-1 py-1" : "px-2 py-1.5")}>
+        <p
+          className={cn(
+            "break-words italic leading-snug text-[#334155]",
+            compact ? "text-[10px]" : "text-[12px]",
+          )}
+        >
+          {intro}{" "}
+          <span className="font-semibold not-italic text-[#0F172A]">{words}</span>
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn(

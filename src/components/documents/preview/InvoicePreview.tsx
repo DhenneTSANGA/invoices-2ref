@@ -1,5 +1,5 @@
-import { forwardRef } from "react";
-import type { Document } from "@/store/types";
+import { forwardRef, type ReactNode } from "react";
+import type { CompanyInfo, Document } from "@/store/types";
 import { usePreviewData } from "@/hooks/use-preview-data";
 import { number, longDate } from "@/lib/format";
 import {
@@ -19,6 +19,22 @@ import {
   isAccountantSignatory,
   signatoryDisplayName,
 } from "@/lib/signatory";
+
+/** Couleurs et surfaces — facture papier 2R Conseil (référence visuelle). */
+const REF = {
+  sectionBg: "#D9E2EF",
+  rowAlt: "#EEF2F7",
+  paymentBg: "#EEF2F7",
+} as const;
+
+/** Grille 2 colonnes partagée (en-tête, émetteur/client) — alignement PDF stable. */
+const TWO_COL = {
+  table: { width: "100%", borderCollapse: "collapse" as const, tableLayout: "fixed" as const },
+  left: { width: "50%", verticalAlign: "top" as const, paddingRight: "12px" },
+  right: { width: "50%", verticalAlign: "top" as const, paddingLeft: "12px" },
+  headerLeft: { width: "50%", verticalAlign: "middle" as const, paddingRight: "12px" },
+  headerRight: { width: "50%", verticalAlign: "middle" as const, paddingLeft: "12px" },
+};
 
 type Props = {
   doc: Document;
@@ -45,6 +61,8 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
   /** Pas de densification : le PDF doit matcher l’aperçu écran. */
   const dense = false;
   const { accent, accentTo } = DOCUMENT_COLORS.invoice;
+  /** Design facture papier 2R Conseil — uniquement pour le cabinet conseil. */
+  const isConseilDesign = doc.cabinet === "conseil";
 
   const niuLabel = niuLabelForCabinet(doc.cabinet);
   const accountantSignatory = isAccountantSignatory(doc.signatoryTitle);
@@ -61,45 +79,75 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
 
   return (
     <PreviewShell innerRef={ref} accent={accent} compact={compact} isThumb={isThumb} className={className}>
-      <div
-        className={cn(
-          "flex items-center justify-between border-b-2",
-          dense ? "gap-3 pb-2.5" : "gap-4 pb-3",
-        )}
-        style={{ borderColor: accent }}
-      >
-        <div className="shrink-0">
-          <PreviewLogo cabinet={doc.cabinet} className="h-40" />
+      {isConseilDesign ? (
+        <table className={cn(dense ? "pb-2" : "pb-2.5")} style={TWO_COL.table}>
+          <tbody>
+            <tr>
+              <td style={TWO_COL.headerLeft}>
+                <PreviewLogo cabinet={doc.cabinet} className={dense ? "h-24" : "h-28"} />
+              </td>
+              <td style={{ ...TWO_COL.headerRight, textAlign: "right" }}>
+                <div
+                  className={cn(
+                    "font-serif font-bold uppercase leading-none tracking-wide",
+                    dense ? "text-[26px]" : "text-[34px]",
+                  )}
+                  style={{ color: accent }}
+                >
+                  FACTURE
+                </div>
+                <div className={cn("mt-1 space-y-0.5", dense ? "text-[10px]" : "text-[12px]")}>
+                  <div>
+                    <span className="text-[#64748B]">N° de facture : </span>
+                    <span className="font-semibold text-[#0F172A]">{doc.number}</span>
+                  </div>
+                  <div>
+                    <span className="text-[#64748B]">Date : </span>
+                    <span className="font-semibold text-[#0F172A]">{longDate(doc.issueDate)}</span>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      ) : (
+        <div
+          className={cn(
+            "flex items-center justify-between border-b-2",
+            dense ? "gap-3 pb-2.5" : "gap-4 pb-3",
+          )}
+          style={{ borderColor: accent }}
+        >
+          <div className="shrink-0">
+            <PreviewLogo cabinet={doc.cabinet} className="h-40" />
+          </div>
+          <div className="shrink-0 text-right">
+            <div
+              className={cn(
+                "font-display font-bold uppercase tracking-wide",
+                dense ? "text-[22px]" : "text-[30px]",
+              )}
+              style={{ color: accent }}
+            >
+              FACTURE
+            </div>
+            <div className={cn("mt-0.5 font-semibold", dense ? "text-[11px]" : "text-[13px]")}>
+              N° {doc.number}
+            </div>
+            <div className={cn("text-[#64748B]", dense ? "text-[10px]" : "text-[12px]")}>
+              {longDate(doc.issueDate)}
+            </div>
+          </div>
         </div>
-        <div className="shrink-0 text-right">
-          <div
-            className={cn(
-              "font-display font-bold uppercase tracking-wide",
-              dense ? "text-[22px]" : "text-[30px]",
-            )}
-            style={{ color: accent }}
-          >
-            FACTURE
-          </div>
-          <div className={cn("mt-0.5 font-semibold", dense ? "text-[11px]" : "text-[13px]")}>
-            N° {doc.number}
-          </div>
-          <div className={cn("text-[#64748B]", dense ? "text-[10px]" : "text-[12px]")}>
-            {longDate(doc.issueDate)}
-          </div>
-        </div>
-      </div>
+      )}
 
-      <table
-        className={cn(dense ? "mt-2.5" : "mt-3")}
-        style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}
-      >
+      <table className={cn(dense ? "mt-2.5" : "mt-3")} style={TWO_COL.table}>
         <tbody>
           <tr>
-            <td style={{ width: "50%", verticalAlign: "top", paddingRight: "12px" }}>
+            <td style={TWO_COL.left}>
               <PartyBlock
                 title="Émetteur"
-                accent="#64748B"
+                accent={isConseilDesign ? accent : "#64748B"}
                 name={company.name}
                 lines={emitterLines}
                 capital={
@@ -109,20 +157,22 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
                 niu={company.niu}
                 niuLabel={niuLabel}
                 rccm={company.rccm}
-                muted
+                referenceDesign={isConseilDesign}
+                muted={!isConseilDesign}
                 compact={dense}
               />
             </td>
-            <td style={{ width: "50%", verticalAlign: "top", paddingLeft: "12px" }}>
+            <td style={TWO_COL.right}>
               <PartyBlock
                 title="Client"
-                accent="#64748B"
+                accent={isConseilDesign ? accent : "#64748B"}
                 name={client ? clientDisplayName(client) : undefined}
                 lines={clientLines}
                 nif={client?.nif}
                 niu={client?.niu}
                 rccm={client?.rccm}
-                muted
+                referenceDesign={isConseilDesign}
+                muted={!isConseilDesign}
                 compact={dense}
               />
             </td>
@@ -144,71 +194,69 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
         ) : null}
       </div>
 
-      <ItemsTable doc={doc} headerFrom={accent} headerTo={accentTo} compact={dense} />
+      <ItemsTable
+        doc={doc}
+        accent={accent}
+        headerFrom={accent}
+        headerTo={accentTo}
+        compact={dense}
+        referenceDesign={isConseilDesign}
+      />
 
       <PreviewBottomRow
         compact={dense}
         left={
-          <div className={cn("space-y-2", dense ? "space-y-1.5" : "space-y-2")}>
-            {doc.paymentTerms?.trim() ? (
-              <div className={cn("rounded-lg bg-[#F1F5F9]", dense ? "p-2" : "p-2.5")}>
-                <div
-                  className={cn(
-                    "font-bold uppercase tracking-wider text-[#64748B]",
-                    dense ? "text-[9px]" : "text-[11px]",
-                  )}
-                >
-                  Modalité de paiement
-                </div>
-                <div
-                  className={cn(
-                    "mt-0.5 leading-snug text-[#334155]",
-                    dense ? "text-[9px]" : "text-[11px]",
-                  )}
-                >
+          isConseilDesign ? (
+            <div className={cn("space-y-2", dense ? "space-y-1.5" : "space-y-2")}>
+              {doc.paymentTerms?.trim() ? (
+                <InfoPanel title="Modalité de paiement" accent={accent} compact={dense}>
                   {doc.paymentTerms.trim()}
-                </div>
-              </div>
-            ) : null}
-            {company.bankName || company.bankAccount ? (
-              <div className={cn("rounded-lg bg-[#F1F5F9]", dense ? "p-2" : "p-2.5")}>
-                <div
-                  className={cn(
-                    "font-bold uppercase tracking-wider text-[#64748B]",
-                    dense ? "text-[9px]" : "text-[11px]",
-                  )}
-                >
-                  RIB pour le règlement
-                </div>
-                <div
-                  className={cn(
-                    "mt-0.5 leading-snug text-[#334155]",
-                    dense ? "text-[9px]" : "text-[11px]",
-                  )}
-                >
-                  Règlement par virement bancaire ou par chèque.
-                </div>
-                {company.bankName ? (
-                  <div className={cn("mt-0.5 text-[#334155]", dense ? "text-[10px]" : "text-[12px]")}>
-                    <span className="text-[#64748B]">Banque : </span>
-                    {company.bankName}
-                  </div>
-                ) : null}
-                {company.bankAccount ? (
-                  <div className={cn("break-words text-[#334155]", dense ? "text-[10px]" : "mt-0.5 text-[12px]")}>
-                    <span className="text-[#64748B]">RIB : </span>
-                    {company.bankAccount}
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
+                </InfoPanel>
+              ) : null}
+              {company.bankName || company.bankAccount ? (
+                <InfoPanel title="RIB pour le règlement" accent={accent} compact={dense}>
+                  <div>Règlement par virement bancaire ou par chèque.</div>
+                  {company.bankName ? (
+                    <div className={cn("mt-0.5", dense ? "text-[10px]" : "text-[12px]")}>
+                      <span className="text-[#64748B]">Banque : </span>
+                      {company.bankName}
+                    </div>
+                  ) : null}
+                  {company.bankAccount ? (
+                    <div className={cn("break-words", dense ? "text-[10px]" : "mt-0.5 text-[12px]")}>
+                      <span className="text-[#64748B]">RIB : </span>
+                      {company.bankAccount}
+                    </div>
+                  ) : null}
+                </InfoPanel>
+              ) : null}
+            </div>
+          ) : (
+            <LegacyPaymentPanels
+              doc={doc}
+              company={company}
+              compact={dense}
+            />
+          )
         }
-        right={<TotalsBlock doc={doc} accent={accent} compact={dense} />}
+        right={
+          <TotalsBlock
+            doc={doc}
+            accent={accent}
+            compact={dense}
+            referenceDesign={isConseilDesign}
+          />
+        }
       />
 
       <div className={cn("w-full", dense ? "mt-2" : "mt-2.5")}>
-        <AmountInWords amount={doc.total} currency={doc.currency} accent={accent} compact={dense} />
+        <AmountInWords
+          amount={doc.total}
+          currency={doc.currency}
+          accent={accent}
+          compact={dense}
+          variant={isConseilDesign ? "reference" : "default"}
+        />
       </div>
 
       <div className={cn("flex justify-end", dense ? "mt-2" : "mt-2")}>
@@ -247,6 +295,109 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
   );
 });
 
+/** Modalités + RIB — style d’origine (2R Expertise Fiscale). */
+function LegacyPaymentPanels({
+  doc,
+  company,
+  compact,
+}: {
+  doc: Document;
+  company: CompanyInfo;
+  compact?: boolean;
+}) {
+  return (
+    <div className={cn("space-y-2", compact ? "space-y-1.5" : "space-y-2")}>
+      {doc.paymentTerms?.trim() ? (
+        <div className={cn("rounded-lg bg-[#F1F5F9]", compact ? "p-2" : "p-2.5")}>
+          <div
+            className={cn(
+              "font-bold uppercase tracking-wider text-[#64748B]",
+              compact ? "text-[9px]" : "text-[11px]",
+            )}
+          >
+            Modalité de paiement
+          </div>
+          <div
+            className={cn(
+              "mt-0.5 leading-snug text-[#334155]",
+              compact ? "text-[9px]" : "text-[11px]",
+            )}
+          >
+            {doc.paymentTerms.trim()}
+          </div>
+        </div>
+      ) : null}
+      {company.bankName || company.bankAccount ? (
+        <div className={cn("rounded-lg bg-[#F1F5F9]", compact ? "p-2" : "p-2.5")}>
+          <div
+            className={cn(
+              "font-bold uppercase tracking-wider text-[#64748B]",
+              compact ? "text-[9px]" : "text-[11px]",
+            )}
+          >
+            RIB pour le règlement
+          </div>
+          <div
+            className={cn(
+              "mt-0.5 leading-snug text-[#334155]",
+              compact ? "text-[9px]" : "text-[11px]",
+            )}
+          >
+            Règlement par virement bancaire ou par chèque.
+          </div>
+          {company.bankName ? (
+            <div className={cn("mt-0.5 text-[#334155]", compact ? "text-[10px]" : "text-[12px]")}>
+              <span className="text-[#64748B]">Banque : </span>
+              {company.bankName}
+            </div>
+          ) : null}
+          {company.bankAccount ? (
+            <div className={cn("break-words text-[#334155]", compact ? "text-[10px]" : "mt-0.5 text-[12px]")}>
+              <span className="text-[#64748B]">RIB : </span>
+              {company.bankAccount}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function InfoPanel({
+  title,
+  accent,
+  compact,
+  children,
+}: {
+  title: string;
+  accent: string;
+  compact?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div className="overflow-hidden">
+      <div
+        className={cn(
+          "text-center font-bold uppercase tracking-wide text-white",
+          compact ? "px-2 py-1 text-[9px]" : "px-2.5 py-1.5 text-[11px]",
+        )}
+        style={{ background: accent }}
+      >
+        {title}
+      </div>
+      <div
+        className={cn(
+          "leading-snug text-[#334155]",
+          compact ? "p-2 text-[9px]" : "p-2.5 text-[11px]",
+        )}
+        style={{ background: REF.paymentBg }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function PartyBlock({
   title,
   accent,
@@ -261,6 +412,7 @@ function PartyBlock({
   cnamgs,
   muted,
   bordered,
+  referenceDesign,
   compact,
 }: {
   title: string;
@@ -277,6 +429,7 @@ function PartyBlock({
   cnamgs?: string;
   muted?: boolean;
   bordered?: boolean;
+  referenceDesign?: boolean;
   compact?: boolean;
 }) {
   const ids = [
@@ -289,6 +442,58 @@ function PartyBlock({
   ].filter(Boolean) as Array<{ label: string; value: string }>;
 
   const pad = compact ? "p-2" : "p-2.5";
+
+  if (referenceDesign) {
+    return (
+      <div className={cn("h-full leading-snug", compact ? "text-[10px]" : "text-[12px]")}>
+        <div
+          className={cn(
+            "min-h-[1.1em] font-bold uppercase leading-none tracking-wide",
+            compact ? "text-[10px]" : "text-[12px]",
+          )}
+          style={{ color: accent }}
+        >
+          {title}
+        </div>
+        {name ? (
+          <>
+            <div
+              className={cn(
+                "mt-1 font-bold uppercase leading-snug break-words text-[#0F172A]",
+                compact ? "text-[11px]" : "text-[13px]",
+              )}
+            >
+              {name}
+            </div>
+            {lines?.map((l, i) => (
+              <div key={i} className="mt-0.5 break-words text-[#334155]">
+                {l}
+              </div>
+            ))}
+            {ids.length > 0 && (
+              <div className={cn("mt-1 space-y-0.5 text-[#334155]", compact ? "text-[10px]" : "text-[12px]")}>
+                {ids.map((id) => (
+                  <div key={id.label}>
+                    {id.label === "Capital" ? (
+                      <b className="text-[#0F172A]">{id.value}</b>
+                    ) : (
+                      <>
+                        {id.label} : <b className="text-[#0F172A]">{id.value}</b>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <div className={cn("mt-1 italic text-[#94A3B8]", compact ? "text-[10px]" : "text-[12px]")}>
+            Sélectionnez un client…
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -368,18 +573,27 @@ function PartyBlock({
 /** Tableau de lignes — avec sections (tâches) optionnelles. */
 function ItemsTable({
   doc,
+  accent,
   headerFrom,
   headerTo,
   compact,
+  referenceDesign,
 }: {
   doc: Document;
-  headerFrom: string;
-  headerTo: string;
+  accent?: string;
+  headerFrom?: string;
+  headerTo?: string;
   compact?: boolean;
+  referenceDesign?: boolean;
   /** @deprecated Ignoré — taxes uniquement dans les totaux. */
   showTaxColumns?: boolean;
 }) {
-  const cell = compact ? "px-2 py-1.5" : "px-2.5 py-1.5";
+  const solidAccent = accent ?? headerFrom ?? "#01004C";
+  const headerStyle = referenceDesign
+    ? { background: solidAccent }
+    : { background: `linear-gradient(90deg, ${headerFrom ?? solidAccent}, ${headerTo ?? solidAccent})` };
+
+  const cell = compact ? "px-2 py-1.5" : "px-2.5 py-2";
   const sections = [...(doc.sections ?? [])].sort(
     (a, b) => a.position - b.position,
   );
@@ -392,15 +606,16 @@ function ItemsTable({
   ) => (
     <div
       className={
-        framed ? "overflow-hidden rounded-lg ring-1 ring-[#E2E8F0]" : "overflow-hidden"
+        framed
+          ? referenceDesign
+            ? "overflow-hidden"
+            : "overflow-hidden rounded-lg ring-1 ring-[#E2E8F0]"
+          : "overflow-hidden"
       }
     >
       <table className={cn("w-full border-collapse", compact ? "text-[10px]" : "text-[12px]")}>
         <thead>
-          <tr
-            style={{ background: `linear-gradient(90deg, ${headerFrom}, ${headerTo})` }}
-            className="text-white"
-          >
+          <tr style={headerStyle} className="text-white">
             <th className={cn(cell, "w-8 text-left font-semibold")}>#</th>
             <th className={cn(cell, "text-left font-semibold")}>Désignation</th>
             <th className={cn(cell, "w-10 text-right font-semibold")}>Qté</th>
@@ -418,10 +633,18 @@ function ItemsTable({
           )}
           {items.map((it, i) => {
             const lineTotal = it.quantity * it.unitPrice;
+            const rowBg = referenceDesign
+              ? i % 2 === 0
+                ? "#fff"
+                : REF.rowAlt
+              : i % 2 === 0
+                ? "bg-white"
+                : "bg-[#F8FAFC]";
             return (
               <tr
                 key={`${keyPrefix}${it.id}`}
-                className={i % 2 === 0 ? "bg-white" : "bg-[#F8FAFC]"}
+                className={referenceDesign ? undefined : rowBg}
+                style={referenceDesign ? { background: rowBg as string } : undefined}
               >
                 <td className={cn(cell, "align-top text-[#64748B]")}>
                   {String(i + 1).padStart(2, "0")}
@@ -457,21 +680,27 @@ function ItemsTable({
       {sections.map((sec) => {
         const items = doc.items.filter((it) => it.sectionId === sec.id);
         return (
-          <div key={sec.id} className="overflow-hidden rounded-lg ring-1 ring-[#E2E8F0]">
+          <div
+            key={sec.id}
+            className={
+              referenceDesign ? "overflow-hidden" : "overflow-hidden rounded-lg ring-1 ring-[#E2E8F0]"
+            }
+          >
             <div
               className={cn(
                 "text-center font-bold uppercase tracking-wider text-white",
-                compact ? "px-2 py-1 text-[9px]" : "px-2.5 py-1.5 text-[11px]",
+                compact ? "px-2 py-1.5 text-[9px]" : "px-2.5 py-2 text-[11px]",
               )}
-              style={{ background: `linear-gradient(90deg, ${headerFrom}, ${headerTo})` }}
+              style={headerStyle}
             >
               Prestation(s)
             </div>
             <div
               className={cn(
-                "bg-[#EFF6FF] text-center font-semibold uppercase tracking-wide text-[#0F172A]",
-                compact ? "px-2 py-1.5 text-[11px]" : "px-2.5 py-1.5 text-[13px]",
+                "text-center font-semibold uppercase tracking-wide text-[#0F172A]",
+                compact ? "px-2 py-1.5 text-[11px]" : "px-2.5 py-2 text-[13px]",
               )}
+              style={{ background: referenceDesign ? REF.sectionBg : "#EFF6FF" }}
             >
               {(sec.title.trim() || "—").toUpperCase()}
             </div>
@@ -502,11 +731,14 @@ function TotalsBlock({
   doc,
   accent,
   compact,
+  referenceDesign,
 }: {
   doc: Document;
   accent: string;
   compact?: boolean;
+  referenceDesign?: boolean;
 }) {
+  const amountVariant = referenceDesign ? "reference" : "default";
   const rates = documentTaxRates(doc.items);
   /** Max sur toutes les lignes — évite de rater la TPS si seule la 1ʳᵉ ligne est à 0. */
   const tpsRate = Math.max(
@@ -547,13 +779,18 @@ function TotalsBlock({
 
   return (
     <div className="w-full">
-      <div className="overflow-hidden rounded-lg ring-1 ring-[#E2E8F0]">
+      <div
+        className={
+          referenceDesign ? "overflow-hidden" : "overflow-hidden rounded-lg ring-1 ring-[#E2E8F0]"
+        }
+      >
         <AmountRow
           label="Sous-total HT"
           value={number(grossSubtotal)}
           currency={doc.currency}
           accent={accent}
           compact={compact}
+          variant={amountVariant}
         />
         {discountAmount > 0 ? (
           <AmountRow
@@ -562,6 +799,7 @@ function TotalsBlock({
             currency={doc.currency}
             accent={accent}
             compact={compact}
+            variant={amountVariant}
           />
         ) : null}
         {discountAmount > 0 ? (
@@ -571,6 +809,7 @@ function TotalsBlock({
             currency={doc.currency}
             accent={accent}
             compact={compact}
+            variant={amountVariant}
           />
         ) : null}
         {tpsActive ? (
@@ -582,6 +821,7 @@ function TotalsBlock({
             currency={doc.currency}
             accent={accent}
             compact={compact}
+            variant={amountVariant}
           />
         ) : null}
         <AmountRow
@@ -590,6 +830,7 @@ function TotalsBlock({
           currency={doc.currency}
           accent={accent}
           compact={compact}
+          variant={amountVariant}
         />
         {!tpsActive ? (
           <AmountRow
@@ -598,6 +839,7 @@ function TotalsBlock({
             currency={doc.currency}
             accent={accent}
             compact={compact}
+            variant={amountVariant}
           />
         ) : null}
         <AmountRow
@@ -607,6 +849,7 @@ function TotalsBlock({
           strong
           accent={accent}
           compact={compact}
+          variant={amountVariant}
         />
       </div>
     </div>

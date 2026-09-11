@@ -1,9 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Search, FileText, ReceiptText, Users, Package } from "lucide-react";
+import { Search, FileText, ReceiptText, Users, Package, Mail } from "lucide-react";
 import { useState } from "react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { LoadingState } from "@/components/common/LoadingState";
-import { useClients, useDocumentsList, useServices } from "@/hooks/use-data";
+import { documentDetailRoute } from "@/lib/document-nav";
 
 export const Route = createFileRoute("/_app/search")({
   head: () => ({ meta: [{ title: "Recherche globale — 2R Hub" }] }),
@@ -49,7 +49,7 @@ function SearchPage() {
             {cm.slice(0, 8).map((c) => <Link key={c.id} to="/clients/$id" params={{ id: c.id }} className="block rounded-xl px-3 py-2 hover:bg-muted"><div className="font-medium">{c.name}</div><div className="text-xs text-muted-foreground">{c.email}</div></Link>)}
           </Section>
           <Section title="Documents" icon={FileText} count={dm.length}>
-            {dm.slice(0, 8).map((d) => <Link key={d.id} to={d.type === "invoice" ? "/invoices/$id" : "/quotations/$id"} params={{ id: d.id }} className="flex items-center gap-2 rounded-xl px-3 py-2 hover:bg-muted">{d.type === "invoice" ? <ReceiptText className="h-4 w-4" /> : <FileText className="h-4 w-4" />}<span className="font-medium font-numeric">{d.number}</span></Link>)}
+            {dm.slice(0, 8).map((d) => <Link key={d.id} {...documentDetailRoute(d)} className="flex items-center gap-2 rounded-xl px-3 py-2 hover:bg-muted">{d.type === "invoice" ? <ReceiptText className="h-4 w-4" /> : d.type === "quotation" ? <FileText className="h-4 w-4" /> : <Mail className="h-4 w-4" />}<span className="font-medium font-numeric">{d.number}</span></Link>)}
           </Section>
           <Section title="Services" icon={Package} count={sm.length}>
             {sm.slice(0, 8).map((s) => <div key={s.id} className="rounded-xl px-3 py-2"><div className="text-xs font-numeric text-muted-foreground">{s.code}</div><div className="text-sm font-medium">{s.name}</div></div>)}

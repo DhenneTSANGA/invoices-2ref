@@ -193,6 +193,9 @@ export const clientInputSchema = z.object({
   ficheCircuitName: z.string().nullable().optional(),
   ficheStatusUrl: z.string().nullable().optional(),
   ficheStatusName: z.string().nullable().optional(),
+  billingProfile: z
+    .enum(["subscription", "one_off", "mixed"])
+    .default("one_off"),
 });
 
 export const clientFicheUploadSchema = z.object({
@@ -263,6 +266,7 @@ export const documentInputSchema = z.object({
   closing: z.string().optional().nullable(),
   signatoryTitle: z.string().optional().nullable(),
   recipientOverride: z.string().optional().nullable(),
+  placeCity: z.string().optional().nullable(),
   sections: z.array(documentSectionSchema).optional().default([]),
   items: z.array(lineItemSchema),
   subtotal: z.coerce.number(),

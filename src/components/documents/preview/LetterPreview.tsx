@@ -11,6 +11,8 @@ import {
   isAccountantSignatory,
   signatoryDisplayName,
 } from "@/lib/signatory";
+import { isRichTextEmpty, looksLikeHtml, plainTextToHtml } from "@/lib/rich-text";
+import { letterPlaceCityLabel } from "@/lib/letter-place-city";
 
 type Props = {
   doc: Document;
@@ -19,6 +21,25 @@ type Props = {
   className?: string;
   omitSignature?: boolean;
 };
+
+function RichHtml({
+  html,
+  className,
+}: {
+  html: string;
+  className?: string;
+}) {
+  const content = looksLikeHtml(html) ? html : plainTextToHtml(html);
+  return (
+    <div
+      className={cn(
+        "[&_p]:my-1 [&_ul]:my-1.5 [&_ol]:my-1.5 [&_li]:my-0.5 [&_strong]:font-semibold [&_em]:italic [&_u]:underline",
+        className,
+      )}
+      dangerouslySetInnerHTML={{ __html: content }}
+    />
+  );
+}
 
 export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPreview(
   { doc, compact, variant = "full", className, omitSignature },
@@ -29,7 +50,7 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
   /** Pas de densification : le PDF doit matcher l’aperçu écran. */
   const dense = false;
   const { accent, accentTo } = DOCUMENT_COLORS.letter;
-  const city = (company.city.split(",")[0] || company.city).trim();
+  const city = letterPlaceCityLabel(doc.placeCity, company.city);
   const accountantSignatory = isAccountantSignatory(doc.signatoryTitle);
   const signatoryName = signatoryDisplayName(doc.signatoryTitle);
   const showStamp =
@@ -103,30 +124,32 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
         </div>
       </div>
 
-      {doc.salutation?.trim() ? (
-        <div className={cn("text-[#0F172A]", dense ? "mt-4 text-[12.5px] leading-[1.55]" : "mt-7 text-[14px] leading-[1.7]")}>
-          {doc.salutation.trim()}
-        </div>
+      {!isRichTextEmpty(doc.salutation) ? (
+        <RichHtml
+          html={doc.salutation!.trim()}
+          className={cn(
+            "text-[#0F172A]",
+            dense ? "mt-4 text-[12.5px] leading-[1.55]" : "mt-7 text-[14px] leading-[1.7]",
+          )}
+        />
       ) : null}
 
-      <div
+      <RichHtml
+        html={doc.body?.trim() || ""}
         className={cn(
-          "flex-1 whitespace-pre-line text-justify text-[#1E293B]",
+          "flex-1 text-justify text-[#1E293B]",
           dense ? "mt-2.5 text-[12px] leading-[1.55]" : "mt-4 text-[13.5px] leading-[1.75]",
         )}
-      >
-        {doc.body?.trim() || ""}
-      </div>
+      />
 
-      {doc.closing?.trim() ? (
-        <div
+      {!isRichTextEmpty(doc.closing) ? (
+        <RichHtml
+          html={doc.closing!.trim()}
           className={cn(
-            "whitespace-pre-line text-justify text-[#1E293B]",
+            "text-justify text-[#1E293B]",
             dense ? "mt-4 text-[12px] leading-[1.55]" : "mt-7 text-[13.5px] leading-[1.7]",
           )}
-        >
-          {doc.closing.trim()}
-        </div>
+        />
       ) : null}
 
       <div className={cn("flex justify-end", dense ? "mt-5" : "mt-10")}>

@@ -16,6 +16,7 @@ import {
   DEFAULT_CLIENT_LEGAL_FORM,
   citiesForCountry,
 } from "@/lib/client-form-options";
+import { ClientBillingProfilePicker } from "@/components/clients/ClientBillingProfilePicker";
 
 export const Route = createFileRoute("/_app/clients/new")({
   head: () => ({ meta: [{ title: "Nouveau client — 2R Hub" }] }),
@@ -53,6 +54,7 @@ const empty: Omit<
   country: "Gabon",
   anpiNumber: "",
   anpiDate: "",
+  billingProfile: "one_off",
 };
 
 function NewClient() {
@@ -122,6 +124,13 @@ function NewClient() {
         subtitle="Saisissez les informations de la fiche unique d’enregistrement ANPI, le contact métier et les fiches associées."
       />
       <form onSubmit={submit} className="space-y-5">
+        <Section title="Type de client">
+          <ClientBillingProfilePicker
+            value={form.billingProfile}
+            onChange={(billingProfile) => setForm({ ...form, billingProfile })}
+          />
+        </Section>
+
         <Section title="Identité de l'entreprise">
           <Field
             label="Dénomination sociale"

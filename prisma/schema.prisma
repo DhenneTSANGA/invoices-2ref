@@ -37,6 +37,13 @@ enum PaymentMethod {
   bank_transfer
 }
 
+/** Profil de facturation du client. */
+enum ClientBillingProfile {
+  subscription
+  one_off
+  mixed
+}
+
 enum ActivityKind {
   invoice_paid
   invoice_sent
@@ -61,6 +68,19 @@ enum MailDirection {
 enum DocumentPdfAction {
   download
   email
+}
+
+enum DocumentExportStatus {
+  pending
+  processing
+  completed
+  failed
+}
+
+enum DocumentExportFormat {
+  zip
+  csv
+  both
 }
 
 enum StaffRole {
@@ -142,6 +162,7 @@ model StaffMember {
   mailMergeSignatureRequests MailMergeCampaign[] @relation("MailMergeSignatureRequester")
   letterSignatureRequests LetterSignatureRequest[] @relation("LetterSignatureRequester")
   letterSignatureReviews  LetterSignatureRequest[] @relation("LetterSignatureReviewer")
+  documentExportJobs      DocumentExportJob[]
 
   @@index([lastName])
   @@index([role])
@@ -212,6 +233,8 @@ model Client {
   anpiDate    String   @default("")
   /** Destinataire ponctuel (publipostage) — masqué de la liste clients. */
   isTransient Boolean  @default(false)
+  /** Abonnement / ponctuel / les deux. */
+  billingProfile ClientBillingProfile @default(mixed)
   /** URL publique fiche circuit (Storage). */
   ficheCircuitUrl  String?
   ficheCircuitName String?
@@ -224,12 +247,15 @@ model Client {
   updatedAt   DateTime @updatedAt
 
   documents Document[]
+  exportJobs DocumentExportJob[]
+  paymentReminderLogs PaymentReminderLog[]
   createdBy StaffMember? @relation(fields: [createdById], references: [id], onDelete: SetNull)
 
   @@index([cabinet])
   @@index([name])
   @@index([city])
   @@index([createdById])
+  @@index([billingProfile])
   @@map("clients")
 }
 
@@ -289,12 +315,18 @@ model Document {
   closing           String?
   signatoryTitle    String?
   recipientOverride String?
+  /** Ville d’émission du courrier (ex. Libreville), pour « Libreville, le … ». */
+  placeCity         String?
   /** Facture modèle d'abonnement mensuel. */
   isSubscription       Boolean   @default(false)
   subscriptionActive   Boolean   @default(false)
   /** Jour du mois d'envoi (1–28). */
   subscriptionDay      Int?
   subscriptionNextAt   DateTime? @db.Date
+  /** Jour d'échéance sur les factures générées (null = même jour que l'émission). */
+  subscriptionDueDay           Int?
+  /** Mois entre émission et échéance (défaut 1 → ex. 5 au 5 du mois suivant). */
+  subscriptionDueMonthsOffset  Int       @default(1)
   /** Facture générée depuis un abonnement (id du modèle). */
   subscriptionOfId     String?
   /** Campagne de publipostage (lettres groupées). */
@@ -496,4 +528,60 @@ model DocumentPdfTrace {
   @@index([cabinet, createdAt])
   @@index([staffId])
   @@map("document_pdf_traces")
+}
+
+/** Relance de paiement envoyée (clients abonnement). */
+model PaymentReminderLog {
+  id          String   @id @default(cuid())
+  cabinet     Cabinet
+  clientId    String
+  /** Palier : 15, 20 ou 25 du mois. */
+  reminderDay Int
+  /** Mois civil de l'envoi (YYYY-MM). */
+  periodMonth String
+  toEmail     String
+  documentIds String[]
+  totalAmount Decimal  @db.Decimal(18, 2)
+  sentAt      DateTime @default(now())
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, reminderDay, periodMonth])
+  @@index([cabinet, sentAt])
+  @@index([clientId, sentAt])
+  @@map("payment_reminder_logs")
+}
+
+/** Export groupé (ZIP / CSV) pour l'espace Bilan admin. */
+model DocumentExportJob {
+  id           String               @id @default(cuid())
+  cabinet      Cabinet
+  createdById  String
+  status       DocumentExportStatus @default(pending)
+  format       DocumentExportFormat
+  /// null = tous les types
+  documentType DocumentType?
+  clientId     String?
+  months       Int
+  dateFrom     DateTime             @db.Date
+  dateTo       DateTime             @db.Date
+  progress     Int                  @default(0)
+  total        Int                  @default(0)
+  zipUrl       String?
+  zipPath      String?
+  csvUrl       String?
+  csvPath      String?
+  skippedCount Int                  @default(0)
+  errorMessage String?
+  completedAt  DateTime?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  createdBy StaffMember @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  client    Client?     @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  @@index([cabinet, createdAt])
+  @@index([createdById, createdAt])
+  @@index([status])
+  @@map("document_export_jobs")
 }

@@ -23,7 +23,7 @@ import { SignedDocumentReadyBanner } from "@/components/documents/SignedDocument
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { DocumentCreatorCard } from "@/components/documents/DocumentCreatorCard";
 import { DocumentPdfTracesPanel } from "@/components/documents/DocumentPdfTracesPanel";
-import { currency, longDate } from "@/lib/format";
+import { documentDetailRoute } from "@/lib/document-nav";
 import { isAdmin } from "@/lib/roles";
 import { isAccountantSignatory } from "@/lib/signatory";
 
@@ -60,6 +60,12 @@ function QuotationDetailPage() {
     if (adminLike && doc?.status === "draft") setPreviewSeen(true);
   }, [adminLike, doc?.id, doc?.status]);
 
+  useEffect(() => {
+    if (doc && doc.type !== "quotation") {
+      void navigate(documentDetailRoute(doc));
+    }
+  }, [doc, navigate]);
+
   if (isLoading) {
     return (
       <LoadingState
@@ -70,6 +76,7 @@ function QuotationDetailPage() {
     );
   }
   if (!doc) return <div className="glass-panel rounded-3xl p-8 text-center">Devis introuvable.</div>;
+  if (doc.type !== "quotation") return null;
 
   const canSend = documentCanSendEmail(doc);
   const accountantSignatory = isAccountantSignatory(doc.signatoryTitle);

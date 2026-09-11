@@ -13,9 +13,14 @@ import { documentRowClass, getDocumentRowStyles } from "@/lib/document-row-style
 import { documentTypeLabel } from "@/lib/document-status-labels";
 import { currency, shortDate } from "@/lib/format";
 import { paymentMethodLabel } from "@/lib/payment-method";
-import type { Document, DocumentStatus, DocumentType, PaymentMethod } from "@/store/types";
+import type { ClientBillingProfile, Document, DocumentStatus, DocumentType, PaymentMethod } from "@/store/types";
 import { cn } from "@/lib/utils";
 import { canWriteDocument } from "@/lib/roles";
+import {
+  CLIENT_BILLING_LABELS,
+  CLIENT_BILLING_PROFILES,
+} from "@/lib/client-billing";
+import { ClientBillingBadge } from "@/components/clients/ClientBillingProfilePicker";
 import {
   useClients,
   useDocuments,
@@ -52,6 +57,7 @@ export function DocumentsList({ type }: { type: DocumentType }) {
   const processSubs = useProcessDueSubscriptions();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string>("all");
+  const [billingFilter, setBillingFilter] = useState<"all" | ClientBillingProfile>("all");
   const [paidPrompt, setPaidPrompt] = useState<{ id: string; number: string } | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Document | null>(null);
   const L = labels[type];
@@ -84,8 +90,11 @@ export function DocumentsList({ type }: { type: DocumentType }) {
     const client = clients.find((c) => c.id === d.clientId);
     const matchQ = q === "" || `${d.number} ${client?.name ?? ""}`.toLowerCase().includes(q.toLowerCase());
     const matchS = status === "all" || d.status === status;
-    return matchQ && matchS;
-  }), [documents, clients, q, status]);
+    const matchBilling =
+      billingFilter === "all" ||
+      (client?.billingProfile ?? "mixed") === billingFilter;
+    return matchQ && matchS && matchBilling;
+  }), [documents, clients, q, status, billingFilter]);
 
   const total = filtered.reduce((a, b) => a + b.total, 0);
 
@@ -173,7 +182,10 @@ export function DocumentsList({ type }: { type: DocumentType }) {
                 <Mails className="h-4 w-4" /> Publipostage
               </Link>
             )}
-            <Link to={L.new} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow">
+            <Link
+              to={L.new}
+              className="inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow"
+            >
               <Plus className="h-4 w-4" /> Nouveau
             </Link>
           </div>
@@ -198,6 +210,36 @@ export function DocumentsList({ type }: { type: DocumentType }) {
           ))}
         </select>
       </div>
+
+      {(type === "invoice" || type === "quotation") && (
+        <div className="mb-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setBillingFilter("all")}
+            className={
+              billingFilter === "all"
+                ? "rounded-full bg-gradient-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-glow"
+                : "rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium hover:bg-muted"
+            }
+          >
+            Tous les clients
+          </button>
+          {CLIENT_BILLING_PROFILES.map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => setBillingFilter(p)}
+              className={
+                billingFilter === p
+                  ? "rounded-full bg-gradient-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-glow"
+                  : "rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium hover:bg-muted"
+              }
+            >
+              {CLIENT_BILLING_LABELS[p]}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="mb-4 flex flex-wrap gap-2">
         {statusOptions.map((s) => (
@@ -238,12 +280,12 @@ export function DocumentsList({ type }: { type: DocumentType }) {
                     <td className="px-5 py-3 font-medium font-numeric">
                       <div className="flex flex-wrap items-center gap-1.5">
                         <span>{d.number}</span>
-                        {type === "invoice" && d.isSubscription && (
+                        {type === "invoice" && d.isSubscription && !d.subscriptionOfId && (
                           <span
                             title={
                               d.subscriptionActive
-                                ? `Abonnement · jour ${d.subscriptionDay}`
-                                : "Abonnement en pause"
+                                ? `Modèle abonnement · jour ${d.subscriptionDay}`
+                                : "Modèle abonnement en pause"
                             }
                             className={cn(
                               "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide",
@@ -253,12 +295,28 @@ export function DocumentsList({ type }: { type: DocumentType }) {
                             )}
                           >
                             <Repeat className="h-2.5 w-2.5" />
-                            Abo
+                            Modèle
+                          </span>
+                        )}
+                        {type === "invoice" && d.subscriptionOfId && (
+                          <span
+                            title="Facture générée automatiquement depuis un abonnement"
+                            className="inline-flex items-center gap-0.5 rounded-full bg-violet-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-violet-700 dark:text-violet-300"
+                          >
+                            <Repeat className="h-2.5 w-2.5" />
+                            Auto
                           </span>
                         )}
                       </div>
                     </td>
-                    <td className="px-5 py-3">{c?.name}</td>
+                    <td className="px-5 py-3">
+                      <div className="flex flex-col items-start gap-1">
+                        <span>{c?.name}</span>
+                        {c?.billingProfile ? (
+                          <ClientBillingBadge profile={c.billingProfile} />
+                        ) : null}
+                      </div>
+                    </td>
                     <td className={cn("px-5 py-3", row.muted)}>{shortDate(d.issueDate)}</td>
                     <td className={cn("px-5 py-3", row.muted)}>
                       {d.dueDate ? shortDate(d.dueDate) : "—"}

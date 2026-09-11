@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeft,
   Send,
@@ -8,10 +8,12 @@ import {
   PenLine,
   Stamp,
   Ban,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { LoadingState } from "@/components/common/LoadingState";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import {
   useDocument,
   useClients,
@@ -21,6 +23,7 @@ import {
   useRequestLetterSignature,
   useSignLetterDocument,
   useRejectLetterSignature,
+  useDeleteDocument,
 } from "@/hooks/use-data";
 import { DocumentPreview } from "@/components/documents/DocumentPreview";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
@@ -28,9 +31,10 @@ import { DocumentPdfButton } from "@/components/documents/DocumentPdfButton";
 import { DocumentPdfTracesPanel } from "@/components/documents/DocumentPdfTracesPanel";
 import { SignedDocumentReadyBanner } from "@/components/documents/SignedDocumentReadyBanner";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { documentDetailRoute } from "@/lib/document-nav";
 import { longDate } from "@/lib/format";
 import { LetterEditor } from "@/components/editor/LetterEditor";
-import { isAdmin } from "@/lib/roles";
+import { isAdmin, canWriteDocument } from "@/lib/roles";
 import { isAccountantSignatory } from "@/lib/signatory";
 import { cn } from "@/lib/utils";
 
@@ -41,6 +45,7 @@ export const Route = createFileRoute("/_app/lettre/$id")({
 
 function LetterDetail() {
   const { id } = Route.useParams();
+  const navigate = useNavigate();
   const { data: session } = useSession();
   const { data: doc, isLoading } = useDocument(id);
   const { data: clients = [] } = useClients();
@@ -50,8 +55,10 @@ function LetterDetail() {
   const requestSignMutation = useRequestLetterSignature();
   const signMutation = useSignLetterDocument();
   const rejectMutation = useRejectLetterSignature();
+  const deleteMutation = useDeleteDocument();
   const [previewOpen, setPreviewOpen] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   /** L’admin doit avoir consulté l’aperçu sur cette page avant de signer. */
   const [previewSeen, setPreviewSeen] = useState(false);
 
@@ -67,6 +74,12 @@ function LetterDetail() {
       setPreviewSeen(true);
     }
   }, [adminLike, doc?.id, doc?.status]);
+
+  useEffect(() => {
+    if (doc && doc.type !== "letter") {
+      void navigate(documentDetailRoute(doc));
+    }
+  }, [doc, navigate]);
 
   if (isLoading) {
     return (
@@ -84,6 +97,7 @@ function LetterDetail() {
       </div>
     );
   }
+  if (doc.type !== "letter") return null;
 
   if (editing) {
     return (
@@ -116,6 +130,13 @@ function LetterDetail() {
     (doc.status === "signed" || doc.status === "sent") &&
     (isCreator || adminLike);
   const canEdit = doc.status === "draft" && (isCreator || adminLike);
+  const canDelete =
+    Boolean(session?.staff.id) &&
+    canWriteDocument(
+      session!.staff.role,
+      session!.staff.id,
+      doc.createdById,
+    );
 
   const markPreviewSeen = () => setPreviewSeen(true);
 
@@ -247,6 +268,17 @@ function LetterDetail() {
               {sendEmailMutation.isPending ? "Envoi…" : "Envoyer"}
             </button>
             ) : null}
+            {canDelete ? (
+              <button
+                type="button"
+                onClick={() => setDeleteOpen(true)}
+                disabled={deleteMutation.isPending}
+                className="inline-flex items-center gap-2 rounded-2xl border border-danger/40 bg-danger/10 px-4 py-2 text-sm font-medium text-danger hover:bg-danger/15 disabled:opacity-60"
+              >
+                <Trash2 className="h-4 w-4" />
+                Supprimer
+              </button>
+            ) : null}
           </>
         }
       />
@@ -290,6 +322,24 @@ function LetterDetail() {
         onOpenChange={(open) => {
           if (open) markPreviewSeen();
           setPreviewOpen(open);
+        }}
+      />
+
+      <ConfirmDeleteDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Supprimer ce courriel ?"
+        description={`Vous êtes sur le point de supprimer définitivement le courriel « ${doc.number} ». Cette action est irréversible.`}
+        pending={deleteMutation.isPending}
+        onConfirm={() => {
+          deleteMutation.mutate(doc.id, {
+            onSuccess: () => {
+              toast.success("Courriel supprimé", { description: doc.number });
+              setDeleteOpen(false);
+              void navigate({ to: "/lettre" });
+            },
+            onError: (e) => toast.error(e.message),
+          });
         }}
       />
     </div>

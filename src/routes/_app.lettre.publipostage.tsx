@@ -9,8 +9,6 @@ import {
   X,
   Users,
   Eye,
-  ChevronLeft,
-  ChevronRight,
   PenLine,
   Stamp,
   Plus,
@@ -37,6 +35,20 @@ import { buildDocumentPdfFromDoc } from "@/lib/pdf/downloadDocumentPdf";
 import { isAdmin } from "@/lib/roles";
 import { humanAuthError } from "@/lib/auth-errors";
 import type { Client, Document, MailMergeCampaign } from "@/store/types";
+import { LetterSubjectInput } from "@/components/editor/LetterSubjectInput";
+import { RichTextEditor } from "@/components/editor/RichTextEditor";
+import {
+  LETTER_LANGUAGES,
+  LETTER_SERVICES,
+  abbrevForLetterSubject,
+  isPredefinedLetterSubject,
+  normalizeSubjectAbbrev,
+  resolveLetterSubjectAbbrev,
+  type LetterLanguage,
+  type LetterServiceCode,
+} from "@/lib/letter-ref";
+import { isRichTextEmpty } from "@/lib/rich-text";
+import { LETTER_PLACE_CITIES } from "@/lib/letter-place-city";
 
 export const Route = createFileRoute("/_app/lettre/publipostage")({
   head: () => ({ meta: [{ title: "Publipostage — 2R Hub" }] }),
@@ -169,6 +181,10 @@ function MailMergePage() {
   const [guestDraft, setGuestDraft] = useState<GuestRecipient>(emptyGuest);
   const [showGuestForm, setShowGuestForm] = useState(false);
   const [subject, setSubject] = useState("");
+  const [letterLanguage, setLetterLanguage] = useState<LetterLanguage>("CF");
+  const [letterService, setLetterService] = useState<LetterServiceCode>("SA");
+  const [subjectAbbrev, setSubjectAbbrev] = useState("");
+  const [placeCity, setPlaceCity] = useState("Libreville");
   const [salutation, setSalutation] = useState("");
   const [body, setBody] = useState("");
   const [closing, setClosing] = useState("");
@@ -198,6 +214,10 @@ function MailMergePage() {
           body,
           closing,
           signatoryTitle,
+          language: letterLanguage,
+          service: letterService,
+          subjectAbbrev: resolveLetterSubjectAbbrev(subject, subjectAbbrev),
+          placeCity,
         },
       }),
     onSuccess: (campaign) => {
@@ -250,9 +270,18 @@ function MailMergePage() {
     [clients, selectedIds],
   );
 
-  const previewClient =
-    selectedClients[Math.min(previewIndex, Math.max(selectedClients.length - 1, 0))] ??
-    null;
+  const previewClient = selectedClients[previewIndex] ?? null;
+  const detailPreviewDoc = activeCampaign?.documents?.[previewIndex] ?? null;
+
+  const previewPaginationTotal =
+    view === "detail"
+      ? activeCampaign?.documents?.length ?? 0
+      : selectedClients.length;
+
+  const previewPaginationLabel =
+    view === "detail"
+      ? detailPreviewDoc?.number ?? "—"
+      : previewClient?.name ?? "—";
 
   const previewDoc = useMemo(() => {
     if (!previewClient) return null;
@@ -265,8 +294,6 @@ function MailMergePage() {
       signatoryTitle,
     );
   }, [previewClient, subject, salutation, body, closing, signatoryTitle]);
-
-  const detailPreviewDoc = activeCampaign?.documents?.[previewIndex] ?? null;
 
   const toggle = (id: string) => {
     setSelectedIds((prev) => {
@@ -290,7 +317,7 @@ function MailMergePage() {
       toast.error("Sélectionnez ou ajoutez au moins un destinataire pour l'aperçu");
       return;
     }
-    if (!subject.trim() || !body.trim()) {
+    if (!subject.trim() || isRichTextEmpty(body)) {
       toast.error("Renseignez l'objet et le corps avant l'aperçu");
       return;
     }
@@ -303,7 +330,7 @@ function MailMergePage() {
       toast.error("Sélectionnez ou ajoutez au moins un destinataire");
       return;
     }
-    if (!subject.trim() || !body.trim()) {
+    if (!subject.trim() || isRichTextEmpty(body)) {
       toast.error("L'objet et le corps sont requis");
       return;
     }
@@ -480,8 +507,8 @@ function MailMergePage() {
 
       {view === "create" && (
         <>
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-            <div className="glass-panel space-y-3 rounded-3xl p-5">
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-stretch">
+            <div className="glass-panel flex min-h-[28rem] flex-col gap-3 rounded-3xl p-5 lg:min-h-[calc(100vh-11rem)]">
               <div className="flex items-center justify-between">
                 <h3 className="flex items-center gap-2 font-display font-semibold">
                   <Users className="h-4 w-4" /> Destinataires
@@ -558,42 +585,44 @@ function MailMergePage() {
                   ))}
                 </ul>
               )}
-              <input
-                type="text"
-                placeholder="Filtrer les clients enregistrés…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full rounded-xl border border-border/60 bg-transparent px-3 py-2 text-sm focus:border-primary focus:outline-none"
-              />
-              {loadingClients ? (
-                <LoadingState
-                  variant="inline"
-                  icon={Users}
-                  title="Chargement des destinataires"
-                  description="Récupération de la liste des clients…"
+              <div className="flex min-h-0 flex-1 flex-col gap-3">
+                <input
+                  type="text"
+                  placeholder="Filtrer les clients enregistrés…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full shrink-0 rounded-xl border border-border/60 bg-transparent px-3 py-2 text-sm focus:border-primary focus:outline-none"
                 />
-              ) : (
-                <ul className="max-h-72 space-y-1 overflow-y-auto">
-                  {filteredClients.map((c) => (
-                    <li key={c.id}>
-                      <label className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2 transition-colors hover:bg-muted/70">
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(c.id)}
-                          onChange={() => toggle(c.id)}
-                          className="h-4 w-4 rounded border-border accent-primary"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate text-sm font-medium">{c.name}</div>
-                          <div className="truncate text-xs text-muted-foreground">
-                            {c.email || "Pas d'email"} · {c.city}
+                {loadingClients ? (
+                  <LoadingState
+                    variant="inline"
+                    icon={Users}
+                    title="Chargement des destinataires"
+                    description="Récupération de la liste des clients…"
+                  />
+                ) : (
+                  <ul className="min-h-0 flex-1 space-y-1 overflow-y-auto">
+                    {filteredClients.map((c) => (
+                      <li key={c.id}>
+                        <label className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2 transition-colors hover:bg-muted/70">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(c.id)}
+                            onChange={() => toggle(c.id)}
+                            className="h-4 w-4 rounded border-border accent-primary"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-sm font-medium">{c.name}</div>
+                            <div className="truncate text-xs text-muted-foreground">
+                              {c.email || "Pas d'email"} · {c.city}
+                            </div>
                           </div>
-                        </div>
-                      </label>
-                    </li>
-                  ))}
-                </ul>
-              )}
+                        </label>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
 
             <div className="glass-panel space-y-4 rounded-3xl p-5">
@@ -610,39 +639,117 @@ function MailMergePage() {
                   ponctuels : uniquement les champs saisis (le reste reste vide).
                 </span>
               </div>
-              <Field
-                label="Objet"
-                value={subject}
-                onChange={setSubject}
-              />
-              <Field
+              <label className="block">
+                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Objet
+                </span>
+                <div className="mt-1">
+                  <LetterSubjectInput
+                    value={subject}
+                    onChange={setSubject}
+                    inputClassName="rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
+                  />
+                </div>
+              </label>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <label className="block">
+                  <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Langue
+                  </span>
+                  <select
+                    className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
+                    value={letterLanguage}
+                    onChange={(e) =>
+                      setLetterLanguage(e.target.value as LetterLanguage)
+                    }
+                  >
+                    {LETTER_LANGUAGES.map((l) => (
+                      <option key={l.code} value={l.code}>
+                        {l.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Service
+                  </span>
+                  <select
+                    className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
+                    value={letterService}
+                    onChange={(e) =>
+                      setLetterService(e.target.value as LetterServiceCode)
+                    }
+                  >
+                    {LETTER_SERVICES.map((s) => (
+                      <option key={s.code} value={s.code}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {isPredefinedLetterSubject(subject) ? (
+                  <div className="rounded-xl border border-border/60 bg-muted/30 px-3 py-2.5">
+                    <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Abrégé objet (automatique)
+                    </div>
+                    <div className="mt-0.5 font-mono text-sm font-semibold">
+                      {abbrevForLetterSubject(subject)}
+                    </div>
+                  </div>
+                ) : (
+                  <label className="block">
+                    <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                      Abrégé objet
+                    </span>
+                    <input
+                      className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 font-mono text-sm uppercase focus:border-primary focus:outline-none"
+                      value={subjectAbbrev}
+                      placeholder="Ex. RDP (OBJ si vide)"
+                      onChange={(e) =>
+                        setSubjectAbbrev(normalizeSubjectAbbrev(e.target.value))
+                      }
+                    />
+                  </label>
+                )}
+              </div>
+              <label className="block">
+                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Ville d’émission
+                </span>
+                <select
+                  className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
+                  value={placeCity}
+                  onChange={(e) => setPlaceCity(e.target.value)}
+                >
+                  {LETTER_PLACE_CITIES.map((city) => (
+                    <option key={city} value={city}>
+                      {city}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <RichTextEditor
                 label="Formule d'appel"
                 value={salutation}
                 onChange={setSalutation}
                 placeholder="Monsieur le Directeur Général,"
+                minHeightClass="min-h-[3.5rem]"
               />
-              <label className="block">
-                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Corps
-                </span>
-                <textarea
-                  className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
-                  rows={8}
-                  value={body}
-                  onChange={(e) => setBody(e.target.value)}
-                />
-              </label>
-              <label className="block">
-                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Formule de politesse
-                </span>
-                <textarea
-                  className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
-                  rows={3}
-                  value={closing}
-                  onChange={(e) => setClosing(e.target.value)}
-                />
-              </label>
+              <RichTextEditor
+                label="Corps"
+                value={body}
+                onChange={setBody}
+                placeholder="Rédigez le corps du message… Variables {{nom}}, {{contact}}, etc."
+                minHeightClass="min-h-[10rem]"
+              />
+              <RichTextEditor
+                label="Formule de politesse"
+                value={closing}
+                onChange={setClosing}
+                placeholder="Veuillez agréer…"
+                minHeightClass="min-h-[4.5rem]"
+              />
               <Field
                 label="Titre du signataire"
                 value={signatoryTitle}
@@ -840,58 +947,22 @@ function MailMergePage() {
           }
           open={previewOpen}
           onOpenChange={setPreviewOpen}
+          pagination={
+            previewPaginationTotal > 1
+              ? {
+                  index: previewIndex,
+                  total: previewPaginationTotal,
+                  label: previewPaginationLabel,
+                  onPrev: () => setPreviewIndex((i) => Math.max(0, i - 1)),
+                  onNext: () =>
+                    setPreviewIndex((i) =>
+                      Math.min(previewPaginationTotal - 1, i + 1),
+                    ),
+                }
+              : undefined
+          }
         />
       )}
-
-      {previewOpen &&
-        ((view === "create" && selectedClients.length > 1) ||
-          (view === "detail" && (activeCampaign?.documents?.length ?? 0) > 1)) && (
-          <div className="fixed bottom-6 left-1/2 z-[60] flex -translate-x-1/2 items-center gap-3 rounded-2xl border border-white/15 bg-[#0F172A]/95 px-4 py-2.5 text-sm text-white shadow-xl backdrop-blur">
-            <button
-              type="button"
-              className="rounded-lg p-1.5 hover:bg-white/10 disabled:opacity-40"
-              disabled={previewIndex <= 0}
-              onClick={() => setPreviewIndex((i) => Math.max(0, i - 1))}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <div className="min-w-48 text-center">
-              <div className="text-[11px] text-white/60">
-                Aperçu {previewIndex + 1}/
-                {view === "detail"
-                  ? activeCampaign?.documents?.length ?? 0
-                  : selectedClients.length}
-              </div>
-              <div className="truncate font-medium">
-                {view === "detail"
-                  ? detailPreviewDoc?.number
-                  : previewClient?.name}
-              </div>
-            </div>
-            <button
-              type="button"
-              className="rounded-lg p-1.5 hover:bg-white/10 disabled:opacity-40"
-              disabled={
-                previewIndex >=
-                (view === "detail"
-                  ? (activeCampaign?.documents?.length ?? 1) - 1
-                  : selectedClients.length - 1)
-              }
-              onClick={() =>
-                setPreviewIndex((i) =>
-                  Math.min(
-                    (view === "detail"
-                      ? (activeCampaign?.documents?.length ?? 1)
-                      : selectedClients.length) - 1,
-                    i + 1,
-                  ),
-                )
-              }
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-        )}
     </div>
   );
 }

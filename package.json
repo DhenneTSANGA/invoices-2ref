@@ -17,7 +17,9 @@
     "prisma:push": "prisma db push",
     "prisma:studio": "prisma studio",
     "prisma:verify": "node scripts/verify-prisma.mjs",
-    "db:seed": "node scripts/seed-demo.mjs"
+    "db:seed": "node scripts/seed-demo.mjs",
+    "db:export": "node scripts/export-db-dump.mjs",
+    "db:import": "node scripts/import-db-dump.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
@@ -56,6 +58,10 @@
     "@tanstack/react-start": "^1.168.26",
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/router-plugin": "^1.168.18",
+    "@tiptap/extension-underline": "^3.31.3",
+    "@tiptap/pm": "^3.31.3",
+    "@tiptap/react": "^3.31.3",
+    "@tiptap/starter-kit": "^3.31.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -66,6 +72,7 @@
     "html2canvas": "^1.4.1",
     "input-otp": "^1.4.2",
     "jspdf": "^4.2.1",
+    "jszip": "^3.10.1",
     "lucide-react": "^0.575.0",
     "react": "^19.2.0",
     "react-day-picker": "^9.14.0",

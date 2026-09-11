@@ -26,17 +26,31 @@ import {
   isSuperAdmin,
 } from "@/lib/roles";
 import {
-  advanceSubscriptionDate,
   clampSubscriptionDay,
+  inferSubscriptionDuePattern,
   nextSubscriptionDate,
+  subscriptionDueDateFromIssue,
 } from "@/lib/subscription";
+import { runDueSubscriptions } from "@/lib/billing-jobs";
 import {
   buildNextCommercialNumber,
   isCommercialDocType,
   type CommercialDocType,
 } from "@/lib/document-number";
-import { sendDocumentEmail } from "@/lib/send-document-email";
+import {
+  buildLetterRef,
+  isLetterLanguage,
+  isLetterServiceCode,
+  letterYearCode,
+  nextLetterSequenceFromNumbers,
+  normalizeSubjectAbbrev,
+  parseLetterRef,
+  resolveLetterSubjectAbbrev,
+  type LetterLanguage,
+  type LetterServiceCode,
+} from "@/lib/letter-ref";
 import { buildInvoiceInputFromQuotation } from "@/lib/convert-quotation-to-invoice";
+import { clientAllowsSubscription } from "@/lib/client-billing";
 
 const docInclude = {
   lines: { orderBy: { position: "asc" as const } },
@@ -59,6 +73,42 @@ async function allocateCommercialNumber(
     type,
     issueDate,
     existingNumbers: rows.map((r) => r.number),
+  });
+}
+
+/** Alloue 2RC/CF/002/026/… en réutilisant langue / service / abrégé du brouillon client. */
+async function allocateLetterNumber(
+  cabinet: Cabinet,
+  issueDate: string | Date,
+  draftNumber: string,
+  subject?: string | null,
+): Promise<string> {
+  const yearCode = letterYearCode(issueDate);
+  const parsed = parseLetterRef(draftNumber);
+  const language: LetterLanguage =
+    parsed && isLetterLanguage(parsed.language) ? parsed.language : "CF";
+  const service: LetterServiceCode =
+    parsed && isLetterServiceCode(parsed.service) ? parsed.service : "SA";
+  const subjectAbbrev = resolveLetterSubjectAbbrev(
+    subject ?? "",
+    parsed?.subjectAbbrev ?? "",
+  );
+
+  const rows = await prisma.document.findMany({
+    where: { cabinet, type: "letter" },
+    select: { number: true },
+  });
+  const seq = nextLetterSequenceFromNumbers(
+    rows.map((r) => r.number),
+    yearCode,
+  );
+  return buildLetterRef({
+    cabinet,
+    language,
+    seq,
+    issueDate,
+    subjectAbbrev,
+    service,
   });
 }
 
@@ -155,6 +205,7 @@ export const createClient = createServerFn({ method: "POST" })
         country: data.country,
         anpiNumber: data.anpiNumber ?? "",
         anpiDate: data.anpiDate ?? "",
+        billingProfile: data.billingProfile ?? "one_off",
         ficheCircuitUrl: data.ficheCircuitUrl ?? null,
         ficheCircuitName: data.ficheCircuitName ?? null,
         ficheStatusUrl: data.ficheStatusUrl ?? null,
@@ -199,6 +250,7 @@ export const updateClient = createServerFn({ method: "POST" })
         country: rest.country,
         anpiNumber: rest.anpiNumber ?? "",
         anpiDate: rest.anpiDate ?? "",
+        billingProfile: rest.billingProfile ?? existing.billingProfile,
         ...(rest.ficheCircuitUrl !== undefined
           ? { ficheCircuitUrl: rest.ficheCircuitUrl, ficheCircuitName: rest.ficheCircuitName ?? null }
           : {}),
@@ -468,6 +520,38 @@ export const peekNextDocumentNumber = createServerFn({ method: "GET" })
     return { number };
   });
 
+/** Aperçu du prochain compteur courrier (séquence seule + réf exemple). */
+export const peekNextLetterNumber = createServerFn({ method: "GET" })
+  .validator(
+    z.object({
+      issueDate: z.string().min(1),
+      language: z.enum(["CF", "CA"]).default("CF"),
+      service: z.enum(["SA", "DIR", "SAF"]).default("SA"),
+      subjectAbbrev: z.string().default("OBJ"),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const { activeCabinet } = await requireSession();
+    const yearCode = letterYearCode(data.issueDate);
+    const rows = await prisma.document.findMany({
+      where: { cabinet: activeCabinet, type: "letter" },
+      select: { number: true },
+    });
+    const seq = nextLetterSequenceFromNumbers(
+      rows.map((r) => r.number),
+      yearCode,
+    );
+    const number = buildLetterRef({
+      cabinet: activeCabinet,
+      language: data.language,
+      seq,
+      issueDate: data.issueDate,
+      subjectAbbrev: data.subjectAbbrev,
+      service: data.service,
+    });
+    return { number, seq };
+  });
+
 export const upsertDocument = createServerFn({ method: "POST" })
   .validator(documentInputSchema)
   .handler(async ({ data }) => {
@@ -577,6 +661,13 @@ async function upsertDocumentHandler(
         data.type,
         data.issueDate,
       );
+    } else if (!data.id && data.type === "letter") {
+      number = await allocateLetterNumber(
+        targetCabinet,
+        data.issueDate,
+        data.number,
+        data.subject,
+      );
     }
 
     const docDiscount = commercial
@@ -593,9 +684,13 @@ async function upsertDocumentHandler(
           ? data.vat
           : 0;
 
+    const issueDateValue = new Date(data.issueDate);
     const dueDateValue = (() => {
       if (data.dueDate && String(data.dueDate).trim()) {
         return new Date(data.dueDate);
+      }
+      if (data.type === "invoice") {
+        return subscriptionDueDateFromIssue(issueDateValue, { monthsOffset: 1 });
       }
       return null;
     })();
@@ -630,15 +725,28 @@ async function upsertDocumentHandler(
           ? existing.status
           : data.status;
 
+      const subscriptionDuePatch =
+        existing.isSubscription &&
+        existing.type === "invoice" &&
+        dueDateValue
+          ? inferSubscriptionDuePattern(issueDateValue, dueDateValue)
+          : null;
+
       const docData = {
         cabinet: existing.cabinet,
         type: existing.type,
-        number: existing.number,
+        number: existing.type === "letter" ? data.number : existing.number,
         clientId: data.clientId,
         createdById: existing.createdById,
         status: nextStatus,
-        issueDate: new Date(data.issueDate),
+        issueDate: issueDateValue,
         dueDate: dueDateValue,
+        ...(subscriptionDuePatch
+          ? {
+              subscriptionDueDay: subscriptionDuePatch.dueDay,
+              subscriptionDueMonthsOffset: subscriptionDuePatch.dueMonthsOffset,
+            }
+          : {}),
         subtotal,
         discount: docDiscount,
         tps,
@@ -658,6 +766,7 @@ async function upsertDocumentHandler(
         closing: data.closing ?? null,
         signatoryTitle: data.signatoryTitle ?? null,
         recipientOverride: data.recipientOverride ?? null,
+        placeCity: data.placeCity ?? null,
       };
 
       let updated;
@@ -743,6 +852,7 @@ async function upsertDocumentHandler(
       closing: data.closing ?? null,
       signatoryTitle: data.signatoryTitle ?? null,
       recipientOverride: data.recipientOverride ?? null,
+      placeCity: data.placeCity ?? null,
     };
 
     let created;
@@ -946,8 +1056,30 @@ export const setInvoiceSubscription = createServerFn({ method: "POST" })
       return mapDocument(row);
     }
 
+    const client = await prisma.client.findFirst({
+      where: { id: existing.clientId },
+      select: { billingProfile: true, name: true },
+    });
+    if (!client) throw new Error("Client introuvable");
+    if (!clientAllowsSubscription(client.billingProfile)) {
+      throw new Error(
+        `« ${client.name} » est un client ponctuel. Passez son profil en Abonnement ou Mixte avant d’activer un abonnement.`,
+      );
+    }
+
+    if (!["signed", "sent"].includes(existing.status)) {
+      throw new Error(
+        "Signez et envoyez la facture modèle avant d'activer l'abonnement automatique.",
+      );
+    }
+
     const day = clampSubscriptionDay(data.dayOfMonth ?? existing.subscriptionDay ?? 1);
     const nextAt = nextSubscriptionDate(day);
+    const duePattern =
+      existing.dueDate != null
+        ? inferSubscriptionDuePattern(existing.issueDate, existing.dueDate)
+        : { dueDay: day, dueMonthsOffset: 1 };
+
     const row = await prisma.document.update({
       where: { id: existing.id },
       data: {
@@ -955,6 +1087,8 @@ export const setInvoiceSubscription = createServerFn({ method: "POST" })
         subscriptionActive: true,
         subscriptionDay: day,
         subscriptionNextAt: nextAt,
+        subscriptionDueDay: duePattern.dueDay,
+        subscriptionDueMonthsOffset: duePattern.dueMonthsOffset,
       },
       include: docInclude,
     });
@@ -965,142 +1099,11 @@ export const setInvoiceSubscription = createServerFn({ method: "POST" })
 export const processDueSubscriptions = createServerFn({ method: "POST" }).handler(
   async () => {
     const session = await requireSession();
-    const today = new Date();
-    const todayUtc = new Date(
-      Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()),
+    return runDueSubscriptions(
+      isSuperAdmin(session.staff.role)
+        ? undefined
+        : { cabinet: session.activeCabinet },
     );
-
-    const due = await prisma.document.findMany({
-      where: {
-        type: "invoice",
-        isSubscription: true,
-        subscriptionActive: true,
-        subscriptionNextAt: { lte: todayUtc },
-        ...(isSuperAdmin(session.staff.role)
-          ? {}
-          : { cabinet: session.activeCabinet }),
-      },
-      include: {
-        lines: { orderBy: { position: "asc" } },
-        sections: { orderBy: { position: "asc" } },
-      },
-    });
-
-    const generated: string[] = [];
-    const errors: string[] = [];
-
-    for (const template of due) {
-      try {
-        if (!canWriteDocument(session.staff.role, session.staff.id, template.createdById)) {
-          continue;
-        }
-        const issueDate = todayUtc;
-        const number = await allocateCommercialNumber(
-          template.cabinet,
-          "invoice",
-          issueDate,
-        );
-        const dueDate = new Date(todayUtc);
-        dueDate.setUTCDate(dueDate.getUTCDate() + 30);
-
-        const subtotal = Number(template.subtotal);
-        const tps = Number(template.tps);
-        const css = Number(template.css);
-        const vat = Number(template.vat);
-        const total = Math.max(0, subtotal - tps + css + vat);
-
-        const created = await prisma.$transaction(async (tx) => {
-          const doc = await tx.document.create({
-            data: {
-              cabinet: template.cabinet,
-              type: "invoice",
-              number,
-              clientId: template.clientId,
-              createdById: session.staff.id,
-              status: "draft",
-              issueDate,
-              dueDate,
-              subtotal,
-              discount: Number(template.discount ?? 0),
-              tps,
-              css,
-              vat,
-              total,
-              currency: template.currency,
-              notes: template.notes,
-              paymentTerms: template.paymentTerms,
-              subscriptionOfId: template.id,
-            },
-          });
-
-          const sectionIdMap = new Map<string, string>();
-          for (const s of template.sections) {
-            const sec = await tx.documentSection.create({
-              data: {
-                documentId: doc.id,
-                title: s.title,
-                position: s.position,
-              },
-            });
-            sectionIdMap.set(s.id, sec.id);
-          }
-
-          if (template.lines.length > 0) {
-            await tx.documentLine.createMany({
-              data: template.lines.map((l, position) => ({
-                documentId: doc.id,
-                serviceId: l.serviceId,
-                description: l.description,
-                quantity: l.quantity,
-                unitPrice: l.unitPrice,
-                vatRate: l.vatRate,
-                discount: l.discount,
-                tpsRate: l.tpsRate,
-                cssRate: l.cssRate,
-                position,
-                sectionId: l.sectionId
-                  ? (sectionIdMap.get(l.sectionId) ?? null)
-                  : null,
-              })),
-            });
-          }
-
-          return doc;
-        });
-
-        const day = clampSubscriptionDay(template.subscriptionDay ?? 1);
-        const nextAt = advanceSubscriptionDate(
-          template.subscriptionNextAt ?? todayUtc,
-          day,
-        );
-        // Si encore dans le passé (retard cumulé), avancer jusqu'à ≥ aujourd'hui
-        let safeNext = nextAt;
-        while (safeNext.getTime() <= todayUtc.getTime()) {
-          safeNext = advanceSubscriptionDate(safeNext, day);
-        }
-        await prisma.document.update({
-          where: { id: template.id },
-          data: { subscriptionNextAt: safeNext },
-        });
-
-        try {
-          await sendDocumentEmail({ data: { id: created.id } });
-        } catch (emailErr) {
-          errors.push(
-            `${number}: créée mais e-mail non envoyé — ${
-              emailErr instanceof Error ? emailErr.message : "erreur"
-            }`,
-          );
-        }
-        generated.push(number);
-      } catch (err) {
-        errors.push(
-          `${template.number}: ${err instanceof Error ? err.message : "échec"}`,
-        );
-      }
-    }
-
-    return { generated, errors, count: generated.length };
   },
 );
 

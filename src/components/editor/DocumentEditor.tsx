@@ -44,6 +44,7 @@ import {
   signatoryTitleForRole,
   type SignatoryRole,
 } from "@/lib/signatory";
+import { PrestationTitleInput } from "@/components/editor/PrestationTitleInput";
 
 const DEFAULT_PAYMENT_MODALITY = "Le 05 suivant le mois de la prestation";
 
@@ -60,6 +61,14 @@ function addDaysIso(isoDate: string, days: number) {
   const d = new Date(`${isoDate}T12:00:00`);
   d.setDate(d.getDate() + days);
   return d.toISOString().slice(0, 10);
+}
+
+function defaultInvoiceDueIso(issueDate: string): string {
+  const issue = new Date(`${issueDate.slice(0, 10)}T00:00:00.000Z`);
+  const y = issue.getUTCFullYear();
+  const m = issue.getUTCMonth();
+  const day = issue.getUTCDate();
+  return new Date(Date.UTC(y, m + 1, day)).toISOString().slice(0, 10);
 }
 
 function finiteNumber(n: unknown, fallback = 0): number {
@@ -1144,11 +1153,9 @@ export function DocumentEditor({ initial, type }: Props) {
                     <span className="text-[11px] font-bold uppercase tracking-wider text-primary">
                       Prestation(s)
                     </span>
-                    <input
-                      className="min-w-[12rem] flex-1 rounded-lg border border-border/60 bg-surface px-2.5 py-1.5 text-sm font-semibold focus:border-primary focus:outline-none"
+                    <PrestationTitleInput
                       value={sec.title}
-                      placeholder="Titre général (ex. AUDIT FISCAL)"
-                      onChange={(e) => updateSection(sec.id, e.target.value)}
+                      onChange={(title) => updateSection(sec.id, title)}
                     />
                     <button
                       type="button"
@@ -1787,7 +1794,7 @@ function defaultDoc(
     createdById: "staff-mireille",
     status: "draft" as const,
     issueDate: today,
-    dueDate: addDaysIso(today, 30) as string | null,
+    dueDate: defaultInvoiceDueIso(today),
     items: [] as LineItem[],
     sections: [] as DocumentSection[],
     subtotal: 0,

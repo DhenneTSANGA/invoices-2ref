@@ -35,6 +35,7 @@ import { Route as AppInvoicesRouteImport } from './routes/_app.invoices'
 import { Route as AppHomeRouteImport } from './routes/_app.home'
 import { Route as AppDocumentsRouteImport } from './routes/_app.documents'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
+import { Route as AppBilanRouteImport } from './routes/_app.bilan'
 import { Route as AppArchiveRouteImport } from './routes/_app.archive'
 import { Route as AppQuotationsIndexRouteImport } from './routes/_app.quotations.index'
 import { Route as AppLettreIndexRouteImport } from './routes/_app.lettre.index'
@@ -42,6 +43,7 @@ import { Route as AppLettersIndexRouteImport } from './routes/_app.letters.index
 import { Route as AppInvoicesIndexRouteImport } from './routes/_app.invoices.index'
 import { Route as AppClientsIndexRouteImport } from './routes/_app.clients.index'
 import { Route as ApiStaffSyncRouteImport } from './routes/api/staff.sync'
+import { Route as ApiCronBillingRouteImport } from './routes/api/cron.billing'
 import { Route as AppQuotationsNewRouteImport } from './routes/_app.quotations.new'
 import { Route as AppQuotationsIdRouteImport } from './routes/_app.quotations.$id'
 import { Route as AppLettrePublipostageRouteImport } from './routes/_app.lettre.publipostage'
@@ -185,6 +187,11 @@ const AppDashboardRoute = AppDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AppRoute,
 } as any)
+const AppBilanRoute = AppBilanRouteImport.update({
+  id: '/bilan',
+  path: '/bilan',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppArchiveRoute = AppArchiveRouteImport.update({
   id: '/archive',
   path: '/archive',
@@ -218,6 +225,11 @@ const AppClientsIndexRoute = AppClientsIndexRouteImport.update({
 const ApiStaffSyncRoute = ApiStaffSyncRouteImport.update({
   id: '/api/staff/sync',
   path: '/api/staff/sync',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCronBillingRoute = ApiCronBillingRouteImport.update({
+  id: '/api/cron/billing',
+  path: '/api/cron/billing',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppQuotationsNewRoute = AppQuotationsNewRouteImport.update({
@@ -296,6 +308,7 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/archive': typeof AppArchiveRoute
+  '/bilan': typeof AppBilanRoute
   '/dashboard': typeof AppDashboardRoute
   '/documents': typeof AppDocumentsRoute
   '/home': typeof AppHomeRoute
@@ -324,6 +337,7 @@ export interface FileRoutesByFullPath {
   '/lettre/publipostage': typeof AppLettrePublipostageRoute
   '/quotations/$id': typeof AppQuotationsIdRouteWithChildren
   '/quotations/new': typeof AppQuotationsNewRoute
+  '/api/cron/billing': typeof ApiCronBillingRoute
   '/api/staff/sync': typeof ApiStaffSyncRoute
   '/clients/': typeof AppClientsIndexRoute
   '/invoices/': typeof AppInvoicesIndexRoute
@@ -343,6 +357,7 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/archive': typeof AppArchiveRoute
+  '/bilan': typeof AppBilanRoute
   '/dashboard': typeof AppDashboardRoute
   '/documents': typeof AppDocumentsRoute
   '/home': typeof AppHomeRoute
@@ -368,6 +383,7 @@ export interface FileRoutesByTo {
   '/lettre/publipostage': typeof AppLettrePublipostageRoute
   '/quotations/$id': typeof AppQuotationsIdRouteWithChildren
   '/quotations/new': typeof AppQuotationsNewRoute
+  '/api/cron/billing': typeof ApiCronBillingRoute
   '/api/staff/sync': typeof ApiStaffSyncRoute
   '/clients': typeof AppClientsIndexRoute
   '/invoices': typeof AppInvoicesIndexRoute
@@ -389,6 +405,7 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/_app/archive': typeof AppArchiveRoute
+  '/_app/bilan': typeof AppBilanRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/documents': typeof AppDocumentsRoute
   '/_app/home': typeof AppHomeRoute
@@ -417,6 +434,7 @@ export interface FileRoutesById {
   '/_app/lettre/publipostage': typeof AppLettrePublipostageRoute
   '/_app/quotations/$id': typeof AppQuotationsIdRouteWithChildren
   '/_app/quotations/new': typeof AppQuotationsNewRoute
+  '/api/cron/billing': typeof ApiCronBillingRoute
   '/api/staff/sync': typeof ApiStaffSyncRoute
   '/_app/clients/': typeof AppClientsIndexRoute
   '/_app/invoices/': typeof AppInvoicesIndexRoute
@@ -438,6 +456,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/sitemap.xml'
     | '/archive'
+    | '/bilan'
     | '/dashboard'
     | '/documents'
     | '/home'
@@ -466,6 +485,7 @@ export interface FileRouteTypes {
     | '/lettre/publipostage'
     | '/quotations/$id'
     | '/quotations/new'
+    | '/api/cron/billing'
     | '/api/staff/sync'
     | '/clients/'
     | '/invoices/'
@@ -485,6 +505,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/sitemap.xml'
     | '/archive'
+    | '/bilan'
     | '/dashboard'
     | '/documents'
     | '/home'
@@ -510,6 +531,7 @@ export interface FileRouteTypes {
     | '/lettre/publipostage'
     | '/quotations/$id'
     | '/quotations/new'
+    | '/api/cron/billing'
     | '/api/staff/sync'
     | '/clients'
     | '/invoices'
@@ -530,6 +552,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/sitemap.xml'
     | '/_app/archive'
+    | '/_app/bilan'
     | '/_app/dashboard'
     | '/_app/documents'
     | '/_app/home'
@@ -558,6 +581,7 @@ export interface FileRouteTypes {
     | '/_app/lettre/publipostage'
     | '/_app/quotations/$id'
     | '/_app/quotations/new'
+    | '/api/cron/billing'
     | '/api/staff/sync'
     | '/_app/clients/'
     | '/_app/invoices/'
@@ -581,6 +605,7 @@ export interface RootRouteChildren {
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthResetPasswordRoute: typeof AuthResetPasswordRoute
   AuthSetPasswordRoute: typeof AuthSetPasswordRoute
+  ApiCronBillingRoute: typeof ApiCronBillingRoute
   ApiStaffSyncRoute: typeof ApiStaffSyncRoute
 }
 
@@ -768,6 +793,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDashboardRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/bilan': {
+      id: '/_app/bilan'
+      path: '/bilan'
+      fullPath: '/bilan'
+      preLoaderRoute: typeof AppBilanRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/archive': {
       id: '/_app/archive'
       path: '/archive'
@@ -815,6 +847,13 @@ declare module '@tanstack/react-router' {
       path: '/api/staff/sync'
       fullPath: '/api/staff/sync'
       preLoaderRoute: typeof ApiStaffSyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cron/billing': {
+      id: '/api/cron/billing'
+      path: '/api/cron/billing'
+      fullPath: '/api/cron/billing'
+      preLoaderRoute: typeof ApiCronBillingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/quotations/new': {
@@ -987,6 +1026,7 @@ const AppQuotationsRouteWithChildren = AppQuotationsRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppArchiveRoute: typeof AppArchiveRoute
+  AppBilanRoute: typeof AppBilanRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppDocumentsRoute: typeof AppDocumentsRoute
   AppHomeRoute: typeof AppHomeRoute
@@ -1011,6 +1051,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppArchiveRoute: AppArchiveRoute,
+  AppBilanRoute: AppBilanRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppDocumentsRoute: AppDocumentsRoute,
   AppHomeRoute: AppHomeRoute,
@@ -1048,6 +1089,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthCallbackRoute: AuthCallbackRoute,
   AuthResetPasswordRoute: AuthResetPasswordRoute,
   AuthSetPasswordRoute: AuthSetPasswordRoute,
+  ApiCronBillingRoute: ApiCronBillingRoute,
   ApiStaffSyncRoute: ApiStaffSyncRoute,
 }
 export const routeTree = rootRouteImport

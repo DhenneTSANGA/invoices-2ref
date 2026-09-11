@@ -12,6 +12,9 @@ export type StaffMember = {
 
 export type Cabinet = "conseil" | "expertise_fiscale";
 
+/** Profil de facturation client. */
+export type ClientBillingProfile = "subscription" | "one_off" | "mixed";
+
 export type Client = {
   id: string;
   cabinet: Cabinet;
@@ -43,6 +46,8 @@ export type Client = {
   anpiNumber: string;
   /** Date fiche ANPI (optionnel). */
   anpiDate: string;
+  /** Abonnement / ponctuel / les deux. */
+  billingProfile: ClientBillingProfile;
   ficheCircuitUrl?: string | null;
   ficheCircuitName?: string | null;
   ficheStatusUrl?: string | null;
@@ -151,6 +156,8 @@ export type Document = {
   subscriptionActive?: boolean;
   subscriptionDay?: number | null;
   subscriptionNextAt?: string | null;
+  subscriptionDueDay?: number | null;
+  subscriptionDueMonthsOffset?: number | null;
   subscriptionOfId?: string | null;
   mailMergeCampaignId?: string | null;
   /** Devis */
@@ -163,6 +170,8 @@ export type Document = {
   closing?: string;
   signatoryTitle?: string;
   recipientOverride?: string;
+  /** Ville d’émission affichée (« Libreville, le … »). */
+  placeCity?: string | null;
 };
 
 export type MailMergeCampaign = {

@@ -92,6 +92,7 @@ export function mapClient(row: {
   country: string;
   anpiNumber?: string | null;
   anpiDate?: string | null;
+  billingProfile?: "subscription" | "one_off" | "mixed" | null;
   ficheCircuitUrl?: string | null;
   ficheCircuitName?: string | null;
   ficheStatusUrl?: string | null;
@@ -123,6 +124,7 @@ export function mapClient(row: {
     country: row.country,
     anpiNumber: row.anpiNumber ?? "",
     anpiDate: row.anpiDate ?? "",
+    billingProfile: row.billingProfile ?? "mixed",
     ficheCircuitUrl: row.ficheCircuitUrl ?? null,
     ficheCircuitName: row.ficheCircuitName ?? null,
     ficheStatusUrl: row.ficheStatusUrl ?? null,
@@ -180,6 +182,8 @@ export function mapDocument(row: {
   subscriptionActive?: boolean;
   subscriptionDay?: number | null;
   subscriptionNextAt?: Date | null;
+  subscriptionDueDay?: number | null;
+  subscriptionDueMonthsOffset?: number | null;
   subscriptionOfId?: string | null;
   mailMergeCampaignId?: string | null;
   validityDays: number | null;
@@ -190,6 +194,7 @@ export function mapDocument(row: {
   closing: string | null;
   signatoryTitle: string | null;
   recipientOverride: string | null;
+  placeCity?: string | null;
   lines: Array<{
     id: string;
     serviceId: string | null;
@@ -280,6 +285,8 @@ export function mapDocument(row: {
     subscriptionNextAt: row.subscriptionNextAt
       ? row.subscriptionNextAt.toISOString().slice(0, 10)
       : null,
+    subscriptionDueDay: row.subscriptionDueDay ?? null,
+    subscriptionDueMonthsOffset: row.subscriptionDueMonthsOffset ?? 1,
     subscriptionOfId: row.subscriptionOfId ?? null,
     mailMergeCampaignId: row.mailMergeCampaignId ?? null,
     validityDays: row.validityDays ?? undefined,
@@ -290,6 +297,7 @@ export function mapDocument(row: {
     closing: row.closing ?? undefined,
     signatoryTitle: row.signatoryTitle ?? undefined,
     recipientOverride: row.recipientOverride ?? undefined,
+    placeCity: row.placeCity ?? null,
     createdBy: row.createdBy ? mapStaff(row.createdBy) : undefined,
   };
 }

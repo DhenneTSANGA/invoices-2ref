@@ -1,4 +1,5 @@
-import { X } from "lucide-react";
+import { useEffect } from "react";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import type { Document } from "@/store/types";
 import { DocumentPreview } from "@/components/documents/DocumentPreview";
 import { DocumentPdfButton } from "@/components/documents/DocumentPdfButton";
@@ -11,13 +12,43 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
+type PreviewPagination = {
+  index: number;
+  total: number;
+  label: string;
+  onPrev: () => void;
+  onNext: () => void;
+};
+
 type Props = {
   doc: Document;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  pagination?: PreviewPagination;
 };
 
-export function DocumentPreviewModal({ doc, open, onOpenChange }: Props) {
+export function DocumentPreviewModal({
+  doc,
+  open,
+  onOpenChange,
+  pagination,
+}: Props) {
+  useEffect(() => {
+    if (!open || !pagination || pagination.total <= 1) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft" && pagination.index > 0) {
+        e.preventDefault();
+        pagination.onPrev();
+      }
+      if (e.key === "ArrowRight" && pagination.index < pagination.total - 1) {
+        e.preventDefault();
+        pagination.onNext();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, pagination]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -60,9 +91,38 @@ export function DocumentPreviewModal({ doc, open, onOpenChange }: Props) {
             onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.stopPropagation()}
           >
-            <DocumentPreview doc={doc} />
+            <DocumentPreview key={doc.id} doc={doc} />
           </div>
         </div>
+
+        {pagination && pagination.total > 1 ? (
+          <div className="flex shrink-0 items-center justify-center gap-3 border-t border-white/10 bg-[#0F172A] px-4 py-3">
+            <button
+              type="button"
+              className="rounded-lg p-1.5 text-white hover:bg-white/10 disabled:opacity-40"
+              disabled={pagination.index <= 0}
+              onClick={pagination.onPrev}
+              aria-label="Aperçu précédent"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <div className="min-w-48 text-center text-sm text-white">
+              <div className="text-[11px] text-white/60">
+                Aperçu {pagination.index + 1}/{pagination.total}
+              </div>
+              <div className="truncate font-medium">{pagination.label}</div>
+            </div>
+            <button
+              type="button"
+              className="rounded-lg p-1.5 text-white hover:bg-white/10 disabled:opacity-40"
+              disabled={pagination.index >= pagination.total - 1}
+              onClick={pagination.onNext}
+              aria-label="Aperçu suivant"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        ) : null}
       </DialogContent>
     </Dialog>
   );

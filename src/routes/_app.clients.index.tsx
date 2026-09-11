@@ -10,7 +10,9 @@ import { shortDate } from "@/lib/format";
 import { toast } from "sonner";
 import { useClients, useDeleteClient, useDocuments, useSession } from "@/hooks/use-data";
 import { canDeleteClient } from "@/lib/roles";
-import type { Client } from "@/store/types";
+import type { Client, ClientBillingProfile } from "@/store/types";
+import { ClientBillingBadge } from "@/components/clients/ClientBillingProfilePicker";
+import { CLIENT_BILLING_LABELS, CLIENT_BILLING_PROFILES } from "@/lib/client-billing";
 
 export const Route = createFileRoute("/_app/clients/")({
   head: () => ({ meta: [{ title: "Clients — 2R Hub" }] }),
@@ -25,6 +27,7 @@ function ClientsPage() {
   const staff = session?.staff;
   const [q, setQ] = useState("");
   const [city, setCity] = useState<string>("all");
+  const [billingFilter, setBillingFilter] = useState<"all" | ClientBillingProfile>("all");
   const [pendingDelete, setPendingDelete] = useState<Client | null>(null);
 
   const cities = useMemo(
@@ -35,6 +38,7 @@ function ClientsPage() {
   const filtered = clients.filter(
     (c) =>
       (city === "all" || c.city === city) &&
+      (billingFilter === "all" || c.billingProfile === billingFilter) &&
       (q === "" ||
         `${c.name} ${c.sigle} ${c.nif} ${c.rccm} ${c.cnss} ${c.cnamgs} ${c.email} ${c.contactName} ${c.anpiNumber}`
           .toLowerCase()
@@ -101,6 +105,34 @@ function ClientsPage() {
         </select>
       </div>
 
+      <div className="mb-4 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setBillingFilter("all")}
+          className={
+            billingFilter === "all"
+              ? "rounded-full bg-gradient-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-glow"
+              : "rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium hover:bg-muted"
+          }
+        >
+          Tous
+        </button>
+        {CLIENT_BILLING_PROFILES.map((p) => (
+          <button
+            key={p}
+            type="button"
+            onClick={() => setBillingFilter(p)}
+            className={
+              billingFilter === p
+                ? "rounded-full bg-gradient-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-glow"
+                : "rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium hover:bg-muted"
+            }
+          >
+            {CLIENT_BILLING_LABELS[p]}
+          </button>
+        ))}
+      </div>
+
       {filtered.length === 0 ? (
         <EmptyState
           icon={Building2}
@@ -150,6 +182,9 @@ function ClientsPage() {
                     </Link>
                     <div className="text-xs text-muted-foreground">
                       {[c.sigle, c.legalForm, c.city].filter(Boolean).join(" · ")}
+                    </div>
+                    <div className="mt-1.5">
+                      <ClientBillingBadge profile={c.billingProfile} />
                     </div>
                   </div>
                   <div className="flex gap-1">
