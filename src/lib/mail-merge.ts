@@ -315,6 +315,7 @@ export const createMailMergeCampaign = createServerFn({ method: "POST" })
           sigle: g.sigle?.trim() ?? "",
           legalForm: "—",
           shareCapital: "",
+          clientRef: "",
           nif: g.nif?.trim() ?? "",
           niu: "",
           rccm: g.rccm?.trim() ?? "",

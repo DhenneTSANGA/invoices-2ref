@@ -7,6 +7,7 @@ import {
   PreviewLogo,
   PreviewShell,
   AmountInWords,
+  DocumentClientRef,
   PreviewBottomRow,
 } from "./PreviewShell";
 import {
@@ -86,6 +87,7 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
           <div className={cn("text-[#64748B]", dense ? "text-[10px]" : "text-[12px]")}>
             {longDate(doc.issueDate)}
           </div>
+          <DocumentClientRef clientRef={client?.clientRef} compact={dense} />
         </div>
       </div>
 

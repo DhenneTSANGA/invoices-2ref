@@ -207,6 +207,8 @@ model Client {
   legalForm   String
   /// Capital social (texte libre, ex. « 10 000 000 FCFA »).
   shareCapital String @default("")
+  /// Identifiant métier affiché sur factures / devis (ex. DNC 025).
+  clientRef   String @default("")
   nif         String
   niu         String
   rccm        String

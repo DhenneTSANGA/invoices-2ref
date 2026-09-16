@@ -37,6 +37,7 @@ const empty: Omit<
   sigle: "",
   legalForm: DEFAULT_CLIENT_LEGAL_FORM,
   shareCapital: "",
+  clientRef: "",
   nif: "",
   niu: "",
   rccm: "",
@@ -158,6 +159,12 @@ function NewClient() {
             label="Activité"
             value={form.activity}
             onChange={(v) => setForm({ ...form, activity: v })}
+          />
+          <Field
+            label="Identifiant du client"
+            value={form.clientRef}
+            onChange={(v) => setForm({ ...form, clientRef: v })}
+            placeholder="Ex. DNC 025"
           />
           <Field
             label="Nature de l’activité"

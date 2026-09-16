@@ -148,6 +148,12 @@ function EditClient() {
             />
             <Field label="Capital social" value={form.shareCapital} onChange={(v) => setForm({ ...form, shareCapital: v })} />
             <Field label="Activité" value={form.activity} onChange={(v) => setForm({ ...form, activity: v })} />
+            <Field
+              label="Identifiant du client"
+              value={form.clientRef}
+              onChange={(v) => setForm({ ...form, clientRef: v })}
+              placeholder="Ex. DNC 025"
+            />
             <Field label="Nature de l’activité" value={form.activityDetail} onChange={(v) => setForm({ ...form, activityDetail: v })} colSpan />
           </Section>
 

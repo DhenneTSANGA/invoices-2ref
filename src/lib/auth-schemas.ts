@@ -172,6 +172,7 @@ export const clientInputSchema = z.object({
   sigle: z.string().default(""),
   legalForm: z.string().min(1),
   shareCapital: z.string().default(""),
+  clientRef: z.string().default(""),
   nif: z.string().default(""),
   niu: z.string().default(""),
   rccm: z.string().default(""),

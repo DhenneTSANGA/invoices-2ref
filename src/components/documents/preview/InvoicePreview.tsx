@@ -8,6 +8,7 @@ import {
   PreviewLogo,
   PreviewShell,
   AmountInWords,
+  DocumentClientRef,
   PreviewBottomRow,
 } from "./PreviewShell";
 import { computeDocumentTotals, documentTaxRates } from "@/lib/document-math";
@@ -105,6 +106,11 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
                     <span className="text-[#64748B]">Date : </span>
                     <span className="font-semibold text-[#0F172A]">{longDate(doc.issueDate)}</span>
                   </div>
+                  <DocumentClientRef
+                    clientRef={client?.clientRef}
+                    compact={dense}
+                    variant="reference"
+                  />
                 </div>
               </td>
             </tr>
@@ -137,6 +143,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
             <div className={cn("text-[#64748B]", dense ? "text-[10px]" : "text-[12px]")}>
               {longDate(doc.issueDate)}
             </div>
+            <DocumentClientRef clientRef={client?.clientRef} compact={dense} />
           </div>
         </div>
       )}
@@ -145,18 +152,14 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
         <tbody>
           <tr>
             <td style={TWO_COL.left}>
+              {/* Capital / NIF / RCCM restent dans le pied de page légal. */}
               <PartyBlock
                 title="Émetteur"
                 accent={isConseilDesign ? accent : "#64748B"}
                 name={company.name}
                 lines={emitterLines}
-                capital={
-                  company.capital || COMPANY_DEFAULTS[doc.cabinet]?.capital
-                }
-                nif={company.nif}
                 niu={company.niu}
                 niuLabel={niuLabel}
-                rccm={company.rccm}
                 referenceDesign={isConseilDesign}
                 muted={!isConseilDesign}
                 compact={dense}

@@ -212,6 +212,27 @@ export function LegalFooter({
 }
 
 /** Montant total TTC exprimé en lettres — sous les totaux. */
+/** Id du client sous la date (facture / devis). */
+export function DocumentClientRef({
+  clientRef,
+  compact,
+  variant = "default",
+}: {
+  clientRef?: string | null;
+  compact?: boolean;
+  variant?: "default" | "reference";
+}) {
+  const value = clientRef?.trim();
+  if (!value) return null;
+
+  return (
+    <div className={cn(compact ? "text-[10px]" : "text-[12px]", variant === "reference" && "mt-0.5")}>
+      <span className="text-[#64748B]">Id du client : </span>
+      <span className="font-semibold text-[#0F172A]">{value}</span>
+    </div>
+  );
+}
+
 export function AmountInWords({
   amount,
   currency = "XAF",

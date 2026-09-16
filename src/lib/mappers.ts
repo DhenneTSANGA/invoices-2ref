@@ -75,6 +75,7 @@ export function mapClient(row: {
   sigle?: string | null;
   legalForm: string;
   shareCapital?: string | null;
+  clientRef?: string | null;
   nif: string;
   niu: string;
   rccm: string;
@@ -107,6 +108,7 @@ export function mapClient(row: {
     sigle: row.sigle ?? "",
     legalForm: row.legalForm,
     shareCapital: row.shareCapital ?? "",
+    clientRef: row.clientRef ?? "",
     nif: row.nif,
     niu: row.niu,
     rccm: row.rccm,

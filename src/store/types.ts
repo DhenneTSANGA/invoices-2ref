@@ -24,6 +24,8 @@ export type Client = {
   legalForm: string;
   /** Capital social (texte libre). */
   shareCapital: string;
+  /** Identifiant métier (facture / devis). */
+  clientRef: string;
   nif: string;
   niu: string;
   rccm: string;
