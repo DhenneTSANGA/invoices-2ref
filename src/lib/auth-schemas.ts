@@ -259,6 +259,7 @@ export const documentInputSchema = z.object({
   currency: z.string().default("XAF"),
   notes: z.string().optional().nullable(),
   paymentTerms: z.string().optional().nullable(),
+  showRib: z.boolean().optional().default(false),
   validityDays: z.number().optional().nullable(),
   executionTerms: z.string().optional().nullable(),
   subject: z.string().optional().nullable(),

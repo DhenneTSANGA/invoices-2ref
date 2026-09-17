@@ -307,6 +307,8 @@ model Document {
   currency          String         @default("XAF")
   notes             String?
   paymentTerms      String?
+  /** Afficher le bloc RIB (coordonnées bancaires société) sur le document. */
+  showRib           Boolean        @default(false)
   /** Moyen de règlement lorsque status = paid. */
   paymentMethod     PaymentMethod?
   validityDays      Int?

@@ -3,6 +3,8 @@ import type { Document } from "@/store/types";
 import { usePreviewData } from "@/hooks/use-preview-data";
 import { longDate } from "@/lib/format";
 import {
+  DOC_SHELL,
+  DOC_TEXT,
   LegalFooter,
   PreviewLogo,
   PreviewShell,
@@ -11,14 +13,17 @@ import {
   PreviewBottomRow,
 } from "./PreviewShell";
 import {
+  HEADER_LOGO_HEIGHT,
+  InfoPanel,
   ItemsTable,
   PartyBlock,
   TotalsBlock,
+  TWO_COL,
   partyAddressLines,
   partyContactLine,
 } from "./InvoicePreview";
 import { COMPANY_DEFAULTS, DOCUMENT_COLORS, niuLabelForCabinet } from "@/lib/cabinets";
-import { clientDisplayName, clientDocumentLines } from "@/lib/client-address";
+import { clientDocumentLines } from "@/lib/client-address";
 import { ManagerSignature } from "@/components/signature/ManagerSignature";
 import { cn } from "@/lib/utils";
 import {
@@ -35,6 +40,8 @@ type Props = {
 };
 
 const { accent: ACCENT, accentTo: ACCENT_TO } = DOCUMENT_COLORS.quotation;
+/** Équivalent vert des fonds clairs de la facture papier. */
+const TINT = "#E5EFDB";
 
 export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function QuotationPreview(
   { doc, compact, variant = "full", className, omitSignature },
@@ -45,6 +52,8 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
   /** Pas de densification : le PDF doit matcher l’aperçu écran. */
   const dense = false;
   const validity = doc.validityDays ?? 30;
+  /** Design papier 2R Conseil — aligné sur la facture, en vert. */
+  const isConseilDesign = doc.cabinet === "conseil";
 
   const niuLabel = niuLabelForCabinet(doc.cabinet);
   const accountantSignatory = isAccountantSignatory(doc.signatoryTitle);
@@ -59,107 +68,177 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
 
   const clientLines = client ? clientDocumentLines(client) : undefined;
 
+  const validityNote = (
+    <>
+      Proposition commerciale valable <b>{validity} jours</b> à compter de la date
+      d&apos;émission — acceptation écrite requise (OHADA / Gabon).
+    </>
+  );
+
+  /* En design papier, capital / NIF / RCCM restent dans le pied de page légal. */
+  const emitterBlock = (
+    <PartyBlock
+      title={isConseilDesign ? "" : "Émetteur"}
+      accent={isConseilDesign ? ACCENT : "#64748B"}
+      name={company.name}
+      lines={emitterLines}
+      capital={
+        isConseilDesign
+          ? undefined
+          : company.capital || COMPANY_DEFAULTS[doc.cabinet]?.capital
+      }
+      nif={isConseilDesign ? undefined : company.nif}
+      niu={company.niu}
+      niuLabel={niuLabel}
+      rccm={isConseilDesign ? undefined : company.rccm}
+      referenceDesign={isConseilDesign}
+      muted={!isConseilDesign}
+      compact={dense}
+    />
+  );
+
+  const clientBlock = (
+    <PartyBlock
+      title={isConseilDesign ? "Nom du client" : "Client"}
+      accent={isConseilDesign ? ACCENT : "#64748B"}
+      name={client?.name?.trim() || undefined}
+      lines={clientLines}
+      nif={client?.nif}
+      niu={client?.niu}
+      rccm={client?.rccm}
+      referenceDesign={isConseilDesign}
+      muted={!isConseilDesign}
+      compact={dense}
+    />
+  );
+
   return (
-    <PreviewShell innerRef={ref} accent={ACCENT} compact={compact} isThumb={isThumb} className={className}>
-      <div
-        className={cn(
-          "flex items-center justify-between border-b-2",
-          dense ? "gap-3 pb-2.5" : "gap-4 pb-5",
-        )}
-        style={{ borderColor: ACCENT }}
-      >
-        <div className="shrink-0">
-          <PreviewLogo cabinet={doc.cabinet} className="h-40" />
-        </div>
-        <div className="shrink-0 text-right">
+    <PreviewShell
+      innerRef={ref}
+      accent={ACCENT}
+      compact={compact}
+      isThumb={isThumb}
+      className={className}
+      {...DOC_SHELL}
+    >
+      {isConseilDesign ? (
+        <>
+          {/* Ligne juste sous logo + titre DEVIS — méta et parties en dessous. */}
+          <div className="border-b pb-2.5" style={{ borderColor: "#475569" }}>
+            <table style={TWO_COL.table}>
+              <tbody>
+                <tr>
+                  <td style={TWO_COL.left}>
+                    <PreviewLogo cabinet={doc.cabinet} artworkHeight={HEADER_LOGO_HEIGHT} />
+                  </td>
+                  <td style={{ ...TWO_COL.right, textAlign: "right", verticalAlign: "middle" }}>
+                    <div
+                      className="font-serif font-bold uppercase leading-none tracking-wide text-[34px]"
+                      style={{ color: ACCENT }}
+                    >
+                      DEVIS
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <table className="mt-3" style={TWO_COL.table}>
+            <tbody>
+              <tr>
+                <td style={TWO_COL.left}>
+                  {emitterBlock}
+                  <div className="mt-3">{clientBlock}</div>
+                </td>
+                <td style={{ ...TWO_COL.right, textAlign: "right" }}>
+                  <div className={cn("space-y-0.5", DOC_TEXT.small)}>
+                    <div>
+                      <span className="text-[#64748B]">N° de devis : </span>
+                      <span className={cn("font-semibold text-[#0F172A]", DOC_TEXT.base)}>
+                        {doc.number}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[#64748B]">Date : </span>
+                      <span className={cn("font-semibold text-[#0F172A]", DOC_TEXT.base)}>
+                        {longDate(doc.issueDate)}
+                      </span>
+                    </div>
+                    <DocumentClientRef clientRef={client?.clientRef} />
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
           <div
-            className={cn(
-              "font-display font-bold uppercase tracking-wide",
-              dense ? "text-[20px]" : "text-[28px]",
-            )}
-            style={{ color: ACCENT }}
+            className={cn("mt-3 px-3 py-2 text-center font-medium", DOC_TEXT.small)}
+            style={{ background: TINT, color: ACCENT }}
           >
-            Devis
+            {validityNote}
           </div>
-          <div className={cn("mt-0.5 font-semibold", dense ? "text-[11px]" : "text-[13px]")}>
-            N° {doc.number}
+        </>
+      ) : (
+        <>
+          <div
+            className="flex items-center justify-between gap-4 border-b-2 pb-5"
+            style={{ borderColor: ACCENT }}
+          >
+            <div className="shrink-0">
+              <PreviewLogo cabinet={doc.cabinet} className="h-40" />
+            </div>
+            <div className="shrink-0 text-right">
+              <div
+                className="font-display font-bold uppercase tracking-wide text-[28px]"
+                style={{ color: ACCENT }}
+              >
+                Devis
+              </div>
+              <div className={cn("mt-0.5 font-semibold", DOC_TEXT.base)}>N° {doc.number}</div>
+              <div className={cn("text-[#64748B]", DOC_TEXT.small)}>{longDate(doc.issueDate)}</div>
+              <DocumentClientRef clientRef={client?.clientRef} />
+            </div>
           </div>
-          <div className={cn("text-[#64748B]", dense ? "text-[10px]" : "text-[12px]")}>
-            {longDate(doc.issueDate)}
+
+          <div
+            className={cn("mt-4 rounded-xl px-3.5 py-2.5 font-medium", DOC_TEXT.small)}
+            style={{
+              color: ACCENT,
+              background: `${ACCENT_TO}22`,
+              border: `1px solid ${ACCENT_TO}88`,
+            }}
+          >
+            {validityNote}
           </div>
-          <DocumentClientRef clientRef={client?.clientRef} compact={dense} />
+
+          <table className="mt-4" style={TWO_COL.table}>
+            <tbody>
+              <tr>
+                <td style={TWO_COL.left}>{emitterBlock}</td>
+                <td style={TWO_COL.right}>{clientBlock}</td>
+              </tr>
+            </tbody>
+          </table>
+        </>
+      )}
+
+      {doc.dueDate?.trim() ? (
+        <div className={cn("mt-2.5 text-[#475569]", DOC_TEXT.small)}>
+          Date d&apos;échéance :{" "}
+          <b className={cn("text-[#0F172A]", DOC_TEXT.base)}>{longDate(doc.dueDate)}</b>
         </div>
-      </div>
+      ) : null}
 
-      <div
-        className={cn(
-          "rounded-xl font-medium",
-          dense ? "mt-2 px-2.5 py-1.5 text-[10px]" : "mt-4 px-3.5 py-2.5 text-[12px]",
-        )}
-        style={{
-          color: ACCENT,
-          background: `${ACCENT_TO}22`,
-          border: `1px solid ${ACCENT_TO}88`,
-        }}
-      >
-        Proposition commerciale valable <b>{validity} jours</b> à compter de la date d'émission — acceptation écrite requise (OHADA / Gabon).
-      </div>
-
-      <table
-        className={cn(dense ? "mt-2" : "mt-4")}
-        style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}
-      >
-        <tbody>
-          <tr>
-            <td style={{ width: "50%", verticalAlign: "top", paddingRight: "12px" }}>
-              <PartyBlock
-                title="Émetteur"
-                accent="#64748B"
-                name={company.name}
-                lines={emitterLines}
-                capital={
-                  company.capital || COMPANY_DEFAULTS[doc.cabinet]?.capital
-                }
-                nif={company.nif}
-                niu={company.niu}
-                niuLabel={niuLabel}
-                rccm={company.rccm}
-                muted
-                compact={dense}
-              />
-            </td>
-            <td style={{ width: "50%", verticalAlign: "top", paddingLeft: "12px" }}>
-              <PartyBlock
-                title="Client"
-                accent="#64748B"
-                name={client ? clientDisplayName(client) : undefined}
-                lines={clientLines}
-                nif={client?.nif}
-                niu={client?.niu}
-                rccm={client?.rccm}
-                muted
-                compact={dense}
-              />
-            </td>
-          </tr>
-        </tbody>
-      </table>
-
-      <div
-        className={cn(
-          "flex flex-wrap text-[#475569]",
-          dense ? "mt-2 gap-x-5 gap-y-0.5 text-[10px]" : "mt-4 gap-x-6 gap-y-1 text-[12px]",
-        )}
-      >
-        {doc.dueDate?.trim() ? (
-          <span>
-            Date d&apos;échéance :{" "}
-            <b className="text-[#0F172A]">{longDate(doc.dueDate)}</b>
-          </span>
-        ) : null}
-      </div>
-
-      <ItemsTable doc={doc} headerFrom={ACCENT} headerTo={ACCENT_TO} compact={dense} />
+      <ItemsTable
+        doc={doc}
+        accent={ACCENT}
+        headerFrom={ACCENT}
+        headerTo={ACCENT_TO}
+        compact={dense}
+        referenceDesign={isConseilDesign}
+        sectionTint={TINT}
+      />
 
       <PreviewBottomRow
         compact={dense}
@@ -167,68 +246,51 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
           doc.paymentTerms?.trim() || doc.executionTerms?.trim() ? (
             <div className={cn("space-y-2", dense ? "space-y-1.5" : "space-y-2")}>
               {doc.paymentTerms?.trim() ? (
-                <div
-                  className={cn("rounded-lg", dense ? "p-2.5" : "p-3.5")}
-                  style={{
-                    background: `${ACCENT_TO}18`,
-                    boxShadow: `inset 0 0 0 1px ${ACCENT_TO}88`,
-                  }}
+                <TermsPanel
+                  title="Modalité de paiement"
+                  referenceDesign={isConseilDesign}
+                  compact={dense}
                 >
-                  <div
-                    className={cn(
-                      "font-bold uppercase tracking-wider",
-                      dense ? "text-[9px]" : "text-[11px]",
-                    )}
-                    style={{ color: ACCENT }}
-                  >
-                    Modalité de paiement
-                  </div>
-                  <p className={cn("text-[#334155]", dense ? "mt-0.5 text-[10px]" : "mt-1 text-[12px]")}>
-                    {doc.paymentTerms.trim()}
-                  </p>
-                </div>
+                  {doc.paymentTerms.trim()}
+                </TermsPanel>
               ) : null}
               {doc.executionTerms?.trim() ? (
-                <div
-                  className={cn("rounded-lg", dense ? "p-2.5" : "p-3.5")}
-                  style={{
-                    background: `${ACCENT_TO}18`,
-                    boxShadow: `inset 0 0 0 1px ${ACCENT_TO}88`,
-                  }}
+                <TermsPanel
+                  title="Conditions de réalisation"
+                  referenceDesign={isConseilDesign}
+                  compact={dense}
                 >
-                  <div
-                    className={cn(
-                      "font-bold uppercase tracking-wider",
-                      dense ? "text-[9px]" : "text-[11px]",
-                    )}
-                    style={{ color: ACCENT }}
-                  >
-                    Conditions de réalisation
-                  </div>
-                  <p className={cn("text-[#334155]", dense ? "mt-0.5 text-[10px]" : "mt-1 text-[12px]")}>
-                    {doc.executionTerms.trim()}
-                  </p>
-                </div>
+                  {doc.executionTerms.trim()}
+                </TermsPanel>
               ) : null}
             </div>
           ) : (
             <div />
           )
         }
-        right={<TotalsBlock doc={doc} accent={ACCENT} compact={dense} />}
+        right={
+          <TotalsBlock
+            doc={doc}
+            accent={ACCENT}
+            compact={dense}
+            referenceDesign={isConseilDesign}
+            tint={TINT}
+          />
+        }
       />
 
-      <div className={cn("w-full", dense ? "mt-2" : "mt-4")}>
+      <div className={cn("w-full", dense ? "mt-2" : isConseilDesign ? "mt-2.5" : "mt-4")}>
         <AmountInWords
           amount={doc.total}
           currency={doc.currency}
           accent={ACCENT}
           compact={dense}
           intro="Arrêtée le présent devis à la somme de"
+          variant={isConseilDesign ? "reference" : "default"}
         />
       </div>
 
-      <div className={cn("flex justify-end", dense ? "mt-2" : "mt-4")}>
+      <div className={cn("flex justify-end", dense ? "mt-2" : isConseilDesign ? "mt-2" : "mt-4")}>
         <ManagerSignature
           applied={
             !accountantSignatory &&
@@ -261,7 +323,49 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
         website={company.website}
         niuLabel={niuLabel}
         compact={dense}
+        className={DOC_TEXT.small}
       />
     </PreviewShell>
   );
 });
+
+/** Modalités / conditions : barre pleine en design papier, encadré vert sinon. */
+function TermsPanel({
+  title,
+  referenceDesign,
+  compact,
+  children,
+}: {
+  title: string;
+  referenceDesign?: boolean;
+  compact?: boolean;
+  children: React.ReactNode;
+}) {
+  if (referenceDesign) {
+    return (
+      <InfoPanel title={title} accent={ACCENT} compact={compact} tint={TINT}>
+        {children}
+      </InfoPanel>
+    );
+  }
+
+  return (
+    <div
+      className={cn("rounded-lg", compact ? "p-2.5" : "p-3.5")}
+      style={{
+        background: `${ACCENT_TO}18`,
+        boxShadow: `inset 0 0 0 1px ${ACCENT_TO}88`,
+      }}
+    >
+      <div
+        className={cn("font-bold uppercase tracking-wider", DOC_TEXT.small)}
+        style={{ color: ACCENT }}
+      >
+        {title}
+      </div>
+      <p className={cn("text-[#334155]", compact ? "mt-0.5" : "mt-1", DOC_TEXT.small)}>
+        {children}
+      </p>
+    </div>
+  );
+}

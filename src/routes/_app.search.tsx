@@ -3,6 +3,7 @@ import { Search, FileText, ReceiptText, Users, Package, Mail } from "lucide-reac
 import { useState } from "react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { LoadingState } from "@/components/common/LoadingState";
+import { useClients, useDocumentsList, useServices } from "@/hooks/use-data";
 import { documentDetailRoute } from "@/lib/document-nav";
 
 export const Route = createFileRoute("/_app/search")({

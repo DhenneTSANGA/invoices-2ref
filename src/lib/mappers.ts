@@ -179,6 +179,7 @@ export function mapDocument(row: {
   currency: string;
   notes: string | null;
   paymentTerms: string | null;
+  showRib?: boolean;
   paymentMethod?: Document["paymentMethod"];
   isSubscription?: boolean;
   subscriptionActive?: boolean;
@@ -280,6 +281,7 @@ export function mapDocument(row: {
     currency: row.currency,
     notes: row.notes ?? undefined,
     paymentTerms: row.paymentTerms ?? undefined,
+    showRib: row.showRib ?? false,
     paymentMethod: row.paymentMethod ?? null,
     isSubscription: row.isSubscription ?? false,
     subscriptionActive: row.subscriptionActive ?? false,

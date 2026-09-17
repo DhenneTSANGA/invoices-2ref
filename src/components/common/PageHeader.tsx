@@ -15,8 +15,9 @@ export function PageHeader({
       transition={{ duration: 0.4 }}
       className="mb-5 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-4"
     >
-      <div className="min-w-0 flex-1">
-        <h1 className="font-display text-2xl font-bold tracking-tight break-words sm:text-3xl md:text-4xl">
+      <div className="min-w-0 max-w-full shrink-0">
+        {/* whitespace-nowrap : numéros de devis/facture (ex. DV1-25-08-2026) restent horizontaux. */}
+        <h1 className="font-display text-2xl font-bold tracking-tight whitespace-nowrap sm:text-3xl md:text-4xl">
           {title}
         </h1>
         {subtitle && (

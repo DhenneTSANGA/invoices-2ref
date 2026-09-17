@@ -52,7 +52,7 @@ export function DocumentPreviewModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="fixed inset-0 left-0 top-0 z-50 flex h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 rounded-none border-0 bg-[#0F172A]/90 p-0 shadow-none sm:rounded-none data-[state=open]:zoom-in-100 [&>button]:hidden"
+        className="fixed inset-0 left-0 top-0 z-50 flex h-[100dvh] max-h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-0 bg-[#0F172A]/90 p-0 shadow-none sm:rounded-none data-[state=open]:zoom-in-100 [&>button]:hidden"
       >
         <DialogHeader className="flex shrink-0 flex-row items-center justify-between space-y-0 border-b border-white/10 bg-[#0F172A] px-4 py-3 text-left">
           <div>
@@ -81,8 +81,9 @@ export function DocumentPreviewModal({
           </div>
         </DialogHeader>
 
+        {/* min-h-0 : indispensable pour que overflow-y scroll avec molette (flex enfant). */}
         <div
-          className="flex-1 overflow-auto bg-[#94A3B8]/30 p-4 sm:p-8"
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#94A3B8]/30 p-4 sm:p-8"
           onClick={() => onOpenChange(false)}
           role="presentation"
         >

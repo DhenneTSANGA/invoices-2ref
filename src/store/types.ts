@@ -151,6 +151,8 @@ export type Document = {
   currency: string;
   notes?: string;
   paymentTerms?: string;
+  /** Afficher le bloc RIB société sur le document. */
+  showRib?: boolean;
   /** Renseigné quand la facture est marquée payée. */
   paymentMethod?: PaymentMethod | null;
   /** Modèle d'abonnement mensuel (désignation modifiable). */

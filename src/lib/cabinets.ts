@@ -18,6 +18,18 @@ export const CABINET_LOGOS: Record<Cabinet, string> = {
   expertise_fiscale: "/optimized/logo-2ref.webp",
 };
 
+/**
+ * Cadre utile du dessin dans le canvas du fichier (px), marges transparentes
+ * exclues. Permet d’afficher le logo à une hauteur visible précise.
+ */
+export const CABINET_LOGO_BOUNDS: Record<
+  Cabinet,
+  { canvasWidth: number; canvasHeight: number; left: number; top: number; width: number; height: number }
+> = {
+  conseil: { canvasWidth: 500, canvasHeight: 500, left: 38, top: 129, width: 424, height: 224 },
+  expertise_fiscale: { canvasWidth: 594, canvasHeight: 420, left: 78, top: 99, width: 441, height: 223 },
+};
+
 /** Couleurs documents (charte 2R Conseil : bleu marine + vert). */
 export const DOCUMENT_COLORS = {
   invoice: {

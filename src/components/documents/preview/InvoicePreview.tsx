@@ -4,6 +4,8 @@ import { usePreviewData } from "@/hooks/use-preview-data";
 import { number, longDate } from "@/lib/format";
 import {
   AmountRow,
+  DOC_SHELL,
+  DOC_TEXT,
   LegalFooter,
   PreviewLogo,
   PreviewShell,
@@ -14,7 +16,7 @@ import {
 import { computeDocumentTotals, documentTaxRates } from "@/lib/document-math";
 import { COMPANY_DEFAULTS, DOCUMENT_COLORS, niuLabelForCabinet } from "@/lib/cabinets";
 import { ManagerSignature } from "@/components/signature/ManagerSignature";
-import { clientDisplayName, clientDocumentLines } from "@/lib/client-address";
+import { clientDocumentLines } from "@/lib/client-address";
 import { cn } from "@/lib/utils";
 import {
   isAccountantSignatory,
@@ -23,18 +25,22 @@ import {
 
 /** Couleurs et surfaces — facture papier 2R Conseil (référence visuelle). */
 const REF = {
+  /** Bleu des barres Tâche / colonnes / Total (échantillon image référence). */
+  accent: "#184078",
+  accentTo: "#12325F",
   sectionBg: "#D9E2EF",
   rowAlt: "#EEF2F7",
   paymentBg: "#EEF2F7",
 } as const;
+
+/** Hauteur visible du logo en en-tête : cale sur le bloc titre + métadonnées. */
+const HEADER_LOGO_HEIGHT = 88;
 
 /** Grille 2 colonnes partagée (en-tête, émetteur/client) — alignement PDF stable. */
 const TWO_COL = {
   table: { width: "100%", borderCollapse: "collapse" as const, tableLayout: "fixed" as const },
   left: { width: "50%", verticalAlign: "top" as const, paddingRight: "12px" },
   right: { width: "50%", verticalAlign: "top" as const, paddingLeft: "12px" },
-  headerLeft: { width: "50%", verticalAlign: "middle" as const, paddingRight: "12px" },
-  headerRight: { width: "50%", verticalAlign: "middle" as const, paddingLeft: "12px" },
 };
 
 type Props = {
@@ -61,9 +67,11 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
   const isThumb = variant === "thumb";
   /** Pas de densification : le PDF doit matcher l’aperçu écran. */
   const dense = false;
-  const { accent, accentTo } = DOCUMENT_COLORS.invoice;
+  const { accent: brandAccent, accentTo: brandAccentTo } = DOCUMENT_COLORS.invoice;
   /** Design facture papier 2R Conseil — uniquement pour le cabinet conseil. */
   const isConseilDesign = doc.cabinet === "conseil";
+  const accent = isConseilDesign ? REF.accent : brandAccent;
+  const accentTo = isConseilDesign ? REF.accentTo : brandAccentTo;
 
   const niuLabel = niuLabelForCabinet(doc.cabinet);
   const accountantSignatory = isAccountantSignatory(doc.signatoryTitle);
@@ -78,124 +86,135 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
 
   const clientLines = client ? clientDocumentLines(client) : undefined;
 
+  /* Capital / NIF / RCCM de l’émetteur restent dans le pied de page légal. */
+  const emitterBlock = (
+    <PartyBlock
+      title={isConseilDesign ? "" : "Émetteur"}
+      accent={isConseilDesign ? accent : "#64748B"}
+      name={company.name}
+      lines={emitterLines}
+      niu={company.niu}
+      niuLabel={niuLabel}
+      referenceDesign={isConseilDesign}
+      muted={!isConseilDesign}
+      compact={dense}
+    />
+  );
+
+  const clientBlock = (
+    <PartyBlock
+      title={isConseilDesign ? "Nom du client" : "Client"}
+      accent={isConseilDesign ? accent : "#64748B"}
+      name={client?.name?.trim() || undefined}
+      lines={clientLines}
+      nif={client?.nif}
+      niu={client?.niu}
+      rccm={client?.rccm}
+      referenceDesign={isConseilDesign}
+      muted={!isConseilDesign}
+      compact={dense}
+    />
+  );
+
   return (
-    <PreviewShell innerRef={ref} accent={accent} compact={compact} isThumb={isThumb} className={className}>
+    <PreviewShell
+      innerRef={ref}
+      accent={accent}
+      compact={compact}
+      isThumb={isThumb}
+      className={className}
+      {...DOC_SHELL}
+    >
       {isConseilDesign ? (
-        <table className={cn(dense ? "pb-2" : "pb-2.5")} style={TWO_COL.table}>
-          <tbody>
-            <tr>
-              <td style={TWO_COL.headerLeft}>
-                <PreviewLogo cabinet={doc.cabinet} className={dense ? "h-24" : "h-28"} />
-              </td>
-              <td style={{ ...TWO_COL.headerRight, textAlign: "right" }}>
-                <div
-                  className={cn(
-                    "font-serif font-bold uppercase leading-none tracking-wide",
-                    dense ? "text-[26px]" : "text-[34px]",
-                  )}
-                  style={{ color: accent }}
-                >
-                  FACTURE
-                </div>
-                <div className={cn("mt-1 space-y-0.5", dense ? "text-[10px]" : "text-[12px]")}>
-                  <div>
-                    <span className="text-[#64748B]">N° de facture : </span>
-                    <span className="font-semibold text-[#0F172A]">{doc.number}</span>
+        <>
+          {/* Ligne juste sous logo + titre FACTURE — méta et parties en dessous. */}
+          <div className="border-b pb-2.5" style={{ borderColor: "#475569" }}>
+            <table style={TWO_COL.table}>
+              <tbody>
+                <tr>
+                  <td style={TWO_COL.left}>
+                    <PreviewLogo cabinet={doc.cabinet} artworkHeight={HEADER_LOGO_HEIGHT} />
+                  </td>
+                  <td style={{ ...TWO_COL.right, textAlign: "right", verticalAlign: "middle" }}>
+                    <div
+                      className="font-serif font-bold uppercase leading-none tracking-wide text-[34px]"
+                      style={{ color: accent }}
+                    >
+                      FACTURE
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <table className="mt-3" style={TWO_COL.table}>
+            <tbody>
+              <tr>
+                <td style={TWO_COL.left}>
+                  {emitterBlock}
+                  <div className="mt-3">{clientBlock}</div>
+                </td>
+                <td style={{ ...TWO_COL.right, textAlign: "right" }}>
+                  <div className={cn("space-y-0.5", DOC_TEXT.small)}>
+                    <div>
+                      <span className="text-[#64748B]">N° de facture : </span>
+                      <span className={cn("font-semibold text-[#0F172A]", DOC_TEXT.base)}>
+                        {doc.number}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[#64748B]">Date : </span>
+                      <span className={cn("font-semibold text-[#0F172A]", DOC_TEXT.base)}>
+                        {longDate(doc.issueDate)}
+                      </span>
+                    </div>
+                    <DocumentClientRef clientRef={client?.clientRef} />
                   </div>
-                  <div>
-                    <span className="text-[#64748B]">Date : </span>
-                    <span className="font-semibold text-[#0F172A]">{longDate(doc.issueDate)}</span>
-                  </div>
-                  <DocumentClientRef
-                    clientRef={client?.clientRef}
-                    compact={dense}
-                    variant="reference"
-                  />
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </>
       ) : (
-        <div
-          className={cn(
-            "flex items-center justify-between border-b-2",
-            dense ? "gap-3 pb-2.5" : "gap-4 pb-3",
-          )}
-          style={{ borderColor: accent }}
-        >
-          <div className="shrink-0">
-            <PreviewLogo cabinet={doc.cabinet} className="h-40" />
+        <>
+          <div
+            className="flex items-center justify-between gap-4 border-b-2 pb-3"
+            style={{ borderColor: accent }}
+          >
+            <div className="shrink-0">
+              <PreviewLogo cabinet={doc.cabinet} className="h-40" />
+            </div>
+            <div className="shrink-0 text-right">
+              <div
+                className="font-display font-bold uppercase tracking-wide text-[30px]"
+                style={{ color: accent }}
+              >
+                FACTURE
+              </div>
+              <div className={cn("mt-0.5 font-semibold", DOC_TEXT.base)}>N° {doc.number}</div>
+              <div className={cn("text-[#64748B]", DOC_TEXT.small)}>{longDate(doc.issueDate)}</div>
+              <DocumentClientRef clientRef={client?.clientRef} />
+            </div>
           </div>
-          <div className="shrink-0 text-right">
-            <div
-              className={cn(
-                "font-display font-bold uppercase tracking-wide",
-                dense ? "text-[22px]" : "text-[30px]",
-              )}
-              style={{ color: accent }}
-            >
-              FACTURE
-            </div>
-            <div className={cn("mt-0.5 font-semibold", dense ? "text-[11px]" : "text-[13px]")}>
-              N° {doc.number}
-            </div>
-            <div className={cn("text-[#64748B]", dense ? "text-[10px]" : "text-[12px]")}>
-              {longDate(doc.issueDate)}
-            </div>
-            <DocumentClientRef clientRef={client?.clientRef} compact={dense} />
-          </div>
-        </div>
+
+          <table className="mt-3" style={TWO_COL.table}>
+            <tbody>
+              <tr>
+                <td style={TWO_COL.left}>{emitterBlock}</td>
+                <td style={TWO_COL.right}>{clientBlock}</td>
+              </tr>
+            </tbody>
+          </table>
+        </>
       )}
 
-      <table className={cn(dense ? "mt-2.5" : "mt-3")} style={TWO_COL.table}>
-        <tbody>
-          <tr>
-            <td style={TWO_COL.left}>
-              {/* Capital / NIF / RCCM restent dans le pied de page légal. */}
-              <PartyBlock
-                title="Émetteur"
-                accent={isConseilDesign ? accent : "#64748B"}
-                name={company.name}
-                lines={emitterLines}
-                niu={company.niu}
-                niuLabel={niuLabel}
-                referenceDesign={isConseilDesign}
-                muted={!isConseilDesign}
-                compact={dense}
-              />
-            </td>
-            <td style={TWO_COL.right}>
-              <PartyBlock
-                title="Client"
-                accent={isConseilDesign ? accent : "#64748B"}
-                name={client ? clientDisplayName(client) : undefined}
-                lines={clientLines}
-                nif={client?.nif}
-                niu={client?.niu}
-                rccm={client?.rccm}
-                referenceDesign={isConseilDesign}
-                muted={!isConseilDesign}
-                compact={dense}
-              />
-            </td>
-          </tr>
-        </tbody>
-      </table>
-
-      <div
-        className={cn(
-          "flex flex-wrap text-[#475569]",
-          dense ? "mt-2 gap-x-5 gap-y-0.5 text-[10px]" : "mt-2.5 gap-x-6 gap-y-1 text-[12px]",
-        )}
-      >
-        {doc.dueDate?.trim() ? (
-          <span>
-            Date d&apos;échéance :{" "}
-            <b className="text-[#0F172A]">{longDate(doc.dueDate)}</b>
-          </span>
-        ) : null}
-      </div>
+      {doc.dueDate?.trim() ? (
+        <div className={cn("mt-2.5 text-[#475569]", DOC_TEXT.small)}>
+          Date d&apos;échéance :{" "}
+          <b className={cn("text-[#0F172A]", DOC_TEXT.base)}>{longDate(doc.dueDate)}</b>
+        </div>
+      ) : null}
 
       <ItemsTable
         doc={doc}
@@ -216,17 +235,17 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
                   {doc.paymentTerms.trim()}
                 </InfoPanel>
               ) : null}
-              {company.bankName || company.bankAccount ? (
+              {doc.showRib ? (
                 <InfoPanel title="RIB pour le règlement" accent={accent} compact={dense}>
                   <div>Règlement par virement bancaire ou par chèque.</div>
                   {company.bankName ? (
-                    <div className={cn("mt-0.5", dense ? "text-[10px]" : "text-[12px]")}>
+                    <div className="mt-0.5">
                       <span className="text-[#64748B]">Banque : </span>
                       {company.bankName}
                     </div>
                   ) : null}
                   {company.bankAccount ? (
-                    <div className={cn("break-words", dense ? "text-[10px]" : "mt-0.5 text-[12px]")}>
+                    <div className="mt-0.5 break-words">
                       <span className="text-[#64748B]">RIB : </span>
                       {company.bankAccount}
                     </div>
@@ -293,6 +312,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
         website={company.website}
         niuLabel={niuLabel}
         compact={dense}
+        className={DOC_TEXT.small}
       />
     </PreviewShell>
   );
@@ -308,54 +328,32 @@ function LegacyPaymentPanels({
   company: CompanyInfo;
   compact?: boolean;
 }) {
+  const label = cn("font-bold uppercase tracking-wider text-[#64748B]", DOC_TEXT.small);
+
   return (
     <div className={cn("space-y-2", compact ? "space-y-1.5" : "space-y-2")}>
       {doc.paymentTerms?.trim() ? (
         <div className={cn("rounded-lg bg-[#F1F5F9]", compact ? "p-2" : "p-2.5")}>
-          <div
-            className={cn(
-              "font-bold uppercase tracking-wider text-[#64748B]",
-              compact ? "text-[9px]" : "text-[11px]",
-            )}
-          >
-            Modalité de paiement
-          </div>
-          <div
-            className={cn(
-              "mt-0.5 leading-snug text-[#334155]",
-              compact ? "text-[9px]" : "text-[11px]",
-            )}
-          >
+          <div className={label}>Modalité de paiement</div>
+          <div className={cn("mt-0.5 leading-snug text-[#334155]", DOC_TEXT.small)}>
             {doc.paymentTerms.trim()}
           </div>
         </div>
       ) : null}
-      {company.bankName || company.bankAccount ? (
+      {doc.showRib ? (
         <div className={cn("rounded-lg bg-[#F1F5F9]", compact ? "p-2" : "p-2.5")}>
-          <div
-            className={cn(
-              "font-bold uppercase tracking-wider text-[#64748B]",
-              compact ? "text-[9px]" : "text-[11px]",
-            )}
-          >
-            RIB pour le règlement
-          </div>
-          <div
-            className={cn(
-              "mt-0.5 leading-snug text-[#334155]",
-              compact ? "text-[9px]" : "text-[11px]",
-            )}
-          >
+          <div className={label}>RIB pour le règlement</div>
+          <div className={cn("mt-0.5 leading-snug text-[#334155]", DOC_TEXT.small)}>
             Règlement par virement bancaire ou par chèque.
           </div>
           {company.bankName ? (
-            <div className={cn("mt-0.5 text-[#334155]", compact ? "text-[10px]" : "text-[12px]")}>
+            <div className={cn("mt-0.5 text-[#334155]", DOC_TEXT.small)}>
               <span className="text-[#64748B]">Banque : </span>
               {company.bankName}
             </div>
           ) : null}
           {company.bankAccount ? (
-            <div className={cn("break-words text-[#334155]", compact ? "text-[10px]" : "mt-0.5 text-[12px]")}>
+            <div className={cn("mt-0.5 break-words text-[#334155]", DOC_TEXT.small)}>
               <span className="text-[#64748B]">RIB : </span>
               {company.bankAccount}
             </div>
@@ -366,15 +364,18 @@ function LegacyPaymentPanels({
   );
 }
 
+/** Bloc titré barre pleine + fond teinté (style facture papier). */
 function InfoPanel({
   title,
   accent,
   compact,
+  tint = REF.paymentBg,
   children,
 }: {
   title: string;
   accent: string;
   compact?: boolean;
+  tint?: string;
   children: ReactNode;
 }) {
   return (
@@ -382,7 +383,8 @@ function InfoPanel({
       <div
         className={cn(
           "text-center font-bold uppercase tracking-wide text-white",
-          compact ? "px-2 py-1 text-[9px]" : "px-2.5 py-1.5 text-[11px]",
+          compact ? "px-2 py-1" : "px-2.5 py-1.5",
+          DOC_TEXT.small,
         )}
         style={{ background: accent }}
       >
@@ -391,9 +393,10 @@ function InfoPanel({
       <div
         className={cn(
           "leading-snug text-[#334155]",
-          compact ? "p-2 text-[9px]" : "p-2.5 text-[11px]",
+          compact ? "p-2" : "p-2.5",
+          DOC_TEXT.small,
         )}
-        style={{ background: REF.paymentBg }}
+        style={{ background: tint }}
       >
         {children}
       </div>
@@ -445,25 +448,27 @@ function PartyBlock({
   ].filter(Boolean) as Array<{ label: string; value: string }>;
 
   const pad = compact ? "p-2" : "p-2.5";
+  const heading = title.trim();
 
   if (referenceDesign) {
+    /* Seuls les intitulés en gras restent à 13 ; adresses et identifiants à 11. */
     return (
-      <div className={cn("h-full leading-snug", compact ? "text-[10px]" : "text-[12px]")}>
-        <div
-          className={cn(
-            "min-h-[1.1em] font-bold uppercase leading-none tracking-wide",
-            compact ? "text-[10px]" : "text-[12px]",
-          )}
-          style={{ color: accent }}
-        >
-          {title}
-        </div>
+      <div className={cn("leading-snug", DOC_TEXT.small)}>
+        {heading ? (
+          <div
+            className={cn("font-bold uppercase leading-none tracking-wide", DOC_TEXT.small)}
+            style={{ color: accent }}
+          >
+            {heading}
+          </div>
+        ) : null}
         {name ? (
           <>
             <div
               className={cn(
-                "mt-1 font-bold uppercase leading-snug break-words text-[#0F172A]",
-                compact ? "text-[11px]" : "text-[13px]",
+                "font-bold uppercase leading-snug break-words text-[#0F172A]",
+                heading && "mt-1",
+                DOC_TEXT.base,
               )}
             >
               {name}
@@ -474,14 +479,15 @@ function PartyBlock({
               </div>
             ))}
             {ids.length > 0 && (
-              <div className={cn("mt-1 space-y-0.5 text-[#334155]", compact ? "text-[10px]" : "text-[12px]")}>
+              <div className="mt-1 space-y-0.5 text-[#334155]">
                 {ids.map((id) => (
                   <div key={id.label}>
                     {id.label === "Capital" ? (
-                      <b className="text-[#0F172A]">{id.value}</b>
+                      <b className={cn("text-[#0F172A]", DOC_TEXT.base)}>{id.value}</b>
                     ) : (
                       <>
-                        {id.label} : <b className="text-[#0F172A]">{id.value}</b>
+                        {id.label} :{" "}
+                        <b className={cn("text-[#0F172A]", DOC_TEXT.base)}>{id.value}</b>
                       </>
                     )}
                   </div>
@@ -490,9 +496,7 @@ function PartyBlock({
             )}
           </>
         ) : (
-          <div className={cn("mt-1 italic text-[#94A3B8]", compact ? "text-[10px]" : "text-[12px]")}>
-            Sélectionnez un client…
-          </div>
+          <div className="mt-1 italic text-[#94A3B8]">Sélectionnez un client…</div>
         )}
       </div>
     );
@@ -510,17 +514,18 @@ function PartyBlock({
       style={bordered ? { borderColor: `${accent}33` } : undefined}
     >
       <div
-        className={cn("font-bold uppercase tracking-wider", compact ? "text-[9px]" : "text-[11px]")}
+        className={cn("font-bold uppercase tracking-wider", DOC_TEXT.small)}
         style={{ color: accent }}
       >
-        {title}
+        {heading}
       </div>
       {name ? (
         <>
           <div
             className={cn(
               "font-semibold leading-snug break-words",
-              compact ? "mt-1 text-[12px]" : "mt-1.5 text-[14px]",
+              compact ? "mt-1" : "mt-1.5",
+              DOC_TEXT.base,
             )}
           >
             {name}
@@ -528,7 +533,7 @@ function PartyBlock({
           {lines?.map((l, i) => (
             <div
               key={i}
-              className={cn("leading-snug text-[#475569] break-words", compact ? "text-[10px]" : "text-[12px]")}
+              className={cn("leading-snug text-[#475569] break-words", DOC_TEXT.small)}
             >
               {l}
             </div>
@@ -537,7 +542,8 @@ function PartyBlock({
             <div
               className={cn(
                 "grid grid-cols-1 gap-y-0.5 text-[#475569] sm:grid-cols-2 sm:gap-x-2",
-                compact ? "mt-1 text-[9px]" : "mt-1.5 text-[11px]",
+                compact ? "mt-1" : "mt-1.5",
+                DOC_TEXT.small,
               )}
             >
               {ids.map((id) => (
@@ -553,10 +559,11 @@ function PartyBlock({
                   }
                 >
                   {id.label === "Capital" ? (
-                    <b className="text-[#0F172A]">{id.value}</b>
+                    <b className={cn("text-[#0F172A]", DOC_TEXT.base)}>{id.value}</b>
                   ) : (
                     <>
-                      {id.label}: <b className="text-[#0F172A]">{id.value}</b>
+                      {id.label}:{" "}
+                      <b className={cn("text-[#0F172A]", DOC_TEXT.base)}>{id.value}</b>
                     </>
                   )}
                 </span>
@@ -565,7 +572,7 @@ function PartyBlock({
           )}
         </>
       ) : (
-        <div className={cn("italic text-[#94A3B8]", compact ? "mt-1 text-[10px]" : "mt-2 text-[12px]")}>
+        <div className={cn("italic text-[#94A3B8]", compact ? "mt-1" : "mt-2", DOC_TEXT.small)}>
           Sélectionnez un client…
         </div>
       )}
@@ -581,6 +588,7 @@ function ItemsTable({
   headerTo,
   compact,
   referenceDesign,
+  sectionTint = REF.sectionBg,
 }: {
   doc: Document;
   accent?: string;
@@ -588,6 +596,8 @@ function ItemsTable({
   headerTo?: string;
   compact?: boolean;
   referenceDesign?: boolean;
+  /** Fond du titre de tâche en style référence. */
+  sectionTint?: string;
   /** @deprecated Ignoré — taxes uniquement dans les totaux. */
   showTaxColumns?: boolean;
 }) {
@@ -616,9 +626,9 @@ function ItemsTable({
           : "overflow-hidden"
       }
     >
-      <table className={cn("w-full border-collapse", compact ? "text-[10px]" : "text-[12px]")}>
+      <table className={cn("w-full border-collapse", DOC_TEXT.small)}>
         <thead>
-          <tr style={headerStyle} className="text-white">
+          <tr style={headerStyle} className={cn("text-white", DOC_TEXT.base)}>
             <th className={cn(cell, "w-8 text-left font-semibold")}>#</th>
             <th className={cn(cell, "text-left font-semibold")}>Désignation</th>
             <th className={cn(cell, "w-10 text-right font-semibold")}>Qté</th>
@@ -657,7 +667,13 @@ function ItemsTable({
                 <td className={cn(cell, "text-right align-top font-mono")}>
                   {number(it.unitPrice)}
                 </td>
-                <td className={cn(cell, "text-right align-top font-mono font-semibold")}>
+                <td
+                  className={cn(
+                    cell,
+                    "text-right align-top font-mono font-semibold",
+                    DOC_TEXT.base,
+                  )}
+                >
                   {number(lineTotal)}
                 </td>
               </tr>
@@ -692,18 +708,20 @@ function ItemsTable({
             <div
               className={cn(
                 "text-center font-bold uppercase tracking-wider text-white",
-                compact ? "px-2 py-1.5 text-[9px]" : "px-2.5 py-2 text-[11px]",
+                compact ? "px-2 py-1.5" : "px-2.5 py-2",
+                DOC_TEXT.small,
               )}
               style={headerStyle}
             >
-              Prestation(s)
+              {referenceDesign ? "Tâche" : "Prestation(s)"}
             </div>
             <div
               className={cn(
                 "text-center font-semibold uppercase tracking-wide text-[#0F172A]",
-                compact ? "px-2 py-1.5 text-[11px]" : "px-2.5 py-2 text-[13px]",
+                compact ? "px-2 py-1.5" : "px-2.5 py-2",
+                DOC_TEXT.base,
               )}
-              style={{ background: referenceDesign ? REF.sectionBg : "#EFF6FF" }}
+              style={{ background: referenceDesign ? sectionTint : "#EFF6FF" }}
             >
               {(sec.title.trim() || "—").toUpperCase()}
             </div>
@@ -735,11 +753,14 @@ function TotalsBlock({
   accent,
   compact,
   referenceDesign,
+  tint = REF.sectionBg,
 }: {
   doc: Document;
   accent: string;
   compact?: boolean;
   referenceDesign?: boolean;
+  /** Fond des lignes de totaux en style référence. */
+  tint?: string;
 }) {
   const amountVariant = referenceDesign ? "reference" : "default";
   const rates = documentTaxRates(doc.items);
@@ -794,6 +815,7 @@ function TotalsBlock({
           accent={accent}
           compact={compact}
           variant={amountVariant}
+          tint={tint}
         />
         {discountAmount > 0 ? (
           <AmountRow
@@ -803,6 +825,7 @@ function TotalsBlock({
             accent={accent}
             compact={compact}
             variant={amountVariant}
+            tint={tint}
           />
         ) : null}
         {discountAmount > 0 ? (
@@ -813,6 +836,7 @@ function TotalsBlock({
             accent={accent}
             compact={compact}
             variant={amountVariant}
+            tint={tint}
           />
         ) : null}
         {tpsActive ? (
@@ -825,6 +849,7 @@ function TotalsBlock({
             accent={accent}
             compact={compact}
             variant={amountVariant}
+            tint={tint}
           />
         ) : null}
         <AmountRow
@@ -834,6 +859,7 @@ function TotalsBlock({
           accent={accent}
           compact={compact}
           variant={amountVariant}
+          tint={tint}
         />
         {!tpsActive ? (
           <AmountRow
@@ -843,6 +869,7 @@ function TotalsBlock({
             accent={accent}
             compact={compact}
             variant={amountVariant}
+            tint={tint}
           />
         ) : null}
         <AmountRow
@@ -853,10 +880,21 @@ function TotalsBlock({
           accent={accent}
           compact={compact}
           variant={amountVariant}
+          tint={tint}
         />
       </div>
     </div>
   );
 }
 
-export { ItemsTable, PartyBlock, StampBox, TotalsBlock, partyAddressLines, partyContactLine };
+export {
+  HEADER_LOGO_HEIGHT,
+  InfoPanel,
+  TWO_COL,
+  ItemsTable,
+  PartyBlock,
+  StampBox,
+  TotalsBlock,
+  partyAddressLines,
+  partyContactLine,
+};

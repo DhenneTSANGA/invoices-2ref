@@ -99,7 +99,7 @@ export function ManagerSignature({
         <div
           className={cn(
             "text-center font-semibold leading-tight text-[#0F172A]",
-            compact ? "mt-0.5 text-[12px]" : "mt-0.5 text-[14px]",
+            compact ? "mt-0.5 text-[12px]" : "mt-0.5 text-[13px]",
           )}
         >
           {name}

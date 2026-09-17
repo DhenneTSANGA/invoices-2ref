@@ -44,32 +44,55 @@ export async function buildDocumentPdf(
   const prevMaxWidth = element.style.maxWidth;
   const prevMinHeight = element.style.minHeight;
   const prevHeight = element.style.height;
+  const prevOverflow = element.style.overflow;
+
+  const inner = element.firstElementChild as HTMLElement | null;
+  const prevInnerMin = inner?.style.minHeight;
+  const prevInnerH = inner?.style.height;
+  const prevInnerWidth = inner?.style.width;
+  const prevInnerTransform = inner?.style.transform;
+  const prevInnerOrigin = inner?.style.transformOrigin;
 
   element.style.width = `${width}px`;
   element.style.maxWidth = `${width}px`;
   element.style.minHeight = `${A4_MIN_HEIGHT}px`;
-  element.style.height = `${A4_MIN_HEIGHT}px`;
+  element.style.height = "auto";
+  if (inner) {
+    inner.style.minHeight = `${A4_MIN_HEIGHT}px`;
+    inner.style.height = "auto";
+  }
 
   await waitForPaint();
 
-  const height = Math.max(
+  /**
+   * Le PDF étire la capture sur tout l’A4 : un contenu plus haut que le ratio
+   * serait écrasé. On le réduit donc d’un cran pour tenir sur une page.
+   */
+  const naturalHeight = Math.max(
     A4_MIN_HEIGHT,
     element.scrollHeight,
     element.offsetHeight,
     1,
   );
-  if (height > A4_MIN_HEIGHT) {
-    element.style.height = `${height}px`;
-    element.style.minHeight = `${height}px`;
+  const fitScale = A4_MIN_HEIGHT / naturalHeight;
+
+  if (inner && fitScale < 1) {
+    inner.style.transformOrigin = "top left";
+    inner.style.transform = `scale(${fitScale})`;
+    inner.style.width = `${width / fitScale}px`;
+    inner.style.minHeight = `${naturalHeight}px`;
+    inner.style.height = `${naturalHeight}px`;
+  } else if (inner) {
+    inner.style.minHeight = `${A4_MIN_HEIGHT}px`;
+    inner.style.height = `${A4_MIN_HEIGHT}px`;
   }
 
-  const inner = element.firstElementChild as HTMLElement | null;
-  const prevInnerMin = inner?.style.minHeight;
-  const prevInnerH = inner?.style.height;
-  if (inner) {
-    inner.style.minHeight = `${height}px`;
-    inner.style.height = `${height}px`;
-  }
+  const height = A4_MIN_HEIGHT;
+  element.style.minHeight = `${height}px`;
+  element.style.height = `${height}px`;
+  element.style.overflow = "hidden";
+
+  await waitForPaint();
 
   let dataUrl: string;
   try {
@@ -151,9 +174,13 @@ export async function buildDocumentPdf(
     element.style.maxWidth = prevMaxWidth;
     element.style.minHeight = prevMinHeight;
     element.style.height = prevHeight;
+    element.style.overflow = prevOverflow;
     if (inner) {
       inner.style.minHeight = prevInnerMin ?? "";
       inner.style.height = prevInnerH ?? "";
+      inner.style.width = prevInnerWidth ?? "";
+      inner.style.transform = prevInnerTransform ?? "";
+      inner.style.transformOrigin = prevInnerOrigin ?? "";
     }
   }
 

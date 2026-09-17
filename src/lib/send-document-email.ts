@@ -179,6 +179,7 @@ function buildCommercialEmailHtml(params: {
   vat: number;
   total: number;
   paymentTerms?: string | null;
+  showRib?: boolean;
   executionTerms?: string | null;
   niuLabel: string;
 }): string {
@@ -336,7 +337,9 @@ function buildCommercialEmailHtml(params: {
     }
 
     ${
-      params.type === "invoice" && (params.company.bankName || params.company.bankAccount)
+      params.type === "invoice" &&
+      params.showRib &&
+      (params.company.bankName || params.company.bankAccount)
         ? `<div style="margin-top:20px;background:#F1F5F9;border-radius:10px;padding:12px 14px;font-size:12px;color:#475569;">
             <strong style="color:#0F172A;">RIB pour le règlement</strong>
             ${params.company.bankName ? `<div style="margin-top:4px;">Banque : ${escapeHtml(params.company.bankName)}</div>` : ""}
@@ -600,6 +603,7 @@ export async function sendDocumentEmailInternal(params: {
         vat: Number(doc.vat),
         total: Number(doc.total),
         paymentTerms: doc.paymentTerms,
+        showRib: Boolean(doc.showRib),
         executionTerms: doc.executionTerms,
         niuLabel,
       });

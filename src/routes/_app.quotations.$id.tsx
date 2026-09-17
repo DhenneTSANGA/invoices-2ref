@@ -24,6 +24,7 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { DocumentCreatorCard } from "@/components/documents/DocumentCreatorCard";
 import { DocumentPdfTracesPanel } from "@/components/documents/DocumentPdfTracesPanel";
 import { documentDetailRoute } from "@/lib/document-nav";
+import { currency, longDate } from "@/lib/format";
 import { isAdmin } from "@/lib/roles";
 import { isAccountantSignatory } from "@/lib/signatory";
 

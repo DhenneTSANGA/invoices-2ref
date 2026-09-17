@@ -54,14 +54,34 @@ ok(
   "exportDocumentPdf PREVIEW_WIDTH 820",
   exportPdf.includes("PREVIEW_WIDTH = 820"),
 );
+const quotationPreview = read("src/components/documents/preview/QuotationPreview.tsx");
+
 ok(
-  "Design référence réservé au cabinet conseil",
+  "Facture — design papier réservé au cabinet conseil",
   invoicePreview.includes('doc.cabinet === "conseil"') &&
     invoicePreview.includes("isConseilDesign"),
 );
 ok(
-  "Devis non impactés",
-  !read("src/components/documents/preview/QuotationPreview.tsx").includes("isConseilDesign"),
+  "Devis — design papier réservé au cabinet conseil",
+  quotationPreview.includes('doc.cabinet === "conseil"') &&
+    quotationPreview.includes("isConseilDesign"),
+);
+ok(
+  "Devis — signature et pied de page conservés",
+  quotationPreview.includes("ManagerSignature") &&
+    quotationPreview.includes("LegalFooter") &&
+    quotationPreview.includes('doc.status === "accepted"'),
+);
+ok(
+  "Échelle typographique 11 / 13 centralisée",
+  previewShell.includes('small: "text-[11px]"') &&
+    previewShell.includes('base: "text-[13px]"') &&
+    invoicePreview.includes("DOC_TEXT") &&
+    quotationPreview.includes("DOC_TEXT"),
+);
+ok(
+  "Export PDF — garde-fou une page sans déformation",
+  exportPdf.includes("fitScale") && exportPdf.includes("A4_MIN_HEIGHT / naturalHeight"),
 );
 ok(
   "TotalsBlock — logique taxes inchangée",

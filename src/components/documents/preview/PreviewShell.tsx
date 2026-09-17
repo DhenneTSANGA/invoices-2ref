@@ -1,6 +1,11 @@
-import type { ReactNode, Ref } from "react";
+import type { ReactNode, Ref, SyntheticEvent } from "react";
 import { cn } from "@/lib/utils";
-import { CABINET_LOGOS, CABINET_LABELS, type Cabinet } from "@/lib/cabinets";
+import {
+  CABINET_LOGOS,
+  CABINET_LABELS,
+  CABINET_LOGO_BOUNDS,
+  type Cabinet,
+} from "@/lib/cabinets";
 import { amountInWords } from "@/lib/format";
 
 const PREVIEW_WIDTH = 820;
@@ -8,7 +13,28 @@ const PREVIEW_WIDTH = 820;
 export const A4_MIN_HEIGHT = Math.round(PREVIEW_WIDTH * (297 / 210));
 /** Marge papier comme la facture imprimée de référence (~18 mm). */
 const PAGE_MARGIN_MM = 18;
-const PAGE_PADDING_PX = Math.round((PREVIEW_WIDTH * PAGE_MARGIN_MM) / 210);
+/** Factures / devis : marge un peu plus serrée pour tenir sur une page. */
+const DOC_PAGE_MARGIN_MM = 16;
+
+function pagePaddingPx(marginMm: number) {
+  return Math.round((PREVIEW_WIDTH * marginMm) / 210);
+}
+
+/**
+ * Échelle typographique facture / devis : deux niveaux seulement.
+ * `small` (11) = tout texte courant ; `base` (13) = texte en gras / mis en avant.
+ * Les grands titres (FACTURE / DEVIS) restent hors échelle.
+ */
+export const DOC_TEXT = {
+  small: "text-[11px]",
+  base: "text-[13px]",
+} as const;
+
+/** Réglages partagés par l’aperçu facture et devis. */
+export const DOC_SHELL = {
+  baseTextClass: DOC_TEXT.small,
+  pageMarginMm: DOC_PAGE_MARGIN_MM,
+} as const;
 
 type ShellProps = {
   children: ReactNode;
@@ -17,6 +43,10 @@ type ShellProps = {
   compact?: boolean;
   isThumb?: boolean;
   innerRef?: Ref<HTMLDivElement>;
+  /** Taille de texte héritée par le contenu (facture / devis : DOC_TEXT.base). */
+  baseTextClass?: string;
+  /** Marge papier en mm (facture / devis : 16, courrier : 18). */
+  pageMarginMm?: number;
 };
 
 export function PreviewShell({
@@ -26,6 +56,8 @@ export function PreviewShell({
   compact,
   isThumb,
   innerRef,
+  baseTextClass = "text-[14px]",
+  pageMarginMm = PAGE_MARGIN_MM,
 }: ShellProps) {
   // compact = export PDF : même typo/paddings que l’aperçu, sans ombre ni coins
   const forPdf = Boolean(compact);
@@ -51,10 +83,10 @@ export function PreviewShell({
       }}
     >
       <div
-        className="flex min-h-full flex-col text-[14px] leading-relaxed"
+        className={cn("flex min-h-full flex-col leading-relaxed", baseTextClass)}
         style={{
           minHeight: !isThumb ? A4_MIN_HEIGHT : undefined,
-          padding: PAGE_PADDING_PX,
+          padding: pagePaddingPx(pageMarginMm),
         }}
       >
         {children}
@@ -67,10 +99,16 @@ export function PreviewLogo({
   cabinet = "expertise_fiscale",
   className,
   compact,
+  artworkHeight,
 }: {
   cabinet?: Cabinet;
   className?: string;
   compact?: boolean;
+  /**
+   * Hauteur visible du dessin en px, marges transparentes du fichier rognées.
+   * Sans cette prop, le logo est affiché tel quel (canvas complet).
+   */
+  artworkHeight?: number;
 }) {
   const safeCabinet: Cabinet =
     cabinet === "conseil" || cabinet === "expertise_fiscale"
@@ -83,6 +121,39 @@ export function PreviewLogo({
       : CABINET_LOGOS.conseil;
   const heightClass = compact ? "h-20" : "h-40";
 
+  const onError = (e: SyntheticEvent<HTMLImageElement>) => {
+    const el = e.currentTarget;
+    if (el.dataset.fallback === "1") return;
+    el.dataset.fallback = "1";
+    el.src = fallbackSrc;
+  };
+
+  if (artworkHeight) {
+    const box = CABINET_LOGO_BOUNDS[safeCabinet];
+    const scale = artworkHeight / box.height;
+
+    return (
+      <div
+        className={cn("relative shrink-0 overflow-hidden", className)}
+        style={{ width: Math.round(box.width * scale), height: Math.round(artworkHeight) }}
+      >
+        <img
+          src={primarySrc}
+          alt={CABINET_LABELS[safeCabinet]}
+          decoding="async"
+          onError={onError}
+          className="absolute block max-w-none"
+          style={{
+            left: -Math.round(box.left * scale),
+            top: -Math.round(box.top * scale),
+            width: Math.round(box.canvasWidth * scale),
+            height: Math.round(box.canvasHeight * scale),
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <img
       src={primarySrc}
@@ -90,12 +161,7 @@ export function PreviewLogo({
       // crossOrigin seulement utile pour captures PDF d’URLs absolues ;
       // sur /public local, il peut empêcher l’affichage du logo.
       decoding="async"
-      onError={(e) => {
-        const el = e.currentTarget;
-        if (el.dataset.fallback === "1") return;
-        el.dataset.fallback = "1";
-        el.src = fallbackSrc;
-      }}
+      onError={onError}
       className={cn(
         "block w-auto max-w-[240px] shrink-0 object-contain",
         heightClass,
@@ -113,6 +179,7 @@ export function AmountRow({
   accent = "#01004C",
   compact,
   variant = "default",
+  tint = "#D9E2EF",
 }: {
   label: string;
   value: string;
@@ -120,33 +187,45 @@ export function AmountRow({
   strong?: boolean;
   accent?: string;
   compact?: boolean;
-  /** Style facture papier 2R Conseil (barres pleines, fond bleu clair). */
+  /** Style facture papier 2R Conseil (barres pleines, fond teinté). */
   variant?: "default" | "reference";
+  /** Fond des lignes intermédiaires en style référence. */
+  tint?: string;
 }) {
   const isRef = variant === "reference";
   const rowBg = strong
     ? { background: accent, color: "#fff" }
     : isRef
-      ? { background: "#D9E2EF", color: "#0F172A" }
+      ? { background: tint, color: "#0F172A" }
       : { background: "#fff" };
 
   return (
     <div
       className={cn(
         "flex items-center justify-between",
-        compact ? "px-2.5 py-1.5 text-[11px]" : "px-3 py-2 text-[13px]",
+        compact ? "px-2.5 py-1.5" : "px-3 py-2",
         isRef && !strong && "border-b border-white/80 last:border-b-0",
       )}
       style={rowBg}
     >
       <span
         className={cn(
-          strong ? "font-bold uppercase tracking-wide" : isRef ? "font-semibold text-[#334155]" : "text-[#475569]",
+          strong
+            ? cn("font-bold uppercase tracking-wide", DOC_TEXT.base)
+            : isRef
+              ? cn("font-semibold text-[#334155]", DOC_TEXT.base)
+              : cn("text-[#475569]", DOC_TEXT.small),
         )}
       >
         {label}
       </span>
-      <span className={`font-mono ${strong ? "font-bold" : "font-semibold text-[#0F172A]"}`}>
+      <span
+        className={cn(
+          "font-mono",
+          strong ? "font-bold" : "font-semibold text-[#0F172A]",
+          DOC_TEXT.base,
+        )}
+      >
         {value} {currency}
       </span>
     </div>
@@ -167,6 +246,7 @@ export function LegalFooter({
   capital,
   niuLabel = "NIU",
   compact,
+  className,
 }: {
   name: string;
   address: string;
@@ -183,6 +263,8 @@ export function LegalFooter({
   /** Libellé de l’identifiant stocké dans `niu` (ex. STAT pour 2R Conseil). */
   niuLabel?: string;
   compact?: boolean;
+  /** Permet aux factures / devis d’imposer l’échelle DOC_TEXT. */
+  className?: string;
 }) {
   const legalParts = [
     name,
@@ -197,8 +279,9 @@ export function LegalFooter({
   return (
     <div
       className={cn(
-        "mt-auto shrink-0 border-t border-[#E2E8F0] text-center leading-tight text-[#64748B]",
-        compact ? "pt-2 text-[8px]" : "pt-2 text-[10px]",
+        "mt-auto shrink-0 border-t border-[#E2E8F0] pt-2 text-center leading-tight text-[#64748B]",
+        compact ? "text-[8px]" : "text-[10px]",
+        className,
       )}
     >
       <div className="px-0.5 leading-snug [overflow-wrap:anywhere]">
@@ -211,28 +294,26 @@ export function LegalFooter({
   );
 }
 
-/** Montant total TTC exprimé en lettres — sous les totaux. */
 /** Id du client sous la date (facture / devis). */
 export function DocumentClientRef({
   clientRef,
-  compact,
-  variant = "default",
+  className,
 }: {
   clientRef?: string | null;
-  compact?: boolean;
-  variant?: "default" | "reference";
+  className?: string;
 }) {
   const value = clientRef?.trim();
   if (!value) return null;
 
   return (
-    <div className={cn(compact ? "text-[10px]" : "text-[12px]", variant === "reference" && "mt-0.5")}>
+    <div className={cn(DOC_TEXT.small, className)}>
       <span className="text-[#64748B]">Id du client : </span>
-      <span className="font-semibold text-[#0F172A]">{value}</span>
+      <span className={cn("font-semibold text-[#0F172A]", DOC_TEXT.base)}>{value}</span>
     </div>
   );
 }
 
+/** Montant total TTC exprimé en lettres — sous les totaux. */
 export function AmountInWords({
   amount,
   currency = "XAF",
@@ -254,14 +335,11 @@ export function AmountInWords({
   if (isRef) {
     return (
       <div className={cn("text-center", compact ? "px-1 py-1" : "px-2 py-1.5")}>
-        <p
-          className={cn(
-            "break-words italic leading-snug text-[#334155]",
-            compact ? "text-[10px]" : "text-[12px]",
-          )}
-        >
+        <p className={cn("break-words italic leading-snug text-[#334155]", DOC_TEXT.small)}>
           {intro}{" "}
-          <span className="font-semibold not-italic text-[#0F172A]">{words}</span>
+          <span className={cn("font-semibold not-italic text-[#0F172A]", DOC_TEXT.base)}>
+            {words}
+          </span>
         </p>
       </div>
     );
@@ -275,18 +353,14 @@ export function AmountInWords({
       )}
       style={{ borderColor: `${accent}33`, background: `${accent}08` }}
     >
-      <div
-        className={cn(
-          "whitespace-nowrap text-[#64748B]",
-          compact ? "text-[10px]" : "text-[12px]",
-        )}
-      >
+      <div className={cn("whitespace-nowrap text-[#64748B]", DOC_TEXT.small)}>
         {intro}
       </div>
       <p
         className={cn(
           "break-words font-bold leading-snug text-[#0F172A]",
-          compact ? "mt-0.5 text-[11px]" : "mt-1 text-[14px]",
+          compact ? "mt-0.5" : "mt-1",
+          DOC_TEXT.base,
         )}
       >
         {words}
