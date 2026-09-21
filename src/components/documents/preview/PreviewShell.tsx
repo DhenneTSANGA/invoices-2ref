@@ -31,6 +31,38 @@ export const DOC_TEXT = {
   base: "text-[13px]",
 } as const;
 
+/** Chiffres documents 2R Conseil. */
+export const TIMES_NUMERALS = 'Georgia, "Times New Roman", serif';
+
+export function TimesNum({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <span className={className} style={{ fontFamily: TIMES_NUMERALS }}>
+      {children}
+    </span>
+  );
+}
+
+/** Passe les suites de chiffres en Georgia. */
+export function timesDigits(text: string): ReactNode {
+  const parts = String(text).split(/(\d[\d\s\u00A0.'’.,/-]*)/g);
+  if (parts.length <= 1) return text;
+  return parts.map((part, i) =>
+    /^\d/.test(part) ? (
+      <span key={i} style={{ fontFamily: TIMES_NUMERALS }}>
+        {part}
+      </span>
+    ) : (
+      part
+    ),
+  );
+}
+
 export { CONSEIL_CLOSING };
 export const DOC_SHELL = {
   baseTextClass: DOC_TEXT.small,
@@ -223,14 +255,15 @@ export function AmountRow({
               : cn("text-[#475569]", DOC_TEXT.small),
         )}
       >
-        {label}
+        {isRef ? timesDigits(label) : label}
       </span>
       <span
         className={cn(
-          "font-mono",
           strong ? "font-bold" : "font-semibold text-[#0F172A]",
           DOC_TEXT.base,
+          !isRef && "font-mono",
         )}
+        style={isRef ? { fontFamily: TIMES_NUMERALS } : undefined}
       >
         {value} {currency}
       </span>
@@ -315,7 +348,7 @@ export function LegalFooter({
             className="px-0.5 leading-snug [overflow-wrap:anywhere] [text-align-last:center]"
             style={{ textAlign: "justify" }}
           >
-            {legalText}
+            {timesDigits(legalText)}
           </p>
         ) : (
           <>
@@ -336,17 +369,24 @@ export function LegalFooter({
 export function DocumentClientRef({
   clientRef,
   className,
+  timesNumerals,
 }: {
   clientRef?: string | null;
   className?: string;
+  timesNumerals?: boolean;
 }) {
   const value = clientRef?.trim();
   if (!value) return null;
 
   return (
     <div className={cn("leading-[1.2]", DOC_TEXT.small, className)}>
-      <span className="text-[#64748B]">Id du client : </span>
-      <span className="font-semibold text-[#0F172A]">{value}</span>
+      <span className="text-[#64748B]">ID du client : </span>
+      <span
+        className="font-semibold text-[#0F172A]"
+        style={timesNumerals ? { fontFamily: TIMES_NUMERALS } : undefined}
+      >
+        {value}
+      </span>
     </div>
   );
 }

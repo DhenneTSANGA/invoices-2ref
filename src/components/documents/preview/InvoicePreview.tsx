@@ -12,6 +12,8 @@ import {
   AmountInWords,
   DocumentClientRef,
   PreviewBottomRow,
+  TimesNum,
+  timesDigits,
 } from "./PreviewShell";
 import { computeDocumentTotals, documentTaxRates } from "@/lib/document-math";
 import {
@@ -20,6 +22,7 @@ import {
   niuLabelForCabinet,
   CONSEIL_CLOSING,
   CONSEIL_LEGAL_FOOTER,
+  CONSEIL_PAPER_COLORS,
 } from "@/lib/cabinets";
 import { ManagerSignature } from "@/components/signature/ManagerSignature";
 import { clientDocumentLines, clientConseilDocumentLines } from "@/lib/client-address";
@@ -29,15 +32,8 @@ import {
   signatoryDisplayName,
 } from "@/lib/signatory";
 
-/** Couleurs et surfaces — facture papier 2R Conseil (référence visuelle). */
-const REF = {
-  /** Bleu des barres Tâche / colonnes / Total (échantillon image référence). */
-  accent: "#184078",
-  accentTo: "#12325F",
-  sectionBg: "#D9E2EF",
-  rowAlt: "#EEF2F7",
-  paymentBg: "#EEF2F7",
-} as const;
+/** Couleurs et surfaces — papier 2R Conseil (facture et devis). */
+const REF = CONSEIL_PAPER_COLORS;
 
 /** Hauteur visible du logo en en-tête : cale sur le bloc titre + métadonnées. */
 const HEADER_LOGO_HEIGHT = 88;
@@ -179,15 +175,19 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
                   <div className={cn("leading-[1.2]", DOC_TEXT.small)}>
                     <div className="leading-[1.2]">
                       <span className="text-[#64748B]">N° de facture : </span>
-                      <span className="font-semibold text-[#0F172A]">{doc.number}</span>
+                      <TimesNum className="font-semibold text-[#0F172A]">{doc.number}</TimesNum>
                     </div>
                     <div className="leading-[1.2]">
                       <span className="text-[#64748B]">Date : </span>
-                      <span className="font-semibold text-[#0F172A]">
+                      <TimesNum className="font-semibold text-[#0F172A]">
                         {longDate(doc.issueDate)}
-                      </span>
+                      </TimesNum>
                     </div>
-                    <DocumentClientRef clientRef={client?.clientRef} className="leading-[1.2]" />
+                    <DocumentClientRef
+                      clientRef={client?.clientRef}
+                      className="leading-[1.2]"
+                      timesNumerals
+                    />
                   </div>
                 </td>
               </tr>
@@ -230,7 +230,13 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
       {doc.dueDate?.trim() ? (
         <div className={cn("mt-2.5 text-[#475569]", DOC_TEXT.small)}>
           Date d&apos;échéance :{" "}
-          <b className={cn("text-[#0F172A]", DOC_TEXT.base)}>{longDate(doc.dueDate)}</b>
+          <b className={cn("text-[#0F172A]", DOC_TEXT.base)}>
+            {isConseilDesign ? (
+              <TimesNum>{longDate(doc.dueDate)}</TimesNum>
+            ) : (
+              longDate(doc.dueDate)
+            )}
+          </b>
         </div>
       ) : null}
 
@@ -287,16 +293,11 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
                   {company.bankAccount ? (
                     <div className="mt-0.5 break-words">
                       <span className="text-[#64748B]">RIB : </span>
-                      {company.bankAccount}
+                      <TimesNum>{company.bankAccount}</TimesNum>
                     </div>
                   ) : null}
+                  <div className="mt-0.5">{CONSEIL_CLOSING.cheque}</div>
                 </InfoPanel>
-                <div
-                  className="text-center text-[12px] italic leading-[1.35] text-black"
-                  style={{ fontFamily: '"Times New Roman", Times, serif' }}
-                >
-                  {CONSEIL_CLOSING.cheque}
-                </div>
               </div>
             }
             right={<div />}
@@ -312,7 +313,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
               signatoryTitle={signatoryName}
               accent={accent}
               compact={dense}
-              forPdf={compact || accountantSignatory}
+              forPdf={compact}
               omitStamp={omitSignature || accountantSignatory}
               cabinet={doc.cabinet}
             />
@@ -356,7 +357,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
               signatoryTitle={signatoryName}
               accent={accent}
               compact={dense}
-              forPdf={compact || accountantSignatory}
+              forPdf={compact}
               omitStamp={omitSignature || accountantSignatory}
               cabinet={doc.cabinet}
             />
@@ -503,7 +504,7 @@ function PartyBlock({
   rccm?: string;
   cnss?: string;
   cnamgs?: string;
-  /** Téléphone client (2R Conseil) : ligne optionnelle après le NIF. */
+  /** Téléphone client (2R Conseil) : affiché seulement s’il n’y a pas de NIF. */
   phone?: string;
   muted?: boolean;
   bordered?: boolean;
@@ -518,7 +519,9 @@ function PartyBlock({
     cnss ? { label: "CNSS", value: cnss } : null,
     cnamgs ? { label: "CNAMGS", value: cnamgs } : null,
   ].filter(Boolean) as Array<{ label: string; value: string }>;
-  const phoneLine = phone?.trim() || "";
+  const hasNif = Boolean(nif && nif !== "—");
+  /** Téléphone client : uniquement s’il n’y a pas de NIF. */
+  const phoneLine = hasNif ? "" : phone?.trim() || "";
 
   const pad = compact ? "p-2" : "p-2.5";
   const heading = title.trim();
@@ -548,23 +551,27 @@ function PartyBlock({
               const display = !contact && !bp ? l.toUpperCase() : l;
               return (
                 <div key={i} className={cn(line, "text-[#0F172A]")}>
-                  {display}
+                  {timesDigits(display)}
                 </div>
               );
             })}
             {ids.map((id) => (
               <div key={id.label} className={cn(line, "text-[#0F172A]")}>
                 {id.label === "Capital" ? (
-                  <b className={DOC_TEXT.base}>{id.value}</b>
+                  <b className={DOC_TEXT.base}>{timesDigits(id.value)}</b>
+                ) : id.label === "NIF" && isClientParty ? (
+                  <b className={DOC_TEXT.base}>
+                    {id.label}:{timesDigits(id.value)}
+                  </b>
                 ) : (
                   <>
-                    {id.label}:{id.value}
+                    {id.label}:{timesDigits(id.value)}
                   </>
                 )}
               </div>
             ))}
             {phoneLine ? (
-              <div className={cn(line, "text-[#0F172A]")}>{phoneLine}</div>
+              <div className={cn(line, "text-[#0F172A]")}>{timesDigits(phoneLine)}</div>
             ) : null}
           </>
         ) : (
@@ -679,6 +686,11 @@ function ItemsTable({
     : { background: `linear-gradient(90deg, ${headerFrom ?? solidAccent}, ${headerTo ?? solidAccent})` };
 
   const cell = compact ? "px-2 py-1.5" : "px-2.5 py-2";
+  /** Même hauteur que la barre « Tâche ». */
+  const headerCell = cn(
+    cell,
+    referenceDesign && "whitespace-nowrap leading-none",
+  );
   const sections = [...(doc.sections ?? [])].sort(
     (a, b) => a.position - b.position,
   );
@@ -700,12 +712,20 @@ function ItemsTable({
     >
       <table className={cn("w-full border-collapse", DOC_TEXT.small)}>
         <thead>
-          <tr style={headerStyle} className={cn("text-white", DOC_TEXT.base)}>
-            <th className={cn(cell, "w-8 text-left font-semibold")}>#</th>
-            <th className={cn(cell, "text-left font-semibold")}>(Désignation)</th>
-            <th className={cn(cell, "w-10 text-right font-semibold")}>Qté</th>
-            <th className={cn(cell, "w-16 text-right font-semibold")}>P.U. HT</th>
-            <th className={cn(cell, "w-20 text-right font-semibold")}>Total HT</th>
+          <tr
+            style={headerStyle}
+            className={cn(
+              "text-white",
+              referenceDesign ? DOC_TEXT.small : DOC_TEXT.base,
+            )}
+          >
+            <th className={cn(headerCell, "w-8 text-left font-semibold")}>#</th>
+            <th className={cn(headerCell, "text-left font-semibold")}>Désignation</th>
+            <th className={cn(headerCell, "w-10 text-right font-semibold")}>Qté</th>
+            <th className={cn(headerCell, "w-[4.5rem] text-right font-semibold")}>
+              P.U. HT
+            </th>
+            <th className={cn(headerCell, "w-24 text-right font-semibold")}>Total HT</th>
           </tr>
         </thead>
         <tbody>
@@ -731,20 +751,35 @@ function ItemsTable({
                 className={referenceDesign ? undefined : rowBg}
                 style={referenceDesign ? { background: rowBg as string } : undefined}
               >
-                <td className={cn(cell, "align-top text-[#64748B]")}>
+                <td
+                  className={cn(cell, "align-top text-[#64748B]")}
+                  style={referenceDesign ? { fontFamily: 'Georgia, "Times New Roman", serif' } : undefined}
+                >
                   {String(i + 1).padStart(2, "0")}
                 </td>
-                <td className={cn(cell, "align-top leading-snug")}>{it.description}</td>
-                <td className={cn(cell, "text-right align-top font-mono")}>{it.quantity}</td>
-                <td className={cn(cell, "text-right align-top font-mono")}>
+                <td className={cn(cell, "align-top leading-snug")}>
+                  {referenceDesign ? timesDigits(it.description) : it.description}
+                </td>
+                <td
+                  className={cn(cell, "text-right align-top", !referenceDesign && "font-mono")}
+                  style={referenceDesign ? { fontFamily: 'Georgia, "Times New Roman", serif' } : undefined}
+                >
+                  {it.quantity}
+                </td>
+                <td
+                  className={cn(cell, "text-right align-top", !referenceDesign && "font-mono")}
+                  style={referenceDesign ? { fontFamily: 'Georgia, "Times New Roman", serif' } : undefined}
+                >
                   {number(it.unitPrice)}
                 </td>
                 <td
                   className={cn(
                     cell,
-                    "text-right align-top font-mono font-semibold",
+                    "text-right align-top font-semibold",
                     DOC_TEXT.base,
+                    !referenceDesign && "font-mono",
                   )}
+                  style={referenceDesign ? { fontFamily: 'Georgia, "Times New Roman", serif' } : undefined}
                 >
                   {number(lineTotal)}
                 </td>
@@ -779,7 +814,7 @@ function ItemsTable({
           >
             <div
               className={cn(
-                "text-center font-bold uppercase tracking-wider text-white",
+                "text-center font-bold uppercase tracking-wider text-white leading-none",
                 compact ? "px-2 py-1.5" : "px-2.5 py-2",
                 DOC_TEXT.small,
               )}

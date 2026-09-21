@@ -11,6 +11,7 @@ import {
   AmountInWords,
   DocumentClientRef,
   PreviewBottomRow,
+  TimesNum,
 } from "./PreviewShell";
 import {
   HEADER_LOGO_HEIGHT,
@@ -28,6 +29,7 @@ import {
   niuLabelForCabinet,
   CONSEIL_CLOSING,
   CONSEIL_LEGAL_FOOTER,
+  CONSEIL_PAPER_COLORS,
 } from "@/lib/cabinets";
 import { clientDocumentLines, clientConseilDocumentLines } from "@/lib/client-address";
 import { ManagerSignature } from "@/components/signature/ManagerSignature";
@@ -45,9 +47,9 @@ type Props = {
   omitSignature?: boolean;
 };
 
-const { accent: ACCENT, accentTo: ACCENT_TO } = DOCUMENT_COLORS.quotation;
-/** Équivalent vert des fonds clairs de la facture papier. */
-const TINT = "#E5EFDB";
+const { accent: QUOTE_ACCENT, accentTo: QUOTE_ACCENT_TO } = DOCUMENT_COLORS.quotation;
+/** Fond clair devis 2R Expertise Fiscale (vert). */
+const QUOTE_TINT = "#E5EFDB";
 
 export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function QuotationPreview(
   { doc, compact, variant = "full", className, omitSignature },
@@ -58,8 +60,11 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
   /** Pas de densification : le PDF doit matcher l’aperçu écran. */
   const dense = false;
   const validity = doc.validityDays ?? 30;
-  /** Design papier 2R Conseil — aligné sur la facture, en vert. */
+  /** Design papier 2R Conseil — mêmes couleurs que la facture. */
   const isConseilDesign = doc.cabinet === "conseil";
+  const accent = isConseilDesign ? CONSEIL_PAPER_COLORS.accent : QUOTE_ACCENT;
+  const accentTo = isConseilDesign ? CONSEIL_PAPER_COLORS.accentTo : QUOTE_ACCENT_TO;
+  const tint = isConseilDesign ? CONSEIL_PAPER_COLORS.sectionBg : QUOTE_TINT;
 
   const niuLabel = niuLabelForCabinet(doc.cabinet);
   const accountantSignatory = isAccountantSignatory(doc.signatoryTitle);
@@ -97,7 +102,7 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
   const emitterBlock = (
     <PartyBlock
       title={isConseilDesign ? "" : "Émetteur"}
-      accent={isConseilDesign ? ACCENT : "#64748B"}
+      accent={isConseilDesign ? accent : "#64748B"}
       name={company.name}
       lines={emitterLines}
       capital={
@@ -118,7 +123,7 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
   const clientBlock = (
     <PartyBlock
       title={isConseilDesign ? "Nom du CLIENT" : "Client"}
-      accent={isConseilDesign ? ACCENT : "#64748B"}
+      accent={isConseilDesign ? accent : "#64748B"}
       name={client?.name?.trim() || undefined}
       lines={clientLines}
       nif={client?.nif}
@@ -134,7 +139,7 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
   return (
     <PreviewShell
       innerRef={ref}
-      accent={ACCENT}
+      accent={accent}
       compact={compact}
       isThumb={isThumb}
       className={className}
@@ -154,7 +159,7 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
                   <td style={{ ...TWO_COL.right, textAlign: "right", verticalAlign: "middle" }}>
                     <div
                       className="font-serif font-bold uppercase leading-none tracking-wide text-[34px]"
-                      style={{ color: ACCENT }}
+                      style={{ color: accent }}
                     >
                       DEVIS
                     </div>
@@ -175,15 +180,19 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
                   <div className={cn("leading-[1.2]", DOC_TEXT.small)}>
                     <div className="leading-[1.2]">
                       <span className="text-[#64748B]">N° de devis : </span>
-                      <span className="font-semibold text-[#0F172A]">{doc.number}</span>
+                      <TimesNum className="font-semibold text-[#0F172A]">{doc.number}</TimesNum>
                     </div>
                     <div className="leading-[1.2]">
                       <span className="text-[#64748B]">Date : </span>
-                      <span className="font-semibold text-[#0F172A]">
+                      <TimesNum className="font-semibold text-[#0F172A]">
                         {longDate(doc.issueDate)}
-                      </span>
+                      </TimesNum>
                     </div>
-                    <DocumentClientRef clientRef={client?.clientRef} className="leading-[1.2]" />
+                    <DocumentClientRef
+                      clientRef={client?.clientRef}
+                      className="leading-[1.2]"
+                      timesNumerals
+                    />
                   </div>
                 </td>
               </tr>
@@ -192,7 +201,7 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
 
           <div
             className={cn("mt-3 px-3 py-2 text-center font-medium", DOC_TEXT.small)}
-            style={{ background: TINT, color: ACCENT }}
+            style={{ background: tint, color: accent }}
           >
             {validityNote}
           </div>
@@ -201,7 +210,7 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
         <>
           <div
             className="flex items-center justify-between gap-4 border-b-2 pb-5"
-            style={{ borderColor: ACCENT }}
+            style={{ borderColor: accent }}
           >
             <div className="shrink-0">
               <PreviewLogo cabinet={doc.cabinet} className="h-40" />
@@ -209,7 +218,7 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
             <div className="shrink-0 text-right">
               <div
                 className="font-display font-bold uppercase tracking-wide text-[28px]"
-                style={{ color: ACCENT }}
+                style={{ color: accent }}
               >
                 Devis
               </div>
@@ -222,9 +231,9 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
           <div
             className={cn("mt-4 rounded-xl px-3.5 py-2.5 font-medium", DOC_TEXT.small)}
             style={{
-              color: ACCENT,
-              background: `${ACCENT_TO}22`,
-              border: `1px solid ${ACCENT_TO}88`,
+              color: accent,
+              background: `${accentTo}22`,
+              border: `1px solid ${accentTo}88`,
             }}
           >
             {validityNote}
@@ -244,18 +253,24 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
       {doc.dueDate?.trim() ? (
         <div className={cn("mt-2.5 text-[#475569]", DOC_TEXT.small)}>
           Date d&apos;échéance :{" "}
-          <b className={cn("text-[#0F172A]", DOC_TEXT.base)}>{longDate(doc.dueDate)}</b>
+          <b className={cn("text-[#0F172A]", DOC_TEXT.base)}>
+            {isConseilDesign ? (
+              <TimesNum>{longDate(doc.dueDate)}</TimesNum>
+            ) : (
+              longDate(doc.dueDate)
+            )}
+          </b>
         </div>
       ) : null}
 
       <ItemsTable
         doc={doc}
-        accent={ACCENT}
-        headerFrom={ACCENT}
-        headerTo={ACCENT_TO}
+        accent={accent}
+        headerFrom={accent}
+        headerTo={accentTo}
         compact={dense}
         referenceDesign={isConseilDesign}
-        sectionTint={TINT}
+        sectionTint={tint}
       />
 
       {isConseilDesign ? (
@@ -266,10 +281,10 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
             right={
               <TotalsBlock
                 doc={doc}
-                accent={ACCENT}
+                accent={accent}
                 compact={dense}
                 referenceDesign
-                tint={TINT}
+                tint={tint}
               />
             }
           />
@@ -277,7 +292,7 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
             <AmountInWords
               amount={doc.total}
               currency={doc.currency}
-              accent={ACCENT}
+              accent={accent}
               compact={dense}
               intro="Arrêtée le présent devis à la somme de"
               variant="reference"
@@ -289,7 +304,14 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
             left={
               <div className={cn("space-y-2", dense ? "space-y-1.5" : "space-y-2")}>
                 {doc.paymentTerms?.trim() ? (
-                  <TermsPanel title="Modalité de paiement" referenceDesign compact={dense}>
+                  <TermsPanel
+                    title="Modalité de paiement"
+                    referenceDesign
+                    compact={dense}
+                    accent={accent}
+                    accentTo={accentTo}
+                    tint={tint}
+                  >
                     {doc.paymentTerms.trim()}
                   </TermsPanel>
                 ) : null}
@@ -298,16 +320,14 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
                     title="Conditions de réalisation"
                     referenceDesign
                     compact={dense}
+                    accent={accent}
+                    accentTo={accentTo}
+                    tint={tint}
                   >
                     {doc.executionTerms.trim()}
                   </TermsPanel>
                 ) : null}
-                <div
-                  className="text-center text-[12px] italic leading-[1.35] text-black"
-                  style={{ fontFamily: '"Times New Roman", Times, serif' }}
-                >
-                  {CONSEIL_CLOSING.cheque}
-                </div>
+                <div className="mt-0.5">{CONSEIL_CLOSING.cheque}</div>
               </div>
             }
             right={<div />}
@@ -323,9 +343,9 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
               managerName={signatoryName}
               signatureUrl={company.stampUrl?.trim() || ""}
               signatoryTitle={signatoryName}
-              accent={ACCENT}
+              accent={accent}
               compact={dense}
-              forPdf={compact || accountantSignatory}
+              forPdf={compact}
               omitStamp={omitSignature || accountantSignatory}
               cabinet={doc.cabinet}
             />
@@ -339,12 +359,24 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
               doc.paymentTerms?.trim() || doc.executionTerms?.trim() ? (
                 <div className={cn("space-y-2", dense ? "space-y-1.5" : "space-y-2")}>
                   {doc.paymentTerms?.trim() ? (
-                    <TermsPanel title="Modalité de paiement" compact={dense}>
+                    <TermsPanel
+                      title="Modalité de paiement"
+                      compact={dense}
+                      accent={accent}
+                      accentTo={accentTo}
+                      tint={tint}
+                    >
                       {doc.paymentTerms.trim()}
                     </TermsPanel>
                   ) : null}
                   {doc.executionTerms?.trim() ? (
-                    <TermsPanel title="Conditions de réalisation" compact={dense}>
+                    <TermsPanel
+                      title="Conditions de réalisation"
+                      compact={dense}
+                      accent={accent}
+                      accentTo={accentTo}
+                      tint={tint}
+                    >
                       {doc.executionTerms.trim()}
                     </TermsPanel>
                   ) : null}
@@ -356,9 +388,9 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
             right={
               <TotalsBlock
                 doc={doc}
-                accent={ACCENT}
+                accent={accent}
                 compact={dense}
-                tint={TINT}
+                tint={tint}
               />
             }
           />
@@ -366,7 +398,7 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
             <AmountInWords
               amount={doc.total}
               currency={doc.currency}
-              accent={ACCENT}
+              accent={accent}
               compact={dense}
               intro="Arrêtée le présent devis à la somme de"
             />
@@ -382,9 +414,9 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
               managerName={signatoryName}
               signatureUrl={company.stampUrl?.trim() || ""}
               signatoryTitle={signatoryName}
-              accent={ACCENT}
+              accent={accent}
               compact={dense}
-              forPdf={compact || accountantSignatory}
+              forPdf={compact}
               omitStamp={omitSignature || accountantSignatory}
               cabinet={doc.cabinet}
             />
@@ -415,21 +447,27 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
   );
 });
 
-/** Modalités / conditions : barre pleine en design papier, encadré vert sinon. */
+/** Modalités / conditions : barre pleine en design papier, encadré coloré sinon. */
 function TermsPanel({
   title,
   referenceDesign,
   compact,
   children,
+  accent,
+  accentTo,
+  tint,
 }: {
   title: string;
   referenceDesign?: boolean;
   compact?: boolean;
   children: React.ReactNode;
+  accent: string;
+  accentTo: string;
+  tint: string;
 }) {
   if (referenceDesign) {
     return (
-      <InfoPanel title={title} accent={ACCENT} compact={compact} tint={TINT}>
+      <InfoPanel title={title} accent={accent} compact={compact} tint={tint}>
         {children}
       </InfoPanel>
     );
@@ -439,13 +477,13 @@ function TermsPanel({
     <div
       className={cn("rounded-lg", compact ? "p-2.5" : "p-3.5")}
       style={{
-        background: `${ACCENT_TO}18`,
-        boxShadow: `inset 0 0 0 1px ${ACCENT_TO}88`,
+        background: `${accentTo}18`,
+        boxShadow: `inset 0 0 0 1px ${accentTo}88`,
       }}
     >
       <div
         className={cn("font-bold uppercase tracking-wider", DOC_TEXT.small)}
-        style={{ color: ACCENT }}
+        style={{ color: accent }}
       >
         {title}
       </div>

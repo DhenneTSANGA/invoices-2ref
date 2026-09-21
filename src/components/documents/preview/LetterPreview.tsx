@@ -160,7 +160,7 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
           applied={showStamp}
           accent={accent}
           compact={isThumb}
-          forPdf={compact || accountantSignatory}
+          forPdf={compact}
           omitStamp={omitSignature || accountantSignatory}
           cabinet={doc.cabinet}
         />

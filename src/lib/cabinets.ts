@@ -30,12 +30,20 @@ export const CABINET_LOGO_BOUNDS: Record<
   expertise_fiscale: { canvasWidth: 594, canvasHeight: 420, left: 78, top: 99, width: 441, height: 223 },
 };
 
+/** Couleurs papier 2R Conseil — facture et devis. */
+export const CONSEIL_PAPER_COLORS = {
+  accent: "#184078",
+  accentTo: "#12325F",
+  sectionBg: "#D9E2EF",
+  rowAlt: "#EEF2F7",
+  paymentBg: "#EEF2F7",
+} as const;
+
 /** Formules de clôture facture / devis 2R Conseil (Times italic, comme le papier). */
 export const CONSEIL_CLOSING = {
   cheque: "Veuillez libeller tous les chèques à l'ordre de 2RConseil.",
   thanks: "NOUS VOUS REMERCIONS DE VOTRE CONFIANCE.",
-  /** Bleu des barres facture papier 2R Conseil. */
-  thanksColor: "#184078",
+  thanksColor: CONSEIL_PAPER_COLORS.accent,
 } as const;
 
 /** Mentions légales pied de page facture / devis 2R Conseil. */

@@ -9,6 +9,7 @@ import {
   niuLabelForCabinet,
   CONSEIL_CLOSING,
   CONSEIL_LEGAL_FOOTER,
+  CONSEIL_PAPER_COLORS,
 } from "@/lib/cabinets";
 import {
   isAccountantSignatory,
@@ -195,31 +196,34 @@ function buildCommercialEmailHtml(params: {
   niuLabel: string;
   cabinet?: "conseil" | "expertise_fiscale";
 }): string {
-  const colors = DOCUMENT_COLORS[params.type];
-  const { accent, accentTo } = colors;
   const isConseil = params.cabinet === "conseil";
+  const colors = isConseil
+    ? { accent: CONSEIL_PAPER_COLORS.accent, accentTo: CONSEIL_PAPER_COLORS.accentTo }
+    : DOCUMENT_COLORS[params.type];
+  const { accent, accentTo } = colors;
+  const timesFace = "font-family:Georgia,'Times New Roman',serif;";
 
   const rows = params.lines
     .map(
       (l, i) => `
       <tr style="background:${i % 2 === 0 ? "#FFFFFF" : "#F8FAFC"};">
         <td style="padding:10px 12px;border-bottom:1px solid #E2E8F0;font-size:13px;color:#0F172A;">${escapeHtml(l.description)}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid #E2E8F0;text-align:right;font-size:13px;color:#475569;">${l.quantity}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid #E2E8F0;text-align:right;font-size:13px;color:#475569;">${escapeHtml(money(l.unitPrice, params.currency))}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid #E2E8F0;text-align:right;font-size:13px;font-weight:600;color:#0F172A;">${escapeHtml(money(l.total, params.currency))}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #E2E8F0;text-align:right;font-size:13px;color:#475569;${isConseil ? timesFace : ""}">${l.quantity}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #E2E8F0;text-align:right;font-size:13px;color:#475569;${isConseil ? timesFace : ""}">${escapeHtml(money(l.unitPrice, params.currency))}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #E2E8F0;text-align:right;font-size:13px;font-weight:600;color:#0F172A;${isConseil ? timesFace : ""}">${escapeHtml(money(l.total, params.currency))}</td>
       </tr>`,
     )
     .join("");
 
   const taxRows = [
     params.tps > 0
-      ? `<tr><td style="padding:6px 12px;color:#64748B;font-size:13px;">TPS</td><td style="padding:6px 12px;text-align:right;font-size:13px;">${escapeHtml(money(params.tps, params.currency))}</td></tr>`
+      ? `<tr><td style="padding:6px 12px;color:#64748B;font-size:13px;">TPS</td><td style="padding:6px 12px;text-align:right;font-size:13px;${isConseil ? timesFace : ""}">${escapeHtml(money(params.tps, params.currency))}</td></tr>`
       : "",
     params.css > 0
-      ? `<tr><td style="padding:6px 12px;color:#64748B;font-size:13px;">CSS</td><td style="padding:6px 12px;text-align:right;font-size:13px;">${escapeHtml(money(params.css, params.currency))}</td></tr>`
+      ? `<tr><td style="padding:6px 12px;color:#64748B;font-size:13px;">CSS</td><td style="padding:6px 12px;text-align:right;font-size:13px;${isConseil ? timesFace : ""}">${escapeHtml(money(params.css, params.currency))}</td></tr>`
       : "",
     params.tps <= 0
-      ? `<tr><td style="padding:6px 12px;color:#64748B;font-size:13px;">TVA</td><td style="padding:6px 12px;text-align:right;font-size:13px;">${escapeHtml(money(params.vat, params.currency))}</td></tr>`
+      ? `<tr><td style="padding:6px 12px;color:#64748B;font-size:13px;">TVA</td><td style="padding:6px 12px;text-align:right;font-size:13px;${isConseil ? timesFace : ""}">${escapeHtml(money(params.vat, params.currency))}</td></tr>`
       : "",
   ].join("");
 
@@ -255,14 +259,20 @@ function buildCommercialEmailHtml(params: {
   const clientLines = params.clientLines;
 
   const clientLegalBits = [
-    params.clientNif ? `NIF : ${params.clientNif}` : "",
-    isConseil && params.clientPhone ? params.clientPhone : "",
-    !isConseil && params.clientRccm ? `RCCM : ${params.clientRccm}` : "",
-    params.clientCnss ? `CNSS : ${params.clientCnss}` : "",
-    params.clientCnamgs ? `CNAMGS : ${params.clientCnamgs}` : "",
+    params.clientNif
+      ? isConseil
+        ? `<strong>NIF : ${escapeHtml(params.clientNif)}</strong>`
+        : `NIF : ${escapeHtml(params.clientNif)}`
+      : "",
+    isConseil && !params.clientNif && params.clientPhone
+      ? `<span style="${timesFace}">${escapeHtml(params.clientPhone)}</span>`
+      : "",
+    !isConseil && params.clientRccm ? `RCCM : ${escapeHtml(params.clientRccm)}` : "",
+    params.clientCnss ? `CNSS : ${escapeHtml(params.clientCnss)}` : "",
+    params.clientCnamgs ? `CNAMGS : ${escapeHtml(params.clientCnamgs)}` : "",
   ].filter(Boolean);
 
-  const chequeHtml = `<div style="margin-top:12px;text-align:center;font-family:'Times New Roman',Times,serif;font-size:13px;font-style:italic;line-height:1.35;color:#000000;">${escapeHtml(CONSEIL_CLOSING.cheque)}</div>`;
+  const chequeHtml = `<div style="margin-top:12px;font-size:12px;line-height:1.45;color:#475569;">${escapeHtml(CONSEIL_CLOSING.cheque)}</div>`;
   const thanksHtml = `<div style="margin-top:24px;text-align:center;font-family:'Times New Roman',Times,serif;font-size:13px;font-style:italic;font-weight:700;line-height:1.4;color:${CONSEIL_CLOSING.thanksColor};">${escapeHtml(CONSEIL_CLOSING.thanks)}</div>`;
 
   const bodyHtml = `
@@ -308,7 +318,7 @@ function buildCommercialEmailHtml(params: {
             ${clientLegalBits
               .map(
                 (l) =>
-                  `<div style="font-size:11px;line-height:1.45;color:#64748B;">${escapeHtml(l)}</div>`,
+                  `<div style="font-size:11px;line-height:1.45;color:#64748B;">${l}</div>`,
               )
               .join("")}
           </div>
@@ -343,12 +353,12 @@ function buildCommercialEmailHtml(params: {
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E2E8F0;border-radius:10px;overflow:hidden;">
             <tr>
               <td style="padding:8px 12px;color:#64748B;font-size:13px;background:#FFFFFF;">Sous-total</td>
-              <td style="padding:8px 12px;text-align:right;font-size:13px;background:#FFFFFF;">${escapeHtml(money(params.subtotal, params.currency))}</td>
+              <td style="padding:8px 12px;text-align:right;font-size:13px;background:#FFFFFF;${isConseil ? timesFace : ""}">${escapeHtml(money(params.subtotal, params.currency))}</td>
             </tr>
             ${taxRows}
             <tr>
               <td style="padding:12px;font-size:13px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#FFFFFF;background:linear-gradient(90deg, ${accent}, ${accentTo});">Total TTC</td>
-              <td style="padding:12px;text-align:right;font-size:14px;font-weight:700;color:#FFFFFF;background:linear-gradient(90deg, ${accent}, ${accentTo});">${escapeHtml(money(params.total, params.currency))}</td>
+              <td style="padding:12px;text-align:right;font-size:14px;font-weight:700;color:#FFFFFF;background:linear-gradient(90deg, ${accent}, ${accentTo});${isConseil ? timesFace : ""}">${escapeHtml(money(params.total, params.currency))}</td>
             </tr>
           </table>
         </td>
@@ -372,8 +382,9 @@ function buildCommercialEmailHtml(params: {
             <strong style="color:#0F172A;">RIB pour le règlement</strong>
             <div style="margin-top:4px;">Règlement par virement bancaire ou par chèque.</div>
             ${params.company.bankName ? `<div style="margin-top:4px;">Banque : ${escapeHtml(params.company.bankName)}</div>` : ""}
-            ${params.company.bankAccount ? `<div>RIB : ${escapeHtml(params.company.bankAccount)}</div>` : ""}
-          </div>${isConseil ? chequeHtml : ""}`
+            ${params.company.bankAccount ? `<div>RIB : <span style="${isConseil ? timesFace : ""}">${escapeHtml(params.company.bankAccount)}</span></div>` : ""}
+            ${isConseil ? `<div style="margin-top:4px;">${escapeHtml(CONSEIL_CLOSING.cheque)}</div>` : ""}
+          </div>`
         : ""
     }
 

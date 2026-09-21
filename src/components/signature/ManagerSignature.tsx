@@ -15,8 +15,8 @@ export type ManagerSignatureProps = {
   compact?: boolean;
   pendingLabel?: string;
   /**
-   * Capture PDF : pas de libellé « En attente de signature ».
-   * Le cadre vide reste affiché comme zone de paraphe manuscrit.
+   * Capture PDF / impression : pas d’encadré pointillé ni de libellé
+   * « En attente de signature » — zone vide pour paraphe manuscrit.
    */
   forPdf?: boolean;
   /** N’imprime pas l’image même si le document est signé. */
@@ -27,7 +27,7 @@ export type ManagerSignatureProps = {
 
 /**
  * Signature électronique du gérant : image grande, nom collé juste en dessous.
- * Sans tampon : encadré pointillé (libellé « en attente » à l’écran seulement).
+ * Sans tampon : encadré pointillé à l’écran seulement (pas à l’impression).
  */
 export function ManagerSignature({
   signatureUrl,
@@ -44,7 +44,7 @@ export function ManagerSignature({
   const url = signatureUrl?.trim() || "";
   const name = managerName?.trim() || "";
   const showStamp = Boolean(applied && url && !omitStamp);
-  const hidePendingFrame = forPdf || omitStamp;
+  const hidePendingFrame = forPdf;
   const conseil = cabinet === "conseil";
 
   return (
@@ -78,17 +78,20 @@ export function ManagerSignature({
             style={{ color: "transparent", mixBlendMode: "normal", filter: "none" }}
           />
         </div>
+      ) : hidePendingFrame ? (
+        <div
+          className={cn("mx-auto w-full", compact ? "h-20" : "h-36")}
+          aria-hidden="true"
+        />
       ) : (
         <div
           className={cn(
-            "mx-auto flex items-center justify-center rounded-lg border border-dashed",
+            "mx-auto flex items-center justify-center rounded-lg border border-dashed text-[12px] italic text-[#94A3B8]",
             compact ? "h-20 w-40" : "h-36 w-full",
-            hidePendingFrame ? "" : "text-[12px] italic text-[#94A3B8]",
           )}
           style={{ borderColor: `${accent}44` }}
-          aria-hidden={hidePendingFrame || undefined}
         >
-          {hidePendingFrame ? null : pendingLabel}
+          {pendingLabel}
         </div>
       )}
 
