@@ -105,7 +105,7 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
       lines={clientLines}
       nif={client?.nif}
       niu={client?.niu}
-      rccm={client?.rccm}
+      rccm={isConseilDesign ? undefined : client?.rccm}
       referenceDesign={isConseilDesign}
       muted={!isConseilDesign}
       compact={dense}
@@ -152,7 +152,7 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
                   <div className="mt-3">{clientBlock}</div>
                 </td>
                 <td style={{ ...TWO_COL.right, textAlign: "right" }}>
-                  <div className={cn("space-y-0.5", DOC_TEXT.small)}>
+                  <div className={cn("leading-[1.2]", DOC_TEXT.small)}>
                     <div>
                       <span className="text-[#64748B]">N° de devis : </span>
                       <span className={cn("font-semibold text-[#0F172A]", DOC_TEXT.base)}>
@@ -165,7 +165,10 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
                         {longDate(doc.issueDate)}
                       </span>
                     </div>
-                    <DocumentClientRef clientRef={client?.clientRef} />
+                    <DocumentClientRef
+                      clientRef={client?.clientRef}
+                      className="leading-[1.2]"
+                    />
                   </div>
                 </td>
               </tr>
@@ -240,74 +243,137 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
         sectionTint={TINT}
       />
 
-      <PreviewBottomRow
-        compact={dense}
-        left={
-          doc.paymentTerms?.trim() || doc.executionTerms?.trim() ? (
-            <div className={cn("space-y-2", dense ? "space-y-1.5" : "space-y-2")}>
-              {doc.paymentTerms?.trim() ? (
-                <TermsPanel
-                  title="Modalité de paiement"
-                  referenceDesign={isConseilDesign}
-                  compact={dense}
-                >
-                  {doc.paymentTerms.trim()}
-                </TermsPanel>
-              ) : null}
-              {doc.executionTerms?.trim() ? (
-                <TermsPanel
-                  title="Conditions de réalisation"
-                  referenceDesign={isConseilDesign}
-                  compact={dense}
-                >
-                  {doc.executionTerms.trim()}
-                </TermsPanel>
-              ) : null}
-            </div>
-          ) : (
-            <div />
-          )
-        }
-        right={
-          <TotalsBlock
-            doc={doc}
-            accent={ACCENT}
+      {isConseilDesign ? (
+        <>
+          <PreviewBottomRow
             compact={dense}
-            referenceDesign={isConseilDesign}
-            tint={TINT}
+            left={<div />}
+            right={
+              <TotalsBlock
+                doc={doc}
+                accent={ACCENT}
+                compact={dense}
+                referenceDesign
+                tint={TINT}
+              />
+            }
           />
-        }
-      />
-
-      <div className={cn("w-full", dense ? "mt-2" : isConseilDesign ? "mt-2.5" : "mt-4")}>
-        <AmountInWords
-          amount={doc.total}
-          currency={doc.currency}
-          accent={ACCENT}
-          compact={dense}
-          intro="Arrêtée le présent devis à la somme de"
-          variant={isConseilDesign ? "reference" : "default"}
-        />
-      </div>
-
-      <div className={cn("flex justify-end", dense ? "mt-2" : isConseilDesign ? "mt-2" : "mt-4")}>
-        <ManagerSignature
-          applied={
-            !accountantSignatory &&
-            (doc.status === "signed" ||
-              doc.status === "sent" ||
-              doc.status === "accepted")
-          }
-          managerName={signatoryName}
-          signatureUrl={company.stampUrl?.trim() || ""}
-          signatoryTitle={signatoryName}
-          accent={ACCENT}
-          compact={dense}
-          forPdf={compact || accountantSignatory}
-          omitStamp={omitSignature || accountantSignatory}
-          cabinet={doc.cabinet}
-        />
-      </div>
+          <div className={cn("w-full", dense ? "mt-2" : "mt-2.5")}>
+            <AmountInWords
+              amount={doc.total}
+              currency={doc.currency}
+              accent={ACCENT}
+              compact={dense}
+              intro="Arrêtée le présent devis à la somme de"
+              variant="reference"
+            />
+          </div>
+          <PreviewBottomRow
+            compact={dense}
+            className="mt-2"
+            left={
+              doc.paymentTerms?.trim() || doc.executionTerms?.trim() ? (
+                <div className={cn("space-y-2", dense ? "space-y-1.5" : "space-y-2")}>
+                  {doc.paymentTerms?.trim() ? (
+                    <TermsPanel title="Modalité de paiement" referenceDesign compact={dense}>
+                      {doc.paymentTerms.trim()}
+                    </TermsPanel>
+                  ) : null}
+                  {doc.executionTerms?.trim() ? (
+                    <TermsPanel
+                      title="Conditions de réalisation"
+                      referenceDesign
+                      compact={dense}
+                    >
+                      {doc.executionTerms.trim()}
+                    </TermsPanel>
+                  ) : null}
+                </div>
+              ) : (
+                <div />
+              )
+            }
+            right={<div />}
+          />
+          <div className="mt-auto flex justify-end pt-4">
+            <ManagerSignature
+              applied={
+                !accountantSignatory &&
+                (doc.status === "signed" ||
+                  doc.status === "sent" ||
+                  doc.status === "accepted")
+              }
+              managerName={signatoryName}
+              signatureUrl={company.stampUrl?.trim() || ""}
+              signatoryTitle={signatoryName}
+              accent={ACCENT}
+              compact={dense}
+              forPdf={compact || accountantSignatory}
+              omitStamp={omitSignature || accountantSignatory}
+              cabinet={doc.cabinet}
+            />
+          </div>
+        </>
+      ) : (
+        <>
+          <PreviewBottomRow
+            compact={dense}
+            left={
+              doc.paymentTerms?.trim() || doc.executionTerms?.trim() ? (
+                <div className={cn("space-y-2", dense ? "space-y-1.5" : "space-y-2")}>
+                  {doc.paymentTerms?.trim() ? (
+                    <TermsPanel title="Modalité de paiement" compact={dense}>
+                      {doc.paymentTerms.trim()}
+                    </TermsPanel>
+                  ) : null}
+                  {doc.executionTerms?.trim() ? (
+                    <TermsPanel title="Conditions de réalisation" compact={dense}>
+                      {doc.executionTerms.trim()}
+                    </TermsPanel>
+                  ) : null}
+                </div>
+              ) : (
+                <div />
+              )
+            }
+            right={
+              <TotalsBlock
+                doc={doc}
+                accent={ACCENT}
+                compact={dense}
+                tint={TINT}
+              />
+            }
+          />
+          <div className={cn("w-full", dense ? "mt-2" : "mt-4")}>
+            <AmountInWords
+              amount={doc.total}
+              currency={doc.currency}
+              accent={ACCENT}
+              compact={dense}
+              intro="Arrêtée le présent devis à la somme de"
+            />
+          </div>
+          <div className={cn("flex justify-end", dense ? "mt-2" : "mt-4")}>
+            <ManagerSignature
+              applied={
+                !accountantSignatory &&
+                (doc.status === "signed" ||
+                  doc.status === "sent" ||
+                  doc.status === "accepted")
+              }
+              managerName={signatoryName}
+              signatureUrl={company.stampUrl?.trim() || ""}
+              signatoryTitle={signatoryName}
+              accent={ACCENT}
+              compact={dense}
+              forPdf={compact || accountantSignatory}
+              omitStamp={omitSignature || accountantSignatory}
+              cabinet={doc.cabinet}
+            />
+          </div>
+        </>
+      )}
 
       <LegalFooter
         name={company.name}
@@ -323,7 +389,7 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
         website={company.website}
         niuLabel={niuLabel}
         compact={dense}
-        className={DOC_TEXT.small}
+        className={cn(DOC_TEXT.small, isConseilDesign && "mt-3")}
       />
     </PreviewShell>
   );

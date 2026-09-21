@@ -109,7 +109,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
       lines={clientLines}
       nif={client?.nif}
       niu={client?.niu}
-      rccm={client?.rccm}
+      rccm={isConseilDesign ? undefined : client?.rccm}
       referenceDesign={isConseilDesign}
       muted={!isConseilDesign}
       compact={dense}
@@ -156,7 +156,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
                   <div className="mt-3">{clientBlock}</div>
                 </td>
                 <td style={{ ...TWO_COL.right, textAlign: "right" }}>
-                  <div className={cn("space-y-0.5", DOC_TEXT.small)}>
+                  <div className={cn("leading-[1.2]", DOC_TEXT.small)}>
                     <div>
                       <span className="text-[#64748B]">N° de facture : </span>
                       <span className={cn("font-semibold text-[#0F172A]", DOC_TEXT.base)}>
@@ -169,7 +169,10 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
                         {longDate(doc.issueDate)}
                       </span>
                     </div>
-                    <DocumentClientRef clientRef={client?.clientRef} />
+                    <DocumentClientRef
+                      clientRef={client?.clientRef}
+                      className="leading-[1.2]"
+                    />
                   </div>
                 </td>
               </tr>
@@ -225,78 +228,122 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
         referenceDesign={isConseilDesign}
       />
 
-      <PreviewBottomRow
-        compact={dense}
-        left={
-          isConseilDesign ? (
-            <div className={cn("space-y-2", dense ? "space-y-1.5" : "space-y-2")}>
-              {doc.paymentTerms?.trim() ? (
-                <InfoPanel title="Modalité de paiement" accent={accent} compact={dense}>
-                  {doc.paymentTerms.trim()}
-                </InfoPanel>
-              ) : null}
-              {doc.showRib ? (
-                <InfoPanel title="RIB pour le règlement" accent={accent} compact={dense}>
-                  <div>Règlement par virement bancaire ou par chèque.</div>
-                  {company.bankName ? (
-                    <div className="mt-0.5">
-                      <span className="text-[#64748B]">Banque : </span>
-                      {company.bankName}
-                    </div>
-                  ) : null}
-                  {company.bankAccount ? (
-                    <div className="mt-0.5 break-words">
-                      <span className="text-[#64748B]">RIB : </span>
-                      {company.bankAccount}
-                    </div>
-                  ) : null}
-                </InfoPanel>
-              ) : null}
-            </div>
-          ) : (
-            <LegacyPaymentPanels
-              doc={doc}
-              company={company}
+      {isConseilDesign ? (
+        <>
+          <PreviewBottomRow
+            compact={dense}
+            left={<div />}
+            right={
+              <TotalsBlock
+                doc={doc}
+                accent={accent}
+                compact={dense}
+                referenceDesign
+              />
+            }
+          />
+          <div className={cn("w-full", dense ? "mt-2" : "mt-2.5")}>
+            <AmountInWords
+              amount={doc.total}
+              currency={doc.currency}
+              accent={accent}
+              compact={dense}
+              variant="reference"
+            />
+          </div>
+          <PreviewBottomRow
+            compact={dense}
+            className="mt-2"
+            left={
+              <div className={cn("space-y-2", dense ? "space-y-1.5" : "space-y-2")}>
+                {doc.paymentTerms?.trim() ? (
+                  <InfoPanel title="Modalité de paiement" accent={accent} compact={dense}>
+                    {doc.paymentTerms.trim()}
+                  </InfoPanel>
+                ) : null}
+                {doc.showRib ? (
+                  <InfoPanel title="RIB pour le règlement" accent={accent} compact={dense}>
+                    <div>Règlement par virement bancaire ou par chèque.</div>
+                    {company.bankName ? (
+                      <div className="mt-0.5">
+                        <span className="text-[#64748B]">Banque : </span>
+                        {company.bankName}
+                      </div>
+                    ) : null}
+                    {company.bankAccount ? (
+                      <div className="mt-0.5 break-words">
+                        <span className="text-[#64748B]">RIB : </span>
+                        {company.bankAccount}
+                      </div>
+                    ) : null}
+                  </InfoPanel>
+                ) : null}
+              </div>
+            }
+            right={<div />}
+          />
+          <div className="mt-auto flex justify-end pt-4">
+            <ManagerSignature
+              applied={
+                !accountantSignatory &&
+                (doc.status === "signed" || doc.status === "sent" || doc.status === "paid")
+              }
+              managerName={signatoryName}
+              signatureUrl={company.stampUrl?.trim() || ""}
+              signatoryTitle={signatoryName}
+              accent={accent}
+              compact={dense}
+              forPdf={compact || accountantSignatory}
+              omitStamp={omitSignature || accountantSignatory}
+              cabinet={doc.cabinet}
+            />
+          </div>
+        </>
+      ) : (
+        <>
+          <PreviewBottomRow
+            compact={dense}
+            left={
+              <LegacyPaymentPanels
+                doc={doc}
+                company={company}
+                compact={dense}
+              />
+            }
+            right={
+              <TotalsBlock
+                doc={doc}
+                accent={accent}
+                compact={dense}
+              />
+            }
+          />
+          <div className={cn("w-full", dense ? "mt-2" : "mt-2.5")}>
+            <AmountInWords
+              amount={doc.total}
+              currency={doc.currency}
+              accent={accent}
               compact={dense}
             />
-          )
-        }
-        right={
-          <TotalsBlock
-            doc={doc}
-            accent={accent}
-            compact={dense}
-            referenceDesign={isConseilDesign}
-          />
-        }
-      />
-
-      <div className={cn("w-full", dense ? "mt-2" : "mt-2.5")}>
-        <AmountInWords
-          amount={doc.total}
-          currency={doc.currency}
-          accent={accent}
-          compact={dense}
-          variant={isConseilDesign ? "reference" : "default"}
-        />
-      </div>
-
-      <div className={cn("flex justify-end", dense ? "mt-2" : "mt-2")}>
-        <ManagerSignature
-          applied={
-            !accountantSignatory &&
-            (doc.status === "signed" || doc.status === "sent" || doc.status === "paid")
-          }
-          managerName={signatoryName}
-          signatureUrl={company.stampUrl?.trim() || ""}
-          signatoryTitle={signatoryName}
-          accent={accent}
-          compact={dense}
-          forPdf={compact || accountantSignatory}
-          omitStamp={omitSignature || accountantSignatory}
-          cabinet={doc.cabinet}
-        />
-      </div>
+          </div>
+          <div className={cn("flex justify-end", dense ? "mt-2" : "mt-2")}>
+            <ManagerSignature
+              applied={
+                !accountantSignatory &&
+                (doc.status === "signed" || doc.status === "sent" || doc.status === "paid")
+              }
+              managerName={signatoryName}
+              signatureUrl={company.stampUrl?.trim() || ""}
+              signatoryTitle={signatoryName}
+              accent={accent}
+              compact={dense}
+              forPdf={compact || accountantSignatory}
+              omitStamp={omitSignature || accountantSignatory}
+              cabinet={doc.cabinet}
+            />
+          </div>
+        </>
+      )}
 
       <LegalFooter
         name={company.name}
@@ -312,7 +359,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
         website={company.website}
         niuLabel={niuLabel}
         compact={dense}
-        className={DOC_TEXT.small}
+        className={cn(DOC_TEXT.small, isConseilDesign && "mt-3")}
       />
     </PreviewShell>
   );
@@ -451,12 +498,13 @@ function PartyBlock({
   const heading = title.trim();
 
   if (referenceDesign) {
-    /* Seuls les intitulés en gras restent à 13 ; adresses et identifiants à 11. */
+    /* Interligne unique et serré : nom, adresse, téléphone, NIF. */
+    const line = "leading-[1.2] break-words";
     return (
-      <div className={cn("leading-snug", DOC_TEXT.small)}>
+      <div className={cn("leading-[1.2]", DOC_TEXT.small)}>
         {heading ? (
           <div
-            className={cn("font-bold uppercase leading-none tracking-wide", DOC_TEXT.small)}
+            className={cn("font-bold uppercase tracking-wide", line, DOC_TEXT.small)}
             style={{ color: accent }}
           >
             {heading}
@@ -466,37 +514,33 @@ function PartyBlock({
           <>
             <div
               className={cn(
-                "font-bold uppercase leading-snug break-words text-[#0F172A]",
-                heading && "mt-1",
+                "font-bold uppercase text-[#0F172A]",
+                line,
                 DOC_TEXT.base,
               )}
             >
               {name}
             </div>
             {lines?.map((l, i) => (
-              <div key={i} className="mt-0.5 break-words text-[#334155]">
+              <div key={i} className={cn(line, "text-[#334155]")}>
                 {l}
               </div>
             ))}
-            {ids.length > 0 && (
-              <div className="mt-1 space-y-0.5 text-[#334155]">
-                {ids.map((id) => (
-                  <div key={id.label}>
-                    {id.label === "Capital" ? (
-                      <b className={cn("text-[#0F172A]", DOC_TEXT.base)}>{id.value}</b>
-                    ) : (
-                      <>
-                        {id.label} :{" "}
-                        <b className={cn("text-[#0F172A]", DOC_TEXT.base)}>{id.value}</b>
-                      </>
-                    )}
-                  </div>
-                ))}
+            {ids.map((id) => (
+              <div key={id.label} className={cn(line, "text-[#334155]")}>
+                {id.label === "Capital" ? (
+                  <b className={cn("text-[#0F172A]", DOC_TEXT.base)}>{id.value}</b>
+                ) : (
+                  <>
+                    {id.label} :{" "}
+                    <b className={cn("text-[#0F172A]", DOC_TEXT.base)}>{id.value}</b>
+                  </>
+                )}
               </div>
-            )}
+            ))}
           </>
         ) : (
-          <div className="mt-1 italic text-[#94A3B8]">Sélectionnez un client…</div>
+          <div className={cn(line, "italic text-[#94A3B8]")}>Sélectionnez un client…</div>
         )}
       </div>
     );

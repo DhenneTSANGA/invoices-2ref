@@ -124,7 +124,7 @@ export const COMPANY_DEFAULTS: Record<Cabinet, CompanyInfo> = {
     rccm: "GA-LBV-01-2019-B12-00097",
     cnss: "",
     address: "BP 20478",
-    city: "LBV, Gabon",
+    city: "Libreville, Gabon",
     phone: "074 02 55 52 / 011 44 39 64",
     email: "contact@2rconseil.ga",
     website: "",

@@ -29,7 +29,7 @@ const COMPANY_CONSEIL = {
   rccm: "GA-LBV-01-2019-B12-00097",
   cnss: null,
   address: "BP 20478",
-  city: "LBV, Gabon",
+  city: "Libreville, Gabon",
   phone: "077 52 24 / 011 44 39 64",
   email: "contact@2rconseil.ga",
   website: "www.2rconseil.ga",

@@ -374,14 +374,16 @@ export function PreviewBottomRow({
   left,
   right,
   compact,
+  className,
 }: {
   left: ReactNode;
   right: ReactNode;
   compact?: boolean;
+  className?: string;
 }) {
   return (
     <table
-      className={cn("w-full border-collapse", compact ? "mt-2" : "mt-4")}
+      className={cn("w-full border-collapse", compact ? "mt-2" : "mt-4", className)}
       style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}
     >
       <tbody>
