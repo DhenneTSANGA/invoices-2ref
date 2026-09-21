@@ -589,7 +589,7 @@ export function DocumentEditor({ initial, type }: Props) {
       merged.paymentTerms === undefined || merged.paymentTerms === null
         ? null
         : merged.paymentTerms.trim() || null,
-    showRib: Boolean(merged.showRib),
+    showRib: merged.cabinet === "conseil" ? true : Boolean(merged.showRib),
     validityDays: merged.validityDays ?? null,
     executionTerms: merged.executionTerms ?? null,
     subject: merged.subject ?? null,
@@ -875,23 +875,36 @@ export function DocumentEditor({ initial, type }: Props) {
                 onChange={(v) => setDoc({ ...doc, currency: v })}
               />
               <div className="block space-y-2">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    RIB pour règlement (optionnel)
-                  </span>
-                  <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
-                    <Switch
-                      checked={Boolean(doc.showRib)}
-                      onCheckedChange={(on) => setDoc({ ...doc, showRib: on })}
-                    />
-                    <span>{doc.showRib ? "Activé" : "Désactivé"}</span>
-                  </label>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {doc.showRib
-                    ? "Activé : le RIB de la société (paramètres) apparaîtra sur le document."
-                    : "Désactivé : le RIB n’apparaîtra pas sur le document."}
-                </p>
+                {doc.cabinet === "conseil" ? (
+                  <>
+                    <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                      RIB pour règlement
+                    </span>
+                    <p className="text-xs text-muted-foreground">
+                      Toujours affiché : le RIB de la société (paramètres) apparaît sur le document.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        RIB pour règlement (optionnel)
+                      </span>
+                      <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+                        <Switch
+                          checked={Boolean(doc.showRib)}
+                          onCheckedChange={(on) => setDoc({ ...doc, showRib: on })}
+                        />
+                        <span>{doc.showRib ? "Activé" : "Désactivé"}</span>
+                      </label>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {doc.showRib
+                        ? "Activé : le RIB de la société (paramètres) apparaîtra sur le document."
+                        : "Désactivé : le RIB n’apparaîtra pas sur le document."}
+                    </p>
+                  </>
+                )}
               </div>
             </>
           ) : (
@@ -1839,7 +1852,7 @@ function defaultDoc(
       validityDays: 30,
       executionTerms: formatExecutionTerms(15),
       paymentTerms: DEFAULT_PAYMENT_MODALITY,
-      showRib: false,
+      showRib: cabinet === "conseil",
       signatoryTitle: DEFAULT_SIGNATORY_TITLE,
     };
   }
@@ -1847,7 +1860,7 @@ function defaultDoc(
     ...base,
     number: "…",
     paymentTerms: DEFAULT_PAYMENT_MODALITY,
-    showRib: false,
+    showRib: cabinet === "conseil",
     signatoryTitle: DEFAULT_SIGNATORY_TITLE,
   };
 }

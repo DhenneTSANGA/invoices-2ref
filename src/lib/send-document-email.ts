@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session.functions";
 import { getResend } from "@/lib/resend";
 import { companyForPreview } from "@/lib/company-defaults";
-import { DOCUMENT_COLORS, niuLabelForCabinet } from "@/lib/cabinets";
+import { DOCUMENT_COLORS, niuLabelForCabinet, CONSEIL_CLOSING } from "@/lib/cabinets";
 import {
   isAccountantSignatory,
   signatoryDisplayName,
@@ -182,9 +182,11 @@ function buildCommercialEmailHtml(params: {
   showRib?: boolean;
   executionTerms?: string | null;
   niuLabel: string;
+  cabinet?: "conseil" | "expertise_fiscale";
 }): string {
   const colors = DOCUMENT_COLORS[params.type];
   const { accent, accentTo } = colors;
+  const isConseil = params.cabinet === "conseil";
 
   const rows = params.lines
     .map(
@@ -233,7 +235,7 @@ function buildCommercialEmailHtml(params: {
 
   const clientLegalBits = [
     params.clientNif ? `NIF : ${params.clientNif}` : "",
-    params.clientRccm ? `RCCM : ${params.clientRccm}` : "",
+    !isConseil && params.clientRccm ? `RCCM : ${params.clientRccm}` : "",
     params.clientCnss ? `CNSS : ${params.clientCnss}` : "",
     params.clientCnamgs ? `CNAMGS : ${params.clientCnamgs}` : "",
   ].filter(Boolean);
@@ -338,10 +340,11 @@ function buildCommercialEmailHtml(params: {
 
     ${
       params.type === "invoice" &&
-      params.showRib &&
-      (params.company.bankName || params.company.bankAccount)
+      (isConseil || params.showRib) &&
+      (isConseil || params.company.bankName || params.company.bankAccount)
         ? `<div style="margin-top:20px;background:#F1F5F9;border-radius:10px;padding:12px 14px;font-size:12px;color:#475569;">
             <strong style="color:#0F172A;">RIB pour le règlement</strong>
+            <div style="margin-top:4px;">Règlement par virement bancaire ou par chèque.</div>
             ${params.company.bankName ? `<div style="margin-top:4px;">Banque : ${escapeHtml(params.company.bankName)}</div>` : ""}
             ${params.company.bankAccount ? `<div>RIB : ${escapeHtml(params.company.bankAccount)}</div>` : ""}
           </div>`
@@ -351,6 +354,15 @@ function buildCommercialEmailHtml(params: {
     ${
       params.executionTerms?.trim()
         ? `<div style="margin-top:20px;background:#F8FAFC;border-radius:10px;padding:12px 14px;font-size:13px;color:#475569;"><strong style="color:#0F172A;">Conditions de réalisation :</strong> ${escapeHtml(params.executionTerms.trim())}</div>`
+        : ""
+    }
+
+    ${
+      isConseil
+        ? `<div style="margin-top:24px;text-align:center;font-family:'Times New Roman',Times,serif;font-size:13px;line-height:1.4;color:#000000;">
+            <div style="font-style:italic;">${escapeHtml(CONSEIL_CLOSING.cheque)}</div>
+            <div style="margin-top:4px;font-style:italic;font-weight:700;color:${CONSEIL_CLOSING.thanksColor};">${escapeHtml(CONSEIL_CLOSING.thanks)}</div>
+          </div>`
         : ""
     }
 
@@ -603,9 +615,10 @@ export async function sendDocumentEmailInternal(params: {
         vat: Number(doc.vat),
         total: Number(doc.total),
         paymentTerms: doc.paymentTerms,
-        showRib: Boolean(doc.showRib),
+        showRib: doc.cabinet === "conseil" ? true : Boolean(doc.showRib),
         executionTerms: doc.executionTerms,
         niuLabel,
+        cabinet: doc.cabinet,
       });
     }
 

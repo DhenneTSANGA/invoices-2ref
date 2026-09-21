@@ -11,6 +11,7 @@ import {
   AmountInWords,
   DocumentClientRef,
   PreviewBottomRow,
+  CONSEIL_CLOSING,
 } from "./PreviewShell";
 import {
   HEADER_LOGO_HEIGHT,
@@ -120,6 +121,7 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
       isThumb={isThumb}
       className={className}
       {...DOC_SHELL}
+      pagePaddingBottomMm={isConseilDesign ? 8 : undefined}
     >
       {isConseilDesign ? (
         <>
@@ -389,7 +391,8 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
         website={company.website}
         niuLabel={niuLabel}
         compact={dense}
-        className={cn(DOC_TEXT.small, isConseilDesign && "mt-3")}
+        closing={isConseilDesign ? CONSEIL_CLOSING : undefined}
+        className={cn(DOC_TEXT.small, isConseilDesign && "mt-4")}
       />
     </PreviewShell>
   );

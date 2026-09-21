@@ -4,6 +4,7 @@ import {
   CABINET_LOGOS,
   CABINET_LABELS,
   CABINET_LOGO_BOUNDS,
+  CONSEIL_CLOSING,
   type Cabinet,
 } from "@/lib/cabinets";
 import { amountInWords } from "@/lib/format";
@@ -30,7 +31,7 @@ export const DOC_TEXT = {
   base: "text-[13px]",
 } as const;
 
-/** Réglages partagés par l’aperçu facture et devis. */
+export { CONSEIL_CLOSING };
 export const DOC_SHELL = {
   baseTextClass: DOC_TEXT.small,
   pageMarginMm: DOC_PAGE_MARGIN_MM,
@@ -47,6 +48,8 @@ type ShellProps = {
   baseTextClass?: string;
   /** Marge papier en mm (facture / devis : 16, courrier : 18). */
   pageMarginMm?: number;
+  /** Marge bas en mm — plus petite pour loger les formules sans réduire la signature. */
+  pagePaddingBottomMm?: number;
 };
 
 export function PreviewShell({
@@ -58,9 +61,12 @@ export function PreviewShell({
   innerRef,
   baseTextClass = "text-[14px]",
   pageMarginMm = PAGE_MARGIN_MM,
+  pagePaddingBottomMm,
 }: ShellProps) {
   // compact = export PDF : même typo/paddings que l’aperçu, sans ombre ni coins
   const forPdf = Boolean(compact);
+  const padX = pagePaddingPx(pageMarginMm);
+  const padBottom = pagePaddingPx(pagePaddingBottomMm ?? pageMarginMm);
 
   return (
     <div
@@ -86,7 +92,7 @@ export function PreviewShell({
         className={cn("flex min-h-full flex-col leading-relaxed", baseTextClass)}
         style={{
           minHeight: !isThumb ? A4_MIN_HEIGHT : undefined,
-          padding: pagePaddingPx(pageMarginMm),
+          padding: `${padX}px ${padX}px ${padBottom}px`,
         }}
       >
         {children}
@@ -247,6 +253,7 @@ export function LegalFooter({
   niuLabel = "NIU",
   compact,
   className,
+  closing,
 }: {
   name: string;
   address: string;
@@ -265,6 +272,8 @@ export function LegalFooter({
   compact?: boolean;
   /** Permet aux factures / devis d’imposer l’échelle DOC_TEXT. */
   className?: string;
+  /** Formules de politesse centrées, juste au-dessus de la ligne de pied de page. */
+  closing?: { cheque: string; thanks: string; thanksColor?: string };
 }) {
   const legalParts = [
     name,
@@ -279,16 +288,29 @@ export function LegalFooter({
   return (
     <div
       className={cn(
-        "mt-auto shrink-0 border-t border-[#E2E8F0] pt-2 text-center leading-tight text-[#64748B]",
+        "mt-auto shrink-0 text-center leading-tight text-[#64748B]",
         compact ? "text-[8px]" : "text-[10px]",
         className,
       )}
     >
-      <div className="px-0.5 leading-snug [overflow-wrap:anywhere]">
-        {legalParts.join(" · ")}
-      </div>
-      <div className="px-0.5 leading-snug [overflow-wrap:anywhere]">
-        {[phone, email, website].filter(Boolean).join(" · ")}
+      {closing ? (
+        <div
+          className="mb-2.5 w-full text-center text-[12px] leading-[1.35] text-black"
+          style={{ fontFamily: '"Times New Roman", Times, serif' }}
+        >
+          <div className="italic">{closing.cheque}</div>
+          <div className="mt-0.5 font-bold italic" style={{ color: closing.thanksColor }}>
+            {closing.thanks}
+          </div>
+        </div>
+      ) : null}
+      <div className="border-t border-[#E2E8F0] pt-2">
+        <div className="px-0.5 leading-snug [overflow-wrap:anywhere]">
+          {legalParts.join(" · ")}
+        </div>
+        <div className="px-0.5 leading-snug [overflow-wrap:anywhere]">
+          {[phone, email, website].filter(Boolean).join(" · ")}
+        </div>
       </div>
     </div>
   );

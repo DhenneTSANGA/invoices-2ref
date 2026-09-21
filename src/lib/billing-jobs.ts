@@ -220,7 +220,7 @@ async function generateSubscriptionInvoice(
         currency: template.currency,
         notes: template.notes,
         paymentTerms: template.paymentTerms,
-        showRib: template.showRib ?? false,
+        showRib: template.cabinet === "conseil" ? true : (template.showRib ?? false),
         signatoryTitle: template.signatoryTitle,
         subscriptionOfId: template.id,
       },

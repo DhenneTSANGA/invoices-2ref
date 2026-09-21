@@ -30,6 +30,14 @@ export const CABINET_LOGO_BOUNDS: Record<
   expertise_fiscale: { canvasWidth: 594, canvasHeight: 420, left: 78, top: 99, width: 441, height: 223 },
 };
 
+/** Formules de clôture facture / devis 2R Conseil (Times italic, comme le papier). */
+export const CONSEIL_CLOSING = {
+  cheque: "Veuillez libeller tous les chèques à l'ordre de 2RConseil.",
+  thanks: "NOUS VOUS REMERCIONS DE VOTRE CONFIANCE.",
+  /** Bleu des barres facture papier 2R Conseil. */
+  thanksColor: "#184078",
+} as const;
+
 /** Couleurs documents (charte 2R Conseil : bleu marine + vert). */
 export const DOCUMENT_COLORS = {
   invoice: {

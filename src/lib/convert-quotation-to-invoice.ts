@@ -18,7 +18,7 @@ export function buildInvoiceInputFromQuotation(
     currency: quotation.currency,
     notes: quotation.notes ?? null,
     paymentTerms: quotation.paymentTerms ?? null,
-    showRib: quotation.showRib ?? false,
+    showRib: quotation.cabinet === "conseil" ? true : (quotation.showRib ?? false),
     validityDays: null,
     executionTerms: null,
     subject: null,

@@ -12,6 +12,7 @@ import {
   AmountInWords,
   DocumentClientRef,
   PreviewBottomRow,
+  CONSEIL_CLOSING,
 } from "./PreviewShell";
 import { computeDocumentTotals, documentTaxRates } from "@/lib/document-math";
 import { COMPANY_DEFAULTS, DOCUMENT_COLORS, niuLabelForCabinet } from "@/lib/cabinets";
@@ -124,6 +125,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
       isThumb={isThumb}
       className={className}
       {...DOC_SHELL}
+      pagePaddingBottomMm={isConseilDesign ? 8 : undefined}
     >
       {isConseilDesign ? (
         <>
@@ -261,23 +263,21 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
                     {doc.paymentTerms.trim()}
                   </InfoPanel>
                 ) : null}
-                {doc.showRib ? (
-                  <InfoPanel title="RIB pour le règlement" accent={accent} compact={dense}>
-                    <div>Règlement par virement bancaire ou par chèque.</div>
-                    {company.bankName ? (
-                      <div className="mt-0.5">
-                        <span className="text-[#64748B]">Banque : </span>
-                        {company.bankName}
-                      </div>
-                    ) : null}
-                    {company.bankAccount ? (
-                      <div className="mt-0.5 break-words">
-                        <span className="text-[#64748B]">RIB : </span>
-                        {company.bankAccount}
-                      </div>
-                    ) : null}
-                  </InfoPanel>
-                ) : null}
+                <InfoPanel title="RIB pour le règlement" accent={accent} compact={dense}>
+                  <div>Règlement par virement bancaire ou par chèque.</div>
+                  {company.bankName ? (
+                    <div className="mt-0.5">
+                      <span className="text-[#64748B]">Banque : </span>
+                      {company.bankName}
+                    </div>
+                  ) : null}
+                  {company.bankAccount ? (
+                    <div className="mt-0.5 break-words">
+                      <span className="text-[#64748B]">RIB : </span>
+                      {company.bankAccount}
+                    </div>
+                  ) : null}
+                </InfoPanel>
               </div>
             }
             right={<div />}
@@ -359,7 +359,8 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
         website={company.website}
         niuLabel={niuLabel}
         compact={dense}
-        className={cn(DOC_TEXT.small, isConseilDesign && "mt-3")}
+        closing={isConseilDesign ? CONSEIL_CLOSING : undefined}
+        className={cn(DOC_TEXT.small, isConseilDesign && "mt-4")}
       />
     </PreviewShell>
   );
@@ -674,7 +675,7 @@ function ItemsTable({
         <thead>
           <tr style={headerStyle} className={cn("text-white", DOC_TEXT.base)}>
             <th className={cn(cell, "w-8 text-left font-semibold")}>#</th>
-            <th className={cn(cell, "text-left font-semibold")}>Désignation</th>
+            <th className={cn(cell, "text-left font-semibold")}>(Désignation)</th>
             <th className={cn(cell, "w-10 text-right font-semibold")}>Qté</th>
             <th className={cn(cell, "w-16 text-right font-semibold")}>P.U. HT</th>
             <th className={cn(cell, "w-20 text-right font-semibold")}>Total HT</th>
