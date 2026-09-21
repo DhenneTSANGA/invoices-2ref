@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import type { Cabinet } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session.functions";
 import { isAdmin } from "@/lib/roles";
@@ -47,7 +48,7 @@ export type ExportPreviewDocument = {
   hasPdf: boolean;
 };
 
-async function expireStaleExportJobs(cabinet: string) {
+async function expireStaleExportJobs(cabinet: Cabinet) {
   const cutoff = new Date(Date.now() - 10 * 60 * 1000);
   await prisma.documentExportJob.updateMany({
     where: {

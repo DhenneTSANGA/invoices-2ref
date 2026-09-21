@@ -96,7 +96,7 @@ export function RichTextEditor({
     const normalizedNext = next.replace(/\s+/g, " ").trim();
     const normalizedCurrent = current.replace(/\s+/g, " ").trim();
     if (normalizedNext === normalizedCurrent) return;
-    editor.commands.setContent(next || "<p></p>", false);
+    editor.commands.setContent(next || "<p></p>", { emitUpdate: false });
   }, [value, editor]);
 
   if (!editor) {

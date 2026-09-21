@@ -246,7 +246,7 @@ export const listMails = createServerFn({ method: "GET" })
             OR: [
               { cabinet },
               ...(linkedDocIds.length
-                ? [{ cabinet: null as const, documentId: { in: linkedDocIds } }]
+                ? [{ cabinet: null, documentId: { in: linkedDocIds } }]
                 : []),
             ],
           },
@@ -281,7 +281,7 @@ export const getMail = createServerFn({ method: "GET" })
         OR: [
           { cabinet },
           ...(linkedDocIds.length
-            ? [{ cabinet: null as const, documentId: { in: linkedDocIds } }]
+            ? [{ cabinet: null, documentId: { in: linkedDocIds } }]
             : []),
         ],
       },

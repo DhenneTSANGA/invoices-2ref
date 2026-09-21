@@ -120,7 +120,7 @@ export async function buildDocumentPdf(
           minHeight: `${height}px`,
           height: `${height}px`,
         },
-        onclone: (clonedDoc) => {
+        onclone: (clonedDoc: Document) => {
           clonedDoc.querySelectorAll("img").forEach((node) => {
             const el = node as HTMLImageElement;
             el.style.color = "transparent";
@@ -131,7 +131,7 @@ export async function buildDocumentPdf(
             el.style.setProperty("print-color-adjust", "exact");
           });
         },
-      });
+      } as Parameters<typeof toJpeg>[1]);
     } catch {
       const html2canvas = (await import("html2canvas")).default;
       const canvas = await html2canvas(element, {

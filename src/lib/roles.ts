@@ -103,7 +103,7 @@ export function homePathForRole(role: AppRole): "/dashboard" | "/home" {
 export function canWriteDocument(
   role: AppRole,
   staffId: string,
-  createdById: string,
+  createdById?: string | null,
 ): boolean {
   return canEditForeignDocuments(role) || createdById === staffId;
 }

@@ -24,6 +24,13 @@ const styles: Record<DocumentStatus | "default", RowStyles> = {
     actionBtn: "text-white hover:bg-white/20",
     viewLink: "bg-white/20 text-white hover:bg-white hover:text-sky-700",
   },
+  signed: {
+    row: "bg-sky-500 text-white hover:bg-sky-600",
+    muted: "text-sky-100",
+    select: "border-sky-300/60 bg-white text-slate-900",
+    actionBtn: "text-white hover:bg-white/20",
+    viewLink: "bg-white/20 text-white hover:bg-white hover:text-sky-700",
+  },
   paid: {
     row: "bg-green-600 text-white hover:bg-green-700",
     muted: "text-green-100",

@@ -12,6 +12,11 @@ const map: Record<DocumentStatus | "default", { label: string; cls: string; dot:
     cls: "bg-sky-50 text-sky-700 ring-1 ring-sky-200",
     dot: "bg-sky-500",
   },
+  signed: {
+    label: "Signé",
+    cls: "bg-sky-50 text-sky-700 ring-1 ring-sky-200",
+    dot: "bg-sky-500",
+  },
   accepted: {
     label: "Accepté",
     cls: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
