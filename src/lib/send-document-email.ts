@@ -4,7 +4,12 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session.functions";
 import { getResend } from "@/lib/resend";
 import { companyForPreview } from "@/lib/company-defaults";
-import { DOCUMENT_COLORS, niuLabelForCabinet, CONSEIL_CLOSING } from "@/lib/cabinets";
+import {
+  DOCUMENT_COLORS,
+  niuLabelForCabinet,
+  CONSEIL_CLOSING,
+  CONSEIL_LEGAL_FOOTER,
+} from "@/lib/cabinets";
 import {
   isAccountantSignatory,
   signatoryDisplayName,
@@ -29,6 +34,7 @@ import {
   clientDisplayName,
   clientRepresentativeLine,
   clientDocumentLines,
+  clientConseilDocumentLines,
 } from "@/lib/client-address";
 import {
   isRichTextEmpty,
@@ -79,6 +85,7 @@ function emailShell(params: {
   issueDate?: string;
   bodyHtml: string;
   niuLabel?: string;
+  legalText?: string;
 }): string {
   const { accent, accentTo } = params.accent;
   const c = params.company;
@@ -92,6 +99,9 @@ function emailShell(params: {
     c.phone ? `Tél. : ${c.phone}` : "",
     c.email,
   ].filter(Boolean);
+  const footerLegal = params.legalText
+    ? `<div style="text-align:justify;text-align-last:center;line-height:1.45;">${escapeHtml(params.legalText)}</div>`
+    : escapeHtml(legalBits.join(" · "));
 
   return `
 <!DOCTYPE html>
@@ -145,7 +155,7 @@ function emailShell(params: {
           <tr>
             <td style="padding:20px 28px 28px;">
               <div style="border-top:1px solid #E2E8F0;padding-top:14px;font-size:11px;line-height:1.55;color:#94A3B8;text-align:center;">
-                ${escapeHtml(legalBits.join(" · "))}
+                ${footerLegal}
               </div>
             </td>
           </tr>
@@ -166,6 +176,7 @@ function buildCommercialEmailHtml(params: {
   contactName: string;
   clientLines: string[];
   clientNif?: string;
+  clientPhone?: string;
   clientRccm?: string;
   clientCnss?: string;
   clientCnamgs?: string;
@@ -212,33 +223,47 @@ function buildCommercialEmailHtml(params: {
       : "",
   ].join("");
 
-  const emitterLines = [
-    params.company.capital,
-    params.company.address,
-    params.company.city,
-    [params.company.phone, params.company.email].filter(Boolean).join(" · "),
-  ].filter(Boolean);
+  const emitterLines = isConseil
+    ? [
+        params.company.address,
+        params.company.city,
+        params.company.phone,
+        params.company.email,
+        params.company.website,
+      ].filter(Boolean)
+    : [
+        params.company.capital,
+        params.company.address,
+        params.company.city,
+        [params.company.phone, params.company.email].filter(Boolean).join(" · "),
+      ].filter(Boolean);
 
-  const emitterLegalBits = [
-    params.company.nif && params.company.nif !== "—"
-      ? `NIF : ${params.company.nif}`
-      : "",
-    params.company.niu && params.company.niu !== "—"
-      ? `${params.niuLabel} : ${params.company.niu}`
-      : "",
-    params.company.rccm && params.company.rccm !== "—"
-      ? `RCCM : ${params.company.rccm}`
-      : "",
-  ].filter(Boolean);
+  const emitterLegalBits = isConseil
+    ? []
+    : [
+        params.company.nif && params.company.nif !== "—"
+          ? `NIF : ${params.company.nif}`
+          : "",
+        params.company.niu && params.company.niu !== "—"
+          ? `${params.niuLabel} : ${params.company.niu}`
+          : "",
+        params.company.rccm && params.company.rccm !== "—"
+          ? `RCCM : ${params.company.rccm}`
+          : "",
+      ].filter(Boolean);
 
   const clientLines = params.clientLines;
 
   const clientLegalBits = [
     params.clientNif ? `NIF : ${params.clientNif}` : "",
+    isConseil && params.clientPhone ? params.clientPhone : "",
     !isConseil && params.clientRccm ? `RCCM : ${params.clientRccm}` : "",
     params.clientCnss ? `CNSS : ${params.clientCnss}` : "",
     params.clientCnamgs ? `CNAMGS : ${params.clientCnamgs}` : "",
   ].filter(Boolean);
+
+  const chequeHtml = `<div style="margin-top:12px;text-align:center;font-family:'Times New Roman',Times,serif;font-size:13px;font-style:italic;line-height:1.35;color:#000000;">${escapeHtml(CONSEIL_CLOSING.cheque)}</div>`;
+  const thanksHtml = `<div style="margin-top:24px;text-align:center;font-family:'Times New Roman',Times,serif;font-size:13px;font-style:italic;font-weight:700;line-height:1.4;color:${CONSEIL_CLOSING.thanksColor};">${escapeHtml(CONSEIL_CLOSING.thanks)}</div>`;
 
   const bodyHtml = `
     <p style="margin:0 0 14px;font-size:14px;line-height:1.7;color:#334155;">
@@ -280,11 +305,12 @@ function buildCommercialEmailHtml(params: {
                   `<div style="font-size:12px;line-height:1.45;color:#475569;">${escapeHtml(l)}</div>`,
               )
               .join("")}
-            ${
-              clientLegalBits.length
-                ? `<div style="margin-top:8px;font-size:11px;line-height:1.45;color:#64748B;">${escapeHtml(clientLegalBits.join(" · "))}</div>`
-                : ""
-            }
+            ${clientLegalBits
+              .map(
+                (l) =>
+                  `<div style="font-size:11px;line-height:1.45;color:#64748B;">${escapeHtml(l)}</div>`,
+              )
+              .join("")}
           </div>
         </td>
       </tr>
@@ -347,7 +373,7 @@ function buildCommercialEmailHtml(params: {
             <div style="margin-top:4px;">Règlement par virement bancaire ou par chèque.</div>
             ${params.company.bankName ? `<div style="margin-top:4px;">Banque : ${escapeHtml(params.company.bankName)}</div>` : ""}
             ${params.company.bankAccount ? `<div>RIB : ${escapeHtml(params.company.bankAccount)}</div>` : ""}
-          </div>`
+          </div>${isConseil ? chequeHtml : ""}`
         : ""
     }
 
@@ -357,14 +383,8 @@ function buildCommercialEmailHtml(params: {
         : ""
     }
 
-    ${
-      isConseil
-        ? `<div style="margin-top:24px;text-align:center;font-family:'Times New Roman',Times,serif;font-size:13px;line-height:1.4;color:#000000;">
-            <div style="font-style:italic;">${escapeHtml(CONSEIL_CLOSING.cheque)}</div>
-            <div style="margin-top:4px;font-style:italic;font-weight:700;color:${CONSEIL_CLOSING.thanksColor};">${escapeHtml(CONSEIL_CLOSING.thanks)}</div>
-          </div>`
-        : ""
-    }
+    ${isConseil && params.type !== "invoice" ? chequeHtml : ""}
+    ${isConseil ? thanksHtml : ""}
 
     <p style="margin:28px 0 0;font-size:14px;line-height:1.7;color:#334155;">
       Cordialement,<br/>
@@ -380,6 +400,7 @@ function buildCommercialEmailHtml(params: {
     issueDate: params.issueDate,
     bodyHtml,
     niuLabel: params.niuLabel,
+    legalText: isConseil ? CONSEIL_LEGAL_FOOTER : undefined,
   });
 }
 
@@ -600,8 +621,12 @@ export async function sendDocumentEmailInternal(params: {
         number: doc.number,
         clientName: clientDisplayName(doc.client),
         contactName: clientRepresentativeLine(doc.client) || doc.client.contactName,
-        clientLines: clientDocumentLines(doc.client),
+        clientLines:
+          doc.cabinet === "conseil"
+            ? clientConseilDocumentLines(doc.client)
+            : clientDocumentLines(doc.client),
         clientNif: doc.client.nif || undefined,
+        clientPhone: doc.client.phone || undefined,
         clientRccm: doc.client.rccm || undefined,
         clientCnss: doc.client.cnss || undefined,
         clientCnamgs: doc.client.cnamgs || undefined,

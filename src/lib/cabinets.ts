@@ -38,6 +38,10 @@ export const CONSEIL_CLOSING = {
   thanksColor: "#184078",
 } as const;
 
+/** Mentions légales pied de page facture / devis 2R Conseil. */
+export const CONSEIL_LEGAL_FOOTER =
+  "Forme Juridique : SARL au capital de F CFA 1 000 000 – Activité : Conseil- Audit - Formation – RCCM : GA LBV 01 2019 B12 00097 NIF : 748151 K – Adresse : BP 20 478, Cité Bas de Gué Gué, Libreville, Gabon – Téléphone : 011 44 39 64 / 074 02 55 52 E-mail : contact@2rconseil.ga";
+
 /** Couleurs documents (charte 2R Conseil : bleu marine + vert). */
 export const DOCUMENT_COLORS = {
   invoice: {

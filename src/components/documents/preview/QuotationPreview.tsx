@@ -11,7 +11,6 @@ import {
   AmountInWords,
   DocumentClientRef,
   PreviewBottomRow,
-  CONSEIL_CLOSING,
 } from "./PreviewShell";
 import {
   HEADER_LOGO_HEIGHT,
@@ -23,8 +22,14 @@ import {
   partyAddressLines,
   partyContactLine,
 } from "./InvoicePreview";
-import { COMPANY_DEFAULTS, DOCUMENT_COLORS, niuLabelForCabinet } from "@/lib/cabinets";
-import { clientDocumentLines } from "@/lib/client-address";
+import {
+  COMPANY_DEFAULTS,
+  DOCUMENT_COLORS,
+  niuLabelForCabinet,
+  CONSEIL_CLOSING,
+  CONSEIL_LEGAL_FOOTER,
+} from "@/lib/cabinets";
+import { clientDocumentLines, clientConseilDocumentLines } from "@/lib/client-address";
 import { ManagerSignature } from "@/components/signature/ManagerSignature";
 import { cn } from "@/lib/utils";
 import {
@@ -60,14 +65,26 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
   const accountantSignatory = isAccountantSignatory(doc.signatoryTitle);
   const signatoryName = signatoryDisplayName(doc.signatoryTitle);
 
-  const emitterLines = partyAddressLines([
-    company.address,
-    company.city,
-    partyContactLine([company.phone, company.email]),
-    company.website,
-  ]);
+  const emitterLines = isConseilDesign
+    ? partyAddressLines([
+        company.address,
+        company.city,
+        company.phone,
+        company.email,
+        company.website,
+      ])
+    : partyAddressLines([
+        company.address,
+        company.city,
+        partyContactLine([company.phone, company.email]),
+        company.website,
+      ]);
 
-  const clientLines = client ? clientDocumentLines(client) : undefined;
+  const clientLines = client
+    ? isConseilDesign
+      ? clientConseilDocumentLines(client)
+      : clientDocumentLines(client)
+    : undefined;
 
   const validityNote = (
     <>
@@ -100,13 +117,14 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
 
   const clientBlock = (
     <PartyBlock
-      title={isConseilDesign ? "Nom du client" : "Client"}
+      title={isConseilDesign ? "Nom du CLIENT" : "Client"}
       accent={isConseilDesign ? ACCENT : "#64748B"}
       name={client?.name?.trim() || undefined}
       lines={clientLines}
       nif={client?.nif}
       niu={client?.niu}
       rccm={isConseilDesign ? undefined : client?.rccm}
+      phone={isConseilDesign ? client?.phone : undefined}
       referenceDesign={isConseilDesign}
       muted={!isConseilDesign}
       compact={dense}
@@ -155,22 +173,17 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
                 </td>
                 <td style={{ ...TWO_COL.right, textAlign: "right" }}>
                   <div className={cn("leading-[1.2]", DOC_TEXT.small)}>
-                    <div>
+                    <div className="leading-[1.2]">
                       <span className="text-[#64748B]">N° de devis : </span>
-                      <span className={cn("font-semibold text-[#0F172A]", DOC_TEXT.base)}>
-                        {doc.number}
-                      </span>
+                      <span className="font-semibold text-[#0F172A]">{doc.number}</span>
                     </div>
-                    <div>
+                    <div className="leading-[1.2]">
                       <span className="text-[#64748B]">Date : </span>
-                      <span className={cn("font-semibold text-[#0F172A]", DOC_TEXT.base)}>
+                      <span className="font-semibold text-[#0F172A]">
                         {longDate(doc.issueDate)}
                       </span>
                     </div>
-                    <DocumentClientRef
-                      clientRef={client?.clientRef}
-                      className="leading-[1.2]"
-                    />
+                    <DocumentClientRef clientRef={client?.clientRef} className="leading-[1.2]" />
                   </div>
                 </td>
               </tr>
@@ -274,26 +287,28 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
             compact={dense}
             className="mt-2"
             left={
-              doc.paymentTerms?.trim() || doc.executionTerms?.trim() ? (
-                <div className={cn("space-y-2", dense ? "space-y-1.5" : "space-y-2")}>
-                  {doc.paymentTerms?.trim() ? (
-                    <TermsPanel title="Modalité de paiement" referenceDesign compact={dense}>
-                      {doc.paymentTerms.trim()}
-                    </TermsPanel>
-                  ) : null}
-                  {doc.executionTerms?.trim() ? (
-                    <TermsPanel
-                      title="Conditions de réalisation"
-                      referenceDesign
-                      compact={dense}
-                    >
-                      {doc.executionTerms.trim()}
-                    </TermsPanel>
-                  ) : null}
+              <div className={cn("space-y-2", dense ? "space-y-1.5" : "space-y-2")}>
+                {doc.paymentTerms?.trim() ? (
+                  <TermsPanel title="Modalité de paiement" referenceDesign compact={dense}>
+                    {doc.paymentTerms.trim()}
+                  </TermsPanel>
+                ) : null}
+                {doc.executionTerms?.trim() ? (
+                  <TermsPanel
+                    title="Conditions de réalisation"
+                    referenceDesign
+                    compact={dense}
+                  >
+                    {doc.executionTerms.trim()}
+                  </TermsPanel>
+                ) : null}
+                <div
+                  className="text-center text-[12px] italic leading-[1.35] text-black"
+                  style={{ fontFamily: '"Times New Roman", Times, serif' }}
+                >
+                  {CONSEIL_CLOSING.cheque}
                 </div>
-              ) : (
-                <div />
-              )
+              </div>
             }
             right={<div />}
           />
@@ -391,7 +406,9 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
         website={company.website}
         niuLabel={niuLabel}
         compact={dense}
-        closing={isConseilDesign ? CONSEIL_CLOSING : undefined}
+        closingThanks={isConseilDesign ? CONSEIL_CLOSING.thanks : undefined}
+        thanksColor={isConseilDesign ? CONSEIL_CLOSING.thanksColor : undefined}
+        legalText={isConseilDesign ? CONSEIL_LEGAL_FOOTER : undefined}
         className={cn(DOC_TEXT.small, isConseilDesign && "mt-4")}
       />
     </PreviewShell>

@@ -15,8 +15,8 @@ export type ManagerSignatureProps = {
   compact?: boolean;
   pendingLabel?: string;
   /**
-   * Capture PDF : jamais d’encadré « En attente de signature ».
-   * Zone vide pour un paraphe manuscrit.
+   * Capture PDF : pas de libellé « En attente de signature ».
+   * Le cadre vide reste affiché comme zone de paraphe manuscrit.
    */
   forPdf?: boolean;
   /** N’imprime pas l’image même si le document est signé. */
@@ -27,7 +27,7 @@ export type ManagerSignatureProps = {
 
 /**
  * Signature électronique du gérant : image grande, nom collé juste en dessous.
- * L’encadré « en attente » n’apparaît que dans l’aperçu écran.
+ * Sans tampon : encadré pointillé (libellé « en attente » à l’écran seulement).
  */
 export function ManagerSignature({
   signatureUrl,
@@ -78,20 +78,17 @@ export function ManagerSignature({
             style={{ color: "transparent", mixBlendMode: "normal", filter: "none" }}
           />
         </div>
-      ) : hidePendingFrame ? (
-        <div
-          className={cn("mx-auto w-full", compact ? "h-16" : "h-28")}
-          aria-hidden="true"
-        />
       ) : (
         <div
           className={cn(
-            "mx-auto flex items-center justify-center rounded-lg border border-dashed text-[12px] italic text-[#94A3B8]",
+            "mx-auto flex items-center justify-center rounded-lg border border-dashed",
             compact ? "h-20 w-40" : "h-36 w-full",
+            hidePendingFrame ? "" : "text-[12px] italic text-[#94A3B8]",
           )}
           style={{ borderColor: `${accent}44` }}
+          aria-hidden={hidePendingFrame || undefined}
         >
-          {pendingLabel}
+          {hidePendingFrame ? null : pendingLabel}
         </div>
       )}
 

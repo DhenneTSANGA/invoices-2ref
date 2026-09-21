@@ -47,6 +47,24 @@ export function clientDocumentLines(client: {
   ].filter(Boolean);
 }
 
+/**
+ * Lignes client 2R Conseil : BP, ville, e-mail.
+ * Le téléphone est affiché à part (après le NIF), pour rester optionnel.
+ */
+export function clientConseilDocumentLines(client: {
+  address?: string | null;
+  bp?: string | null;
+  city?: string | null;
+  country?: string | null;
+  email?: string | null;
+}): string[] {
+  return [
+    clientStreetLine(client),
+    [client.city?.trim(), client.country?.trim()].filter(Boolean).join(", "),
+    client.email?.trim() ?? "",
+  ].filter(Boolean);
+}
+
 /** Ligne postale pour courriers : BP — ville — pays. */
 export function clientLetterPostalLine(client: {
   bp?: string | null;

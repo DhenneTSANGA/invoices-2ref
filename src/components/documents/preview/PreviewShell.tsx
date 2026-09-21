@@ -253,7 +253,9 @@ export function LegalFooter({
   niuLabel = "NIU",
   compact,
   className,
-  closing,
+  closingThanks,
+  thanksColor,
+  legalText,
 }: {
   name: string;
   address: string;
@@ -272,8 +274,11 @@ export function LegalFooter({
   compact?: boolean;
   /** Permet aux factures / devis d’imposer l’échelle DOC_TEXT. */
   className?: string;
-  /** Formules de politesse centrées, juste au-dessus de la ligne de pied de page. */
-  closing?: { cheque: string; thanks: string; thanksColor?: string };
+  /** Formule de politesse centrée, juste au-dessus de la ligne de pied de page. */
+  closingThanks?: string;
+  thanksColor?: string;
+  /** Texte unique de pied (2R Conseil) : justifié, dernière ligne centrée. */
+  legalText?: string;
 }) {
   const legalParts = [
     name,
@@ -293,24 +298,35 @@ export function LegalFooter({
         className,
       )}
     >
-      {closing ? (
+      {closingThanks ? (
         <div
-          className="mb-2.5 w-full text-center text-[12px] leading-[1.35] text-black"
-          style={{ fontFamily: '"Times New Roman", Times, serif' }}
+          className="mb-2.5 w-full text-center text-[12px] font-bold italic leading-[1.35]"
+          style={{
+            fontFamily: '"Times New Roman", Times, serif',
+            color: thanksColor || "#184078",
+          }}
         >
-          <div className="italic">{closing.cheque}</div>
-          <div className="mt-0.5 font-bold italic" style={{ color: closing.thanksColor }}>
-            {closing.thanks}
-          </div>
+          {closingThanks}
         </div>
       ) : null}
       <div className="border-t border-[#E2E8F0] pt-2">
-        <div className="px-0.5 leading-snug [overflow-wrap:anywhere]">
-          {legalParts.join(" · ")}
-        </div>
-        <div className="px-0.5 leading-snug [overflow-wrap:anywhere]">
-          {[phone, email, website].filter(Boolean).join(" · ")}
-        </div>
+        {legalText ? (
+          <p
+            className="px-0.5 leading-snug [overflow-wrap:anywhere] [text-align-last:center]"
+            style={{ textAlign: "justify" }}
+          >
+            {legalText}
+          </p>
+        ) : (
+          <>
+            <div className="px-0.5 leading-snug [overflow-wrap:anywhere]">
+              {legalParts.join(" · ")}
+            </div>
+            <div className="px-0.5 leading-snug [overflow-wrap:anywhere]">
+              {[phone, email, website].filter(Boolean).join(" · ")}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -328,9 +344,9 @@ export function DocumentClientRef({
   if (!value) return null;
 
   return (
-    <div className={cn(DOC_TEXT.small, className)}>
+    <div className={cn("leading-[1.2]", DOC_TEXT.small, className)}>
       <span className="text-[#64748B]">Id du client : </span>
-      <span className={cn("font-semibold text-[#0F172A]", DOC_TEXT.base)}>{value}</span>
+      <span className="font-semibold text-[#0F172A]">{value}</span>
     </div>
   );
 }

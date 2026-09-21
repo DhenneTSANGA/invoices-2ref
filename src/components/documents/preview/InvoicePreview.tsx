@@ -12,12 +12,17 @@ import {
   AmountInWords,
   DocumentClientRef,
   PreviewBottomRow,
-  CONSEIL_CLOSING,
 } from "./PreviewShell";
 import { computeDocumentTotals, documentTaxRates } from "@/lib/document-math";
-import { COMPANY_DEFAULTS, DOCUMENT_COLORS, niuLabelForCabinet } from "@/lib/cabinets";
+import {
+  COMPANY_DEFAULTS,
+  DOCUMENT_COLORS,
+  niuLabelForCabinet,
+  CONSEIL_CLOSING,
+  CONSEIL_LEGAL_FOOTER,
+} from "@/lib/cabinets";
 import { ManagerSignature } from "@/components/signature/ManagerSignature";
-import { clientDocumentLines } from "@/lib/client-address";
+import { clientDocumentLines, clientConseilDocumentLines } from "@/lib/client-address";
 import { cn } from "@/lib/utils";
 import {
   isAccountantSignatory,
@@ -78,14 +83,26 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
   const accountantSignatory = isAccountantSignatory(doc.signatoryTitle);
   const signatoryName = signatoryDisplayName(doc.signatoryTitle);
 
-  const emitterLines = partyAddressLines([
-    company.address,
-    company.city,
-    partyContactLine([company.phone, company.email]),
-    company.website,
-  ]);
+  const emitterLines = isConseilDesign
+    ? partyAddressLines([
+        company.address,
+        company.city,
+        company.phone,
+        company.email,
+        company.website,
+      ])
+    : partyAddressLines([
+        company.address,
+        company.city,
+        partyContactLine([company.phone, company.email]),
+        company.website,
+      ]);
 
-  const clientLines = client ? clientDocumentLines(client) : undefined;
+  const clientLines = client
+    ? isConseilDesign
+      ? clientConseilDocumentLines(client)
+      : clientDocumentLines(client)
+    : undefined;
 
   /* Capital / NIF / RCCM de l’émetteur restent dans le pied de page légal. */
   const emitterBlock = (
@@ -104,13 +121,14 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
 
   const clientBlock = (
     <PartyBlock
-      title={isConseilDesign ? "Nom du client" : "Client"}
+      title={isConseilDesign ? "Nom du CLIENT" : "Client"}
       accent={isConseilDesign ? accent : "#64748B"}
       name={client?.name?.trim() || undefined}
       lines={clientLines}
       nif={client?.nif}
       niu={client?.niu}
       rccm={isConseilDesign ? undefined : client?.rccm}
+      phone={isConseilDesign ? client?.phone : undefined}
       referenceDesign={isConseilDesign}
       muted={!isConseilDesign}
       compact={dense}
@@ -159,22 +177,17 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
                 </td>
                 <td style={{ ...TWO_COL.right, textAlign: "right" }}>
                   <div className={cn("leading-[1.2]", DOC_TEXT.small)}>
-                    <div>
+                    <div className="leading-[1.2]">
                       <span className="text-[#64748B]">N° de facture : </span>
-                      <span className={cn("font-semibold text-[#0F172A]", DOC_TEXT.base)}>
-                        {doc.number}
-                      </span>
+                      <span className="font-semibold text-[#0F172A]">{doc.number}</span>
                     </div>
-                    <div>
+                    <div className="leading-[1.2]">
                       <span className="text-[#64748B]">Date : </span>
-                      <span className={cn("font-semibold text-[#0F172A]", DOC_TEXT.base)}>
+                      <span className="font-semibold text-[#0F172A]">
                         {longDate(doc.issueDate)}
                       </span>
                     </div>
-                    <DocumentClientRef
-                      clientRef={client?.clientRef}
-                      className="leading-[1.2]"
-                    />
+                    <DocumentClientRef clientRef={client?.clientRef} className="leading-[1.2]" />
                   </div>
                 </td>
               </tr>
@@ -278,6 +291,12 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
                     </div>
                   ) : null}
                 </InfoPanel>
+                <div
+                  className="text-center text-[12px] italic leading-[1.35] text-black"
+                  style={{ fontFamily: '"Times New Roman", Times, serif' }}
+                >
+                  {CONSEIL_CLOSING.cheque}
+                </div>
               </div>
             }
             right={<div />}
@@ -359,7 +378,9 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
         website={company.website}
         niuLabel={niuLabel}
         compact={dense}
-        closing={isConseilDesign ? CONSEIL_CLOSING : undefined}
+        closingThanks={isConseilDesign ? CONSEIL_CLOSING.thanks : undefined}
+        thanksColor={isConseilDesign ? CONSEIL_CLOSING.thanksColor : undefined}
+        legalText={isConseilDesign ? CONSEIL_LEGAL_FOOTER : undefined}
         className={cn(DOC_TEXT.small, isConseilDesign && "mt-4")}
       />
     </PreviewShell>
@@ -464,6 +485,7 @@ function PartyBlock({
   rccm,
   cnss,
   cnamgs,
+  phone,
   muted,
   bordered,
   referenceDesign,
@@ -481,6 +503,8 @@ function PartyBlock({
   rccm?: string;
   cnss?: string;
   cnamgs?: string;
+  /** Téléphone client (2R Conseil) : ligne optionnelle après le NIF. */
+  phone?: string;
   muted?: boolean;
   bordered?: boolean;
   referenceDesign?: boolean;
@@ -494,51 +518,54 @@ function PartyBlock({
     cnss ? { label: "CNSS", value: cnss } : null,
     cnamgs ? { label: "CNAMGS", value: cnamgs } : null,
   ].filter(Boolean) as Array<{ label: string; value: string }>;
+  const phoneLine = phone?.trim() || "";
 
   const pad = compact ? "p-2" : "p-2.5";
   const heading = title.trim();
 
   if (referenceDesign) {
-    /* Interligne unique et serré : nom, adresse, téléphone, NIF. */
+    /* Calibri/Arial + casse du papier : émetteur mixte, client et ville en capitales. */
+    const face = { fontFamily: 'Calibri, Arial, sans-serif' } as const;
     const line = "leading-[1.2] break-words";
+    const isClientParty = Boolean(heading);
     return (
-      <div className={cn("leading-[1.2]", DOC_TEXT.small)}>
+      <div className={cn("leading-[1.2]", DOC_TEXT.small)} style={face}>
         {heading ? (
-          <div
-            className={cn("font-bold uppercase tracking-wide", line, DOC_TEXT.small)}
-            style={{ color: accent }}
-          >
+          <div className={cn(line, DOC_TEXT.small, "text-[#0F172A]")}>
             {heading}
           </div>
         ) : null}
         {name ? (
           <>
             <div
-              className={cn(
-                "font-bold uppercase text-[#0F172A]",
-                line,
-                DOC_TEXT.base,
-              )}
+              className={cn("font-bold text-[#0F172A]", line, DOC_TEXT.base)}
             >
-              {name}
+              {isClientParty ? name.toUpperCase() : name}
             </div>
-            {lines?.map((l, i) => (
-              <div key={i} className={cn(line, "text-[#334155]")}>
-                {l}
-              </div>
-            ))}
+            {lines?.map((l, i) => {
+              const contact = /@/.test(l) || /^www\./i.test(l);
+              const bp = /^BP\b/i.test(l);
+              const display = !contact && !bp ? l.toUpperCase() : l;
+              return (
+                <div key={i} className={cn(line, "text-[#0F172A]")}>
+                  {display}
+                </div>
+              );
+            })}
             {ids.map((id) => (
-              <div key={id.label} className={cn(line, "text-[#334155]")}>
+              <div key={id.label} className={cn(line, "text-[#0F172A]")}>
                 {id.label === "Capital" ? (
-                  <b className={cn("text-[#0F172A]", DOC_TEXT.base)}>{id.value}</b>
+                  <b className={DOC_TEXT.base}>{id.value}</b>
                 ) : (
                   <>
-                    {id.label} :{" "}
-                    <b className={cn("text-[#0F172A]", DOC_TEXT.base)}>{id.value}</b>
+                    {id.label}:{id.value}
                   </>
                 )}
               </div>
             ))}
+            {phoneLine ? (
+              <div className={cn(line, "text-[#0F172A]")}>{phoneLine}</div>
+            ) : null}
           </>
         ) : (
           <div className={cn(line, "italic text-[#94A3B8]")}>Sélectionnez un client…</div>
