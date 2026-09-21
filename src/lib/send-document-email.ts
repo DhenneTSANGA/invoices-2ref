@@ -10,6 +10,7 @@ import {
   CONSEIL_CLOSING,
   CONSEIL_LEGAL_FOOTER,
   CONSEIL_PAPER_COLORS,
+  CONSEIL_BAR_FILL,
 } from "@/lib/cabinets";
 import {
   isAccountantSignatory,
@@ -202,6 +203,9 @@ function buildCommercialEmailHtml(params: {
     : DOCUMENT_COLORS[params.type];
   const { accent, accentTo } = colors;
   const timesFace = "font-family:Georgia,'Times New Roman',serif;";
+  const barFill = isConseil
+    ? CONSEIL_BAR_FILL
+    : `linear-gradient(90deg, ${accent}, ${accentTo})`;
 
   const rows = params.lines
     .map(
@@ -336,7 +340,7 @@ function buildCommercialEmailHtml(params: {
 
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border-radius:10px;overflow:hidden;border:1px solid #E2E8F0;">
       <thead>
-        <tr style="background:linear-gradient(90deg, ${accent}, ${accentTo});color:#FFFFFF;">
+        <tr style="background:${barFill};color:#FFFFFF;">
           <th style="text-align:left;padding:11px 12px;font-size:12px;font-weight:600;letter-spacing:0.03em;">Description</th>
           <th style="text-align:right;padding:11px 12px;font-size:12px;font-weight:600;">Qté</th>
           <th style="text-align:right;padding:11px 12px;font-size:12px;font-weight:600;">P.U.</th>
@@ -357,8 +361,8 @@ function buildCommercialEmailHtml(params: {
             </tr>
             ${taxRows}
             <tr>
-              <td style="padding:12px;font-size:13px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#FFFFFF;background:linear-gradient(90deg, ${accent}, ${accentTo});">Total TTC</td>
-              <td style="padding:12px;text-align:right;font-size:14px;font-weight:700;color:#FFFFFF;background:linear-gradient(90deg, ${accent}, ${accentTo});${isConseil ? timesFace : ""}">${escapeHtml(money(params.total, params.currency))}</td>
+              <td style="padding:12px;font-size:13px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#FFFFFF;background:${barFill};">Total TTC</td>
+              <td style="padding:12px;text-align:right;font-size:14px;font-weight:700;color:#FFFFFF;background:${barFill};${isConseil ? timesFace : ""}">${escapeHtml(money(params.total, params.currency))}</td>
             </tr>
           </table>
         </td>

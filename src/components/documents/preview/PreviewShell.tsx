@@ -5,6 +5,7 @@ import {
   CABINET_LABELS,
   CABINET_LOGO_BOUNDS,
   CONSEIL_CLOSING,
+  CONSEIL_BAR_FILL,
   type Cabinet,
 } from "@/lib/cabinets";
 import { amountInWords } from "@/lib/format";
@@ -232,7 +233,9 @@ export function AmountRow({
 }) {
   const isRef = variant === "reference";
   const rowBg = strong
-    ? { background: accent, color: "#fff" }
+    ? isRef
+      ? { background: CONSEIL_BAR_FILL, color: "#fff" }
+      : { background: accent, color: "#fff" }
     : isRef
       ? { background: tint, color: "#0F172A" }
       : { background: "#fff" };
@@ -336,7 +339,7 @@ export function LegalFooter({
           className="mb-2.5 w-full text-center text-[12px] font-bold italic leading-[1.35]"
           style={{
             fontFamily: '"Times New Roman", Times, serif',
-            color: thanksColor || "#184078",
+            color: thanksColor || "#2E75B6",
           }}
         >
           {closingThanks}

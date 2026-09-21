@@ -30,14 +30,20 @@ export const CABINET_LOGO_BOUNDS: Record<
   expertise_fiscale: { canvasWidth: 594, canvasHeight: 420, left: 78, top: 99, width: 441, height: 223 },
 };
 
-/** Couleurs papier 2R Conseil — facture et devis. */
+/** Couleurs papier 2R Conseil — facture et devis (bleu barre Tâche de référence). */
 export const CONSEIL_PAPER_COLORS = {
-  accent: "#184078",
-  accentTo: "#12325F",
+  /** Haut de barre (plus clair). */
+  accent: "#2E75B6",
+  /** Bas de barre (plus sombre). */
+  accentTo: "#1F4E79",
   sectionBg: "#D9E2EF",
   rowAlt: "#EEF2F7",
-  paymentBg: "#EEF2F7",
+  /** Même teinte que les totaux (Sous-total / CSS / TVA). */
+  paymentBg: "#D9E2EF",
 } as const;
+
+/** Dégradé vertical des barres bleues (Tâche, en-têtes, totaux, RIB). */
+export const CONSEIL_BAR_FILL = `linear-gradient(180deg, ${CONSEIL_PAPER_COLORS.accent} 0%, ${CONSEIL_PAPER_COLORS.accentTo} 100%)`;
 
 /** Formules de clôture facture / devis 2R Conseil (Times italic, comme le papier). */
 export const CONSEIL_CLOSING = {

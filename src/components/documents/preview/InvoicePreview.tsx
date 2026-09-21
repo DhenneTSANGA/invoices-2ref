@@ -23,6 +23,7 @@ import {
   CONSEIL_CLOSING,
   CONSEIL_LEGAL_FOOTER,
   CONSEIL_PAPER_COLORS,
+  CONSEIL_BAR_FILL,
 } from "@/lib/cabinets";
 import { ManagerSignature } from "@/components/signature/ManagerSignature";
 import { clientDocumentLines, clientConseilDocumentLines } from "@/lib/client-address";
@@ -439,7 +440,7 @@ function InfoPanel({
   title,
   accent,
   compact,
-  tint = REF.paymentBg,
+  tint = REF.sectionBg,
   children,
 }: {
   title: string;
@@ -456,7 +457,7 @@ function InfoPanel({
           compact ? "px-2 py-1" : "px-2.5 py-1.5",
           DOC_TEXT.small,
         )}
-        style={{ background: accent }}
+        style={{ background: CONSEIL_BAR_FILL }}
       >
         {title}
       </div>
@@ -682,7 +683,7 @@ function ItemsTable({
 }) {
   const solidAccent = accent ?? headerFrom ?? "#01004C";
   const headerStyle = referenceDesign
-    ? { background: solidAccent }
+    ? { background: CONSEIL_BAR_FILL }
     : { background: `linear-gradient(90deg, ${headerFrom ?? solidAccent}, ${headerTo ?? solidAccent})` };
 
   const cell = compact ? "px-2 py-1.5" : "px-2.5 py-2";
@@ -719,7 +720,7 @@ function ItemsTable({
               referenceDesign ? DOC_TEXT.small : DOC_TEXT.base,
             )}
           >
-            <th className={cn(headerCell, "w-8 text-left font-semibold")}>#</th>
+            <th className={cn(headerCell, "w-8 text-left font-semibold")}></th>
             <th className={cn(headerCell, "text-left font-semibold")}>Désignation</th>
             <th className={cn(headerCell, "w-10 text-right font-semibold")}>Qté</th>
             <th className={cn(headerCell, "w-[4.5rem] text-right font-semibold")}>
