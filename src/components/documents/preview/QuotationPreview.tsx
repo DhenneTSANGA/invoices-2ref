@@ -315,19 +315,21 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
                     {doc.paymentTerms.trim()}
                   </TermsPanel>
                 ) : null}
-                {doc.executionTerms?.trim() ? (
-                  <TermsPanel
-                    title="Conditions de réalisation"
-                    referenceDesign
-                    compact={dense}
-                    accent={accent}
-                    accentTo={accentTo}
-                    tint={tint}
-                  >
-                    {doc.executionTerms.trim()}
-                  </TermsPanel>
-                ) : null}
-                <div className="mt-0.5">{CONSEIL_CLOSING.cheque}</div>
+                <TermsPanel
+                  title="Conditions de réalisation"
+                  referenceDesign
+                  compact={dense}
+                  accent={accent}
+                  accentTo={accentTo}
+                  tint={tint}
+                >
+                  {doc.executionTerms?.trim() ? (
+                    <div>{doc.executionTerms.trim()}</div>
+                  ) : null}
+                  <div className={doc.executionTerms?.trim() ? "mt-0.5" : undefined}>
+                    {CONSEIL_CLOSING.cheque}
+                  </div>
+                </TermsPanel>
               </div>
             }
             right={<div />}

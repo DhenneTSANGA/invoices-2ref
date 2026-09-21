@@ -276,7 +276,6 @@ function buildCommercialEmailHtml(params: {
     params.clientCnamgs ? `CNAMGS : ${escapeHtml(params.clientCnamgs)}` : "",
   ].filter(Boolean);
 
-  const chequeHtml = `<div style="margin-top:12px;font-size:12px;line-height:1.45;color:#475569;">${escapeHtml(CONSEIL_CLOSING.cheque)}</div>`;
   const thanksHtml = `<div style="margin-top:24px;text-align:center;font-family:'Times New Roman',Times,serif;font-size:13px;font-style:italic;font-weight:700;line-height:1.4;color:${CONSEIL_CLOSING.thanksColor};">${escapeHtml(CONSEIL_CLOSING.thanks)}</div>`;
 
   const bodyHtml = `
@@ -393,12 +392,15 @@ function buildCommercialEmailHtml(params: {
     }
 
     ${
-      params.executionTerms?.trim()
-        ? `<div style="margin-top:20px;background:#F8FAFC;border-radius:10px;padding:12px 14px;font-size:13px;color:#475569;"><strong style="color:#0F172A;">Conditions de réalisation :</strong> ${escapeHtml(params.executionTerms.trim())}</div>`
+      params.executionTerms?.trim() || (isConseil && params.type !== "invoice")
+        ? `<div style="margin-top:20px;background:#F8FAFC;border-radius:10px;padding:12px 14px;font-size:13px;color:#475569;">
+            <strong style="color:#0F172A;">Conditions de réalisation :</strong>
+            ${params.executionTerms?.trim() ? `<div style="margin-top:4px;">${escapeHtml(params.executionTerms.trim())}</div>` : ""}
+            ${isConseil && params.type !== "invoice" ? `<div style="margin-top:4px;">${escapeHtml(CONSEIL_CLOSING.cheque)}</div>` : ""}
+          </div>`
         : ""
     }
 
-    ${isConseil && params.type !== "invoice" ? chequeHtml : ""}
     ${isConseil ? thanksHtml : ""}
 
     <p style="margin:28px 0 0;font-size:14px;line-height:1.7;color:#334155;">
