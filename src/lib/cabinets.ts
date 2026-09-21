@@ -32,6 +32,8 @@ export const CABINET_LOGO_BOUNDS: Record<
 
 /** Couleurs papier 2R Conseil — facture et devis (bleu barre Tâche de référence). */
 export const CONSEIL_PAPER_COLORS = {
+  /** Titre FACTURE / DEVIS (bleu marine d’origine). */
+  title: "#184078",
   /** Haut de barre (plus clair). */
   accent: "#2E75B6",
   /** Bas de barre (plus sombre). */

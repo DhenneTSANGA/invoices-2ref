@@ -159,7 +159,7 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
                   <td style={{ ...TWO_COL.right, textAlign: "right", verticalAlign: "middle" }}>
                     <div
                       className="font-serif font-bold uppercase leading-none tracking-wide text-[34px]"
-                      style={{ color: accent }}
+                      style={{ color: CONSEIL_PAPER_COLORS.title }}
                     >
                       DEVIS
                     </div>

@@ -155,7 +155,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
                   <td style={{ ...TWO_COL.right, textAlign: "right", verticalAlign: "middle" }}>
                     <div
                       className="font-serif font-bold uppercase leading-none tracking-wide text-[34px]"
-                      style={{ color: accent }}
+                      style={{ color: REF.title }}
                     >
                       FACTURE
                     </div>
