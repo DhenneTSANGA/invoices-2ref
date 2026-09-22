@@ -393,6 +393,7 @@ export function useSetInvoiceSubscription() {
       id: string;
       enabled: boolean;
       dayOfMonth?: number;
+      showDueMonthOnLines?: boolean;
     }) => setInvoiceSubscription({ data }),
     onSuccess: (doc) => {
       qc.invalidateQueries({ queryKey: documentsKey() });

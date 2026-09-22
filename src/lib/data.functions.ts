@@ -37,6 +37,14 @@ import {
   isCommercialDocType,
   type CommercialDocType,
 } from "@/lib/document-number";
+import { applyPrestationAbbrevToNumber } from "@/lib/default-prestation-titles";
+import {
+  loadShowDueMonthOnLines,
+  persistShowDueMonthOnLines,
+  withDueMonthFlag,
+} from "@/lib/document-due-month-db";
+import { persistLineQuantityUnitsForDocument, loadLineQuantityUnits } from "@/lib/document-line-quantity-db";
+import { parseLineQuantityUnit } from "@/lib/line-quantity";
 import {
   buildLetterRef,
   isLetterLanguage,
@@ -453,6 +461,26 @@ export const deleteService = createServerFn({ method: "POST" })
 
 // ─── Documents ───────────────────────────────────────────────────────────
 
+async function mappedDocuments(rows: Parameters<typeof mapDocument>[0][]) {
+  const mapped = rows.map(mapDocument);
+  const flags = await loadShowDueMonthOnLines(mapped.map((d) => d.id));
+  const units = await loadLineQuantityUnits(
+    mapped.flatMap((d) => d.items.map((it) => it.id)),
+  );
+  return mapped.map((d) => ({
+    ...withDueMonthFlag(d, flags),
+    items: d.items.map((it) => ({
+      ...it,
+      quantityUnit: units.get(it.id) ?? it.quantityUnit ?? "quantity",
+    })),
+  }));
+}
+
+async function mappedDocument(row: Parameters<typeof mapDocument>[0]) {
+  const [doc] = await mappedDocuments([row]);
+  return doc!;
+}
+
 export const listDocuments = createServerFn({ method: "GET" })
   .validator(
     z.object({
@@ -468,7 +496,7 @@ export const listDocuments = createServerFn({ method: "GET" })
       include: docInclude,
       orderBy: { issueDate: "desc" },
     });
-    return rows.map(mapDocument);
+    return mappedDocuments(rows);
   });
 
 /** Tous les documents (cabinet actif, ou tous si super admin + scope). */
@@ -487,7 +515,7 @@ export const listAllDocuments = createServerFn({ method: "GET" })
       include: docInclude,
       orderBy: { issueDate: "desc" },
     });
-    return rows.map(mapDocument);
+    return mappedDocuments(rows);
   });
 
 export const getDocument = createServerFn({ method: "GET" })
@@ -501,7 +529,7 @@ export const getDocument = createServerFn({ method: "GET" })
       include: docInclude,
     });
     if (!row) return null;
-    return mapDocument(row);
+    return mappedDocument(row);
   });
 
 /** Aperçu du prochain numéro chronologique (facture / devis). */
@@ -587,6 +615,7 @@ async function upsertDocumentHandler(
               : null,
           description: item.description,
           quantity: Number.isFinite(item.quantity) ? item.quantity : 0,
+          quantityUnit: parseLineQuantityUnit(item.quantityUnit),
           unitPrice: Number.isFinite(item.unitPrice) ? item.unitPrice : 0,
           vatRate: Number.isFinite(item.vatRate) ? item.vatRate : 0,
           discount: commercial
@@ -648,20 +677,35 @@ async function upsertDocumentHandler(
 
       const lineRows = buildLineRows(sectionIdMap, validServiceIds);
       if (lineRows.length > 0) {
-        await db.documentLine.createMany({
-          data: lineRows.map((l) => ({ ...l, documentId })),
-        });
+        const payload = lineRows.map((l) => ({ ...l, documentId }));
+        try {
+          await db.documentLine.createMany({ data: payload });
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          if (!/quantityUnit|Unknown arg|Unknown argument/i.test(msg)) throw err;
+          await db.documentLine.createMany({
+            data: payload.map(({ quantityUnit: _u, ...rest }) => rest),
+          });
+        }
       }
+      await persistLineQuantityUnitsForDocument(
+        documentId,
+        lineRows.map((l) => l.quantityUnit),
+        db,
+      );
     };
 
     const txOpts = { maxWait: 10_000, timeout: 30_000 } as const;
 
     let number = data.number;
     if (!data.id && isCommercialDocType(data.type)) {
-      number = await allocateCommercialNumber(
-        targetCabinet,
-        data.type,
-        data.issueDate,
+      number = applyPrestationAbbrevToNumber(
+        await allocateCommercialNumber(
+          targetCabinet,
+          data.type,
+          data.issueDate,
+        ),
+        data.sections,
       );
     } else if (!data.id && data.type === "letter") {
       number = await allocateLetterNumber(
@@ -737,7 +781,10 @@ async function upsertDocumentHandler(
       const docData = {
         cabinet: existing.cabinet,
         type: existing.type,
-        number: existing.type === "letter" ? data.number : existing.number,
+        number:
+          existing.type === "letter"
+            ? data.number
+            : applyPrestationAbbrevToNumber(existing.number, data.sections),
         clientId: data.clientId,
         createdById: existing.createdById,
         status: nextStatus,
@@ -822,7 +869,13 @@ async function upsertDocumentHandler(
           nextStatus,
         });
       }
-      return mapDocument(updated);
+      if (existing.type === "invoice") {
+        await persistShowDueMonthOnLines(
+          updated.id,
+          Boolean(data.showDueMonthOnLines),
+        );
+      }
+      return mappedDocument(updated);
     }
 
     await assertClientInCabinet(data.clientId, targetCabinet);
@@ -896,7 +949,13 @@ async function upsertDocumentHandler(
         nextStatus: data.status,
       });
     }
-    return mapDocument(created);
+    if (data.type === "invoice") {
+      await persistShowDueMonthOnLines(
+        created.id,
+        Boolean(data.showDueMonthOnLines),
+      );
+    }
+    return mappedDocument(created);
 }
 
 export const convertQuotationToInvoice = createServerFn({ method: "POST" })
@@ -1024,7 +1083,7 @@ export const setDocumentStatus = createServerFn({ method: "POST" })
         paymentMethod: updated.paymentMethod ?? undefined,
       });
     }
-    return { ...mapDocument(updated), ...emailNotice };
+    return { ...(await mappedDocument(updated)), ...emailNotice };
   });
 
 export const setInvoiceSubscription = createServerFn({ method: "POST" })
@@ -1033,6 +1092,7 @@ export const setInvoiceSubscription = createServerFn({ method: "POST" })
       id: z.string(),
       enabled: z.boolean(),
       dayOfMonth: z.number().int().min(1).max(28).optional(),
+      showDueMonthOnLines: z.boolean().optional(),
     }),
   )
   .handler(async ({ data }) => {
@@ -1057,7 +1117,22 @@ export const setInvoiceSubscription = createServerFn({ method: "POST" })
         },
         include: docInclude,
       });
-      return mapDocument(row);
+      return mappedDocument(row);
+    }
+
+    if (
+      existing.isSubscription &&
+      existing.subscriptionActive &&
+      data.showDueMonthOnLines !== undefined &&
+      data.dayOfMonth == null
+    ) {
+      await persistShowDueMonthOnLines(existing.id, data.showDueMonthOnLines);
+      const row = await prisma.document.findFirst({
+        where: { id: existing.id },
+        include: docInclude,
+      });
+      if (!row) throw new Error("Facture introuvable");
+      return mappedDocument(row);
     }
 
     const client = await prisma.client.findFirst({
@@ -1096,7 +1171,11 @@ export const setInvoiceSubscription = createServerFn({ method: "POST" })
       },
       include: docInclude,
     });
-    return mapDocument(row);
+    await persistShowDueMonthOnLines(
+      existing.id,
+      data.showDueMonthOnLines ?? false,
+    );
+    return mappedDocument(row);
   });
 
 /** Génère et envoie les factures d'abonnement arrivées à échéance. */
@@ -1359,7 +1438,7 @@ export const listArchivedDocuments = createServerFn({ method: "GET" }).handler(
       include: docInclude,
       orderBy: { issueDate: "desc" },
     });
-    return rows.map(mapDocument);
+    return mappedDocuments(rows);
   },
 );
 

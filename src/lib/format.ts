@@ -1,8 +1,18 @@
-export const currency = (n: number, c = "XAF") =>
-  new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n) + " " + c;
+/** Espace insécable visible — U+202F (fr-FR) est trop étroit en Georgia / PDF. */
+const GROUP_SEP = "\u00A0";
 
-export const number = (n: number) =>
-  new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
+function formatIntFr(n: number): string {
+  return new Intl.NumberFormat("fr-FR", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  })
+    .format(Number.isFinite(n) ? n : 0)
+    .replace(/[\u202F\u2009\u00A0 ]/g, GROUP_SEP);
+}
+
+export const currency = (n: number, c = "XAF") => formatIntFr(n) + " " + c;
+
+export const number = (n: number) => formatIntFr(n);
 
 export const shortDate = (d: string | Date) => {
   const date = typeof d === "string" ? new Date(d) : d;

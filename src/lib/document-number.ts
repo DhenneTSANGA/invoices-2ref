@@ -22,6 +22,30 @@ export function formatCommercialDocumentNumber(
   return `${prefix}${seq}-${dd}-${mm}-${yyyy}`;
 }
 
+/** FA1-03-09-2026 ou FA1-03-09-2026RC */
+const COMMERCIAL_NUMBER_RE =
+  /^(FA|DV)(\d+)-(\d{2})-(\d{2})-(\d{4})([A-Z0-9]*)$/i;
+
+/** Retire l’abrégé de tâche en fin de numéro. */
+export function stripCommercialTaskAbbrev(number: string): string {
+  const m = number.trim().match(COMMERCIAL_NUMBER_RE);
+  if (!m) return number.trim();
+  return `${m[1]!.toUpperCase()}${m[2]}-${m[3]}-${m[4]}-${m[5]}`;
+}
+
+/** Ajoute ou remplace l’abrégé de tâche (RC, DSF…). */
+export function withCommercialTaskAbbrev(
+  number: string,
+  abbrev?: string | null,
+): string {
+  const base = stripCommercialTaskAbbrev(number);
+  const code = (abbrev ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+  return code ? `${base}${code}` : base;
+}
+
 /** Extrait le compteur depuis FA12-31-07-2026 (ou formats proches FA12-…). */
 export function parseCommercialSequence(
   number: string,

@@ -37,6 +37,7 @@ export function buildInvoiceInputFromQuotation(
       sectionId: item.sectionId ?? null,
       description: item.description,
       quantity: item.quantity,
+      quantityUnit: item.quantityUnit ?? "quantity",
       unitPrice: item.unitPrice,
       vatRate: item.vatRate,
       discount: item.discount,

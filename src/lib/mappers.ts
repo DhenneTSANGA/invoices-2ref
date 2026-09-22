@@ -10,6 +10,7 @@ import type {
   StaffMember,
 } from "@/store/types";
 import { companyForPreview } from "@/lib/company-defaults";
+import { parseLineQuantityUnit } from "@/lib/line-quantity";
 
 export function decimalToNumber(v: Decimal | number | string): number {
   if (typeof v === "number") return v;
@@ -188,6 +189,7 @@ export function mapDocument(row: {
   subscriptionDueDay?: number | null;
   subscriptionDueMonthsOffset?: number | null;
   subscriptionOfId?: string | null;
+  showDueMonthOnLines?: boolean;
   mailMergeCampaignId?: string | null;
   validityDays: number | null;
   executionTerms: string | null;
@@ -204,6 +206,7 @@ export function mapDocument(row: {
     sectionId?: string | null;
     description: string;
     quantity: Decimal;
+    quantityUnit?: string;
     unitPrice: Decimal;
     vatRate: Decimal;
     discount: Decimal;
@@ -236,6 +239,7 @@ export function mapDocument(row: {
       sectionId: l.sectionId ?? null,
       description: l.description,
       quantity: decimalToNumber(l.quantity),
+      quantityUnit: parseLineQuantityUnit(l.quantityUnit),
       unitPrice: decimalToNumber(l.unitPrice),
       vatRate: decimalToNumber(l.vatRate),
       discount: decimalToNumber(l.discount),
@@ -292,6 +296,7 @@ export function mapDocument(row: {
     subscriptionDueDay: row.subscriptionDueDay ?? null,
     subscriptionDueMonthsOffset: row.subscriptionDueMonthsOffset ?? 1,
     subscriptionOfId: row.subscriptionOfId ?? null,
+    showDueMonthOnLines: row.showDueMonthOnLines ?? false,
     mailMergeCampaignId: row.mailMergeCampaignId ?? null,
     validityDays: row.validityDays ?? undefined,
     executionTerms: row.executionTerms ?? undefined,

@@ -225,6 +225,10 @@ export const lineItemSchema = z.object({
   sectionId: z.string().optional().nullable(),
   description: z.string(),
   quantity: z.coerce.number(),
+  quantityUnit: z
+    .enum(["quantity", "month", "year", "none"])
+    .optional()
+    .default("quantity"),
   unitPrice: z.coerce.number(),
   vatRate: z.coerce.number(),
   discount: z.coerce.number().optional().default(0),
@@ -260,6 +264,7 @@ export const documentInputSchema = z.object({
   notes: z.string().optional().nullable(),
   paymentTerms: z.string().optional().nullable(),
   showRib: z.boolean().optional().default(false),
+  showDueMonthOnLines: z.boolean().optional().default(false),
   validityDays: z.number().optional().nullable(),
   executionTerms: z.string().optional().nullable(),
   subject: z.string().optional().nullable(),

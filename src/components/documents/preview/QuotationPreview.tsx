@@ -65,6 +65,7 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
   const accent = isConseilDesign ? CONSEIL_PAPER_COLORS.accent : QUOTE_ACCENT;
   const accentTo = isConseilDesign ? CONSEIL_PAPER_COLORS.accentTo : QUOTE_ACCENT_TO;
   const tint = isConseilDesign ? CONSEIL_PAPER_COLORS.sectionBg : QUOTE_TINT;
+  const cardTint = isConseilDesign ? CONSEIL_PAPER_COLORS.paymentBg : tint;
 
   const niuLabel = niuLabelForCabinet(doc.cabinet);
   const accountantSignatory = isAccountantSignatory(doc.signatoryTitle);
@@ -178,13 +179,13 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
                 </td>
                 <td style={{ ...TWO_COL.right, textAlign: "right" }}>
                   <div className={cn("leading-[1.2]", DOC_TEXT.small)}>
-                    <div className="leading-[1.2]">
-                      <span className="text-[#64748B]">N° de devis : </span>
-                      <TimesNum className="font-semibold text-[#0F172A]">{doc.number}</TimesNum>
+                    <div className="leading-[1.2]" style={{ color: CONSEIL_PAPER_COLORS.title }}>
+                      <span>N° de devis : </span>
+                      <TimesNum className="font-semibold">{doc.number}</TimesNum>
                     </div>
-                    <div className="leading-[1.2]">
-                      <span className="text-[#64748B]">Date : </span>
-                      <TimesNum className="font-semibold text-[#0F172A]">
+                    <div className="leading-[1.2]" style={{ color: CONSEIL_PAPER_COLORS.title }}>
+                      <span>Date : </span>
+                      <TimesNum className="font-semibold">
                         {longDate(doc.issueDate)}
                       </TimesNum>
                     </div>
@@ -192,6 +193,7 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
                       clientRef={client?.clientRef}
                       className="leading-[1.2]"
                       timesNumerals
+                      color={CONSEIL_PAPER_COLORS.title}
                     />
                   </div>
                 </td>
@@ -311,7 +313,7 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
                     compact={dense}
                     accent={accent}
                     accentTo={accentTo}
-                    tint={tint}
+                    tint={cardTint}
                   >
                     {doc.paymentTerms.trim()}
                   </TermsPanel>
@@ -322,7 +324,7 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
                   compact={dense}
                   accent={accent}
                   accentTo={accentTo}
-                  tint={tint}
+                  tint={cardTint}
                 >
                   {doc.executionTerms?.trim() ? (
                     <div>{doc.executionTerms.trim()}</div>

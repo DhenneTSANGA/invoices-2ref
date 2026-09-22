@@ -28,6 +28,7 @@ import {
   staffDisplayName,
 } from "@/lib/notify-document-status";
 import { documentTypeLabel } from "@/lib/document-status-labels";
+import { currency } from "@/lib/format";
 import { canWriteDocument, isAdmin, isSuperAdmin } from "@/lib/roles";
 import type { CompanyInfo, DocumentType } from "@/store/types";
 import { logOutboundMail } from "@/lib/mail-log";
@@ -43,6 +44,20 @@ import {
   richOrPlainToEmailHtml,
 } from "@/lib/rich-text";
 import { letterPlaceCityLabel } from "@/lib/letter-place-city";
+import {
+  dueMonthMention,
+  shouldAppendDueMonthToLines,
+} from "@/lib/subscription";
+import { loadShowDueMonthOnLines } from "@/lib/document-due-month-db";
+import { loadLineQuantityUnits } from "@/lib/document-line-quantity-db";
+import {
+  formatLineQuantity,
+  hasMixedQuantityUnits,
+  lineQuantityForTotal,
+  parseLineQuantityUnit,
+  quantityColumnHeader,
+  type LineQuantityUnit,
+} from "@/lib/line-quantity";
 
 async function requireSession() {
   const session = await getCurrentSession();
@@ -50,7 +65,7 @@ async function requireSession() {
   return session;
 }
 
-function money(n: number | { toNumber?: () => number } | string, currency = "XAF") {
+function money(n: number | { toNumber?: () => number } | string, currencyCode = "XAF") {
   const value =
     typeof n === "number"
       ? n
@@ -59,14 +74,7 @@ function money(n: number | { toNumber?: () => number } | string, currency = "XAF
         : typeof n?.toNumber === "function"
           ? n.toNumber()
           : Number(n);
-  return (
-    new Intl.NumberFormat("fr-FR", {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(Number.isFinite(value) ? value : 0) +
-    " " +
-    currency
-  );
+  return currency(Number.isFinite(value) ? value : 0, currencyCode);
 }
 
 function formatDate(d: Date) {
@@ -185,7 +193,14 @@ function buildCommercialEmailHtml(params: {
   issueDate: string;
   dueDate?: string | null;
   currency: string;
-  lines: { description: string; quantity: number; unitPrice: number; total: number }[];
+  lines: {
+    description: string;
+    quantity: number;
+    quantityUnit?: LineQuantityUnit;
+    unitPrice: number;
+    total: number;
+  }[];
+  dueMonthLine?: string | null;
   subtotal: number;
   tps: number;
   css: number;
@@ -206,18 +221,36 @@ function buildCommercialEmailHtml(params: {
   const barFill = isConseil
     ? CONSEIL_BAR_FILL
     : `linear-gradient(90deg, ${accent}, ${accentTo})`;
+  const cardBg = isConseil ? CONSEIL_PAPER_COLORS.paymentBg : "#F1F5F9";
+  const execCardBg = isConseil ? CONSEIL_PAPER_COLORS.paymentBg : "#F8FAFC";
+
+  const qtyHeader = quantityColumnHeader(params.lines);
+  const showQty = qtyHeader != null;
+  const mixedQty = hasMixedQuantityUnits(params.lines);
+  const lineColspan = showQty ? 4 : 3;
+
+  const dueMonthRow = params.dueMonthLine
+    ? `
+      <tr style="background:${params.lines.length % 2 === 0 ? "#FFFFFF" : "#F8FAFC"};">
+        <td colspan="${lineColspan}" style="padding:10px 12px;border-bottom:1px solid #E2E8F0;font-size:13px;color:#0F172A;">${escapeHtml(params.dueMonthLine)}</td>
+      </tr>`
+    : "";
 
   const rows = params.lines
-    .map(
-      (l, i) => `
+    .map((l, i) => {
+      const qtyLabel = formatLineQuantity(l, { mixed: mixedQty });
+      const qtyCell = showQty
+        ? `<td style="padding:10px 12px;border-bottom:1px solid #E2E8F0;text-align:right;font-size:13px;color:#475569;${isConseil ? timesFace : ""}">${escapeHtml(qtyLabel)}</td>`
+        : "";
+      return `
       <tr style="background:${i % 2 === 0 ? "#FFFFFF" : "#F8FAFC"};">
         <td style="padding:10px 12px;border-bottom:1px solid #E2E8F0;font-size:13px;color:#0F172A;">${escapeHtml(l.description)}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid #E2E8F0;text-align:right;font-size:13px;color:#475569;${isConseil ? timesFace : ""}">${l.quantity}</td>
+        ${qtyCell}
         <td style="padding:10px 12px;border-bottom:1px solid #E2E8F0;text-align:right;font-size:13px;color:#475569;${isConseil ? timesFace : ""}">${escapeHtml(money(l.unitPrice, params.currency))}</td>
         <td style="padding:10px 12px;border-bottom:1px solid #E2E8F0;text-align:right;font-size:13px;font-weight:600;color:#0F172A;${isConseil ? timesFace : ""}">${escapeHtml(money(l.total, params.currency))}</td>
-      </tr>`,
-    )
-    .join("");
+      </tr>`;
+    })
+    .join("") + dueMonthRow;
 
   const taxRows = [
     params.tps > 0
@@ -341,7 +374,7 @@ function buildCommercialEmailHtml(params: {
       <thead>
         <tr style="background:${barFill};color:#FFFFFF;">
           <th style="text-align:left;padding:11px 12px;font-size:12px;font-weight:600;letter-spacing:0.03em;">Description</th>
-          <th style="text-align:right;padding:11px 12px;font-size:12px;font-weight:600;">Qté</th>
+          ${showQty ? `<th style="text-align:right;padding:11px 12px;font-size:12px;font-weight:600;">${escapeHtml(qtyHeader ?? "Qté")}</th>` : ""}
           <th style="text-align:right;padding:11px 12px;font-size:12px;font-weight:600;">P.U.</th>
           <th style="text-align:right;padding:11px 12px;font-size:12px;font-weight:600;">Total</th>
         </tr>
@@ -370,7 +403,7 @@ function buildCommercialEmailHtml(params: {
 
     ${
       params.paymentTerms?.trim()
-        ? `<div style="margin-top:20px;background:#F1F5F9;border-radius:10px;padding:12px 14px;font-size:12px;color:#475569;">
+        ? `<div style="margin-top:20px;background:${cardBg};border-radius:10px;padding:12px 14px;font-size:12px;color:#475569;">
             <strong style="color:#0F172A;">Modalité de paiement</strong>
             <div style="margin-top:4px;">${escapeHtml(params.paymentTerms.trim())}</div>
           </div>`
@@ -381,7 +414,7 @@ function buildCommercialEmailHtml(params: {
       params.type === "invoice" &&
       (isConseil || params.showRib) &&
       (isConseil || params.company.bankName || params.company.bankAccount)
-        ? `<div style="margin-top:20px;background:#F1F5F9;border-radius:10px;padding:12px 14px;font-size:12px;color:#475569;">
+        ? `<div style="margin-top:20px;background:${cardBg};border-radius:10px;padding:12px 14px;font-size:12px;color:#475569;">
             <strong style="color:#0F172A;">RIB pour le règlement</strong>
             <div style="margin-top:4px;">Règlement par virement bancaire ou par chèque.</div>
             ${params.company.bankName ? `<div style="margin-top:4px;">Banque : ${escapeHtml(params.company.bankName)}</div>` : ""}
@@ -393,7 +426,7 @@ function buildCommercialEmailHtml(params: {
 
     ${
       params.executionTerms?.trim() || (isConseil && params.type !== "invoice")
-        ? `<div style="margin-top:20px;background:#F8FAFC;border-radius:10px;padding:12px 14px;font-size:13px;color:#475569;">
+        ? `<div style="margin-top:20px;background:${execCardBg};border-radius:10px;padding:12px 14px;font-size:13px;color:#475569;">
             <strong style="color:#0F172A;">Conditions de réalisation :</strong>
             ${params.executionTerms?.trim() ? `<div style="margin-top:4px;">${escapeHtml(params.executionTerms.trim())}</div>` : ""}
             ${isConseil && params.type !== "invoice" ? `<div style="margin-top:4px;">${escapeHtml(CONSEIL_CLOSING.cheque)}</div>` : ""}
@@ -619,15 +652,27 @@ export async function sendDocumentEmailInternal(params: {
       });
     } else {
       const currency = doc.currency || "XAF";
+      const dueMonthFlags = await loadShowDueMonthOnLines([doc.id]);
+      const quantityUnits = await loadLineQuantityUnits(doc.lines.map((l) => l.id));
+      const showDueMonth = shouldAppendDueMonthToLines({
+        type: doc.type,
+        showDueMonthOnLines: dueMonthFlags.get(doc.id) ?? false,
+      });
       const lines = doc.lines.map((l) => {
         const quantity = Number(l.quantity);
         const unitPrice = Number(l.unitPrice);
         const discount = Number(l.discount);
+        const quantityUnit = parseLineQuantityUnit(quantityUnits.get(l.id));
         return {
           description: l.description,
           quantity,
+          quantityUnit,
           unitPrice,
-          total: lineAmount(quantity, unitPrice, discount),
+          total: lineAmount(
+            lineQuantityForTotal({ quantity, quantityUnit }),
+            unitPrice,
+            discount,
+          ),
         };
       });
       subject = `${typeLabel} ${doc.number} — ${company.name}`;
@@ -651,6 +696,7 @@ export async function sendDocumentEmailInternal(params: {
         dueDate: doc.dueDate ? formatDate(doc.dueDate) : null,
         currency,
         lines,
+        dueMonthLine: showDueMonth ? dueMonthMention(doc.issueDate) : null,
         subtotal: Number(doc.subtotal),
         tps: Number(doc.tps),
         css: Number(doc.css),

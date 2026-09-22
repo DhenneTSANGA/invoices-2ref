@@ -42,12 +42,12 @@ export const CONSEIL_PAPER_COLORS = {
   accent: "#5B9BD5",
   /** Bas de barre — bleu Excel standard, pas le marine. */
   accentTo: "#0070C0",
-  /** Fond totaux / RIB — poudre bleue du papier imprimé. */
+  /** Fond totaux (Sous-total / CSS / TVA). */
   sectionBg: "#D0E3F5",
   /** Lignes de tableau alternées. */
   rowAlt: "#F3F8FC",
-  /** Même teinte que les totaux (Sous-total / CSS / TVA). */
-  paymentBg: "#D0E3F5",
+  /** Fond des cartes RIB / modalité / conditions (texte noir conservé). */
+  paymentBg: "#5E88CF",
 } as const;
 
 /** Dégradé vertical des barres bleues (Tâche, en-têtes, totaux, RIB). */

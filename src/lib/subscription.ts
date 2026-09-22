@@ -73,3 +73,41 @@ export type PaymentReminderDay = (typeof PAYMENT_REMINDER_DAYS)[number];
 export function isPaymentReminderDay(day: number): day is PaymentReminderDay {
   return (PAYMENT_REMINDER_DAYS as readonly number[]).includes(day);
 }
+
+const MONTHS_FR = [
+  "janvier",
+  "février",
+  "mars",
+  "avril",
+  "mai",
+  "juin",
+  "juillet",
+  "août",
+  "septembre",
+  "octobre",
+  "novembre",
+  "décembre",
+] as const;
+
+const MONTHS_ELISION = new Set(["avril", "août", "octobre"]);
+
+/** « échéances du mois de septembre » / « d'août ». */
+export function dueMonthMention(issueDate: string | Date): string {
+  const iso =
+    typeof issueDate === "string"
+      ? issueDate.slice(0, 10)
+      : issueDate.toISOString().slice(0, 10);
+  const monthIndex = Number(iso.slice(5, 7)) - 1;
+  const month = MONTHS_FR[monthIndex] ?? "";
+  if (!month) return "échéances du mois";
+  const prep = MONTHS_ELISION.has(month) ? "d'" : "de ";
+  return `échéances du mois ${prep}${month}`;
+}
+
+export function shouldAppendDueMonthToLines(doc: {
+  type?: string;
+  showDueMonthOnLines?: boolean | null;
+}): boolean {
+  return doc.type === "invoice" && Boolean(doc.showDueMonthOnLines);
+}
+

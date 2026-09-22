@@ -37,9 +37,11 @@ import { DocumentCreatorCard } from "@/components/documents/DocumentCreatorCard"
 import { DocumentPdfTracesPanel } from "@/components/documents/DocumentPdfTracesPanel";
 import { documentDetailRoute } from "@/lib/document-nav";
 import { currency, longDate, shortDate } from "@/lib/format";
+import { dueMonthMention } from "@/lib/subscription";
 import { paymentMethodLabel } from "@/lib/payment-method";
 import { isAdmin } from "@/lib/roles";
 import { isAccountantSignatory } from "@/lib/signatory";
+import { Switch } from "@/components/ui/switch";
 import {
   clientAllowsSubscription,
   isSubscriptionGeneratedInvoice,
@@ -356,6 +358,12 @@ function InvoiceDetailPage() {
                     label="Échéance"
                     value={doc.dueDate ? longDate(doc.dueDate) : "—"}
                   />
+                  {doc.showDueMonthOnLines ? (
+                    <Row
+                      label="Ligne d’échéance"
+                      value={dueMonthMention(doc.issueDate)}
+                    />
+                  ) : null}
                   <p className="text-[11px] text-muted-foreground">
                     Relances auto (15, 20, 25) si cette facture reste impayée
                     après l&apos;échéance.
@@ -388,6 +396,32 @@ function InvoiceDetailPage() {
                           : "—"
                       }
                     />
+                    <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border/50 px-3 py-2.5">
+                      <Switch
+                        className="mt-0.5"
+                        checked={Boolean(doc.showDueMonthOnLines)}
+                        disabled={subscriptionMutation.isPending}
+                        onCheckedChange={(on) => {
+                          subscriptionMutation.mutate(
+                            {
+                              id: doc.id,
+                              enabled: true,
+                              showDueMonthOnLines: on,
+                            },
+                            {
+                              onError: (e) => toast.error(e.message),
+                            },
+                          );
+                        }}
+                      />
+                      <span className="text-sm">
+                        Mentionner le mois d’échéance sous les désignations
+                        <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                          Une ligne « {dueMonthMention(doc.issueDate)} » sous le
+                          tableau, sur chaque facture générée.
+                        </span>
+                      </span>
+                    </label>
                     <p className="text-[11px] text-muted-foreground">
                       Relances auto (15, 20, 25) après dépassement de l&apos;échéance.
                     </p>
@@ -484,10 +518,11 @@ function InvoiceDetailPage() {
         onOpenChange={setSubOpen}
         documentNumber={doc.number}
         initialDay={doc.subscriptionDay}
+        initialShowDueMonth={doc.showDueMonthOnLines}
         pending={subscriptionMutation.isPending}
-        onConfirm={(dayOfMonth) => {
+        onConfirm={({ dayOfMonth, showDueMonthOnLines }) => {
           subscriptionMutation.mutate(
-            { id: doc.id, enabled: true, dayOfMonth },
+            { id: doc.id, enabled: true, dayOfMonth, showDueMonthOnLines },
             {
               onSuccess: (row) => {
                 toast.success("Abonnement activé", {

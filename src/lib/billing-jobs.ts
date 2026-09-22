@@ -1,6 +1,16 @@
 import type { Cabinet, Prisma, StaffMember } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { buildNextCommercialNumber } from "@/lib/document-number";
+import { applyPrestationAbbrevToNumber } from "@/lib/default-prestation-titles";
+import {
+  loadShowDueMonthOnLines,
+  persistShowDueMonthOnLines,
+} from "@/lib/document-due-month-db";
+import {
+  loadLineQuantityUnits,
+  persistLineQuantityUnitsForDocument,
+} from "@/lib/document-line-quantity-db";
+import { parseLineQuantityUnit } from "@/lib/line-quantity";
 import { companyForPreview } from "@/lib/company-defaults";
 import { clientAllowsSubscription } from "@/lib/client-billing";
 import { isAdmin } from "@/lib/roles";
@@ -21,6 +31,7 @@ import {
   resolveManagerCc,
   resendErrorMessage,
 } from "@/lib/email";
+import { currency } from "@/lib/format";
 import { DOCUMENT_COLORS } from "@/lib/cabinets";
 import { logOutboundMail } from "@/lib/mail-log";
 
@@ -49,15 +60,8 @@ function formatDateFr(d: Date): string {
   }).format(d);
 }
 
-function money(n: number, currency = "XAF"): string {
-  return (
-    new Intl.NumberFormat("fr-FR", {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(n) +
-    " " +
-    currency
-  );
+function money(n: number, currencyCode = "XAF"): string {
+  return currency(n, currencyCode);
 }
 
 async function allocateInvoiceNumber(
@@ -193,7 +197,10 @@ async function generateSubscriptionInvoice(
   }
 
   const issueDate = todayUtc;
-  const number = await allocateInvoiceNumber(template.cabinet, issueDate);
+  const number = applyPrestationAbbrevToNumber(
+    await allocateInvoiceNumber(template.cabinet, issueDate),
+    template.sections,
+  );
   const dueDate = subscriptionDueDateFromIssue(issueDate, {
     dueDay: template.subscriptionDueDay,
     monthsOffset: template.subscriptionDueMonthsOffset ?? 1,
@@ -260,6 +267,21 @@ async function generateSubscriptionInvoice(
 
     return doc;
   });
+
+  const templateFlags = await loadShowDueMonthOnLines([template.id]);
+  await persistShowDueMonthOnLines(
+    created.id,
+    templateFlags.get(template.id) ?? false,
+  );
+  const templateUnits = await loadLineQuantityUnits(
+    template.lines.map((l) => l.id),
+  );
+  await persistLineQuantityUnitsForDocument(
+    created.id,
+    template.lines.map((l) =>
+      parseLineQuantityUnit(templateUnits.get(l.id)),
+    ),
+  );
 
   const day = clampSubscriptionDay(template.subscriptionDay ?? 1);
   let nextAt = advanceSubscriptionDate(

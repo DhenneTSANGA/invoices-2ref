@@ -333,6 +333,8 @@ model Document {
   subscriptionDueMonthsOffset  Int       @default(1)
   /** Facture générée depuis un abonnement (id du modèle). */
   subscriptionOfId     String?
+  /** Suffixer les désignations avec « échéances du mois de … ». */
+  showDueMonthOnLines  Boolean   @default(false)
   /** Campagne de publipostage (lettres groupées). */
   mailMergeCampaignId  String?
   createdAt         DateTime       @default(now())
@@ -383,6 +385,8 @@ model DocumentLine {
   serviceId   String?
   description String
   quantity    Decimal @db.Decimal(18, 3)
+  /** quantity | month | year | none — mois/année = même calcul que quantité. */
+  quantityUnit String @default("quantity")
   unitPrice   Decimal @db.Decimal(18, 2)
   vatRate     Decimal @db.Decimal(5, 2)
   discount    Decimal @default(0) @db.Decimal(5, 2)

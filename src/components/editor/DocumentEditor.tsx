@@ -34,6 +34,12 @@ import {
   useSignLetterDocument,
 } from "@/hooks/use-data";
 import type { Cabinet } from "@/lib/cabinets";
+import {
+  LINE_QUANTITY_UNIT_OPTIONS,
+  lineQuantityForTotal,
+  parseLineQuantityUnit,
+  quantityUnitFromServiceUnit,
+} from "@/lib/line-quantity";
 import { isAdmin } from "@/lib/roles";
 import { documentCanSendEmail } from "@/components/documents/DocumentSignatureActions";
 import {
@@ -45,6 +51,7 @@ import {
   type SignatoryRole,
 } from "@/lib/signatory";
 import { PrestationTitleInput } from "@/components/editor/PrestationTitleInput";
+import { applyPrestationAbbrevToNumber } from "@/lib/default-prestation-titles";
 
 const DEFAULT_PAYMENT_MODALITY = "Le 05 suivant le mois de la prestation";
 
@@ -176,13 +183,18 @@ export function DocumentEditor({ initial, type }: Props) {
     setDoc((d) => (d.clientId ? d : { ...d, clientId: firstId }));
   }, [clients, initial?.clientId]);
 
-  // Numéro chronologique FA{n}-JJ-MM-AAAA / DV… (aperçu ; allocation définitive à l'enregistrement)
+  // Numéro chronologique FA{n}-JJ-MM-AAAA / DV… + abrégé de tâche prédéfinie
+  // (aperçu ; allocation définitive à l'enregistrement).
+  const sectionTitlesKey = (doc.sections ?? []).map((s) => s.title).join("\n");
   useEffect(() => {
-    if (!isNew || !commercial || !peekedNumber?.number) return;
-    setDoc((d) =>
-      d.number === peekedNumber.number ? d : { ...d, number: peekedNumber.number },
-    );
-  }, [isNew, commercial, peekedNumber?.number]);
+    if (!commercial) return;
+    setDoc((d) => {
+      const source =
+        isNew && peekedNumber?.number ? peekedNumber.number : d.number;
+      const next = applyPrestationAbbrevToNumber(source, d.sections);
+      return d.number === next ? d : { ...d, number: next };
+    });
+  }, [commercial, isNew, peekedNumber?.number, sectionTitlesKey]);
 
   const [previewOpen, setPreviewOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -303,6 +315,7 @@ export function DocumentEditor({ initial, type }: Props) {
             id: lineId,
             description,
             quantity: 1,
+            quantityUnit: "quantity" as const,
             unitPrice: ht,
             vatRate: vat,
             cssRate: css,
@@ -430,6 +443,7 @@ export function DocumentEditor({ initial, type }: Props) {
             id,
             description: "",
             quantity: 1,
+            quantityUnit: "quantity",
             unitPrice: 0,
             vatRate: commercial ? docVatRate : DEFAULT_VAT_RATE,
             discount: 0,
@@ -464,6 +478,7 @@ export function DocumentEditor({ initial, type }: Props) {
             serviceId: s.id,
             description: s.name,
             quantity: 1,
+            quantityUnit: quantityUnitFromServiceUnit(s.unit),
             unitPrice: s.unitPrice,
             vatRate: commercial ? docVatRate : s.vatRate || DEFAULT_VAT_RATE,
             discount: 0,
@@ -590,6 +605,8 @@ export function DocumentEditor({ initial, type }: Props) {
         ? null
         : merged.paymentTerms.trim() || null,
     showRib: merged.cabinet === "conseil" ? true : Boolean(merged.showRib),
+    showDueMonthOnLines:
+      type === "invoice" ? Boolean(merged.showDueMonthOnLines) : false,
     validityDays: merged.validityDays ?? null,
     executionTerms: merged.executionTerms ?? null,
     subject: merged.subject ?? null,
@@ -605,6 +622,7 @@ export function DocumentEditor({ initial, type }: Props) {
       sectionId: commercial ? (it.sectionId ?? null) : null,
       description: it.description,
       quantity: finiteNumber(it.quantity, 0),
+      quantityUnit: parseLineQuantityUnit(it.quantityUnit),
       unitPrice: finiteNumber(it.unitPrice, 0),
       vatRate: finiteNumber(it.vatRate, 0),
       discount: commercial ? 0 : finiteNumber(it.discount, 0),
@@ -914,6 +932,29 @@ export function DocumentEditor({ initial, type }: Props) {
               onChange={(v) => setDoc({ ...doc, currency: v })}
             />
           )}
+          {type === "invoice" ? (
+            <div className="sm:col-span-2">
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border/60 px-3 py-2.5">
+                <Switch
+                  className="mt-0.5"
+                  checked={Boolean(doc.showDueMonthOnLines)}
+                  onCheckedChange={(on) =>
+                    setDoc({ ...doc, showDueMonthOnLines: on })
+                  }
+                />
+                <span>
+                  <span className="block text-sm font-medium">
+                    Mentionner le mois d’échéance sous les désignations
+                  </span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                    Optionnel. Ajoute une ligne « échéances du mois de … » sous
+                    le tableau (mois de la date d’émission), sans quantité ni
+                    montant.
+                  </span>
+                </span>
+              </label>
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -1212,8 +1253,11 @@ export function DocumentEditor({ initial, type }: Props) {
                           <th className="py-2 text-left font-medium">
                             Description
                           </th>
-                          <th className="w-20 py-2 text-right font-medium">
+                          <th className="w-20 py-2 pr-2 text-right font-medium">
                             Qté
+                          </th>
+                          <th className="w-28 py-2 pl-1 text-left font-medium">
+                            Unité
                           </th>
                           <th className="w-28 py-2 text-right font-medium">
                             P.U. HT
@@ -1228,7 +1272,7 @@ export function DocumentEditor({ initial, type }: Props) {
                         {sectionItems.length === 0 ? (
                           <tr>
                             <td
-                              colSpan={5}
+                              colSpan={6}
                               className="py-3 text-center text-xs italic text-muted-foreground"
                             >
                               Aucune désignation — ajoutez une ligne ci-dessous.
@@ -1296,7 +1340,10 @@ export function DocumentEditor({ initial, type }: Props) {
               <thead className="text-xs text-muted-foreground">
                 <tr className="border-b border-border/60">
                   <th className="py-2 text-left font-medium">Description</th>
-                  <th className="w-20 py-2 text-right font-medium">Qté</th>
+                  <th className="w-20 py-2 pr-2 text-right font-medium">Qté</th>
+                  {commercial ? (
+                    <th className="w-28 py-2 pl-1 text-left font-medium">Unité</th>
+                  ) : null}
                   <th className="w-28 py-2 text-right font-medium">P.U. HT</th>
                   {!commercial ? (
                     <>
@@ -1312,7 +1359,7 @@ export function DocumentEditor({ initial, type }: Props) {
               <tbody>
                 <AnimateEmpty
                   items={doc.items}
-                  colSpan={commercial ? 5 : 8}
+                  colSpan={commercial ? 6 : 8}
                   emptyHint={
                     commercial && amountMode === "ttc"
                       ? "Aucune ligne — saisissez un montant TTC ci-dessus puis cliquez Appliquer."
@@ -1626,7 +1673,8 @@ function LineRow({
   updateItem: (id: string, patch: Partial<LineItem>) => void;
   removeItem: (id: string) => void;
 }) {
-  const lineTotal = it.quantity * it.unitPrice;
+  const unit = parseLineQuantityUnit(it.quantityUnit);
+  const lineTotal = lineQuantityForTotal(it) * it.unitPrice;
   return (
     <tr
       className="border-b border-border/40"
@@ -1649,11 +1697,39 @@ function LineRow({
         />
       </td>
       <td className="px-1 py-2">
-        <NumInput
-          value={it.quantity}
-          onChange={(v) => updateItem(it.id, { quantity: v })}
-        />
+        {unit === "none" ? (
+          <span className="block w-full px-2 py-1.5 text-center text-xs text-muted-foreground">
+            —
+          </span>
+        ) : (
+          <NumInput
+            value={it.quantity}
+            onChange={(v) => updateItem(it.id, { quantity: v })}
+          />
+        )}
       </td>
+      {commercial ? (
+        <td className="px-1 py-2">
+          <select
+            className="w-full min-w-[6.5rem] rounded-lg border border-border bg-surface px-2 py-1.5 text-sm focus:border-primary focus:outline-none"
+            value={unit}
+            title="Unité de la quantité"
+            onChange={(e) => {
+              const next = parseLineQuantityUnit(e.target.value);
+              updateItem(it.id, {
+                quantityUnit: next,
+                quantity: next === "none" ? 1 : it.quantity || 1,
+              });
+            }}
+          >
+            {LINE_QUANTITY_UNIT_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </td>
+      ) : null}
       <td className="px-1 py-2">
         <NumInput
           value={it.unitPrice}
@@ -1861,6 +1937,7 @@ function defaultDoc(
     number: "…",
     paymentTerms: DEFAULT_PAYMENT_MODALITY,
     showRib: cabinet === "conseil",
+    showDueMonthOnLines: false,
     signatoryTitle: DEFAULT_SIGNATORY_TITLE,
   };
 }

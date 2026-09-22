@@ -107,6 +107,8 @@ export type LineItem = {
   sectionId?: string | null;
   description: string;
   quantity: number;
+  /** quantity | month | year | none — mois/année se calculent comme une quantité. */
+  quantityUnit?: import("@/lib/line-quantity").LineQuantityUnit;
   unitPrice: number;
   vatRate: number;
   discount: number;
@@ -163,6 +165,8 @@ export type Document = {
   subscriptionDueDay?: number | null;
   subscriptionDueMonthsOffset?: number | null;
   subscriptionOfId?: string | null;
+  /** Suffixer les désignations avec le mois d’émission (optionnel). */
+  showDueMonthOnLines?: boolean;
   mailMergeCampaignId?: string | null;
   /** Devis */
   validityDays?: number;

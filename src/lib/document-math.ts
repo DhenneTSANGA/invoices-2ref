@@ -1,4 +1,5 @@
 import type { LineItem } from "@/store/types";
+import { lineQuantityForTotal } from "@/lib/line-quantity";
 
 export const DEFAULT_VAT_RATE = 18;
 export const DEFAULT_CSS_RATE = 1;
@@ -6,7 +7,7 @@ export const DEFAULT_CSS_RATE = 1;
 export const DEFAULT_TPS_RATE = 9.5;
 
 function lineGross(item: LineItem) {
-  return item.quantity * item.unitPrice;
+  return lineQuantityForTotal(item) * item.unitPrice;
 }
 
 /** Base ligne avec remise ligne (courriers / legacy). */

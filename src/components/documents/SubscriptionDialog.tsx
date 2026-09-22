@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import { clampSubscriptionDay } from "@/lib/subscription";
 
 type Props = {
@@ -15,8 +16,12 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   documentNumber?: string;
   initialDay?: number | null;
+  initialShowDueMonth?: boolean;
   pending?: boolean;
-  onConfirm: (dayOfMonth: number) => void;
+  onConfirm: (payload: {
+    dayOfMonth: number;
+    showDueMonthOnLines: boolean;
+  }) => void;
 };
 
 export function SubscriptionDialog({
@@ -24,16 +29,21 @@ export function SubscriptionDialog({
   onOpenChange,
   documentNumber,
   initialDay,
+  initialShowDueMonth,
   pending,
   onConfirm,
 }: Props) {
   const [day, setDay] = useState(String(initialDay ?? 1));
+  const [showDueMonth, setShowDueMonth] = useState(Boolean(initialShowDueMonth));
 
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        if (next) setDay(String(initialDay ?? 1));
+        if (next) {
+          setDay(String(initialDay ?? 1));
+          setShowDueMonth(Boolean(initialShowDueMonth));
+        }
         onOpenChange(next);
       }}
     >
@@ -64,6 +74,23 @@ export function SubscriptionDialog({
           />
         </label>
 
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border/60 px-3 py-2.5">
+          <Switch
+            checked={showDueMonth}
+            onCheckedChange={setShowDueMonth}
+            className="mt-0.5"
+          />
+          <span>
+            <span className="block text-sm font-medium">
+              Mentionner le mois d’échéance sous les désignations
+            </span>
+            <span className="mt-0.5 block text-xs text-muted-foreground">
+              Ajoute une ligne « échéances du mois de septembre » sous le
+              tableau. Optionnel, repris sur les factures générées chaque mois.
+            </span>
+          </span>
+        </label>
+
         <DialogFooter className="gap-2 sm:gap-0">
           <button
             type="button"
@@ -76,7 +103,10 @@ export function SubscriptionDialog({
             type="button"
             disabled={pending}
             onClick={() =>
-              onConfirm(clampSubscriptionDay(Number(day) || 1))
+              onConfirm({
+                dayOfMonth: clampSubscriptionDay(Number(day) || 1),
+                showDueMonthOnLines: showDueMonth,
+              })
             }
             className="rounded-2xl bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow disabled:opacity-60"
           >

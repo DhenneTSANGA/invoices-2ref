@@ -267,7 +267,7 @@ export function AmountRow({
           DOC_TEXT.base,
           !isRef && "font-mono",
         )}
-        style={isRef ? { fontFamily: TIMES_NUMERALS } : undefined}
+        style={isRef ? { fontFamily: TIMES_NUMERALS, letterSpacing: "0.04em" } : undefined}
       >
         {value} {currency}
       </span>
@@ -374,19 +374,25 @@ export function DocumentClientRef({
   clientRef,
   className,
   timesNumerals,
+  color,
 }: {
   clientRef?: string | null;
   className?: string;
   timesNumerals?: boolean;
+  /** Couleur du libellé et de la valeur (ex. bleu titre facture). */
+  color?: string;
 }) {
   const value = clientRef?.trim();
   if (!value) return null;
 
   return (
-    <div className={cn("leading-[1.2]", DOC_TEXT.small, className)}>
-      <span className="text-[#64748B]">ID du client : </span>
+    <div
+      className={cn("leading-[1.2]", DOC_TEXT.small, className)}
+      style={color ? { color } : undefined}
+    >
+      <span className={color ? undefined : "text-[#64748B]"}>ID du client : </span>
       <span
-        className="font-semibold text-[#0F172A]"
+        className={cn("font-semibold", !color && "text-[#0F172A]")}
         style={timesNumerals ? { fontFamily: TIMES_NUMERALS } : undefined}
       >
         {value}

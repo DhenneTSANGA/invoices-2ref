@@ -14,6 +14,7 @@ import {
   PreviewBottomRow,
   TimesNum,
   timesDigits,
+  TIMES_NUMERALS,
 } from "./PreviewShell";
 import { computeDocumentTotals, documentTaxRates } from "@/lib/document-math";
 import {
@@ -27,6 +28,16 @@ import {
 } from "@/lib/cabinets";
 import { ManagerSignature } from "@/components/signature/ManagerSignature";
 import { clientDocumentLines, clientConseilDocumentLines } from "@/lib/client-address";
+import {
+  dueMonthMention,
+  shouldAppendDueMonthToLines,
+} from "@/lib/subscription";
+import {
+  formatLineQuantity,
+  hasMixedQuantityUnits,
+  lineQuantityForTotal,
+  quantityColumnHeader,
+} from "@/lib/line-quantity";
 import { cn } from "@/lib/utils";
 import {
   isAccountantSignatory,
@@ -174,13 +185,13 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
                 </td>
                 <td style={{ ...TWO_COL.right, textAlign: "right" }}>
                   <div className={cn("leading-[1.2]", DOC_TEXT.small)}>
-                    <div className="leading-[1.2]">
-                      <span className="text-[#64748B]">N° de facture : </span>
-                      <TimesNum className="font-semibold text-[#0F172A]">{doc.number}</TimesNum>
+                    <div className="leading-[1.2]" style={{ color: REF.title }}>
+                      <span>N° de facture : </span>
+                      <TimesNum className="font-semibold">{doc.number}</TimesNum>
                     </div>
-                    <div className="leading-[1.2]">
-                      <span className="text-[#64748B]">Date : </span>
-                      <TimesNum className="font-semibold text-[#0F172A]">
+                    <div className="leading-[1.2]" style={{ color: REF.title }}>
+                      <span>Date : </span>
+                      <TimesNum className="font-semibold">
                         {longDate(doc.issueDate)}
                       </TimesNum>
                     </div>
@@ -188,6 +199,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
                       clientRef={client?.clientRef}
                       className="leading-[1.2]"
                       timesNumerals
+                      color={REF.title}
                     />
                   </div>
                 </td>
@@ -441,7 +453,7 @@ function InfoPanel({
   title,
   accent,
   compact,
-  tint = REF.sectionBg,
+  tint = REF.paymentBg,
   children,
 }: {
   title: string;
@@ -702,7 +714,13 @@ function ItemsTable({
     items: Document["items"],
     keyPrefix = "",
     framed = true,
-  ) => (
+    dueMonthRow = false,
+  ) => {
+    const qtyHeader = quantityColumnHeader(items);
+    const showQty = qtyHeader != null;
+    const mixedQty = hasMixedQuantityUnits(items);
+    const colCount = showQty ? 5 : 4;
+    return (
     <div
       className={
         framed
@@ -723,7 +741,11 @@ function ItemsTable({
           >
             <th className={cn(headerCell, "w-8 text-left font-semibold")}></th>
             <th className={cn(headerCell, "text-left font-semibold")}>Désignation</th>
-            <th className={cn(headerCell, "w-10 text-right font-semibold")}>Qté</th>
+            {showQty ? (
+              <th className={cn(headerCell, "w-14 text-right font-semibold")}>
+                {qtyHeader}
+              </th>
+            ) : null}
             <th className={cn(headerCell, "w-[4.5rem] text-right font-semibold")}>
               P.U. HT
             </th>
@@ -733,13 +755,14 @@ function ItemsTable({
         <tbody>
           {items.length === 0 && (
             <tr>
-              <td colSpan={5} className={cn(cell, "text-center italic text-[#94A3B8]")}>
+              <td colSpan={colCount} className={cn(cell, "text-center italic text-[#94A3B8]")}>
                 Aucune ligne.
               </td>
             </tr>
           )}
           {items.map((it, i) => {
-            const lineTotal = it.quantity * it.unitPrice;
+            const lineTotal = lineQuantityForTotal(it) * it.unitPrice;
+            const qtyLabel = formatLineQuantity(it, { mixed: mixedQty });
             const rowBg = referenceDesign
               ? i % 2 === 0
                 ? "#fff"
@@ -762,15 +785,21 @@ function ItemsTable({
                 <td className={cn(cell, "align-top leading-snug")}>
                   {referenceDesign ? timesDigits(it.description) : it.description}
                 </td>
+                {showQty ? (
+                  <td
+                    className={cn(cell, "text-right align-top", !referenceDesign && "font-mono")}
+                    style={referenceDesign ? { fontFamily: 'Georgia, "Times New Roman", serif' } : undefined}
+                  >
+                    {referenceDesign && qtyLabel ? timesDigits(qtyLabel) : qtyLabel}
+                  </td>
+                ) : null}
                 <td
                   className={cn(cell, "text-right align-top", !referenceDesign && "font-mono")}
-                  style={referenceDesign ? { fontFamily: 'Georgia, "Times New Roman", serif' } : undefined}
-                >
-                  {it.quantity}
-                </td>
-                <td
-                  className={cn(cell, "text-right align-top", !referenceDesign && "font-mono")}
-                  style={referenceDesign ? { fontFamily: 'Georgia, "Times New Roman", serif' } : undefined}
+                  style={
+                    referenceDesign
+                      ? { fontFamily: TIMES_NUMERALS, letterSpacing: "0.04em" }
+                      : undefined
+                  }
                 >
                   {number(it.unitPrice)}
                 </td>
@@ -781,22 +810,58 @@ function ItemsTable({
                     DOC_TEXT.base,
                     !referenceDesign && "font-mono",
                   )}
-                  style={referenceDesign ? { fontFamily: 'Georgia, "Times New Roman", serif' } : undefined}
+                  style={
+                    referenceDesign
+                      ? { fontFamily: TIMES_NUMERALS, letterSpacing: "0.04em" }
+                      : undefined
+                  }
                 >
                   {number(lineTotal)}
                 </td>
               </tr>
             );
           })}
+          {dueMonthRow &&
+          shouldAppendDueMonthToLines(doc) &&
+          items.length > 0 ? (
+            <tr
+              className={
+                referenceDesign
+                  ? undefined
+                  : items.length % 2 === 0
+                    ? "bg-white"
+                    : "bg-[#F8FAFC]"
+              }
+              style={
+                referenceDesign
+                  ? {
+                      background:
+                        items.length % 2 === 0 ? "#fff" : REF.rowAlt,
+                    }
+                  : undefined
+              }
+            >
+              <td className={cn(cell, "align-top")} />
+              <td
+                colSpan={colCount - 1}
+                className={cn(cell, "align-top leading-snug")}
+              >
+                {referenceDesign
+                  ? timesDigits(dueMonthMention(doc.issueDate))
+                  : dueMonthMention(doc.issueDate)}
+              </td>
+            </tr>
+          ) : null}
         </tbody>
       </table>
     </div>
-  );
+    );
+  };
 
   if (!hasSections) {
     return (
       <div className={cn(compact ? "mt-2" : "mt-4")}>
-        {renderLinesTable(doc.items)}
+        {renderLinesTable(doc.items, "", true, true)}
       </div>
     );
   }
@@ -805,8 +870,9 @@ function ItemsTable({
 
   return (
     <div className={cn("space-y-3", compact ? "mt-2" : "mt-4")}>
-      {sections.map((sec) => {
+      {sections.map((sec, idx) => {
         const items = doc.items.filter((it) => it.sectionId === sec.id);
+        const isLastSection = idx === sections.length - 1 && unsectioned.length === 0;
         return (
           <div
             key={sec.id}
@@ -834,11 +900,13 @@ function ItemsTable({
             >
               {(sec.title.trim() || "—").toUpperCase()}
             </div>
-            {renderLinesTable(items, `${sec.id}-`, false)}
+            {renderLinesTable(items, `${sec.id}-`, false, isLastSection)}
           </div>
         );
       })}
-      {unsectioned.length > 0 ? renderLinesTable(unsectioned, "loose-") : null}
+      {unsectioned.length > 0
+        ? renderLinesTable(unsectioned, "loose-", true, true)
+        : null}
     </div>
   );
 }
