@@ -30,18 +30,24 @@ export const CABINET_LOGO_BOUNDS: Record<
   expertise_fiscale: { canvasWidth: 594, canvasHeight: 420, left: 78, top: 99, width: 441, height: 223 },
 };
 
-/** Couleurs papier 2R Conseil — facture et devis (bleu barre Tâche de référence). */
+/**
+ * Couleurs papier 2R Conseil — facture et devis.
+ * Palette Excel « Accent 1 / Blue » du document imprimé (barres trop sombres
+ * si on descend jusqu’au marine Darker 50 %).
+ */
 export const CONSEIL_PAPER_COLORS = {
   /** Titre FACTURE / DEVIS (bleu marine d’origine). */
   title: "#184078",
-  /** Haut de barre (plus clair). */
-  accent: "#2E75B6",
-  /** Bas de barre (plus sombre). */
-  accentTo: "#1F4E79",
-  sectionBg: "#D9E2EF",
-  rowAlt: "#EEF2F7",
+  /** Haut de barre Tâche / en-têtes (Excel Accent 1). */
+  accent: "#5B9BD5",
+  /** Bas de barre — bleu Excel standard, pas le marine. */
+  accentTo: "#0070C0",
+  /** Fond totaux / RIB — poudre bleue du papier imprimé. */
+  sectionBg: "#D0E3F5",
+  /** Lignes de tableau alternées. */
+  rowAlt: "#F3F8FC",
   /** Même teinte que les totaux (Sous-total / CSS / TVA). */
-  paymentBg: "#D9E2EF",
+  paymentBg: "#D0E3F5",
 } as const;
 
 /** Dégradé vertical des barres bleues (Tâche, en-têtes, totaux, RIB). */

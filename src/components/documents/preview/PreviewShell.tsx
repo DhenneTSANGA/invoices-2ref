@@ -6,6 +6,7 @@ import {
   CABINET_LOGO_BOUNDS,
   CONSEIL_CLOSING,
   CONSEIL_BAR_FILL,
+  CONSEIL_PAPER_COLORS,
   type Cabinet,
 } from "@/lib/cabinets";
 import { amountInWords } from "@/lib/format";
@@ -218,7 +219,7 @@ export function AmountRow({
   accent = "#01004C",
   compact,
   variant = "default",
-  tint = "#D9E2EF",
+  tint = CONSEIL_PAPER_COLORS.sectionBg,
 }: {
   label: string;
   value: string;
@@ -339,7 +340,7 @@ export function LegalFooter({
           className="mb-2.5 w-full text-center text-[12px] font-bold italic leading-[1.35]"
           style={{
             fontFamily: '"Times New Roman", Times, serif',
-            color: thanksColor || "#2E75B6",
+            color: thanksColor || CONSEIL_PAPER_COLORS.accent,
           }}
         >
           {closingThanks}
