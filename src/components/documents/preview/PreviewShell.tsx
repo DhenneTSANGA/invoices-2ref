@@ -417,7 +417,7 @@ export function AmountInWords({
   compact?: boolean;
   intro?: string;
   variant?: "default" | "reference";
-  /** Phrase plus grande ; le montant en lettres est en gras, même taille. */
+  /** Phrase plus grande ; seul le montant en lettres est en gras. */
   prominent?: boolean;
 }) {
   const words = amountInWords(amount, currency);
@@ -430,13 +430,13 @@ export function AmountInWords({
           className={cn(
             "break-words italic leading-snug",
             prominent
-              ? "text-[14px] font-bold text-[#0F172A]"
+              ? "text-[14px] text-[#0F172A]"
               : cn("text-[#334155]", DOC_TEXT.small),
           )}
         >
           {intro}{" "}
           {prominent ? (
-            <span>{words}</span>
+            <span className="font-bold">{words}</span>
           ) : (
             <span className={cn("font-semibold not-italic text-[#0F172A]", DOC_TEXT.base)}>
               {words}
