@@ -947,7 +947,7 @@ export function DocumentEditor({ initial, type }: Props) {
                     Mentionner le mois d’échéance sous les désignations
                   </span>
                   <span className="mt-0.5 block text-xs text-muted-foreground">
-                    Optionnel. Ajoute une ligne « Échéances du mois de … » sous
+                    Optionnel. Ajoute une ligne « Echeance du mois de … » sous
                     le tableau (mois de la date d’émission), sans quantité ni
                     montant.
                   </span>

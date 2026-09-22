@@ -91,7 +91,7 @@ const MONTHS_FR = [
 
 const MONTHS_ELISION = new Set(["avril", "août", "octobre"]);
 
-/** « Échéances du mois de septembre » / « d'août ». */
+/** « Echeance du mois de Septembre » / « d'Août ». */
 export function dueMonthMention(issueDate: string | Date): string {
   const iso =
     typeof issueDate === "string"
@@ -99,9 +99,10 @@ export function dueMonthMention(issueDate: string | Date): string {
       : issueDate.toISOString().slice(0, 10);
   const monthIndex = Number(iso.slice(5, 7)) - 1;
   const month = MONTHS_FR[monthIndex] ?? "";
-  if (!month) return "Échéances du mois";
+  if (!month) return "Echeance du mois";
   const prep = MONTHS_ELISION.has(month) ? "d'" : "de ";
-  return `Échéances du mois ${prep}${month}`;
+  const monthLabel = month.charAt(0).toUpperCase() + month.slice(1);
+  return `Echeance du mois ${prep}${monthLabel}`;
 }
 
 export function shouldAppendDueMonthToLines(doc: {
