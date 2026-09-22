@@ -27,6 +27,8 @@ export const DEFAULT_PRESTATION_TITLES = [
   "Consultation juridique",
   "Assistance juridique",
   "Assistance fiscale",
+  "Formation intra-entreprise",
+  "Séminaire de formation",
 ] as const;
 
 export type DefaultPrestationTitle =
@@ -59,6 +61,8 @@ export const PRESTATION_TITLE_ABBREVS: Record<DefaultPrestationTitle, string> = 
   "Consultation juridique": "CJ",
   "Assistance juridique": "AJ",
   "Assistance fiscale": "AFI",
+  "Formation intra-entreprise": "FRM",
+  "Séminaire de formation": "FRM",
 };
 
 export function abbrevForPrestationTitle(title: string): string | null {

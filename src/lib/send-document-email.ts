@@ -232,7 +232,7 @@ function buildCommercialEmailHtml(params: {
   const dueMonthRow = params.dueMonthLine
     ? `
       <tr style="background:${params.lines.length % 2 === 0 ? "#FFFFFF" : "#F8FAFC"};">
-        <td colspan="${lineColspan}" style="padding:10px 12px;border-bottom:1px solid #E2E8F0;font-size:13px;color:#0F172A;">${escapeHtml(params.dueMonthLine)}</td>
+        <td colspan="${lineColspan}" style="padding:10px 12px;border-bottom:1px solid #E2E8F0;font-size:13px;font-weight:700;color:#0F172A;">${escapeHtml(params.dueMonthLine)}</td>
       </tr>`
     : "";
 

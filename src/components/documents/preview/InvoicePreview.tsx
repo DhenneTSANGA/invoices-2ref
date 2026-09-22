@@ -844,7 +844,7 @@ function ItemsTable({
               <td className={cn(cell, "align-top")} />
               <td
                 colSpan={colCount - 1}
-                className={cn(cell, "align-top leading-snug")}
+                className={cn(cell, "align-top font-bold leading-snug")}
               >
                 {referenceDesign
                   ? timesDigits(dueMonthMention(doc.issueDate))
