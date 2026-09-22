@@ -296,6 +296,7 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
               compact={dense}
               intro="Arrêtée le présent devis à la somme de"
               variant="reference"
+              prominent
             />
           </div>
           <PreviewBottomRow
@@ -403,6 +404,7 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
               accent={accent}
               compact={dense}
               intro="Arrêtée le présent devis à la somme de"
+              prominent
             />
           </div>
           <div className={cn("flex justify-end", dense ? "mt-2" : "mt-4")}>

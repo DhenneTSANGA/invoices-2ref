@@ -49,7 +49,7 @@ export const CONSEIL_BAR_FILL = `linear-gradient(180deg, ${CONSEIL_PAPER_COLORS.
 
 /** Formules de clôture facture / devis 2R Conseil (Times italic, comme le papier). */
 export const CONSEIL_CLOSING = {
-  cheque: "Veuillez libeller tous les chèques à l'ordre de 2RConseil.",
+  cheque: "Veuillez libeller tous les chèques à l'ordre de 2R Conseil.",
   thanks: "NOUS VOUS REMERCIONS DE VOTRE CONFIANCE.",
   thanksColor: CONSEIL_PAPER_COLORS.accent,
 } as const;

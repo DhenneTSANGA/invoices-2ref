@@ -271,6 +271,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
               accent={accent}
               compact={dense}
               variant="reference"
+              prominent
             />
           </div>
           <PreviewBottomRow

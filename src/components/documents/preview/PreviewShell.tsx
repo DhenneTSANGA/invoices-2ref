@@ -402,6 +402,7 @@ export function AmountInWords({
   compact,
   intro = "Arrêtée la présente facture à la somme de",
   variant = "default",
+  prominent,
 }: {
   amount: number;
   currency?: string;
@@ -409,6 +410,8 @@ export function AmountInWords({
   compact?: boolean;
   intro?: string;
   variant?: "default" | "reference";
+  /** Phrase plus grande ; le montant en lettres est en gras, même taille. */
+  prominent?: boolean;
 }) {
   const words = amountInWords(amount, currency);
   const isRef = variant === "reference";
@@ -416,11 +419,22 @@ export function AmountInWords({
   if (isRef) {
     return (
       <div className={cn("text-center", compact ? "px-1 py-1" : "px-2 py-1.5")}>
-        <p className={cn("break-words italic leading-snug text-[#334155]", DOC_TEXT.small)}>
+        <p
+          className={cn(
+            "break-words italic leading-snug",
+            prominent
+              ? "text-[14px] text-[#0F172A]"
+              : cn("text-[#334155]", DOC_TEXT.small),
+          )}
+        >
           {intro}{" "}
-          <span className={cn("font-semibold not-italic text-[#0F172A]", DOC_TEXT.base)}>
-            {words}
-          </span>
+          {prominent ? (
+            <span className="font-bold">{words}</span>
+          ) : (
+            <span className={cn("font-semibold not-italic text-[#0F172A]", DOC_TEXT.base)}>
+              {words}
+            </span>
+          )}
         </p>
       </div>
     );
@@ -434,14 +448,19 @@ export function AmountInWords({
       )}
       style={{ borderColor: `${accent}33`, background: `${accent}08` }}
     >
-      <div className={cn("whitespace-nowrap text-[#64748B]", DOC_TEXT.small)}>
+      <div
+        className={cn(
+          "text-[#64748B]",
+          prominent ? "text-[14px] italic text-[#0F172A]" : cn("whitespace-nowrap", DOC_TEXT.small),
+        )}
+      >
         {intro}
       </div>
       <p
         className={cn(
           "break-words font-bold leading-snug text-[#0F172A]",
           compact ? "mt-0.5" : "mt-1",
-          DOC_TEXT.base,
+          prominent ? "text-[14px]" : DOC_TEXT.base,
         )}
       >
         {words}
