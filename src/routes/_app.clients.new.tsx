@@ -17,6 +17,8 @@ import {
   citiesForCountry,
 } from "@/lib/client-form-options";
 import { ClientBillingProfilePicker } from "@/components/clients/ClientBillingProfilePicker";
+import { ClientPolePicker } from "@/components/clients/ClientPolePicker";
+import { CLIENT_POLE_LABELS, type ClientPole } from "@/lib/client-pole";
 
 export const Route = createFileRoute("/_app/clients/new")({
   head: () => ({ meta: [{ title: "Nouveau client — 2R Hub" }] }),
@@ -56,6 +58,7 @@ const empty: Omit<
   anpiNumber: "",
   anpiDate: "",
   billingProfile: "one_off",
+  pole: "formation",
 };
 
 function NewClient() {
@@ -63,6 +66,8 @@ function NewClient() {
   const createClient = useCreateClient();
   const uploadFiche = useUploadClientFiche();
   const [form, setForm] = useState(empty);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [poleChosen, setPoleChosen] = useState(false);
   const [circuitFile, setCircuitFile] = useState<File | null>(null);
   const [statusFile, setStatusFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
@@ -122,9 +127,68 @@ function NewClient() {
       </button>
       <PageHeader
         title="Nouveau client"
-        subtitle="Saisissez les informations de la fiche unique d’enregistrement ANPI, le contact métier et les fiches associées."
+        subtitle={
+          step === 1
+            ? "Étape 1/3 — Dans quel pôle créer ce client ?"
+            : step === 2
+              ? "Étape 2/3 — Ponctuel, abonnement, ou les deux ?"
+              : "Saisissez les informations de la fiche unique d’enregistrement ANPI, le contact métier et les fiches associées."
+        }
       />
+      {step === 1 ? (
+        <div className="glass-panel space-y-5 rounded-3xl p-5">
+          <ClientPolePicker
+            value={poleChosen ? form.pole : null}
+            onChange={(pole) => {
+              setForm({ ...form, pole });
+              setPoleChosen(true);
+            }}
+          />
+          <div className="flex justify-end">
+            <button
+              type="button"
+              disabled={!poleChosen}
+              onClick={() => setStep(2)}
+              className="rounded-2xl bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow disabled:opacity-50"
+            >
+              Continuer
+            </button>
+          </div>
+        </div>
+      ) : step === 2 ? (
+        <div className="glass-panel space-y-5 rounded-3xl p-5">
+          <p className="text-xs text-muted-foreground">
+            Pôle : <strong>{CLIENT_POLE_LABELS[form.pole as ClientPole]}</strong>
+          </p>
+          <ClientBillingProfilePicker
+            value={form.billingProfile}
+            onChange={(billingProfile) => setForm({ ...form, billingProfile })}
+          />
+          <div className="flex justify-between">
+            <button
+              type="button"
+              onClick={() => setStep(1)}
+              className="rounded-2xl border border-border px-4 py-2 text-sm font-medium hover:bg-muted"
+            >
+              Retour
+            </button>
+            <button
+              type="button"
+              onClick={() => setStep(3)}
+              className="rounded-2xl bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow"
+            >
+              Continuer
+            </button>
+          </div>
+        </div>
+      ) : (
       <form onSubmit={submit} className="space-y-5">
+        <Section title="Pôle">
+          <ClientPolePicker
+            value={form.pole}
+            onChange={(pole) => setForm({ ...form, pole })}
+          />
+        </Section>
         <Section title="Type de client">
           <ClientBillingProfilePicker
             value={form.billingProfile}
@@ -303,10 +367,10 @@ function NewClient() {
         <div className="flex justify-end gap-2">
           <button
             type="button"
-            onClick={() => navigate({ to: "/clients" })}
+            onClick={() => setStep(2)}
             className="rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted"
           >
-            Annuler
+            Retour
           </button>
           <button
             type="submit"
@@ -318,6 +382,7 @@ function NewClient() {
           </button>
         </div>
       </form>
+      )}
     </div>
   );
 }

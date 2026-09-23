@@ -16,6 +16,8 @@ import {
   withDocumentTaxRates,
 } from "@/lib/document-math";
 import type { Document, DocumentSection, DocumentType, LineItem } from "@/store/types";
+import { parseClientPole, type ClientPole } from "@/lib/client-pole";
+import { ClientPolePicker } from "@/components/clients/ClientPolePicker";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 import { DocumentPdfButton } from "@/components/documents/DocumentPdfButton";
 import { number } from "@/lib/format";
@@ -239,6 +241,22 @@ export function DocumentEditor({ initial, type }: Props) {
   }, [focusDescriptionLineId, doc.items]);
 
   const effectiveClientId = doc.clientId || clients[0]?.id || "";
+  const lastClientIdRef = useRef(initial?.clientId ?? "");
+  useEffect(() => {
+    const client =
+      clients.find((c) => c.id === effectiveClientId) ??
+      (docClient?.id === effectiveClientId ? docClient : undefined);
+    if (!client) return;
+    const switched =
+      Boolean(lastClientIdRef.current) &&
+      lastClientIdRef.current !== effectiveClientId;
+    lastClientIdRef.current = effectiveClientId;
+    setDoc((d) => {
+      if (!switched && d.pole) return d;
+      const nextPole = parseClientPole(client.pole);
+      return d.pole === nextPole ? d : { ...d, pole: nextPole };
+    });
+  }, [effectiveClientId, clients, docClient]);
   const executionDays = parseExecutionDays(doc.executionTerms);
   const vatRate = commercial ? docVatRate : documentTaxRates(doc.items).vatRate;
   const cssRate = commercial ? docCssRate : documentTaxRates(doc.items).cssRate;
@@ -600,6 +618,7 @@ export function DocumentEditor({ initial, type }: Props) {
     type,
     number: merged.number,
     clientId: merged.clientId,
+    pole: parseClientPole(merged.pole),
     status: nextStatus,
     issueDate: merged.issueDate,
     dueDate: merged.dueDate?.trim() ? merged.dueDate : null,
@@ -612,6 +631,7 @@ export function DocumentEditor({ initial, type }: Props) {
     showRib: merged.cabinet === "conseil" ? true : Boolean(merged.showRib),
     showDueMonthOnLines:
       type === "invoice" ? Boolean(merged.showDueMonthOnLines) : false,
+    hideZeroLineFigures: merged.hideZeroLineFigures !== false,
     totalRounding:
       type === "invoice" || type === "quotation"
         ? Math.round(merged.totalRounding ?? 0)
@@ -790,6 +810,16 @@ export function DocumentEditor({ initial, type }: Props) {
             onChange={(v) => setDoc({ ...doc, clientId: v })}
             options={clientOptions}
           />
+          <div className="sm:col-span-2">
+            <ClientPolePicker
+              compact
+              value={parseClientPole(doc.pole)}
+              onChange={(pole) => setDoc({ ...doc, pole })}
+            />
+            <p className="mt-1.5 text-[11px] text-muted-foreground">
+              Prérempli depuis la fiche client — modifiable pour ce document.
+            </p>
+          </div>
           <Field
             label="Date d'émission"
             type="date"
@@ -2000,6 +2030,7 @@ function defaultDoc(
     cabinet,
     type,
     clientId,
+    pole: "formation" as ClientPole,
     createdById: "staff-mireille",
     status: "draft" as const,
     issueDate: today,

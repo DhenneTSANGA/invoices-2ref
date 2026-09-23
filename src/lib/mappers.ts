@@ -11,6 +11,7 @@ import type {
 } from "@/store/types";
 import { companyForPreview } from "@/lib/company-defaults";
 import { parseLineQuantityUnit } from "@/lib/line-quantity";
+import { parseClientPole } from "@/lib/client-pole";
 
 export function decimalToNumber(v: Decimal | number | string): number {
   if (typeof v === "number") return v;
@@ -96,6 +97,7 @@ export function mapClient(row: {
   anpiNumber?: string | null;
   anpiDate?: string | null;
   billingProfile?: "subscription" | "one_off" | "mixed" | null;
+  pole?: string | null;
   ficheCircuitUrl?: string | null;
   ficheCircuitName?: string | null;
   ficheStatusUrl?: string | null;
@@ -129,6 +131,7 @@ export function mapClient(row: {
     anpiNumber: row.anpiNumber ?? "",
     anpiDate: row.anpiDate ?? "",
     billingProfile: row.billingProfile ?? "mixed",
+    pole: parseClientPole(row.pole),
     ficheCircuitUrl: row.ficheCircuitUrl ?? null,
     ficheCircuitName: row.ficheCircuitName ?? null,
     ficheStatusUrl: row.ficheStatusUrl ?? null,
@@ -169,6 +172,7 @@ export function mapDocument(row: {
   number: string;
   clientId: string;
   createdById: string;
+  pole?: string | null;
   status: Document["status"];
   issueDate: Date;
   dueDate: Date | null;
@@ -273,6 +277,7 @@ export function mapDocument(row: {
     type: row.type,
     number: row.number,
     clientId: row.clientId,
+    pole: parseClientPole(row.pole),
     createdById: row.createdById,
     status: row.status,
     issueDate: row.issueDate.toISOString().slice(0, 10),

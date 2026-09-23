@@ -29,6 +29,10 @@ import {
   ClientBillingBadge,
   ClientBillingProfilePicker,
 } from "@/components/clients/ClientBillingProfilePicker";
+import {
+  ClientPoleBadge,
+  ClientPolePicker,
+} from "@/components/clients/ClientPolePicker";
 
 export const Route = createFileRoute("/_app/clients/$id")({
   head: () => ({ meta: [{ title: "Fiche client — 2R Hub" }] }),
@@ -124,12 +128,19 @@ function EditClient() {
           <span className="inline-flex flex-wrap items-center gap-2">
             <span>{subtitleParts.join(" · ")}</span>
             <ClientBillingBadge profile={form.billingProfile} />
+            <ClientPoleBadge pole={form.pole} />
           </span>
         }
       />
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_360px]">
         <form onSubmit={save} className="space-y-5">
+          <Section title="Pôle">
+            <ClientPolePicker
+              value={form.pole}
+              onChange={(pole) => setForm({ ...form, pole })}
+            />
+          </Section>
           <Section title="Type de client">
             <ClientBillingProfilePicker
               value={form.billingProfile}

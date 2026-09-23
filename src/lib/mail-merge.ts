@@ -16,6 +16,8 @@ import {
   type LetterLanguage,
   type LetterServiceCode,
 } from "@/lib/letter-ref";
+import { loadClientPoles, persistDocumentPole } from "@/lib/client-pole-db";
+import { parseClientPole } from "@/lib/client-pole";
 
 async function requireSession() {
   const session = await getCurrentSession();
@@ -351,6 +353,7 @@ export const createMailMergeCampaign = createServerFn({ method: "POST" })
       data.subjectAbbrev ?? "",
     );
 
+    const recipientPoles = await loadClientPoles(recipients.map((c) => c.id));
     for (const client of recipients) {
       const vars = clientVars(client);
       const number = await nextLetterRef({
@@ -365,7 +368,7 @@ export const createMailMergeCampaign = createServerFn({ method: "POST" })
 
       const recipientOverride = clientLetterRecipientLines(client).join("\n");
 
-      await prisma.document.create({
+      const letter = await prisma.document.create({
         data: {
           cabinet: activeCabinet,
           type: "letter",
@@ -391,6 +394,10 @@ export const createMailMergeCampaign = createServerFn({ method: "POST" })
           mailMergeCampaignId: campaign.id,
         },
       });
+      await persistDocumentPole(
+        letter.id,
+        parseClientPole(recipientPoles.get(client.id)),
+      );
     }
 
     return mapCampaign(await campaignInclude(campaign.id));

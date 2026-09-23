@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import {
   Save,
@@ -48,6 +48,8 @@ import {
   DEFAULT_LETTER_PLACE_CITY,
   LETTER_PLACE_CITIES,
 } from "@/lib/letter-place-city";
+import { parseClientPole } from "@/lib/client-pole";
+import { ClientPolePicker } from "@/components/clients/ClientPolePicker";
 
 type Props = { initial?: Document };
 
@@ -87,6 +89,7 @@ export function LetterEditor({ initial }: Props) {
         new Date().toISOString().slice(0, 10),
       ),
       clientId: "",
+      pole: "formation",
       status: "draft",
       issueDate: new Date().toISOString().slice(0, 10),
       dueDate: new Date().toISOString().slice(0, 10),
@@ -135,6 +138,21 @@ export function LetterEditor({ initial }: Props) {
     setDoc((d) => (d.clientId ? d : { ...d, clientId: firstId }));
   }, [clients, initial?.clientId]);
 
+  const lastClientIdRef = useRef(initial?.clientId ?? "");
+  useEffect(() => {
+    const clientId = doc.clientId || clients[0]?.id || "";
+    const client = clients.find((c) => c.id === clientId);
+    if (!client) return;
+    const switched =
+      Boolean(lastClientIdRef.current) && lastClientIdRef.current !== clientId;
+    lastClientIdRef.current = clientId;
+    setDoc((d) => {
+      if (!switched && d.pole) return d;
+      const nextPole = parseClientPole(client.pole);
+      return d.pole === nextPole ? d : { ...d, pole: nextPole };
+    });
+  }, [doc.clientId, clients]);
+
   if (loadingClients) {
     return (
       <LoadingState
@@ -166,6 +184,7 @@ export function LetterEditor({ initial }: Props) {
       type: "letter",
       number: draft.number,
       clientId: draft.clientId,
+      pole: parseClientPole(draft.pole),
       status: nextStatus,
       issueDate: draft.issueDate,
       dueDate: draft.dueDate,
@@ -284,6 +303,14 @@ export function LetterEditor({ initial }: Props) {
                 ))}
               </select>
             </label>
+            <ClientPolePicker
+              compact
+              value={parseClientPole(doc.pole)}
+              onChange={(pole) => setDoc({ ...doc, pole })}
+            />
+            <p className="-mt-2 text-[11px] text-muted-foreground">
+              Prérempli depuis la fiche client — modifiable pour ce courriel.
+            </p>
 
             {selectedClient && !doc.recipientOverride && (
               <div className="flex gap-3 rounded-2xl border border-amber-200/70 bg-amber-50/60 px-4 py-3 text-sm text-amber-950">

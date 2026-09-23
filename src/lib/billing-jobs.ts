@@ -18,6 +18,11 @@ import {
   loadLineQuantityUnits,
   persistLineQuantityUnitsForDocument,
 } from "@/lib/document-line-quantity-db";
+import {
+  loadDocumentPoles,
+  persistDocumentPole,
+} from "@/lib/client-pole-db";
+import { parseClientPole } from "@/lib/client-pole";
 import { parseLineQuantityUnit } from "@/lib/line-quantity";
 import { companyForPreview } from "@/lib/company-defaults";
 import { clientAllowsSubscription } from "@/lib/client-billing";
@@ -283,6 +288,11 @@ async function generateSubscriptionInvoice(
     template.lines.map((l) =>
       parseLineQuantityUnit(templateUnits.get(l.id)),
     ),
+  );
+  const templatePoles = await loadDocumentPoles([template.id]);
+  await persistDocumentPole(
+    created.id,
+    parseClientPole(templatePoles.get(template.id)),
   );
 
   const day = clampSubscriptionDay(template.subscriptionDay ?? 1);

@@ -12,6 +12,7 @@ export function buildInvoiceInputFromQuotation(
     type: "invoice",
     number: "FA-0000",
     clientId: quotation.clientId,
+    pole: quotation.pole,
     status: "draft",
     issueDate: today,
     dueDate: quotation.dueDate ?? null,

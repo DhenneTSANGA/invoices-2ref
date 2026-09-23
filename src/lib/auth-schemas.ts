@@ -204,6 +204,9 @@ export const clientInputSchema = z.object({
   billingProfile: z
     .enum(["subscription", "one_off", "mixed"])
     .default("one_off"),
+  pole: z
+    .enum(["formation", "audit", "juridique", "comptabilite"])
+    .default("formation"),
 });
 
 export const clientFicheUploadSchema = z.object({
@@ -255,6 +258,9 @@ export const documentInputSchema = z.object({
   type: z.enum(["quotation", "invoice", "letter"]),
   number: z.string().min(1),
   clientId: z.string().min(1),
+  pole: z
+    .enum(["formation", "audit", "juridique", "comptabilite"])
+    .optional(),
   status: z.enum([
     "draft",
     "signed",

@@ -13,7 +13,7 @@ import { documentRowClass, getDocumentRowStyles } from "@/lib/document-row-style
 import { documentTypeLabel } from "@/lib/document-status-labels";
 import { currency, shortDate } from "@/lib/format";
 import { paymentMethodLabel } from "@/lib/payment-method";
-import type { ClientBillingProfile, Document, DocumentStatus, DocumentType, PaymentMethod } from "@/store/types";
+import type { ClientBillingProfile, ClientPole, Document, DocumentStatus, DocumentType, PaymentMethod } from "@/store/types";
 import { cn } from "@/lib/utils";
 import { canWriteDocument } from "@/lib/roles";
 import {
@@ -21,6 +21,12 @@ import {
   CLIENT_BILLING_PROFILES,
 } from "@/lib/client-billing";
 import { ClientBillingBadge } from "@/components/clients/ClientBillingProfilePicker";
+import {
+  ClientPoleBadge,
+  FilterChip,
+  PoleFilterChips,
+} from "@/components/clients/ClientPolePicker";
+import { parseClientPole } from "@/lib/client-pole";
 import {
   useClients,
   useDocuments,
@@ -58,6 +64,7 @@ export function DocumentsList({ type }: { type: DocumentType }) {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string>("all");
   const [billingFilter, setBillingFilter] = useState<"all" | ClientBillingProfile>("all");
+  const [poleFilter, setPoleFilter] = useState<"all" | ClientPole>("all");
   const [paidPrompt, setPaidPrompt] = useState<{ id: string; number: string } | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Document | null>(null);
   const L = labels[type];
@@ -93,8 +100,10 @@ export function DocumentsList({ type }: { type: DocumentType }) {
     const matchBilling =
       billingFilter === "all" ||
       (client?.billingProfile ?? "mixed") === billingFilter;
-    return matchQ && matchS && matchBilling;
-  }), [documents, clients, q, status, billingFilter]);
+    const matchPole =
+      poleFilter === "all" || parseClientPole(d.pole) === poleFilter;
+    return matchQ && matchS && matchBilling && matchPole;
+  }), [documents, clients, q, status, billingFilter, poleFilter]);
 
   const total = filtered.reduce((a, b) => a + b.total, 0);
 
@@ -211,35 +220,31 @@ export function DocumentsList({ type }: { type: DocumentType }) {
         </select>
       </div>
 
-      {(type === "invoice" || type === "quotation") && (
-        <div className="mb-4 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setBillingFilter("all")}
-            className={
-              billingFilter === "all"
-                ? "rounded-full bg-gradient-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-glow"
-                : "rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium hover:bg-muted"
-            }
-          >
-            Tous les clients
-          </button>
-          {CLIENT_BILLING_PROFILES.map((p) => (
-            <button
-              key={p}
-              type="button"
-              onClick={() => setBillingFilter(p)}
-              className={
-                billingFilter === p
-                  ? "rounded-full bg-gradient-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-glow"
-                  : "rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium hover:bg-muted"
-              }
+      <div className="mb-4 space-y-3">
+        <PoleFilterChips value={poleFilter} onChange={setPoleFilter} />
+        <div className="space-y-1.5">
+          <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            Type de client
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <FilterChip
+              active={billingFilter === "all"}
+              onClick={() => setBillingFilter("all")}
             >
-              {CLIENT_BILLING_LABELS[p]}
-            </button>
-          ))}
+              Tous
+            </FilterChip>
+            {CLIENT_BILLING_PROFILES.map((p) => (
+              <FilterChip
+                key={p}
+                active={billingFilter === p}
+                onClick={() => setBillingFilter(p)}
+              >
+                {CLIENT_BILLING_LABELS[p]}
+              </FilterChip>
+            ))}
+          </div>
         </div>
-      )}
+      </div>
 
       <div className="mb-4 flex flex-wrap gap-2">
         {statusOptions.map((s) => (
@@ -312,9 +317,12 @@ export function DocumentsList({ type }: { type: DocumentType }) {
                     <td className="px-5 py-3">
                       <div className="flex flex-col items-start gap-1">
                         <span>{c?.name}</span>
-                        {c?.billingProfile ? (
-                          <ClientBillingBadge profile={c.billingProfile} />
-                        ) : null}
+                        <div className="flex flex-wrap gap-1">
+                          <ClientPoleBadge pole={parseClientPole(d.pole)} />
+                          {c?.billingProfile ? (
+                            <ClientBillingBadge profile={c.billingProfile} />
+                          ) : null}
+                        </div>
                       </div>
                     </td>
                     <td className={cn("px-5 py-3", row.muted)}>{shortDate(d.issueDate)}</td>

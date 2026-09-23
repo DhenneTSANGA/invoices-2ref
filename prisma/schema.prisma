@@ -44,6 +44,14 @@ enum ClientBillingProfile {
   mixed
 }
 
+/** Pôle métier du client / du document. */
+enum ClientPole {
+  formation
+  audit
+  juridique
+  comptabilite
+}
+
 enum ActivityKind {
   invoice_paid
   invoice_sent
@@ -239,6 +247,8 @@ model Client {
   isTransient Boolean  @default(false)
   /** Abonnement / ponctuel / les deux. */
   billingProfile ClientBillingProfile @default(mixed)
+  /** Pôle métier (formation, audit, juridique, comptabilité). */
+  pole          ClientPole @default(formation)
   /** URL publique fiche circuit (Storage). */
   ficheCircuitUrl  String?
   ficheCircuitName String?
@@ -260,6 +270,8 @@ model Client {
   @@index([city])
   @@index([createdById])
   @@index([billingProfile])
+  @@index([pole])
+  @@index([cabinet, pole])
   @@map("clients")
 }
 
@@ -295,6 +307,8 @@ model Document {
   number            String
   clientId          String
   createdById       String
+  /** Pôle métier du document (prérempli depuis le client, modifiable). */
+  pole              ClientPole     @default(formation)
   status            DocumentStatus @default(draft)
   issueDate         DateTime       @db.Date
   /** Optionnel — si null, aucune échéance affichée sur facture / devis. */
@@ -367,6 +381,8 @@ model Document {
   @@index([isSubscription, subscriptionActive, subscriptionNextAt])
   @@index([subscriptionOfId])
   @@index([mailMergeCampaignId])
+  @@index([pole])
+  @@index([cabinet, pole])
   @@map("documents")
 }
 

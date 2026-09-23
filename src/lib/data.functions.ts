@@ -54,6 +54,14 @@ import {
 } from "@/lib/document-total-rounding-db";
 import { persistLineQuantityUnitsForDocument, loadLineQuantityUnits } from "@/lib/document-line-quantity-db";
 import {
+  loadClientPoles,
+  loadDocumentPoles,
+  persistClientPole,
+  persistDocumentPole,
+  withClientPole,
+} from "@/lib/client-pole-db";
+import { parseClientPole, isClientPole } from "@/lib/client-pole";
+import {
   loadReminderTemplates,
   persistReminderTemplates,
 } from "@/lib/reminder-templates-db";
@@ -178,6 +186,12 @@ async function assertClientInCabinet(clientId: string, cabinet: Cabinet) {
   return client;
 }
 
+async function resolveDocumentPole(clientId: string, raw: unknown) {
+  if (isClientPole(raw)) return raw;
+  const poles = await loadClientPoles([clientId]);
+  return poles.get(clientId) ?? parseClientPole(raw);
+}
+
 // ─── Clients ───────────────────────────────────────────────────────────────
 
 export const listClients = createServerFn({ method: "GET" })
@@ -189,7 +203,9 @@ export const listClients = createServerFn({ method: "GET" })
       where: { cabinet, isTransient: false },
       orderBy: { name: "asc" },
     });
-    return rows.map(mapClient);
+    const mapped = rows.map(mapClient);
+    const poles = await loadClientPoles(mapped.map((c) => c.id));
+    return mapped.map((c) => withClientPole(c, poles));
   });
 
 export const getClient = createServerFn({ method: "GET" })
@@ -201,7 +217,7 @@ export const getClient = createServerFn({ method: "GET" })
         ? { id: data.id }
         : { id: data.id, cabinet: session.activeCabinet },
     });
-    return row ? mapClient(row) : null;
+    return row ? withClientPole(mapClient(row), await loadClientPoles([row.id])) : null;
   });
 
 export const createClient = createServerFn({ method: "POST" })
@@ -241,7 +257,9 @@ export const createClient = createServerFn({ method: "POST" })
         createdById: staff.id,
       },
     });
-    return mapClient(row);
+    const pole = parseClientPole(data.pole);
+    await persistClientPole(row.id, pole);
+    return withClientPole(mapClient(row), new Map([[row.id, pole]]));
   });
 
 export const updateClient = createServerFn({ method: "POST" })
@@ -287,7 +305,9 @@ export const updateClient = createServerFn({ method: "POST" })
           : {}),
       },
     });
-    return mapClient(row);
+    const pole = parseClientPole(rest.pole);
+    await persistClientPole(row.id, pole);
+    return withClientPole(mapClient(row), new Map([[row.id, pole]]));
   });
 
 /** Téléverse une fiche circuit ou status pour un client (Supabase Storage). */
@@ -353,7 +373,7 @@ export const uploadClientFiche = createServerFn({ method: "POST" })
       where: { id: existing.id },
       data: patch,
     });
-    return mapClient(row);
+    return withClientPole(mapClient(row), await loadClientPoles([row.id]));
   });
 
 export const deleteClient = createServerFn({ method: "POST" })
@@ -482,10 +502,11 @@ export const deleteService = createServerFn({ method: "POST" })
 async function mappedDocuments(rows: Parameters<typeof mapDocument>[0][]) {
   const mapped = rows.map(mapDocument);
   const ids = mapped.map((d) => d.id);
-  const [flags, hideZeroFlags, roundingFlags] = await Promise.all([
+  const [flags, hideZeroFlags, roundingFlags, poles] = await Promise.all([
     loadShowDueMonthOnLines(ids),
     loadHideZeroLineFigures(ids),
     loadTotalRounding(ids),
+    loadDocumentPoles(ids),
   ]);
   const units = await loadLineQuantityUnits(
     mapped.flatMap((d) => d.items.map((it) => it.id)),
@@ -494,9 +515,12 @@ async function mappedDocuments(rows: Parameters<typeof mapDocument>[0][]) {
     mapped.flatMap((d) => d.items.map((it) => it.id)),
   );
   return mapped.map((d) => {
-    const withFlags = withTotalRounding(
-      withHideZeroFlag(withDueMonthFlag(d, flags), hideZeroFlags),
-      roundingFlags,
+    const withFlags = withClientPole(
+      withTotalRounding(
+        withHideZeroFlag(withDueMonthFlag(d, flags), hideZeroFlags),
+        roundingFlags,
+      ),
+      poles,
     );
     return {
       ...withFlags,
@@ -917,6 +941,7 @@ async function upsertDocumentHandler(
       if (existing.type === "invoice" || existing.type === "quotation") {
         await persistTotalRounding(updated.id, data.totalRounding ?? 0);
       }
+      await persistDocumentPole(updated.id, await resolveDocumentPole(data.clientId, data.pole));
       return mappedDocument(updated);
     }
 
@@ -1000,6 +1025,7 @@ async function upsertDocumentHandler(
     if (data.type === "invoice" || data.type === "quotation") {
       await persistTotalRounding(created.id, data.totalRounding ?? 0);
     }
+    await persistDocumentPole(created.id, await resolveDocumentPole(data.clientId, data.pole));
     return mappedDocument(created);
 }
 

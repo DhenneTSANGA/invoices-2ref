@@ -15,6 +15,9 @@ export type Cabinet = "conseil" | "expertise_fiscale";
 /** Profil de facturation client. */
 export type ClientBillingProfile = "subscription" | "one_off" | "mixed";
 
+/** Pôle métier. */
+export type ClientPole = import("@/lib/client-pole").ClientPole;
+
 export type Client = {
   id: string;
   cabinet: Cabinet;
@@ -50,6 +53,8 @@ export type Client = {
   anpiDate: string;
   /** Abonnement / ponctuel / les deux. */
   billingProfile: ClientBillingProfile;
+  /** Pôle métier (formation, audit, juridique, comptabilité). */
+  pole: ClientPole;
   ficheCircuitUrl?: string | null;
   ficheCircuitName?: string | null;
   ficheStatusUrl?: string | null;
@@ -138,6 +143,8 @@ export type Document = {
   type: DocumentType;
   number: string;
   clientId: string;
+  /** Pôle du document (prérempli depuis le client). */
+  pole?: import("@/lib/client-pole").ClientPole;
   createdById?: string;
   createdBy?: StaffMember;
   status: DocumentStatus;

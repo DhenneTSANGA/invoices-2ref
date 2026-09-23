@@ -10,8 +10,13 @@ import { shortDate } from "@/lib/format";
 import { toast } from "sonner";
 import { useClients, useDeleteClient, useDocuments, useSession } from "@/hooks/use-data";
 import { canDeleteClient } from "@/lib/roles";
-import type { Client, ClientBillingProfile } from "@/store/types";
+import type { Client, ClientBillingProfile, ClientPole } from "@/store/types";
 import { ClientBillingBadge } from "@/components/clients/ClientBillingProfilePicker";
+import {
+  ClientPoleBadge,
+  FilterChip,
+  PoleFilterChips,
+} from "@/components/clients/ClientPolePicker";
 import { CLIENT_BILLING_LABELS, CLIENT_BILLING_PROFILES } from "@/lib/client-billing";
 
 export const Route = createFileRoute("/_app/clients/")({
@@ -28,6 +33,7 @@ function ClientsPage() {
   const [q, setQ] = useState("");
   const [city, setCity] = useState<string>("all");
   const [billingFilter, setBillingFilter] = useState<"all" | ClientBillingProfile>("all");
+  const [poleFilter, setPoleFilter] = useState<"all" | ClientPole>("all");
   const [pendingDelete, setPendingDelete] = useState<Client | null>(null);
 
   const cities = useMemo(
@@ -38,6 +44,7 @@ function ClientsPage() {
   const filtered = clients.filter(
     (c) =>
       (city === "all" || c.city === city) &&
+      (poleFilter === "all" || c.pole === poleFilter) &&
       (billingFilter === "all" || c.billingProfile === billingFilter) &&
       (q === "" ||
         `${c.name} ${c.sigle} ${c.nif} ${c.rccm} ${c.cnss} ${c.cnamgs} ${c.email} ${c.contactName} ${c.anpiNumber}`
@@ -105,32 +112,30 @@ function ClientsPage() {
         </select>
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setBillingFilter("all")}
-          className={
-            billingFilter === "all"
-              ? "rounded-full bg-gradient-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-glow"
-              : "rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium hover:bg-muted"
-          }
-        >
-          Tous
-        </button>
-        {CLIENT_BILLING_PROFILES.map((p) => (
-          <button
-            key={p}
-            type="button"
-            onClick={() => setBillingFilter(p)}
-            className={
-              billingFilter === p
-                ? "rounded-full bg-gradient-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-glow"
-                : "rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium hover:bg-muted"
-            }
-          >
-            {CLIENT_BILLING_LABELS[p]}
-          </button>
-        ))}
+      <div className="mb-4 space-y-3">
+        <PoleFilterChips value={poleFilter} onChange={setPoleFilter} />
+        <div className="space-y-1.5">
+          <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            Type de client
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <FilterChip
+              active={billingFilter === "all"}
+              onClick={() => setBillingFilter("all")}
+            >
+              Tous
+            </FilterChip>
+            {CLIENT_BILLING_PROFILES.map((p) => (
+              <FilterChip
+                key={p}
+                active={billingFilter === p}
+                onClick={() => setBillingFilter(p)}
+              >
+                {CLIENT_BILLING_LABELS[p]}
+              </FilterChip>
+            ))}
+          </div>
+        </div>
       </div>
 
       {filtered.length === 0 ? (
@@ -183,7 +188,8 @@ function ClientsPage() {
                     <div className="text-xs text-muted-foreground">
                       {[c.sigle, c.legalForm, c.city].filter(Boolean).join(" · ")}
                     </div>
-                    <div className="mt-1.5">
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      <ClientPoleBadge pole={c.pole} />
                       <ClientBillingBadge profile={c.billingProfile} />
                     </div>
                   </div>
