@@ -109,6 +109,8 @@ export type LineItem = {
   quantity: number;
   /** quantity | month | year | none — mois/année se calculent comme une quantité. */
   quantityUnit?: import("@/lib/line-quantity").LineQuantityUnit;
+  /** Masquer P.U. HT et total HT nuls sur le papier (2R Conseil). */
+  hideZeroFigures?: boolean;
   unitPrice: number;
   vatRate: number;
   discount: number;
@@ -167,6 +169,8 @@ export type Document = {
   subscriptionOfId?: string | null;
   /** Suffixer les désignations avec le mois d’émission (optionnel). */
   showDueMonthOnLines?: boolean;
+  /** 2R Conseil : masquer qté / P.U. / total nuls (défaut true). */
+  hideZeroLineFigures?: boolean;
   mailMergeCampaignId?: string | null;
   /** Devis */
   validityDays?: number;

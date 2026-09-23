@@ -36,6 +36,7 @@ import {
 import type { Cabinet } from "@/lib/cabinets";
 import {
   LINE_QUANTITY_UNIT_OPTIONS,
+  isBlankLineFigure,
   lineQuantityForTotal,
   parseLineQuantityUnit,
   quantityUnitFromServiceUnit,
@@ -316,6 +317,7 @@ export function DocumentEditor({ initial, type }: Props) {
             description,
             quantity: 1,
             quantityUnit: "quantity" as const,
+            hideZeroFigures: true,
             unitPrice: ht,
             vatRate: vat,
             cssRate: css,
@@ -444,6 +446,7 @@ export function DocumentEditor({ initial, type }: Props) {
             description: "",
             quantity: 1,
             quantityUnit: "quantity",
+            hideZeroFigures: true,
             unitPrice: 0,
             vatRate: commercial ? docVatRate : DEFAULT_VAT_RATE,
             discount: 0,
@@ -479,6 +482,7 @@ export function DocumentEditor({ initial, type }: Props) {
             description: s.name,
             quantity: 1,
             quantityUnit: quantityUnitFromServiceUnit(s.unit),
+            hideZeroFigures: true,
             unitPrice: s.unitPrice,
             vatRate: commercial ? docVatRate : s.vatRate || DEFAULT_VAT_RATE,
             discount: 0,
@@ -623,6 +627,7 @@ export function DocumentEditor({ initial, type }: Props) {
       description: it.description,
       quantity: finiteNumber(it.quantity, 0),
       quantityUnit: parseLineQuantityUnit(it.quantityUnit),
+      hideZeroFigures: it.hideZeroFigures !== false,
       unitPrice: finiteNumber(it.unitPrice, 0),
       vatRate: finiteNumber(it.vatRate, 0),
       discount: commercial ? 0 : finiteNumber(it.discount, 0),
@@ -1259,7 +1264,7 @@ export function DocumentEditor({ initial, type }: Props) {
                           <th className="w-28 py-2 pl-1 text-left font-medium">
                             Unité
                           </th>
-                          <th className="w-28 py-2 text-right font-medium">
+                          <th className="min-w-[13rem] w-52 py-2 text-right font-medium">
                             P.U. HT
                           </th>
                           <th className="w-28 py-2 text-right font-medium">
@@ -1284,6 +1289,7 @@ export function DocumentEditor({ initial, type }: Props) {
                               key={it.id}
                               it={it}
                               commercial
+                              zeroToggle={doc.cabinet === "conseil"}
                               descriptionInputRefs={descriptionInputRefs}
                               updateItem={updateItem}
                               removeItem={removeItem}
@@ -1344,7 +1350,7 @@ export function DocumentEditor({ initial, type }: Props) {
                   {commercial ? (
                     <th className="w-28 py-2 pl-1 text-left font-medium">Unité</th>
                   ) : null}
-                  <th className="w-28 py-2 text-right font-medium">P.U. HT</th>
+                  <th className="min-w-[13rem] w-52 py-2 text-right font-medium">P.U. HT</th>
                   {!commercial ? (
                     <>
                       <th className="w-20 py-2 text-right font-medium">TVA %</th>
@@ -1371,6 +1377,7 @@ export function DocumentEditor({ initial, type }: Props) {
                     key={it.id}
                     it={it}
                     commercial={commercial}
+                    zeroToggle={commercial && doc.cabinet === "conseil"}
                     descriptionInputRefs={descriptionInputRefs}
                     updateItem={updateItem}
                     removeItem={removeItem}
@@ -1660,21 +1667,27 @@ function Select({
   );
 }
 
+const LINE_SELECT_CLASS =
+  "rounded-lg border border-border bg-surface px-2 py-1.5 text-sm focus:border-primary focus:outline-none";
+
 function LineRow({
   it,
   commercial,
+  zeroToggle,
   descriptionInputRefs,
   updateItem,
   removeItem,
 }: {
   it: LineItem;
   commercial: boolean;
+  zeroToggle?: boolean;
   descriptionInputRefs: MutableRefObject<Map<string, HTMLInputElement>>;
   updateItem: (id: string, patch: Partial<LineItem>) => void;
   removeItem: (id: string) => void;
 }) {
   const unit = parseLineQuantityUnit(it.quantityUnit);
   const lineTotal = lineQuantityForTotal(it) * it.unitPrice;
+  const showZeroMenu = Boolean(zeroToggle && isBlankLineFigure(it.unitPrice));
   return (
     <tr
       className="border-b border-border/40"
@@ -1711,7 +1724,7 @@ function LineRow({
       {commercial ? (
         <td className="px-1 py-2">
           <select
-            className="w-full min-w-[6.5rem] rounded-lg border border-border bg-surface px-2 py-1.5 text-sm focus:border-primary focus:outline-none"
+            className={LINE_SELECT_CLASS + " w-full min-w-[6.5rem]"}
             value={unit}
             title="Unité de la quantité"
             onChange={(e) => {
@@ -1731,11 +1744,29 @@ function LineRow({
         </td>
       ) : null}
       <td className="px-1 py-2">
-        <NumInput
-          value={it.unitPrice}
-          onChange={(v) => updateItem(it.id, { unitPrice: v })}
-          step={1}
-        />
+        <div className="flex min-w-[13rem] items-center gap-1">
+          <NumInput
+            value={it.unitPrice}
+            onChange={(v) => updateItem(it.id, { unitPrice: v })}
+            step={1}
+            className="min-w-[8.5rem] flex-1 rounded-lg border border-border/60 bg-transparent px-2 py-1.5 text-right font-numeric focus:border-primary focus:outline-none"
+          />
+          {showZeroMenu ? (
+            <select
+              className={LINE_SELECT_CLASS + " w-[4.75rem] shrink-0"}
+              value={it.hideZeroFigures === false ? "show" : "hide"}
+              title="Afficher ou masquer le zéro sur le document"
+              onChange={(e) =>
+                updateItem(it.id, {
+                  hideZeroFigures: e.target.value === "hide",
+                })
+              }
+            >
+              <option value="hide">—</option>
+              <option value="show">0</option>
+            </select>
+          ) : null}
+        </div>
       </td>
       {!commercial ? (
         <>
@@ -1929,6 +1960,7 @@ function defaultDoc(
       executionTerms: formatExecutionTerms(15),
       paymentTerms: DEFAULT_PAYMENT_MODALITY,
       showRib: cabinet === "conseil",
+      hideZeroLineFigures: cabinet === "conseil",
       signatoryTitle: DEFAULT_SIGNATORY_TITLE,
     };
   }
@@ -1938,6 +1970,7 @@ function defaultDoc(
     paymentTerms: DEFAULT_PAYMENT_MODALITY,
     showRib: cabinet === "conseil",
     showDueMonthOnLines: false,
+    hideZeroLineFigures: cabinet === "conseil",
     signatoryTitle: DEFAULT_SIGNATORY_TITLE,
   };
 }

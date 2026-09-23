@@ -43,7 +43,15 @@ import {
   persistShowDueMonthOnLines,
   withDueMonthFlag,
 } from "@/lib/document-due-month-db";
+import {
+  loadHideZeroLineFigures,
+  withHideZeroFlag,
+} from "@/lib/document-hide-zero-db";
 import { persistLineQuantityUnitsForDocument, loadLineQuantityUnits } from "@/lib/document-line-quantity-db";
+import {
+  loadLineHideZeroFigures,
+  persistLineHideZeroFiguresForDocument,
+} from "@/lib/document-line-hide-zero-db";
 import { parseLineQuantityUnit } from "@/lib/line-quantity";
 import {
   buildLetterRef,
@@ -463,17 +471,28 @@ export const deleteService = createServerFn({ method: "POST" })
 
 async function mappedDocuments(rows: Parameters<typeof mapDocument>[0][]) {
   const mapped = rows.map(mapDocument);
-  const flags = await loadShowDueMonthOnLines(mapped.map((d) => d.id));
+  const ids = mapped.map((d) => d.id);
+  const [flags, hideZeroFlags] = await Promise.all([
+    loadShowDueMonthOnLines(ids),
+    loadHideZeroLineFigures(ids),
+  ]);
   const units = await loadLineQuantityUnits(
     mapped.flatMap((d) => d.items.map((it) => it.id)),
   );
-  return mapped.map((d) => ({
-    ...withDueMonthFlag(d, flags),
-    items: d.items.map((it) => ({
-      ...it,
-      quantityUnit: units.get(it.id) ?? it.quantityUnit ?? "quantity",
-    })),
-  }));
+  const hideZeros = await loadLineHideZeroFigures(
+    mapped.flatMap((d) => d.items.map((it) => it.id)),
+  );
+  return mapped.map((d) => {
+    const withFlags = withHideZeroFlag(withDueMonthFlag(d, flags), hideZeroFlags);
+    return {
+      ...withFlags,
+      items: d.items.map((it) => ({
+        ...it,
+        quantityUnit: units.get(it.id) ?? it.quantityUnit ?? "quantity",
+        hideZeroFigures: hideZeros.get(it.id) ?? it.hideZeroFigures ?? true,
+      })),
+    };
+  });
 }
 
 async function mappedDocument(row: Parameters<typeof mapDocument>[0]) {
@@ -616,6 +635,7 @@ async function upsertDocumentHandler(
           description: item.description,
           quantity: Number.isFinite(item.quantity) ? item.quantity : 0,
           quantityUnit: parseLineQuantityUnit(item.quantityUnit),
+          hideZeroFigures: item.hideZeroFigures !== false,
           unitPrice: Number.isFinite(item.unitPrice) ? item.unitPrice : 0,
           vatRate: Number.isFinite(item.vatRate) ? item.vatRate : 0,
           discount: commercial
@@ -682,15 +702,20 @@ async function upsertDocumentHandler(
           await db.documentLine.createMany({ data: payload });
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
-          if (!/quantityUnit|Unknown arg|Unknown argument/i.test(msg)) throw err;
+          if (!/quantityUnit|hideZeroFigures|Unknown arg|Unknown argument/i.test(msg)) throw err;
           await db.documentLine.createMany({
-            data: payload.map(({ quantityUnit: _u, ...rest }) => rest),
+            data: payload.map(({ quantityUnit: _u, hideZeroFigures: _h, ...rest }) => rest),
           });
         }
       }
       await persistLineQuantityUnitsForDocument(
         documentId,
         lineRows.map((l) => l.quantityUnit),
+        db,
+      );
+      await persistLineHideZeroFiguresForDocument(
+        documentId,
+        lineRows.map((l) => l.hideZeroFigures),
         db,
       );
     };
@@ -982,7 +1007,7 @@ export const convertQuotationToInvoice = createServerFn({ method: "POST" })
       throw new Error("Ce devis ne peut pas être converti (refusé ou annulé).");
     }
 
-    const payload = buildInvoiceInputFromQuotation(mapDocument(quotation));
+    const payload = buildInvoiceInputFromQuotation(await mappedDocument(quotation));
     const invoice = await upsertDocumentHandler(payload, {
       cabinet: quotation.cabinet,
     });

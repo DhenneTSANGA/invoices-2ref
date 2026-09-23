@@ -38,6 +38,7 @@ export function buildInvoiceInputFromQuotation(
       description: item.description,
       quantity: item.quantity,
       quantityUnit: item.quantityUnit ?? "quantity",
+      hideZeroFigures: item.hideZeroFigures !== false,
       unitPrice: item.unitPrice,
       vatRate: item.vatRate,
       discount: item.discount,

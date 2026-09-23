@@ -74,6 +74,16 @@ export function formatPrintedFigure(
   return formatted;
 }
 
+/** 2R Conseil : masquer P.U. et total nuls sur cette ligne (défaut : masquer). */
+export function shouldHidePrintedZeros(
+  item: { unitPrice: number; hideZeroFigures?: boolean | null },
+  cabinet?: string | null,
+): boolean {
+  if (cabinet !== "conseil") return false;
+  if (!isBlankLineFigure(item.unitPrice)) return false;
+  return item.hideZeroFigures !== false;
+}
+
 /** Valeur affichée dans la cellule (vide si unité « aucune »). */
 export function formatLineQuantity(
   item: QtyLine,

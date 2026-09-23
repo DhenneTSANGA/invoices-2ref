@@ -190,6 +190,7 @@ export function mapDocument(row: {
   subscriptionDueMonthsOffset?: number | null;
   subscriptionOfId?: string | null;
   showDueMonthOnLines?: boolean;
+  hideZeroLineFigures?: boolean;
   mailMergeCampaignId?: string | null;
   validityDays: number | null;
   executionTerms: string | null;
@@ -207,6 +208,7 @@ export function mapDocument(row: {
     description: string;
     quantity: Decimal;
     quantityUnit?: string;
+    hideZeroFigures?: boolean;
     unitPrice: Decimal;
     vatRate: Decimal;
     discount: Decimal;
@@ -240,6 +242,7 @@ export function mapDocument(row: {
       description: l.description,
       quantity: decimalToNumber(l.quantity),
       quantityUnit: parseLineQuantityUnit(l.quantityUnit),
+      hideZeroFigures: l.hideZeroFigures ?? true,
       unitPrice: decimalToNumber(l.unitPrice),
       vatRate: decimalToNumber(l.vatRate),
       discount: decimalToNumber(l.discount),
@@ -297,6 +300,7 @@ export function mapDocument(row: {
     subscriptionDueMonthsOffset: row.subscriptionDueMonthsOffset ?? 1,
     subscriptionOfId: row.subscriptionOfId ?? null,
     showDueMonthOnLines: row.showDueMonthOnLines ?? false,
+    hideZeroLineFigures: row.hideZeroLineFigures ?? true,
     mailMergeCampaignId: row.mailMergeCampaignId ?? null,
     validityDays: row.validityDays ?? undefined,
     executionTerms: row.executionTerms ?? undefined,

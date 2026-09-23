@@ -7,6 +7,10 @@ import {
   persistShowDueMonthOnLines,
 } from "@/lib/document-due-month-db";
 import {
+  loadLineHideZeroFigures,
+  persistLineHideZeroFiguresForDocument,
+} from "@/lib/document-line-hide-zero-db";
+import {
   loadLineQuantityUnits,
   persistLineQuantityUnitsForDocument,
 } from "@/lib/document-line-quantity-db";
@@ -272,6 +276,13 @@ async function generateSubscriptionInvoice(
   await persistShowDueMonthOnLines(
     created.id,
     templateFlags.get(template.id) ?? false,
+  );
+  const templateHideZero = await loadLineHideZeroFigures(
+    template.lines.map((l) => l.id),
+  );
+  await persistLineHideZeroFiguresForDocument(
+    created.id,
+    template.lines.map((l) => templateHideZero.get(l.id) ?? true),
   );
   const templateUnits = await loadLineQuantityUnits(
     template.lines.map((l) => l.id),

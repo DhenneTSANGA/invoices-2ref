@@ -38,6 +38,7 @@ import {
   hasMixedQuantityUnits,
   lineQuantityForTotal,
   quantityColumnHeader,
+  shouldHidePrintedZeros,
 } from "@/lib/line-quantity";
 import { cn } from "@/lib/utils";
 import {
@@ -720,7 +721,6 @@ function ItemsTable({
     const qtyHeader = quantityColumnHeader(items);
     const showQty = qtyHeader != null;
     const mixedQty = hasMixedQuantityUnits(items);
-    const hideZeroFigures = doc.cabinet === "conseil";
     const colCount = showQty ? 5 : 4;
     return (
     <div
@@ -764,19 +764,17 @@ function ItemsTable({
           )}
           {items.map((it, i) => {
             const lineTotal = lineQuantityForTotal(it) * it.unitPrice;
-            const qtyLabel = formatLineQuantity(it, {
-              mixed: mixedQty,
-              hideZero: hideZeroFigures,
-            });
+            const hideZero = shouldHidePrintedZeros(it, doc.cabinet);
+            const qtyLabel = formatLineQuantity(it, { mixed: mixedQty });
             const unitPriceLabel = formatPrintedFigure(
               it.unitPrice,
               number(it.unitPrice),
-              hideZeroFigures,
+              hideZero,
             );
             const totalLabel = formatPrintedFigure(
               lineTotal,
               number(lineTotal),
-              hideZeroFigures,
+              hideZero,
             );
             const rowBg = referenceDesign
               ? i % 2 === 0

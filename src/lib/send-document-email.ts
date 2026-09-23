@@ -57,8 +57,10 @@ import {
   lineQuantityForTotal,
   parseLineQuantityUnit,
   quantityColumnHeader,
+  shouldHidePrintedZeros,
   type LineQuantityUnit,
 } from "@/lib/line-quantity";
+import { loadLineHideZeroFigures } from "@/lib/document-line-hide-zero-db";
 
 async function requireSession() {
   const session = await getCurrentSession();
@@ -198,6 +200,7 @@ function buildCommercialEmailHtml(params: {
     description: string;
     quantity: number;
     quantityUnit?: LineQuantityUnit;
+    hideZeroFigures?: boolean;
     unitPrice: number;
     total: number;
   }[];
@@ -239,19 +242,17 @@ function buildCommercialEmailHtml(params: {
 
   const rows = params.lines
     .map((l, i) => {
-      const qtyLabel = formatLineQuantity(l, {
-        mixed: mixedQty,
-        hideZero: isConseil,
-      });
+      const hideZero = shouldHidePrintedZeros(l, params.cabinet);
+      const qtyLabel = formatLineQuantity(l, { mixed: mixedQty });
       const unitPriceLabel = formatPrintedFigure(
         l.unitPrice,
         money(l.unitPrice, params.currency),
-        isConseil,
+        hideZero,
       );
       const totalLabel = formatPrintedFigure(
         l.total,
         money(l.total, params.currency),
-        isConseil,
+        hideZero,
       );
       const qtyCell = showQty
         ? `<td style="padding:10px 12px;border-bottom:1px solid #E2E8F0;text-align:right;font-size:13px;color:#475569;${isConseil ? timesFace : ""}">${escapeHtml(qtyLabel)}</td>`
@@ -668,6 +669,7 @@ export async function sendDocumentEmailInternal(params: {
       const currency = doc.currency || "XAF";
       const dueMonthFlags = await loadShowDueMonthOnLines([doc.id]);
       const quantityUnits = await loadLineQuantityUnits(doc.lines.map((l) => l.id));
+      const hideZeroFlags = await loadLineHideZeroFigures(doc.lines.map((l) => l.id));
       const showDueMonth = shouldAppendDueMonthToLines({
         type: doc.type,
         showDueMonthOnLines: dueMonthFlags.get(doc.id) ?? false,
@@ -681,6 +683,7 @@ export async function sendDocumentEmailInternal(params: {
           description: l.description,
           quantity,
           quantityUnit,
+          hideZeroFigures: hideZeroFlags.get(l.id) ?? true,
           unitPrice,
           total: lineAmount(
             lineQuantityForTotal({ quantity, quantityUnit }),

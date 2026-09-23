@@ -229,6 +229,7 @@ export const lineItemSchema = z.object({
     .enum(["quantity", "month", "year", "none"])
     .optional()
     .default("quantity"),
+  hideZeroFigures: z.boolean().optional().default(true),
   unitPrice: z.coerce.number(),
   vatRate: z.coerce.number(),
   discount: z.coerce.number().optional().default(0),
@@ -265,6 +266,7 @@ export const documentInputSchema = z.object({
   paymentTerms: z.string().optional().nullable(),
   showRib: z.boolean().optional().default(false),
   showDueMonthOnLines: z.boolean().optional().default(false),
+  hideZeroLineFigures: z.boolean().optional().default(true),
   validityDays: z.number().optional().nullable(),
   executionTerms: z.string().optional().nullable(),
   subject: z.string().optional().nullable(),

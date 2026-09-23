@@ -335,6 +335,8 @@ model Document {
   subscriptionOfId     String?
   /** Suffixer les désignations avec « échéances du mois de … ». */
   showDueMonthOnLines  Boolean   @default(false)
+  /** Papier 2R Conseil : masquer qté / P.U. HT / total nuls. */
+  hideZeroLineFigures  Boolean   @default(true)
   /** Campagne de publipostage (lettres groupées). */
   mailMergeCampaignId  String?
   createdAt         DateTime       @default(now())
@@ -387,6 +389,8 @@ model DocumentLine {
   quantity    Decimal @db.Decimal(18, 3)
   /** quantity | month | year | none — mois/année = même calcul que quantité. */
   quantityUnit String @default("quantity")
+  /** 2R Conseil : masquer P.U. HT et total HT s’ils sont nuls. */
+  hideZeroFigures Boolean @default(true)
   unitPrice   Decimal @db.Decimal(18, 2)
   vatRate     Decimal @db.Decimal(5, 2)
   discount    Decimal @default(0) @db.Decimal(5, 2)
