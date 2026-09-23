@@ -1499,12 +1499,6 @@ export function DocumentEditor({ initial, type }: Props) {
                 </>
               )}
               <div className="my-2 h-px bg-border" />
-              {(doc.totalRounding ?? 0) !== 0 ? (
-                <Total
-                  label="Arrondi"
-                  value={commercialTotals.rounding}
-                />
-              ) : null}
               <div className="flex items-center justify-between gap-2">
                 <span className="text-sm font-bold uppercase tracking-wide">
                   Total TTC
@@ -1549,7 +1543,7 @@ export function DocumentEditor({ initial, type }: Props) {
               <p className="text-right text-[11px] text-muted-foreground">
                 {(doc.totalRounding ?? 0) !== 0 ? (
                   <>
-                    Arrondi {doc.totalRounding! > 0 ? "+" : ""}
+                    {doc.totalRounding! > 0 ? "+" : ""}
                     {number(doc.totalRounding ?? 0)} XAF
                     {" · "}
                     <button
@@ -1561,7 +1555,7 @@ export function DocumentEditor({ initial, type }: Props) {
                     </button>
                   </>
                 ) : (
-                  "− / + pour arrondir le TTC (ex. 175 001 → 175 000)"
+                  "− / + pour ajuster le TTC"
                 )}
               </p>
             </>

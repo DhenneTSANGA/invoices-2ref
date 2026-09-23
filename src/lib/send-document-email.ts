@@ -279,9 +279,6 @@ function buildCommercialEmailHtml(params: {
     params.tps <= 0
       ? `<tr><td style="padding:6px 12px;color:#64748B;font-size:13px;">TVA</td><td style="padding:6px 12px;text-align:right;font-size:13px;${isConseil ? timesFace : ""}">${escapeHtml(money(params.vat, params.currency))}</td></tr>`
       : "",
-    params.rounding
-      ? `<tr><td style="padding:6px 12px;color:#64748B;font-size:13px;">Arrondi</td><td style="padding:6px 12px;text-align:right;font-size:13px;${isConseil ? timesFace : ""}">${escapeHtml(money(params.rounding, params.currency))}</td></tr>`
-      : "",
   ].join("");
 
   const emitterLines = isConseil
