@@ -130,6 +130,8 @@ model Company {
   stampUrl    String?
   /** Couleur primaire de l’interface (hex, ex. #1E40AF). */
   primaryColor String?
+  /** Modèles d’e-mails de relance (JSON : { "15"|"20"|"25": { subject, intro } }). */
+  reminderTemplates Json?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

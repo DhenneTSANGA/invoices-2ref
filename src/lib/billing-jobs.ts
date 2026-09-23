@@ -41,6 +41,8 @@ import {
 } from "@/lib/email";
 import { currency } from "@/lib/format";
 import { DOCUMENT_COLORS } from "@/lib/cabinets";
+import { resolveReminderCopy } from "@/lib/reminder-templates";
+import { loadReminderTemplates } from "@/lib/reminder-templates-db";
 import { logOutboundMail } from "@/lib/mail-log";
 
 export type BillingJobResult = {
@@ -107,26 +109,6 @@ async function resolveBillingStaff(
     orderBy: { createdAt: "asc" },
   });
   return admin ?? preferred;
-}
-
-function reminderSubject(day: number, clientName: string): string {
-  if (day === 15) {
-    return `Rappel — factures en attente (${clientName})`;
-  }
-  if (day === 20) {
-    return `2e relance — règlement attendu (${clientName})`;
-  }
-  return `Dernier rappel — factures impayées (${clientName})`;
-}
-
-function reminderIntro(day: number): string {
-  if (day === 15) {
-    return "Sauf erreur de notre part, les factures ci-dessous restent impayées après leur date d'échéance. Nous vous remercions de bien vouloir régulariser votre situation.";
-  }
-  if (day === 20) {
-    return "Malgré notre précédent rappel, nous n'avons pas encore enregistré le règlement des factures listées ci-dessous. Merci de procéder au paiement dans les meilleurs délais.";
-  }
-  return "Il s'agit de notre dernier rappel concernant les factures impayées ci-dessous. Merci de nous contacter rapidement si un règlement a déjà été effectué.";
 }
 
 function buildReminderEmailHtml(params: {
@@ -402,6 +384,10 @@ export async function runPaymentReminders(options?: {
   const errors: string[] = [];
   let sent = 0;
   let skipped = 0;
+  const templatesByCabinet = new Map<
+    Cabinet,
+    Awaited<ReturnType<typeof loadReminderTemplates>>
+  >();
 
   const clients = await prisma.client.findMany({
     where: {
@@ -467,6 +453,15 @@ export async function runPaymentReminders(options?: {
       const company = companyForPreview(companyRow, client.cabinet);
       const { from, replyTo } = resolveCabinetMailAddresses(company);
       const colors = DOCUMENT_COLORS.invoice;
+      let templates = templatesByCabinet.get(client.cabinet);
+      if (!templates) {
+        templates = await loadReminderTemplates(client.cabinet);
+        templatesByCabinet.set(client.cabinet, templates);
+      }
+      const copy = resolveReminderCopy(templates, day, {
+        clientName: client.name,
+        companyName: company.name,
+      });
 
       const rows = overdue.map((doc) => ({
         number: doc.number,
@@ -480,14 +475,14 @@ export async function runPaymentReminders(options?: {
       const html = buildReminderEmailHtml({
         companyName: company.name,
         clientName: client.name,
-        intro: reminderIntro(day),
+        intro: copy.intro,
         rows,
         totalDue: money(totalDue, currency),
         accent: colors.accent,
         accentTo: colors.accentTo,
       });
 
-      const subject = reminderSubject(day, client.name);
+      const subject = copy.subject;
       const managerCc = resolveManagerCc(company, email);
       const resend = getResend();
       const { data: mail, error } = await resend.emails.send({

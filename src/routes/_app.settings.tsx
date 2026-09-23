@@ -1,7 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Save, Building2, Receipt, Palette, ShieldCheck, Upload, Check } from "lucide-react";
+import { Save, Building2, Receipt, Palette, ShieldCheck, Upload, Check, Mail } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { LoadingState } from "@/components/common/LoadingState";
 import {
@@ -25,6 +25,14 @@ import { canEditCompanySettings } from "@/lib/roles";
 import type { AppSession } from "@/lib/session.functions";
 import { SignaturePad } from "@/components/signature/SignaturePad";
 import { ManagerSignature } from "@/components/signature/ManagerSignature";
+import {
+  applyReminderPlaceholders,
+  DEFAULT_REMINDER_TEMPLATES,
+  parseReminderTemplates,
+  PAYMENT_REMINDER_DAYS,
+  REMINDER_TEMPLATE_LABELS,
+  type ReminderTemplates,
+} from "@/lib/reminder-templates";
 
 export const Route = createFileRoute("/_app/settings")({
   head: () => ({ meta: [{ title: "Paramètres — 2R Hub" }] }),
@@ -40,9 +48,17 @@ export const Route = createFileRoute("/_app/settings")({
 const tabs = [
   { id: "company", label: "Cabinet", icon: Building2 },
   { id: "fiscal", label: "Fiscal & Bancaire", icon: Receipt },
+  { id: "reminders", label: "Relances", icon: Mail },
   { id: "branding", label: "Apparence", icon: Palette },
   { id: "security", label: "Sécurité", icon: ShieldCheck },
 ];
+
+function withReminderTemplates(company: CompanyInfo): CompanyInfo {
+  return {
+    ...company,
+    reminderTemplates: parseReminderTemplates(company.reminderTemplates),
+  };
+}
 
 function SettingsPage() {
   const { data: session } = useSession();
@@ -54,10 +70,12 @@ function SettingsPage() {
   const activeCabinet = session?.activeCabinet ?? "expertise_fiscale";
   const fallback = COMPANY_DEFAULTS[activeCabinet];
   const niuFieldLabel = niuLabelForCabinet(activeCabinet);
-  const [form, setForm] = useState<CompanyInfo>(fallback);
+  const [form, setForm] = useState<CompanyInfo>(() =>
+    withReminderTemplates(fallback),
+  );
 
   useEffect(() => {
-    if (company) setForm(company);
+    if (company) setForm(withReminderTemplates(company));
   }, [company]);
 
   const selectedColor =
@@ -333,6 +351,15 @@ function SettingsPage() {
               </div>
             </div>
           )}
+          {tab === "reminders" && (
+            <ReminderTemplatesPanel
+              templates={parseReminderTemplates(form.reminderTemplates)}
+              companyName={form.name}
+              onChange={(reminderTemplates) =>
+                setForm((prev) => ({ ...prev, reminderTemplates }))
+              }
+            />
+          )}
           {tab === "security" && (
             <div className="space-y-4">
               <div className="rounded-2xl bg-surface-2 p-5">
@@ -358,5 +385,134 @@ function F({ label, value, onChange, colSpan }: { label: string; value: string; 
       <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</span>
       <input value={value} onChange={(e) => onChange(e.target.value)} className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition" />
     </label>
+  );
+}
+
+const REMINDER_FIELD_CLASS =
+  "mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition";
+
+function ReminderTemplatesPanel({
+  templates,
+  companyName,
+  onChange,
+}: {
+  templates: ReminderTemplates;
+  companyName: string;
+  onChange: (next: ReminderTemplates) => void;
+}) {
+  const previewVars = {
+    clientName: "Société exemple",
+    companyName: companyName.trim() || "Cabinet",
+  };
+
+  const patch = (
+    day: keyof ReminderTemplates,
+    field: "subject" | "intro",
+    value: string,
+  ) => {
+    onChange({
+      ...templates,
+      [day]: { ...templates[day], [field]: value },
+    });
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h4 className="font-display font-semibold">E-mails de relance</h4>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Personnalisez l’objet et l’introduction pour chaque palier du cabinet
+            actif. Le tableau des factures impayées est généré automatiquement.
+          </p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Variables : <code>{"{{clientName}}"}</code> (nom du client),{" "}
+            <code>{"{{companyName}}"}</code> (nom du cabinet).
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => onChange(parseReminderTemplates(null))}
+          className="rounded-xl border border-border bg-surface px-3 py-2 text-sm font-medium hover:bg-muted"
+        >
+          Restaurer les défauts
+        </button>
+      </div>
+
+      {PAYMENT_REMINDER_DAYS.map((day) => {
+        const key = String(day) as keyof ReminderTemplates;
+        const labels = REMINDER_TEMPLATE_LABELS[key];
+        const fields = templates[key];
+        const previewSubject = applyReminderPlaceholders(
+          fields.subject,
+          previewVars,
+        );
+        const previewIntro = applyReminderPlaceholders(fields.intro, previewVars);
+        return (
+          <div
+            key={key}
+            className="space-y-4 rounded-2xl border border-border/60 bg-muted/20 p-4"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <h5 className="font-display text-sm font-semibold">
+                  {labels.title}
+                </h5>
+                <p className="text-xs text-muted-foreground">{labels.hint}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  onChange({
+                    ...templates,
+                    [key]: { ...DEFAULT_REMINDER_TEMPLATES[key] },
+                  })
+                }
+                className="text-xs font-medium text-muted-foreground hover:text-foreground"
+              >
+                Restaurer ce palier
+              </button>
+            </div>
+            <label className="block">
+              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Objet
+              </span>
+              <input
+                value={fields.subject}
+                onChange={(e) => patch(key, "subject", e.target.value)}
+                className={REMINDER_FIELD_CLASS}
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Introduction
+              </span>
+              <textarea
+                value={fields.intro}
+                onChange={(e) => patch(key, "intro", e.target.value)}
+                rows={4}
+                className={REMINDER_FIELD_CLASS}
+              />
+            </label>
+            <div className="rounded-xl bg-surface-2 p-4">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                Aperçu
+              </p>
+              <p className="mt-2 text-sm font-semibold">{previewSubject}</p>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                Madame, Monsieur,
+                <br />
+                <br />
+                {previewIntro}
+              </p>
+              <p className="mt-3 text-xs text-muted-foreground">
+                Suit le tableau des factures (n° / émission / échéance / montant)
+                puis le total dû.
+              </p>
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }

@@ -165,6 +165,13 @@ export const companyInputSchema = z.object({
     ])
     .optional()
     .nullable(),
+  reminderTemplates: z
+    .object({
+      "15": z.object({ subject: z.string(), intro: z.string() }),
+      "20": z.object({ subject: z.string(), intro: z.string() }),
+      "25": z.object({ subject: z.string(), intro: z.string() }),
+    })
+    .optional(),
 });
 
 export const clientInputSchema = z.object({

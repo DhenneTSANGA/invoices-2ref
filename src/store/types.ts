@@ -86,6 +86,8 @@ export type CompanyInfo = {
   stampUrl?: string;
   /** Couleur primaire de l’interface (hex). */
   primaryColor?: string;
+  /** Modèles des e-mails de relance (J+15 / J+20 / J+25). */
+  reminderTemplates?: import("@/lib/reminder-templates").ReminderTemplates;
 };
 
 export type Service = {

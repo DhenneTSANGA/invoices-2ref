@@ -1,5 +1,6 @@
 import type { Cabinet } from "@prisma/client";
 import type { CompanyInfo } from "@/store/types";
+import { parseReminderTemplates } from "@/lib/reminder-templates";
 
 export type { Cabinet };
 
@@ -148,6 +149,7 @@ export const COMPANY_DEFAULTS: Record<Cabinet, CompanyInfo> = {
     managerEmail: "",
     stampUrl: "",
     primaryColor: "#1E40AF",
+    reminderTemplates: parseReminderTemplates(null),
   },
   conseil: {
     name: "2R Conseil",
@@ -170,6 +172,7 @@ export const COMPANY_DEFAULTS: Record<Cabinet, CompanyInfo> = {
     managerEmail: "",
     stampUrl: "",
     primaryColor: "#1E40AF",
+    reminderTemplates: parseReminderTemplates(null),
   },
 };
 

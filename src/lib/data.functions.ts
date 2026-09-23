@@ -54,6 +54,11 @@ import {
 } from "@/lib/document-total-rounding-db";
 import { persistLineQuantityUnitsForDocument, loadLineQuantityUnits } from "@/lib/document-line-quantity-db";
 import {
+  loadReminderTemplates,
+  persistReminderTemplates,
+} from "@/lib/reminder-templates-db";
+import { parseReminderTemplates } from "@/lib/reminder-templates";
+import {
   loadLineHideZeroFigures,
   persistLineHideZeroFiguresForDocument,
 } from "@/lib/document-line-hide-zero-db";
@@ -1326,9 +1331,16 @@ function normalizeStoredPrimaryColor(value: string | null | undefined) {
 function mapCompanyRow(
   row: Parameters<typeof mapCompany>[0],
   cabinet: Cabinet,
-  primaryColor?: string | null,
+  extra?: { primaryColor?: string | null; reminderTemplates?: unknown },
 ) {
-  return mapCompany({ ...row, primaryColor: primaryColor ?? row.primaryColor }, cabinet);
+  return mapCompany(
+    {
+      ...row,
+      primaryColor: extra?.primaryColor ?? row.primaryColor,
+      reminderTemplates: extra?.reminderTemplates ?? row.reminderTemplates,
+    },
+    cabinet,
+  );
 }
 
 export const getCompany = createServerFn({ method: "GET" }).handler(async () => {
@@ -1338,7 +1350,8 @@ export const getCompany = createServerFn({ method: "GET" }).handler(async () => 
   });
   if (!row) return COMPANY_DEFAULTS[activeCabinet];
   const primaryColor = await readCompanyPrimaryColor(activeCabinet);
-  return mapCompanyRow(row, activeCabinet, primaryColor);
+  const reminderTemplates = await loadReminderTemplates(activeCabinet);
+  return mapCompanyRow(row, activeCabinet, { primaryColor, reminderTemplates });
 });
 
 /** Société d'un cabinet précis (preview / PDF d'un document). */
@@ -1351,7 +1364,8 @@ export const getCompanyForCabinet = createServerFn({ method: "GET" })
     });
     if (!row) return COMPANY_DEFAULTS[data.cabinet];
     const primaryColor = await readCompanyPrimaryColor(data.cabinet);
-    return mapCompanyRow(row, data.cabinet, primaryColor);
+    const reminderTemplates = await loadReminderTemplates(data.cabinet);
+    return mapCompanyRow(row, data.cabinet, { primaryColor, reminderTemplates });
   });
 
 export const updateCompany = createServerFn({ method: "POST" })
@@ -1393,7 +1407,9 @@ export const updateCompany = createServerFn({ method: "POST" })
       SET "primaryColor" = ${primaryColor}
       WHERE cabinet = CAST(${activeCabinet} AS "Cabinet")
     `;
-    return mapCompanyRow(row, activeCabinet, primaryColor);
+    const reminderTemplates = parseReminderTemplates(data.reminderTemplates);
+    await persistReminderTemplates(activeCabinet, reminderTemplates);
+    return mapCompanyRow(row, activeCabinet, { primaryColor, reminderTemplates });
   });
 
 /** Enregistre une signature manuscrite (PNG/JPEG/WebP) pour le cabinet actif. */
@@ -1457,7 +1473,10 @@ export const uploadCompanySignature = createServerFn({ method: "POST" })
       update: { stampUrl: uploaded.fileUrl },
     });
 
-    return mapCompanyRow(row, activeCabinet, await readCompanyPrimaryColor(activeCabinet));
+    return mapCompanyRow(row, activeCabinet, {
+      primaryColor: await readCompanyPrimaryColor(activeCabinet),
+      reminderTemplates: await loadReminderTemplates(activeCabinet),
+    });
   });
 
 /** Filtre archives côté API selon le rôle. */

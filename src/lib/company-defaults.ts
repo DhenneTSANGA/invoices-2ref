@@ -1,5 +1,6 @@
 import type { CompanyInfo } from "@/store/types";
 import { COMPANY_DEFAULTS, type Cabinet } from "@/lib/cabinets";
+import { parseReminderTemplates } from "@/lib/reminder-templates";
 
 export { COMPANY_DEFAULTS };
 
@@ -73,6 +74,7 @@ export function companyForPreview(
     managerEmail?: string | null;
     stampUrl?: string | null;
     primaryColor?: string | null;
+    reminderTemplates?: unknown;
   } | null | undefined,
   cabinet: Cabinet = "expertise_fiscale",
 ): CompanyInfo {
@@ -110,5 +112,6 @@ export function companyForPreview(
     stampUrl: row.stampUrl?.trim() || fallback.stampUrl || "",
     primaryColor:
       row.primaryColor?.trim() || fallback.primaryColor || "",
+    reminderTemplates: parseReminderTemplates(row.reminderTemplates),
   };
 }
