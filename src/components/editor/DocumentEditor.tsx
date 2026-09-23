@@ -953,8 +953,8 @@ export function DocumentEditor({ initial, type }: Props) {
                   </span>
                   <span className="mt-0.5 block text-xs text-muted-foreground">
                     Optionnel. Ajoute une ligne « Echeance du mois de … » sous
-                    le tableau (mois de la date d’émission), sans quantité ni
-                    montant.
+                    le tableau (mois et année de la date d’émission), sans
+                    quantité ni montant.
                   </span>
                 </span>
               </label>

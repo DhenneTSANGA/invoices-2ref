@@ -85,7 +85,7 @@ export function SubscriptionDialog({
               Mentionner le mois d’échéance sous les désignations
             </span>
             <span className="mt-0.5 block text-xs text-muted-foreground">
-              Ajoute une ligne « Echeance du mois de Septembre » sous le
+              Ajoute une ligne « Echeance du mois de Septembre 2026 » sous le
               tableau. Optionnel, repris sur les factures générées chaque mois.
             </span>
           </span>

@@ -91,7 +91,7 @@ const MONTHS_FR = [
 
 const MONTHS_ELISION = new Set(["avril", "août", "octobre"]);
 
-/** « Echeance du mois de Septembre » / « d'Août ». */
+/** « Echeance du mois de Septembre 2026 » / « d'Août 2026 ». */
 export function dueMonthMention(issueDate: string | Date): string {
   const iso =
     typeof issueDate === "string"
@@ -99,10 +99,11 @@ export function dueMonthMention(issueDate: string | Date): string {
       : issueDate.toISOString().slice(0, 10);
   const monthIndex = Number(iso.slice(5, 7)) - 1;
   const month = MONTHS_FR[monthIndex] ?? "";
-  if (!month) return "Echeance du mois";
+  const year = iso.slice(0, 4);
+  if (!month) return year ? `Echeance du mois ${year}` : "Echeance du mois";
   const prep = MONTHS_ELISION.has(month) ? "d'" : "de ";
   const monthLabel = month.charAt(0).toUpperCase() + month.slice(1);
-  return `Echeance du mois ${prep}${monthLabel}`;
+  return `Echeance du mois ${prep}${monthLabel} ${year}`;
 }
 
 export function shouldAppendDueMonthToLines(doc: {
