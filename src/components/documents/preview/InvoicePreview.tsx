@@ -34,6 +34,7 @@ import {
 } from "@/lib/subscription";
 import {
   formatLineQuantity,
+  formatPrintedFigure,
   hasMixedQuantityUnits,
   lineQuantityForTotal,
   quantityColumnHeader,
@@ -719,6 +720,7 @@ function ItemsTable({
     const qtyHeader = quantityColumnHeader(items);
     const showQty = qtyHeader != null;
     const mixedQty = hasMixedQuantityUnits(items);
+    const hideZeroFigures = doc.cabinet === "conseil";
     const colCount = showQty ? 5 : 4;
     return (
     <div
@@ -762,7 +764,20 @@ function ItemsTable({
           )}
           {items.map((it, i) => {
             const lineTotal = lineQuantityForTotal(it) * it.unitPrice;
-            const qtyLabel = formatLineQuantity(it, { mixed: mixedQty });
+            const qtyLabel = formatLineQuantity(it, {
+              mixed: mixedQty,
+              hideZero: hideZeroFigures,
+            });
+            const unitPriceLabel = formatPrintedFigure(
+              it.unitPrice,
+              number(it.unitPrice),
+              hideZeroFigures,
+            );
+            const totalLabel = formatPrintedFigure(
+              lineTotal,
+              number(lineTotal),
+              hideZeroFigures,
+            );
             const rowBg = referenceDesign
               ? i % 2 === 0
                 ? "#fff"
@@ -801,7 +816,7 @@ function ItemsTable({
                       : undefined
                   }
                 >
-                  {number(it.unitPrice)}
+                  {unitPriceLabel}
                 </td>
                 <td
                   className={cn(
@@ -816,7 +831,7 @@ function ItemsTable({
                       : undefined
                   }
                 >
-                  {number(lineTotal)}
+                  {totalLabel}
                 </td>
               </tr>
             );

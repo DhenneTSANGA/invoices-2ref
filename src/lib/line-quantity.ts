@@ -59,18 +59,35 @@ function formatQuantityNumber(n: number): string {
   return String(n);
 }
 
+/** 0 / NaN : cellule vide (lignes descriptives 2R Conseil). */
+export function isBlankLineFigure(n: number): boolean {
+  return !Number.isFinite(n) || n === 0;
+}
+
+/** Formatte un montant ; vide si `hideZero` et valeur nulle. */
+export function formatPrintedFigure(
+  n: number,
+  formatted: string,
+  hideZero: boolean,
+): string {
+  if (hideZero && isBlankLineFigure(n)) return "";
+  return formatted;
+}
+
 /** Valeur affichée dans la cellule (vide si unité « aucune »). */
 export function formatLineQuantity(
   item: QtyLine,
-  opts?: { mixed?: boolean },
+  opts?: { mixed?: boolean; hideZero?: boolean },
 ): string {
   const unit = parseLineQuantityUnit(item.quantityUnit);
   if (unit === "none") return "";
-  const num = formatQuantityNumber(Number(item.quantity));
+  const n = Number(item.quantity);
+  if (opts?.hideZero && isBlankLineFigure(n)) return "";
+  const num = formatQuantityNumber(n);
   if (!num) return "";
   if (!opts?.mixed) return num;
   if (unit === "month") return `${num} mois`;
-  if (unit === "year") return Number(item.quantity) === 1 ? `${num} an` : `${num} ans`;
+  if (unit === "year") return n === 1 ? `${num} an` : `${num} ans`;
   return num;
 }
 

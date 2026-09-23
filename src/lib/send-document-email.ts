@@ -52,6 +52,7 @@ import { loadShowDueMonthOnLines } from "@/lib/document-due-month-db";
 import { loadLineQuantityUnits } from "@/lib/document-line-quantity-db";
 import {
   formatLineQuantity,
+  formatPrintedFigure,
   hasMixedQuantityUnits,
   lineQuantityForTotal,
   parseLineQuantityUnit,
@@ -238,7 +239,20 @@ function buildCommercialEmailHtml(params: {
 
   const rows = params.lines
     .map((l, i) => {
-      const qtyLabel = formatLineQuantity(l, { mixed: mixedQty });
+      const qtyLabel = formatLineQuantity(l, {
+        mixed: mixedQty,
+        hideZero: isConseil,
+      });
+      const unitPriceLabel = formatPrintedFigure(
+        l.unitPrice,
+        money(l.unitPrice, params.currency),
+        isConseil,
+      );
+      const totalLabel = formatPrintedFigure(
+        l.total,
+        money(l.total, params.currency),
+        isConseil,
+      );
       const qtyCell = showQty
         ? `<td style="padding:10px 12px;border-bottom:1px solid #E2E8F0;text-align:right;font-size:13px;color:#475569;${isConseil ? timesFace : ""}">${escapeHtml(qtyLabel)}</td>`
         : "";
@@ -246,8 +260,8 @@ function buildCommercialEmailHtml(params: {
       <tr style="background:${i % 2 === 0 ? "#FFFFFF" : "#F8FAFC"};">
         <td style="padding:10px 12px;border-bottom:1px solid #E2E8F0;font-size:13px;color:#0F172A;">${escapeHtml(l.description)}</td>
         ${qtyCell}
-        <td style="padding:10px 12px;border-bottom:1px solid #E2E8F0;text-align:right;font-size:13px;color:#475569;${isConseil ? timesFace : ""}">${escapeHtml(money(l.unitPrice, params.currency))}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid #E2E8F0;text-align:right;font-size:13px;font-weight:600;color:#0F172A;${isConseil ? timesFace : ""}">${escapeHtml(money(l.total, params.currency))}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #E2E8F0;text-align:right;font-size:13px;color:#475569;${isConseil ? timesFace : ""}">${escapeHtml(unitPriceLabel)}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #E2E8F0;text-align:right;font-size:13px;font-weight:600;color:#0F172A;${isConseil ? timesFace : ""}">${escapeHtml(totalLabel)}</td>
       </tr>`;
     })
     .join("") + dueMonthRow;
