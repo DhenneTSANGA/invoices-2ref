@@ -337,6 +337,8 @@ model Document {
   showDueMonthOnLines  Boolean   @default(false)
   /** Papier 2R Conseil : masquer qté / P.U. HT / total nuls. */
   hideZeroLineFigures  Boolean   @default(true)
+  /** Ajustement manuel du TTC (XAF, positif = ajouter, négatif = retirer). */
+  totalRounding        Int       @default(0)
   /** Campagne de publipostage (lettres groupées). */
   mailMergeCampaignId  String?
   createdAt         DateTime       @default(now())

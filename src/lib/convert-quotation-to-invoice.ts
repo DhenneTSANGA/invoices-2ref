@@ -19,6 +19,7 @@ export function buildInvoiceInputFromQuotation(
     notes: quotation.notes ?? null,
     paymentTerms: quotation.paymentTerms ?? null,
     showRib: quotation.cabinet === "conseil" ? true : (quotation.showRib ?? false),
+    totalRounding: quotation.totalRounding ?? 0,
     validityDays: null,
     executionTerms: null,
     subject: null,

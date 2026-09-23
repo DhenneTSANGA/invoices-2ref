@@ -191,6 +191,7 @@ export function mapDocument(row: {
   subscriptionOfId?: string | null;
   showDueMonthOnLines?: boolean;
   hideZeroLineFigures?: boolean;
+  totalRounding?: number;
   mailMergeCampaignId?: string | null;
   validityDays: number | null;
   executionTerms: string | null;
@@ -301,6 +302,7 @@ export function mapDocument(row: {
     subscriptionOfId: row.subscriptionOfId ?? null,
     showDueMonthOnLines: row.showDueMonthOnLines ?? false,
     hideZeroLineFigures: row.hideZeroLineFigures ?? true,
+    totalRounding: row.totalRounding ?? 0,
     mailMergeCampaignId: row.mailMergeCampaignId ?? null,
     validityDays: row.validityDays ?? undefined,
     executionTerms: row.executionTerms ?? undefined,

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Plus, Trash2, Save, Send, Eye, Users, Check, PenLine, Stamp } from "lucide-react";
+import { Plus, Minus, Trash2, Save, Send, Eye, Users, Check, PenLine, Stamp } from "lucide-react";
 import { toast } from "sonner";
 import {
   computeTotals,
@@ -394,8 +394,9 @@ export function DocumentEditor({ initial, type }: Props) {
         vatRate,
         cssRate,
         tpsRate,
+        rounding: doc.totalRounding ?? 0,
       }),
-    [doc.items, docDiscount, vatRate, cssRate, tpsRate],
+    [doc.items, docDiscount, vatRate, cssRate, tpsRate, doc.totalRounding],
   );
   const legacyTotals = useMemo(() => computeTotals(doc.items), [doc.items]);
   const totals = commercial ? commercialTotals : legacyTotals;
@@ -611,6 +612,10 @@ export function DocumentEditor({ initial, type }: Props) {
     showRib: merged.cabinet === "conseil" ? true : Boolean(merged.showRib),
     showDueMonthOnLines:
       type === "invoice" ? Boolean(merged.showDueMonthOnLines) : false,
+    totalRounding:
+      type === "invoice" || type === "quotation"
+        ? Math.round(merged.totalRounding ?? 0)
+        : 0,
     validityDays: merged.validityDays ?? null,
     executionTerms: merged.executionTerms ?? null,
     subject: merged.subject ?? null,
@@ -1494,7 +1499,71 @@ export function DocumentEditor({ initial, type }: Props) {
                 </>
               )}
               <div className="my-2 h-px bg-border" />
-              <Total label="Total TTC" value={commercialTotals.total} strong />
+              {(doc.totalRounding ?? 0) !== 0 ? (
+                <Total
+                  label="Arrondi"
+                  value={commercialTotals.rounding}
+                />
+              ) : null}
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-bold uppercase tracking-wide">
+                  Total TTC
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    title="Retirer 1 XAF"
+                    className="rounded-lg border border-border/70 p-1 text-muted-foreground hover:bg-surface hover:text-foreground"
+                    onClick={() => {
+                      const raw =
+                        commercialTotals.total - (doc.totalRounding ?? 0);
+                      setDoc((d) => ({
+                        ...d,
+                        totalRounding: Math.max(
+                          -raw,
+                          (d.totalRounding ?? 0) - 1,
+                        ),
+                      }));
+                    }}
+                  >
+                    <Minus className="h-3.5 w-3.5" />
+                  </button>
+                  <span className="min-w-[7.5rem] text-right font-numeric text-lg font-bold text-gradient-primary">
+                    {number(commercialTotals.total)} XAF
+                  </span>
+                  <button
+                    type="button"
+                    title="Ajouter 1 XAF"
+                    className="rounded-lg border border-border/70 p-1 text-muted-foreground hover:bg-surface hover:text-foreground"
+                    onClick={() =>
+                      setDoc((d) => ({
+                        ...d,
+                        totalRounding: (d.totalRounding ?? 0) + 1,
+                      }))
+                    }
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+              <p className="text-right text-[11px] text-muted-foreground">
+                {(doc.totalRounding ?? 0) !== 0 ? (
+                  <>
+                    Arrondi {doc.totalRounding! > 0 ? "+" : ""}
+                    {number(doc.totalRounding ?? 0)} XAF
+                    {" · "}
+                    <button
+                      type="button"
+                      className="underline underline-offset-2 hover:text-foreground"
+                      onClick={() => setDoc((d) => ({ ...d, totalRounding: 0 }))}
+                    >
+                      Réinit.
+                    </button>
+                  </>
+                ) : (
+                  "− / + pour arrondir le TTC (ex. 175 001 → 175 000)"
+                )}
+              </p>
             </>
           ) : (
             <>
@@ -1959,9 +2028,10 @@ function defaultDoc(
       validityDays: 30,
       executionTerms: formatExecutionTerms(15),
       paymentTerms: DEFAULT_PAYMENT_MODALITY,
-      showRib: cabinet === "conseil",
-      hideZeroLineFigures: cabinet === "conseil",
-      signatoryTitle: DEFAULT_SIGNATORY_TITLE,
+    showRib: cabinet === "conseil",
+    hideZeroLineFigures: cabinet === "conseil",
+    totalRounding: 0,
+    signatoryTitle: DEFAULT_SIGNATORY_TITLE,
     };
   }
   return {
@@ -1970,7 +2040,8 @@ function defaultDoc(
     paymentTerms: DEFAULT_PAYMENT_MODALITY,
     showRib: cabinet === "conseil",
     showDueMonthOnLines: false,
-    hideZeroLineFigures: cabinet === "conseil",
-    signatoryTitle: DEFAULT_SIGNATORY_TITLE,
+      hideZeroLineFigures: cabinet === "conseil",
+      totalRounding: 0,
+      signatoryTitle: DEFAULT_SIGNATORY_TITLE,
   };
 }

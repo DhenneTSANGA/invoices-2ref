@@ -61,6 +61,7 @@ import {
   type LineQuantityUnit,
 } from "@/lib/line-quantity";
 import { loadLineHideZeroFigures } from "@/lib/document-line-hide-zero-db";
+import { loadTotalRounding } from "@/lib/document-total-rounding-db";
 
 async function requireSession() {
   const session = await getCurrentSession();
@@ -209,6 +210,7 @@ function buildCommercialEmailHtml(params: {
   tps: number;
   css: number;
   vat: number;
+  rounding?: number;
   total: number;
   paymentTerms?: string | null;
   showRib?: boolean;
@@ -276,6 +278,9 @@ function buildCommercialEmailHtml(params: {
       : "",
     params.tps <= 0
       ? `<tr><td style="padding:6px 12px;color:#64748B;font-size:13px;">TVA</td><td style="padding:6px 12px;text-align:right;font-size:13px;${isConseil ? timesFace : ""}">${escapeHtml(money(params.vat, params.currency))}</td></tr>`
+      : "",
+    params.rounding
+      ? `<tr><td style="padding:6px 12px;color:#64748B;font-size:13px;">Arrondi</td><td style="padding:6px 12px;text-align:right;font-size:13px;${isConseil ? timesFace : ""}">${escapeHtml(money(params.rounding, params.currency))}</td></tr>`
       : "",
   ].join("");
 
@@ -668,6 +673,8 @@ export async function sendDocumentEmailInternal(params: {
     } else {
       const currency = doc.currency || "XAF";
       const dueMonthFlags = await loadShowDueMonthOnLines([doc.id]);
+      const roundingFlags = await loadTotalRounding([doc.id]);
+      const rounding = roundingFlags.get(doc.id) ?? 0;
       const quantityUnits = await loadLineQuantityUnits(doc.lines.map((l) => l.id));
       const hideZeroFlags = await loadLineHideZeroFigures(doc.lines.map((l) => l.id));
       const showDueMonth = shouldAppendDueMonthToLines({
@@ -718,7 +725,8 @@ export async function sendDocumentEmailInternal(params: {
         tps: Number(doc.tps),
         css: Number(doc.css),
         vat: Number(doc.vat),
-        total: Number(doc.total),
+        rounding,
+        total: Math.max(0, Number(doc.total)),
         paymentTerms: doc.paymentTerms,
         showRib: doc.cabinet === "conseil" ? true : Boolean(doc.showRib),
         executionTerms: doc.executionTerms,

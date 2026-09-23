@@ -47,6 +47,11 @@ import {
   loadHideZeroLineFigures,
   withHideZeroFlag,
 } from "@/lib/document-hide-zero-db";
+import {
+  loadTotalRounding,
+  persistTotalRounding,
+  withTotalRounding,
+} from "@/lib/document-total-rounding-db";
 import { persistLineQuantityUnitsForDocument, loadLineQuantityUnits } from "@/lib/document-line-quantity-db";
 import {
   loadLineHideZeroFigures,
@@ -472,9 +477,10 @@ export const deleteService = createServerFn({ method: "POST" })
 async function mappedDocuments(rows: Parameters<typeof mapDocument>[0][]) {
   const mapped = rows.map(mapDocument);
   const ids = mapped.map((d) => d.id);
-  const [flags, hideZeroFlags] = await Promise.all([
+  const [flags, hideZeroFlags, roundingFlags] = await Promise.all([
     loadShowDueMonthOnLines(ids),
     loadHideZeroLineFigures(ids),
+    loadTotalRounding(ids),
   ]);
   const units = await loadLineQuantityUnits(
     mapped.flatMap((d) => d.items.map((it) => it.id)),
@@ -483,7 +489,10 @@ async function mappedDocuments(rows: Parameters<typeof mapDocument>[0][]) {
     mapped.flatMap((d) => d.items.map((it) => it.id)),
   );
   return mapped.map((d) => {
-    const withFlags = withHideZeroFlag(withDueMonthFlag(d, flags), hideZeroFlags);
+    const withFlags = withTotalRounding(
+      withHideZeroFlag(withDueMonthFlag(d, flags), hideZeroFlags),
+      roundingFlags,
+    );
     return {
       ...withFlags,
       items: d.items.map((it) => ({
@@ -900,6 +909,9 @@ async function upsertDocumentHandler(
           Boolean(data.showDueMonthOnLines),
         );
       }
+      if (existing.type === "invoice" || existing.type === "quotation") {
+        await persistTotalRounding(updated.id, data.totalRounding ?? 0);
+      }
       return mappedDocument(updated);
     }
 
@@ -979,6 +991,9 @@ async function upsertDocumentHandler(
         created.id,
         Boolean(data.showDueMonthOnLines),
       );
+    }
+    if (data.type === "invoice" || data.type === "quotation") {
+      await persistTotalRounding(created.id, data.totalRounding ?? 0);
     }
     return mappedDocument(created);
 }

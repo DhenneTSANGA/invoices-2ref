@@ -971,6 +971,7 @@ function TotalsBlock({
     vatRate,
     cssRate,
     tpsRate: tpsActive ? (tpsRate > 0 ? tpsRate : rates.tpsRate) : 0,
+    rounding: doc.totalRounding ?? 0,
   });
 
   const grossSubtotal = computed.grossSubtotal || doc.subtotal;
@@ -979,10 +980,8 @@ function TotalsBlock({
   const tps = tpsActive ? Math.max(computed.tps, doc.tps ?? 0) : 0;
   const css = computed.css || doc.css || 0;
   const vat = tpsActive ? 0 : (computed.vat || doc.vat || 0);
-  /** TPS déduite ; CSS / TVA ajoutées. */
-  const total = tpsActive
-    ? Math.max(0, subtotal - tps + css)
-    : doc.total || computed.total;
+  const rounding = computed.rounding || 0;
+  const total = computed.total;
 
   const displayTpsRate =
     tpsRate > 0
@@ -1055,6 +1054,17 @@ function TotalsBlock({
           <AmountRow
             label={`TVA (${vatRate} %)`}
             value={number(vat)}
+            currency={doc.currency}
+            accent={accent}
+            compact={compact}
+            variant={amountVariant}
+            tint={tint}
+          />
+        ) : null}
+        {rounding !== 0 ? (
+          <AmountRow
+            label="Arrondi"
+            value={number(rounding)}
             currency={doc.currency}
             accent={accent}
             compact={compact}

@@ -40,6 +40,8 @@ export type DocumentTotalsOptions = {
   cssRate?: number;
   /** 0 = TPS non appliquée (ne pas afficher). */
   tpsRate?: number;
+  /** Ajustement manuel du TTC (XAF). */
+  rounding?: number;
 };
 
 export type DocumentTotals = {
@@ -52,6 +54,8 @@ export type DocumentTotals = {
   tps: number;
   css: number;
   vat: number;
+  /** Arrondi TTC appliqué (peut être négatif). */
+  rounding: number;
   total: number;
 };
 
@@ -84,6 +88,9 @@ export function computeDocumentTotals(
   const tps = Math.round(subtotal * (Math.max(0, tpsRate) / 100));
   const css = Math.round(subtotal * (Math.max(0, cssRate) / 100));
   const vat = Math.round(subtotal * (effectiveVat / 100));
+  const rawTotal = commercialTotal(subtotal, tps, css, vat);
+  const rounding = Number.isFinite(opts.rounding) ? Math.round(opts.rounding!) : 0;
+  const total = Math.max(0, rawTotal + rounding);
 
   return {
     grossSubtotal: Math.round(grossSubtotal),
@@ -92,7 +99,8 @@ export function computeDocumentTotals(
     tps,
     css,
     vat,
-    total: commercialTotal(subtotal, tps, css, vat),
+    rounding: total - rawTotal,
+    total,
   };
 }
 

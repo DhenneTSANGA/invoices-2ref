@@ -171,6 +171,8 @@ export type Document = {
   showDueMonthOnLines?: boolean;
   /** 2R Conseil : masquer qté / P.U. / total nuls (défaut true). */
   hideZeroLineFigures?: boolean;
+  /** Ajustement manuel du TTC en XAF (ex. -1 pour 175 001 → 175 000). */
+  totalRounding?: number;
   mailMergeCampaignId?: string | null;
   /** Devis */
   validityDays?: number;

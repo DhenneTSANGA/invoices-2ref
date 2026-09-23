@@ -11,6 +11,10 @@ import {
   persistLineHideZeroFiguresForDocument,
 } from "@/lib/document-line-hide-zero-db";
 import {
+  loadTotalRounding,
+  persistTotalRounding,
+} from "@/lib/document-total-rounding-db";
+import {
   loadLineQuantityUnits,
   persistLineQuantityUnitsForDocument,
 } from "@/lib/document-line-quantity-db";
@@ -283,6 +287,11 @@ async function generateSubscriptionInvoice(
   await persistLineHideZeroFiguresForDocument(
     created.id,
     template.lines.map((l) => templateHideZero.get(l.id) ?? true),
+  );
+  const templateRounding = await loadTotalRounding([template.id]);
+  await persistTotalRounding(
+    created.id,
+    templateRounding.get(template.id) ?? 0,
   );
   const templateUnits = await loadLineQuantityUnits(
     template.lines.map((l) => l.id),
