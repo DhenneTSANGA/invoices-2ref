@@ -15,19 +15,19 @@ export type ReminderTemplates = Record<
 
 export const DEFAULT_REMINDER_TEMPLATES: ReminderTemplates = {
   "15": {
-    subject: "Rappel — factures en attente ({{clientName}})",
+    subject: "Rappel — facture à régler ({{clientName}})",
     intro:
-      "Sauf erreur de notre part, les factures ci-dessous restent impayées après leur date d'échéance. Nous vous remercions de bien vouloir régulariser votre situation.",
+      "Sauf erreur de notre part, les factures ci-dessous restent impayées. Leur échéance approche. Nous vous remercions de bien vouloir prévoir le règlement.",
   },
   "20": {
-    subject: "2e relance — règlement attendu ({{clientName}})",
+    subject: "2e relance — règlement avant échéance ({{clientName}})",
     intro:
-      "Malgré notre précédent rappel, nous n'avons pas encore enregistré le règlement des factures listées ci-dessous. Merci de procéder au paiement dans les meilleurs délais.",
+      "Malgré notre précédent rappel, nous n'avons pas encore enregistré le règlement des factures listées ci-dessous. Merci de procéder au paiement avant la date d'échéance.",
   },
   "25": {
-    subject: "Dernier rappel — factures impayées ({{clientName}})",
+    subject: "Dernier rappel avant échéance ({{clientName}})",
     intro:
-      "Il s'agit de notre dernier rappel concernant les factures impayées ci-dessous. Merci de nous contacter rapidement si un règlement a déjà été effectué.",
+      "Il s'agit de notre dernier rappel avant échéance concernant les factures ci-dessous. Merci de nous contacter rapidement si un règlement a déjà été effectué.",
   },
 };
 
@@ -37,15 +37,15 @@ export const REMINDER_TEMPLATE_LABELS: Record<
 > = {
   "15": {
     title: "1re relance",
-    hint: "15 jours après l’échéance",
+    hint: "Le 15 du mois, avant l’échéance",
   },
   "20": {
     title: "2e relance",
-    hint: "20 jours après l’échéance",
+    hint: "Le 20 du mois, avant l’échéance",
   },
   "25": {
     title: "Dernier rappel",
-    hint: "25 jours après l’échéance",
+    hint: "Le 25 du mois, avant l’échéance",
   },
 };
 

@@ -422,8 +422,10 @@ function ReminderTemplatesPanel({
         <div>
           <h4 className="font-display font-semibold">E-mails de relance</h4>
           <p className="mt-1 text-sm text-muted-foreground">
-            Personnalisez l’objet et l’introduction pour chaque palier du cabinet
-            actif. Le tableau des factures impayées est généré automatiquement.
+            Envoi automatique les 15, 20 et 25 du mois, uniquement pour les
+            factures envoyées, encore impayées et dont l’échéance n’est pas
+            passée. Une facture marquée payée n’est plus relancée. Le tableau
+            des factures est généré automatiquement.
           </p>
           <p className="mt-2 text-xs text-muted-foreground">
             Variables : <code>{"{{clientName}}"}</code> (nom du client),{" "}

@@ -63,8 +63,9 @@ async function printStatus() {
       where: {
         clientId: client.id,
         type: "invoice",
-        status: { in: ["sent", "overdue"] },
-        dueDate: { lt: today },
+        status: "sent",
+        issueDate: { lt: today },
+        dueDate: { gt: today },
       },
       select: { number: true, dueDate: true, status: true, total: true },
       orderBy: { dueDate: "asc" },
@@ -88,7 +89,7 @@ async function printStatus() {
     );
   }
 
-  console.log(`\nClients abonnement/mixte avec factures en retard : ${overdueByClient.length}`);
+  console.log(`\nClients abonnement/mixte avec factures impayées avant échéance : ${overdueByClient.length}`);
   for (const row of overdueByClient) {
     console.log(`  - ${row.client.name} <${row.client.email ?? "sans e-mail"}>`);
     for (const inv of row.overdue) {

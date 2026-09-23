@@ -424,13 +424,17 @@ export async function runPaymentReminders(options?: {
       continue;
     }
 
-    const overdue = await prisma.document.findMany({
+    // Relance avant échéance (15 / 20 / 25 du mois) : facture envoyée,
+    // pas encore échue, non payée. Ex. émise le 25, 30 ou 05 → relances
+    // les 15, 20, 25 suivants tant que l’échéance n’est pas passée.
+    const unpaid = await prisma.document.findMany({
       where: {
         clientId: client.id,
         cabinet: client.cabinet,
         type: "invoice",
-        status: { in: ["sent", "overdue"] },
-        dueDate: { lt: todayUtc },
+        status: "sent",
+        issueDate: { lt: todayUtc },
+        dueDate: { gt: todayUtc },
         // Ne pas relancer sur la facture modèle d'abonnement (seulement les factures émises).
         NOT: {
           isSubscription: true,
@@ -441,7 +445,7 @@ export async function runPaymentReminders(options?: {
       orderBy: [{ dueDate: "asc" }, { number: "asc" }],
     });
 
-    if (overdue.length === 0) {
+    if (unpaid.length === 0) {
       skipped++;
       continue;
     }
@@ -463,14 +467,14 @@ export async function runPaymentReminders(options?: {
         companyName: company.name,
       });
 
-      const rows = overdue.map((doc) => ({
+      const rows = unpaid.map((doc) => ({
         number: doc.number,
         issueDate: formatDateFr(doc.issueDate),
         dueDate: doc.dueDate ? formatDateFr(doc.dueDate) : "—",
         total: money(Number(doc.total), doc.currency),
       }));
-      const totalDue = overdue.reduce((s, d) => s + Number(d.total), 0);
-      const currency = overdue[0]?.currency ?? "XAF";
+      const totalDue = unpaid.reduce((s, d) => s + Number(d.total), 0);
+      const currency = unpaid[0]?.currency ?? "XAF";
 
       const html = buildReminderEmailHtml({
         companyName: company.name,
@@ -505,7 +509,7 @@ export async function runPaymentReminders(options?: {
           reminderDay: day,
           periodMonth: monthKey,
           toEmail: email,
-          documentIds: overdue.map((d) => d.id),
+          documentIds: unpaid.map((d) => d.id),
           totalAmount: totalDue,
         },
       });
@@ -524,15 +528,6 @@ export async function runPaymentReminders(options?: {
           staffId: staff.id,
           lastEvent: "sent",
         });
-      }
-
-      for (const doc of overdue) {
-        if (doc.status === "sent") {
-          await prisma.document.update({
-            where: { id: doc.id },
-            data: { status: "overdue" },
-          });
-        }
       }
 
       sent++;

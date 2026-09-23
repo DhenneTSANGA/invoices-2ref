@@ -144,8 +144,9 @@ async function main() {
       where: {
         clientId: client.id,
         type: "invoice",
-        status: { in: ["sent", "overdue"] },
-        dueDate: { lt: todayUtc(simDate) },
+        status: "sent",
+        issueDate: { lt: todayUtc(simDate) },
+        dueDate: { gt: todayUtc(simDate) },
         NOT: {
           isSubscription: true,
           subscriptionActive: true,
@@ -168,7 +169,7 @@ async function main() {
   check(
     "Clients éligibles relance (simul. 15/09)",
     eligibleReminders >= 0,
-    `${eligibleReminders} client(s) avec facture(s) en retard`,
+    `${eligibleReminders} client(s) avec facture(s) impayée(s) avant échéance`,
   );
 
   if (reminderPreview.length) {
