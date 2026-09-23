@@ -445,7 +445,7 @@ export function DocumentEditor({ initial, type }: Props) {
             id,
             description: "",
             quantity: 1,
-            quantityUnit: "quantity",
+            quantityUnit: commercial ? "none" : "quantity",
             hideZeroFigures: true,
             unitPrice: 0,
             vatRate: commercial ? docVatRate : DEFAULT_VAT_RATE,
