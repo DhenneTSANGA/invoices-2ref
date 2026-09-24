@@ -11,7 +11,7 @@ import type {
 } from "@/store/types";
 import { companyForPreview } from "@/lib/company-defaults";
 import { parseLineQuantityUnit } from "@/lib/line-quantity";
-import { parseClientPole } from "@/lib/client-pole";
+import { parseClientPole, type ClientPole } from "@/lib/client-pole";
 
 export function decimalToNumber(v: Decimal | number | string): number {
   if (typeof v === "number") return v;
@@ -28,6 +28,7 @@ export function mapStaff(row: {
   avatarUrl: string | null;
   role: "member" | "admin" | "super_admin";
   cabinet: "conseil" | "expertise_fiscale" | null;
+  pole?: ClientPole | null;
 }): StaffMember {
   return {
     id: row.id,
@@ -39,6 +40,7 @@ export function mapStaff(row: {
     avatarUrl: row.avatarUrl,
     role: row.role,
     cabinet: row.cabinet,
+    pole: row.role === "super_admin" ? null : parseClientPole(row.pole),
   };
 }
 

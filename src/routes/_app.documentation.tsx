@@ -10,6 +10,7 @@ import { staffDocumentationKey, useSession } from "@/hooks/use-data";
 import { listStaffDocumentation } from "@/lib/admin.functions";
 import { canAccessStaffDocumentation, roleLabel } from "@/lib/roles";
 import { CABINET_LABELS } from "@/lib/cabinets";
+import { CLIENT_POLE_LABELS, type ClientPole } from "@/lib/client-pole";
 import { shortDate } from "@/lib/format";
 import type { AppSession } from "@/lib/session.functions";
 
@@ -55,7 +56,7 @@ function DocumentationPage() {
   const term = q.trim().toLowerCase();
   const filtered = term
     ? staff.filter((s) =>
-        `${s.firstName} ${s.lastName} ${s.email} ${s.jobTitleLabel} ${s.role}`
+        `${s.firstName} ${s.lastName} ${s.email} ${s.jobTitleLabel} ${s.role} ${s.pole ?? ""}`
           .toLowerCase()
           .includes(term),
       )
@@ -113,12 +114,14 @@ function StaffDocCard({
     jobTitleLabel: string;
     role: "member" | "admin" | "super_admin";
     cabinet: "conseil" | "expertise_fiscale" | null;
+    pole: ClientPole | null;
     createdAt: string;
   };
 }) {
   const cabinetLabel = staff.cabinet
     ? CABINET_LABELS[staff.cabinet]
     : "Tous les cabinets";
+  const poleLabel = staff.pole ? CLIENT_POLE_LABELS[staff.pole] : "—";
   const summary = [
     `Nom : ${staff.firstName} ${staff.lastName}`,
     `E-mail : ${staff.email}`,
@@ -126,6 +129,7 @@ function StaffDocCard({
     `Poste : ${staff.jobTitleLabel}`,
     `Rôle : ${roleLabel(staff.role)}`,
     `Cabinet : ${cabinetLabel}`,
+    `Pôle : ${poleLabel}`,
     `Créé le : ${shortDate(staff.createdAt)}`,
   ]
     .filter(Boolean)
@@ -161,6 +165,7 @@ function StaffDocCard({
         {staff.phone ? <Row label="Téléphone" value={staff.phone} /> : null}
         <Row label="Poste" value={staff.jobTitleLabel} />
         <Row label="Cabinet" value={cabinetLabel} />
+        <Row label="Pôle" value={poleLabel} />
       </dl>
 
       <div className="mt-auto flex flex-wrap gap-2 pt-4">

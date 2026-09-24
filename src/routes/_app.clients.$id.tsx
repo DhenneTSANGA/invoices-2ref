@@ -9,6 +9,7 @@ import {
   useUpdateClient,
   useDocuments,
   useUploadClientFiche,
+  useSession,
 } from "@/hooks/use-data";
 import {
   ClientFicheUpload,
@@ -33,6 +34,7 @@ import {
   ClientPoleBadge,
   ClientPolePicker,
 } from "@/components/clients/ClientPolePicker";
+import { memberVisibilityPole } from "@/lib/staff-pole";
 
 export const Route = createFileRoute("/_app/clients/$id")({
   head: () => ({ meta: [{ title: "Fiche client — 2R Hub" }] }),
@@ -42,6 +44,8 @@ export const Route = createFileRoute("/_app/clients/$id")({
 function EditClient() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
+  const { data: session } = useSession();
+  const memberPole = memberVisibilityPole(session?.staff);
   const { data: client, isLoading } = useClient(id);
   const { data: documents = [] } = useDocuments();
   const updateClient = useUpdateClient();
@@ -139,6 +143,7 @@ function EditClient() {
             <ClientPolePicker
               value={form.pole}
               onChange={(pole) => setForm({ ...form, pole })}
+              locked={Boolean(memberPole)}
             />
           </Section>
           <Section title="Type de client">

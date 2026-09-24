@@ -50,6 +50,7 @@ import {
 } from "@/lib/letter-place-city";
 import { parseClientPole } from "@/lib/client-pole";
 import { ClientPolePicker } from "@/components/clients/ClientPolePicker";
+import { memberVisibilityPole } from "@/lib/staff-pole";
 
 type Props = { initial?: Document };
 
@@ -77,6 +78,7 @@ export function LetterEditor({ initial }: Props) {
   const requestSignMutation = useRequestLetterSignature();
   const signMutation = useSignLetterDocument();
   const adminLike = session ? isAdmin(session.staff.role) : false;
+  const memberPole = memberVisibilityPole(session?.staff);
   const isNew = !initial?.id || initial.id.startsWith("d-");
 
   const [doc, setDoc] = useState<Document>(
@@ -147,11 +149,14 @@ export function LetterEditor({ initial }: Props) {
       Boolean(lastClientIdRef.current) && lastClientIdRef.current !== clientId;
     lastClientIdRef.current = clientId;
     setDoc((d) => {
+      if (memberPole) {
+        return d.pole === memberPole ? d : { ...d, pole: memberPole };
+      }
       if (!switched && d.pole) return d;
       const nextPole = parseClientPole(client.pole);
       return d.pole === nextPole ? d : { ...d, pole: nextPole };
     });
-  }, [doc.clientId, clients]);
+  }, [doc.clientId, clients, memberPole]);
 
   if (loadingClients) {
     return (
@@ -305,11 +310,14 @@ export function LetterEditor({ initial }: Props) {
             </label>
             <ClientPolePicker
               compact
-              value={parseClientPole(doc.pole)}
+              locked={Boolean(memberPole)}
+              value={parseClientPole(memberPole ?? doc.pole)}
               onChange={(pole) => setDoc({ ...doc, pole })}
             />
             <p className="-mt-2 text-[11px] text-muted-foreground">
-              Prérempli depuis la fiche client — modifiable pour ce courriel.
+              {memberPole
+                ? "Pôle attribué à votre compte."
+                : "Prérempli depuis la fiche client — modifiable pour ce courriel."}
             </p>
 
             {selectedClient && !doc.recipientOverride && (

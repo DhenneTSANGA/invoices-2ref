@@ -7,6 +7,8 @@ import { prisma } from "@/lib/prisma";
 import { mapStaff } from "@/lib/mappers";
 import { staffFromAuthUser } from "@/lib/staff-parse";
 import { syncStaffMember } from "@/lib/staff-sync";
+import { persistStaffPole, withLoadedStaffPole } from "@/lib/staff-pole-db";
+import { DEFAULT_CLIENT_POLE } from "@/lib/client-pole";
 import {
   readActiveCabinetCookie,
   writeActiveCabinetCookie,
@@ -140,7 +142,11 @@ async function buildAppSession(user: User): Promise<AppSession> {
     return null;
   }
 
-  const staff = mapStaff(staffRow);
+  let staff = await withLoadedStaffPole(mapStaff(staffRow));
+  if (staff.role !== "super_admin" && !staff.pole) {
+    await persistStaffPole(staff.id, DEFAULT_CLIENT_POLE);
+    staff = { ...staff, pole: DEFAULT_CLIENT_POLE };
+  }
   let activeCabinet: Cabinet;
   try {
     activeCabinet = resolveCabinet(

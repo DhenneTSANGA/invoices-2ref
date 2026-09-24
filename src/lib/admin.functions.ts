@@ -24,6 +24,8 @@ import {
   canAccessStaffDocumentation,
 } from "@/lib/roles";
 import { jobTitleLabel, normalizeJobTitleValue } from "@/lib/cabinets";
+import { CLIENT_POLES, parseClientPole } from "@/lib/client-pole";
+import { persistStaffPole, withLoadedStaffPole, withLoadedStaffPoles, loadStaffPoles } from "@/lib/staff-pole-db";
 import {
   ACCOUNT_REMOVED_HINT,
   ACCOUNT_REVOKED_META_KEY,
@@ -206,8 +208,14 @@ export const completeOnboarding = createServerFn({ method: "POST" })
       role: asSuperAdmin ? "super_admin" : "member",
     });
 
+    if (asSuperAdmin) {
+      await persistStaffPole(staff.id, null);
+    } else {
+      await persistStaffPole(staff.id, parseClientPole(undefined));
+    }
+
     clearSessionMemo(user.id);
-    return mapStaff(staff);
+    return withLoadedStaffPole(mapStaff(staff));
   });
 
 /** Création de compte sans e-mail Supabase (mot de passe défini par le super admin). */
@@ -277,12 +285,13 @@ export const createStaffWithPassword = createServerFn({ method: "POST" })
         role: data.role,
       });
 
+      await persistStaffPole(staff.id, parseClientPole(data.pole));
       await clearRevokedAccount(email);
 
       return {
         ok: true as const,
         staff: {
-          ...mapStaff(staff),
+          ...(await withLoadedStaffPole(mapStaff(staff))),
           jobTitleLabel: jobTitleLabel(staff.jobTitle),
         },
       };
@@ -365,12 +374,13 @@ export const inviteStaffMember = createServerFn({ method: "POST" })
         role: data.role,
       });
 
+      await persistStaffPole(staff.id, parseClientPole(data.pole));
       await clearRevokedAccount(email);
 
       return {
         ok: true as const,
         staff: {
-          ...mapStaff(staff),
+          ...(await withLoadedStaffPole(mapStaff(staff))),
           jobTitleLabel: jobTitleLabel(staff.jobTitle),
         },
       };
@@ -408,8 +418,9 @@ export const listCabinetStaff = createServerFn({ method: "GET" }).handler(
       where,
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
     });
-    return rows.map((r) => ({
-      ...mapStaff(r),
+    const staff = await withLoadedStaffPoles(rows.map(mapStaff));
+    return staff.map((r) => ({
+      ...r,
       jobTitleLabel: jobTitleLabel(r.jobTitle),
     }));
   },
@@ -429,7 +440,8 @@ export const listStaffDocumentation = createServerFn({ method: "GET" }).handler(
       orderBy: { createdAt: "desc" },
     });
 
-    return rows.map((r) => ({
+    const staff = await withLoadedStaffPoles(rows.map(mapStaff));
+    return rows.map((r, i) => ({
       id: r.id,
       email: r.email,
       firstName: r.firstName,
@@ -439,6 +451,7 @@ export const listStaffDocumentation = createServerFn({ method: "GET" }).handler(
       jobTitleLabel: jobTitleLabel(r.jobTitle),
       role: r.role,
       cabinet: r.cabinet,
+      pole: staff[i]?.pole ?? null,
       createdAt: r.createdAt.toISOString(),
     }));
   },
@@ -575,6 +588,10 @@ export const setStaffAdminRole = createServerFn({ method: "POST" })
         where: { id: data.staffId },
         data: { role: data.role, cabinet: data.cabinet },
       });
+      const poles = await loadStaffPoles([data.staffId]);
+      if (!poles.get(data.staffId)) {
+        await persistStaffPole(data.staffId, parseClientPole(undefined));
+      }
       clearSessionMemo(data.staffId);
       return { ok: true };
     }
@@ -585,6 +602,39 @@ export const setStaffAdminRole = createServerFn({ method: "POST" })
     });
     clearSessionMemo(data.staffId);
     return { ok: true };
+  });
+
+export const setStaffPole = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      staffId: z.string(),
+      pole: z.enum(CLIENT_POLES),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const session = await getCurrentSession();
+    if (!session) throw new Error("Non authentifié");
+    if (!canManageAdminRequests(session.staff.role)) {
+      throw new Error("Accès réservé aux administrateurs");
+    }
+
+    const target = await prisma.staffMember.findUnique({
+      where: { id: data.staffId },
+    });
+    if (!target) throw new Error("Collaborateur introuvable");
+    if (target.role === "super_admin") {
+      throw new Error("Le super administrateur n’a pas de pôle");
+    }
+    if (
+      !isSuperAdmin(session.staff.role) &&
+      target.cabinet !== session.activeCabinet
+    ) {
+      throw new Error("Collaborateur introuvable dans ce cabinet");
+    }
+
+    await persistStaffPole(target.id, data.pole);
+    clearSessionMemo(target.id);
+    return { ok: true as const, pole: data.pole };
   });
 
 export const deleteStaffMember = createServerFn({ method: "POST" })

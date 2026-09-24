@@ -8,6 +8,8 @@ export type StaffMember = {
   avatarUrl?: string | null;
   role: "member" | "admin" | "super_admin";
   cabinet: "conseil" | "expertise_fiscale" | null;
+  /** Conservé pour l’admin ; restreint uniquement les membres. Null pour super_admin. */
+  pole?: ClientPole | null;
 };
 
 export type Cabinet = "conseil" | "expertise_fiscale";

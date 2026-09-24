@@ -157,6 +157,8 @@ model StaffMember {
   role      StaffRole @default(member)
   /// Null uniquement pour super_admin (au-dessus des cabinets).
   cabinet   Cabinet?
+  /// Conservé à la promotion admin (visibilité cabinet entière). Null pour super_admin.
+  pole      ClientPole?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
@@ -177,6 +179,8 @@ model StaffMember {
   @@index([lastName])
   @@index([role])
   @@index([cabinet])
+  @@index([pole])
+  @@index([cabinet, pole])
   @@map("staff_members")
 }
 

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { STAFF_JOB_TITLES } from "@/lib/cabinets";
+import { CLIENT_POLES } from "@/lib/client-pole";
 
 const jobTitleValues = STAFF_JOB_TITLES.map((j) => j.value) as [
   (typeof STAFF_JOB_TITLES)[number]["value"],
@@ -76,6 +77,7 @@ export const inviteStaffSchema = z.object({
       message: "Téléphone trop court (8 caractères min)",
     }),
   role: z.enum(["member", "admin"]).default("member"),
+  pole: z.enum(CLIENT_POLES, { error: "Choisissez un pôle" }),
 });
 
 /** Création directe d’un accès (super admin) — e-mail + mot de passe, sans e-mail Supabase. */

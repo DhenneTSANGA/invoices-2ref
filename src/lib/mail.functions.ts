@@ -6,11 +6,28 @@ import { getCurrentSession } from "@/lib/session.functions";
 import { isAdmin } from "@/lib/roles";
 import { bareEmail } from "@/lib/email";
 import { htmlToPreview, mapMailRow, type MailListItem } from "@/lib/mail-log";
+import { loadDocumentPoles } from "@/lib/client-pole-db";
+import { memberCanSeePole } from "@/lib/staff-pole";
+import type { StaffMember } from "@/store/types";
 
 async function requireSession() {
   const session = await getCurrentSession();
   if (!session) throw new Error("Non authentifié");
   return session;
+}
+
+async function filterMailsForMember<T extends { documentId?: string | null }>(
+  staff: StaffMember,
+  rows: T[],
+): Promise<T[]> {
+  const ids = rows
+    .map((r) => r.documentId)
+    .filter((id): id is string => Boolean(id));
+  if (ids.length === 0) return rows;
+  const poles = await loadDocumentPoles(ids);
+  return rows.filter(
+    (r) => !r.documentId || memberCanSeePole(staff, poles.get(r.documentId)),
+  );
 }
 
 function resendApiKey(): string {
@@ -258,8 +275,9 @@ export const listMails = createServerFn({ method: "GET" })
       take: data.limit,
     });
 
+    const items = await filterMailsForMember(session.staff, rows.map(mapMailRow));
     return {
-      items: rows.map(mapMailRow),
+      items,
       inboundConfigured: allowed.size > 0,
     };
   });
@@ -287,6 +305,8 @@ export const getMail = createServerFn({ method: "GET" })
       },
     });
     if (!row) throw new Error("Message introuvable");
+    const visible = await filterMailsForMember(session.staff, [row]);
+    if (visible.length === 0) throw new Error("Message introuvable");
 
     // Enrichir un reçu via Resend si le corps manque
     if (

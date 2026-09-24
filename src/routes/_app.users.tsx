@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { LoadingState } from "@/components/common/LoadingState";
-import { useSession, adminRequestsKey, cabinetStaffKey, staffDocumentationKey } from "@/hooks/use-data";
+import { useSession, adminRequestsKey, cabinetStaffKey, staffDocumentationKey, sessionKey } from "@/hooks/use-data";
 import {
   createStaffWithPassword,
   deleteStaffMember,
@@ -27,6 +27,7 @@ import {
   listCabinetStaff,
   reviewAdminRequest,
   setStaffAdminRole,
+  setStaffPole,
 } from "@/lib/admin.functions";
 import { createStaffWithPasswordSchema } from "@/lib/auth-schemas";
 import {
@@ -36,6 +37,8 @@ import {
   roleLabel,
 } from "@/lib/roles";
 import { CABINET_LABELS, STAFF_JOB_TITLES, jobTitleLabel } from "@/lib/cabinets";
+import { ClientPolePicker } from "@/components/clients/ClientPolePicker";
+import { CLIENT_POLE_LABELS, CLIENT_POLES, DEFAULT_CLIENT_POLE, parseClientPole, type ClientPole } from "@/lib/client-pole";
 import type { AppSession } from "@/lib/session.functions";
 import { humanAuthError } from "@/lib/auth-errors";
 import { cn } from "@/lib/utils";
@@ -98,6 +101,20 @@ function UsersPage() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: staffKey });
       toast.success("Rôle mis à jour");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const setPole = useMutation({
+    mutationFn: (data: { staffId: string; pole: ClientPole }) =>
+      setStaffPole({ data }),
+    onSuccess: (_res, vars) => {
+      void qc.invalidateQueries({ queryKey: staffKey });
+      void qc.invalidateQueries({ queryKey: staffDocumentationKey });
+      if (vars.staffId === session?.staff.id) {
+        void qc.invalidateQueries({ queryKey: sessionKey });
+      }
+      toast.success("Pôle mis à jour");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -290,6 +307,7 @@ function UsersPage() {
               <tr>
                 <th className="px-2 py-2 text-left">Nom</th>
                 <th className="px-2 py-2 text-left">Fonction</th>
+                <th className="px-2 py-2 text-left">Pôle</th>
                 <th className="px-2 py-2 text-left">Rôle</th>
                 {isSuper && <th className="px-2 py-2 text-right">Actions</th>}
               </tr>
@@ -311,6 +329,33 @@ function UsersPage() {
                     </div>
                   </td>
                   <td className="px-2 py-2.5">{s.jobTitleLabel}</td>
+                  <td className="px-2 py-2.5">
+                    {s.role === "super_admin" ? (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    ) : (
+                      <select
+                        aria-label={`Pôle de ${s.firstName} ${s.lastName}`}
+                        value={parseClientPole(s.pole)}
+                        disabled={
+                          setPole.isPending &&
+                          setPole.variables?.staffId === s.id
+                        }
+                        onChange={(e) =>
+                          setPole.mutate({
+                            staffId: s.id,
+                            pole: e.target.value as ClientPole,
+                          })
+                        }
+                        className="max-w-[11rem] rounded-xl border border-border/60 bg-surface px-2 py-1.5 text-xs font-medium focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      >
+                        {CLIENT_POLES.map((pole) => (
+                          <option key={pole} value={pole}>
+                            {CLIENT_POLE_LABELS[pole]}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </td>
                   <td className="px-2 py-2.5">
                     <span
                       className={cn(
@@ -413,6 +458,7 @@ function CreateStaffCard() {
     cabinet: string;
     role: string;
     jobTitle: string;
+    pole: string;
   } | null>(null);
   const [form, setForm] = useState({
     firstName: "",
@@ -422,6 +468,7 @@ function CreateStaffCard() {
     jobTitle: "" as string,
     cabinet: "" as string,
     role: "member" as "member" | "admin",
+    pole: DEFAULT_CLIENT_POLE as ClientPole,
     password: "",
     confirmPassword: "",
   });
@@ -449,6 +496,7 @@ function CreateStaffCard() {
         cabinet: CABINET_LABELS[snapshot.cabinet],
         role: roleLabel(snapshot.role),
         jobTitle: jobTitleLabel(snapshot.jobTitle),
+        pole: CLIENT_POLE_LABELS[snapshot.pole],
       });
       setForm({
         firstName: "",
@@ -458,6 +506,7 @@ function CreateStaffCard() {
         jobTitle: "",
         cabinet: "",
         role: "member",
+        pole: DEFAULT_CLIENT_POLE,
         password: "",
         confirmPassword: "",
       });
@@ -564,6 +613,17 @@ function CreateStaffCard() {
               <option value="admin">Administrateur</option>
             </select>
           </label>
+          <div className="sm:col-span-2">
+            <ClientPolePicker
+              compact
+              value={form.pole}
+              onChange={(pole) => setForm((f) => ({ ...f, pole }))}
+            />
+            <p className="mt-1.5 text-[11px] text-muted-foreground">
+              Un membre ne verra que ce pôle. Un administrateur conserve le pôle
+              attribué mais voit tout le cabinet.
+            </p>
+          </div>
           <PasswordField
             label="Mot de passe"
             value={form.password}
@@ -615,6 +675,7 @@ function CredentialsModal({
     cabinet: string;
     role: string;
     jobTitle: string;
+    pole: string;
   } | null;
   onClose: () => void;
 }) {
@@ -627,6 +688,7 @@ function CredentialsModal({
     `Cabinet : ${credentials.cabinet}`,
     `Poste : ${credentials.jobTitle}`,
     `Rôle : ${credentials.role}`,
+    `Pôle : ${credentials.pole}`,
   ].join("\n");
 
   const copy = async (value: string, label: string) => {
@@ -670,7 +732,7 @@ function CredentialsModal({
                 {credentials.firstName} {credentials.lastName}
               </div>
               <div className="mt-1 text-sm text-muted-foreground">
-                {credentials.jobTitle} · {credentials.role} · {credentials.cabinet}
+                {credentials.jobTitle} · {credentials.role} · {credentials.cabinet} · {credentials.pole}
               </div>
             </div>
 

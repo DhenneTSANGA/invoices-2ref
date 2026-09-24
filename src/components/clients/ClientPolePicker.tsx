@@ -11,10 +11,12 @@ export function ClientPolePicker({
   value,
   onChange,
   compact = false,
+  locked = false,
 }: {
   value: ClientPole | null;
   onChange: (v: ClientPole) => void;
   compact?: boolean;
+  locked?: boolean;
 }) {
   return (
     <div className={compact ? "space-y-2" : "col-span-full space-y-2"}>
@@ -35,6 +37,7 @@ export function ClientPolePicker({
             <button
               key={pole}
               type="button"
+              disabled={locked}
               onClick={() => onChange(pole)}
               className={cn(
                 "rounded-2xl border px-3 text-left transition",
@@ -42,6 +45,7 @@ export function ClientPolePicker({
                 active
                   ? "border-primary bg-primary/10 shadow-sm ring-1 ring-primary/30"
                   : "border-border/60 bg-surface hover:bg-muted",
+                locked && "cursor-not-allowed opacity-80",
               )}
             >
               <div className="text-sm font-semibold">
@@ -56,6 +60,11 @@ export function ClientPolePicker({
           );
         })}
       </div>
+      {locked ? (
+        <p className="text-[11px] text-muted-foreground">
+          Pôle attribué à votre compte — non modifiable.
+        </p>
+      ) : null}
     </div>
   );
 }

@@ -18,6 +18,7 @@ import {
 } from "@/lib/letter-ref";
 import { loadClientPoles, persistDocumentPole } from "@/lib/client-pole-db";
 import { parseClientPole } from "@/lib/client-pole";
+import { memberCanSeePole } from "@/lib/staff-pole";
 
 async function requireSession() {
   const session = await getCurrentSession();
@@ -274,6 +275,14 @@ export const createMailMergeCampaign = createServerFn({ method: "POST" })
           },
         })
       : [];
+    const clientPoles = await loadClientPoles(clients.map((c) => c.id));
+    if (
+      clients.some(
+        (c) => !memberCanSeePole(staff, clientPoles.get(c.id) ?? parseClientPole(undefined)),
+      )
+    ) {
+      throw new Error("Certains destinataires sont hors de votre pôle");
+    }
 
     const issueDate = data.issueDate
       ? new Date(`${data.issueDate}T12:00:00.000Z`)

@@ -61,6 +61,12 @@ import {
 } from "@/lib/client-pole-db";
 import { parseClientPole, isClientPole } from "@/lib/client-pole";
 import {
+  assertMemberCanAccessPole,
+  filterByMemberPole,
+  memberCanSeePole,
+  resolveStaffWritePole,
+} from "@/lib/staff-pole";
+import {
   loadReminderTemplates,
   persistReminderTemplates,
 } from "@/lib/reminder-templates-db";
@@ -177,11 +183,19 @@ function cabinetDocWhere(
   };
 }
 
-async function assertClientInCabinet(clientId: string, cabinet: Cabinet) {
+async function assertClientInCabinet(
+  clientId: string,
+  cabinet: Cabinet,
+  staff?: { role: "member" | "admin" | "super_admin"; pole?: import("@/lib/client-pole").ClientPole | null },
+) {
   const client = await prisma.client.findFirst({
     where: { id: clientId, cabinet },
   });
   if (!client) throw new Error("Client introuvable dans ce cabinet");
+  if (staff) {
+    const poles = await loadClientPoles([clientId]);
+    assertMemberCanAccessPole(staff, poles.get(clientId) ?? parseClientPole(undefined));
+  }
   return client;
 }
 
@@ -204,7 +218,10 @@ export const listClients = createServerFn({ method: "GET" })
     });
     const mapped = rows.map(mapClient);
     const poles = await loadClientPoles(mapped.map((c) => c.id));
-    return mapped.map((c) => withClientPole(c, poles));
+    return filterByMemberPole(
+      session.staff,
+      mapped.map((c) => withClientPole(c, poles)),
+    );
   });
 
 export const getClient = createServerFn({ method: "GET" })
@@ -216,7 +233,11 @@ export const getClient = createServerFn({ method: "GET" })
         ? { id: data.id }
         : { id: data.id, cabinet: session.activeCabinet },
     });
-    return row ? withClientPole(mapClient(row), await loadClientPoles([row.id])) : null;
+    const mapped = row
+      ? withClientPole(mapClient(row), await loadClientPoles([row.id]))
+      : null;
+    if (!mapped || !memberCanSeePole(session.staff, mapped.pole)) return null;
+    return mapped;
   });
 
 export const createClient = createServerFn({ method: "POST" })
@@ -256,7 +277,7 @@ export const createClient = createServerFn({ method: "POST" })
         createdById: staff.id,
       },
     });
-    const pole = parseClientPole(data.pole);
+    const pole = resolveStaffWritePole(staff, data.pole);
     await persistClientPole(row.id, pole);
     return withClientPole(mapClient(row), new Map([[row.id, pole]]));
   });
@@ -264,12 +285,18 @@ export const createClient = createServerFn({ method: "POST" })
 export const updateClient = createServerFn({ method: "POST" })
   .validator(clientInputSchema.extend({ id: z.string() }))
   .handler(async ({ data }) => {
-    const { activeCabinet } = await requireSession();
+    const session = await requireSession();
+    const { activeCabinet, staff } = session;
     const { id, ...rest } = data;
     const existing = await prisma.client.findFirst({
       where: { id, cabinet: activeCabinet },
     });
     if (!existing) throw new Error("Client introuvable");
+    const existingPoles = await loadClientPoles([id]);
+    assertMemberCanAccessPole(
+      staff,
+      existingPoles.get(id) ?? parseClientPole(undefined),
+    );
     const row = await prisma.client.update({
       where: { id },
       data: {
@@ -304,7 +331,7 @@ export const updateClient = createServerFn({ method: "POST" })
           : {}),
       },
     });
-    const pole = parseClientPole(rest.pole);
+    const pole = resolveStaffWritePole(staff, rest.pole);
     await persistClientPole(row.id, pole);
     return withClientPole(mapClient(row), new Map([[row.id, pole]]));
   });
@@ -320,6 +347,11 @@ export const uploadClientFiche = createServerFn({ method: "POST" })
         : { id: data.clientId, cabinet: session.activeCabinet },
     });
     if (!existing) throw new Error("Client introuvable");
+    const fichePoles = await loadClientPoles([existing.id]);
+    assertMemberCanAccessPole(
+      session.staff,
+      fichePoles.get(existing.id) ?? parseClientPole(undefined),
+    );
 
     const raw = Buffer.from(data.base64, "base64");
     const maxBytes = 8 * 1024 * 1024;
@@ -386,6 +418,11 @@ export const deleteClient = createServerFn({ method: "POST" })
         : { id: data.id, cabinet: session.activeCabinet },
     });
     if (!existing) throw new Error("Client introuvable");
+    const delPoles = await loadClientPoles([existing.id]);
+    assertMemberCanAccessPole(
+      staff,
+      delPoles.get(existing.id) ?? parseClientPole(undefined),
+    );
     if (!canDeleteClient(staff.role, staff.id, existing.createdById)) {
       throw new Error("Suppression réservée au créateur, à un admin ou au super admin");
     }
@@ -552,7 +589,7 @@ export const listDocuments = createServerFn({ method: "GET" })
       include: docInclude,
       orderBy: { issueDate: "desc" },
     });
-    return mappedDocuments(rows);
+    return filterByMemberPole(session.staff, await mappedDocuments(rows));
   });
 
 /** Tous les documents (cabinet actif, ou tous si super admin + scope). */
@@ -571,7 +608,7 @@ export const listAllDocuments = createServerFn({ method: "GET" })
       include: docInclude,
       orderBy: { issueDate: "desc" },
     });
-    return mappedDocuments(rows);
+    return filterByMemberPole(session.staff, await mappedDocuments(rows));
   });
 
 export const getDocument = createServerFn({ method: "GET" })
@@ -585,7 +622,9 @@ export const getDocument = createServerFn({ method: "GET" })
       include: docInclude,
     });
     if (!row) return null;
-    return mappedDocument(row);
+    const doc = await mappedDocument(row);
+    if (!memberCanSeePole(session.staff, doc.pole)) return null;
+    return doc;
   });
 
 /** Aperçu du prochain numéro chronologique (facture / devis). */
@@ -807,6 +846,11 @@ async function upsertDocumentHandler(
           : { id: data.id, cabinet: activeCabinet },
       });
       if (!existing) throw new Error("Document introuvable");
+      const existingPoles = await loadDocumentPoles([existing.id]);
+      assertMemberCanAccessPole(
+        staff,
+        existingPoles.get(existing.id) ?? parseClientPole(undefined),
+      );
       if (!canWriteDocument(staff.role, staff.id, existing.createdById)) {
         throw new Error("Accès refusé — document en lecture seule");
       }
@@ -814,7 +858,7 @@ async function upsertDocumentHandler(
         throw new Error("Type de document incoherent");
       }
 
-      await assertClientInCabinet(data.clientId, existing.cabinet);
+      await assertClientInCabinet(data.clientId, existing.cabinet, staff);
 
       // Ne pas repasser en brouillon un document déjà signé / envoyé / payé
       // quand on enregistre une simple modification de contenu.
@@ -937,11 +981,17 @@ async function upsertDocumentHandler(
       if (existing.type === "invoice" || existing.type === "quotation") {
         await persistTotalRounding(updated.id, data.totalRounding ?? 0);
       }
-      await persistDocumentPole(updated.id, await resolveDocumentPole(data.clientId, data.pole));
+      await persistDocumentPole(
+        updated.id,
+        resolveStaffWritePole(
+          staff,
+          await resolveDocumentPole(data.clientId, data.pole),
+        ),
+      );
       return mappedDocument(updated);
     }
 
-    await assertClientInCabinet(data.clientId, targetCabinet);
+    await assertClientInCabinet(data.clientId, targetCabinet, staff);
 
     const docData = {
       cabinet: targetCabinet,
@@ -1021,7 +1071,13 @@ async function upsertDocumentHandler(
     if (data.type === "invoice" || data.type === "quotation") {
       await persistTotalRounding(created.id, data.totalRounding ?? 0);
     }
-    await persistDocumentPole(created.id, await resolveDocumentPole(data.clientId, data.pole));
+    await persistDocumentPole(
+      created.id,
+      resolveStaffWritePole(
+        staff,
+        await resolveDocumentPole(data.clientId, data.pole),
+      ),
+    );
     return mappedDocument(created);
 }
 
@@ -1042,6 +1098,11 @@ export const convertQuotationToInvoice = createServerFn({ method: "POST" })
       include: docInclude,
     });
     if (!quotation) throw new Error("Devis introuvable");
+    const quotationPoles = await loadDocumentPoles([quotation.id]);
+    assertMemberCanAccessPole(
+      staff,
+      quotationPoles.get(quotation.id) ?? parseClientPole(undefined),
+    );
     if (!canWriteDocument(staff.role, staff.id, quotation.createdById)) {
       throw new Error("Accès refusé — document en lecture seule");
     }
@@ -1105,8 +1166,12 @@ export const setDocumentStatus = createServerFn({ method: "POST" })
         : { id: data.id, cabinet: session.activeCabinet },
     });
     if (!existing) throw new Error("Document introuvable");
+    const statusPoles = await loadDocumentPoles([existing.id]);
+    assertMemberCanAccessPole(
+      staff,
+      statusPoles.get(existing.id) ?? parseClientPole(undefined),
+    );
     if (!canWriteDocument(staff.role, staff.id, existing.createdById)) {
-      throw new Error("Accès refusé — document en lecture seule");
     }
     if (
       (existing.type === "letter" ||
@@ -1278,7 +1343,15 @@ export const listNotifications = createServerFn({ method: "GET" }).handler(async
     orderBy: { at: "desc" },
     take: 100,
   });
-  return rows.map(mapNotification);
+  const notifPoles = await loadDocumentPoles(
+    rows.map((r) => r.documentId).filter((id): id is string => Boolean(id)),
+  );
+  return rows
+    .map(mapNotification)
+    .filter((n) => {
+      if (!n.documentId) return true;
+      return memberCanSeePole(staff, notifPoles.get(n.documentId));
+    });
 });
 
 export const markAllNotificationsRead = createServerFn({ method: "POST" }).handler(
@@ -1323,6 +1396,11 @@ export const deleteDocument = createServerFn({ method: "POST" })
         : { id: data.id, cabinet: session.activeCabinet },
     });
     if (!existing) throw new Error("Document introuvable");
+    const deletePoles = await loadDocumentPoles([existing.id]);
+    assertMemberCanAccessPole(
+      staff,
+      deletePoles.get(existing.id) ?? parseClientPole(undefined),
+    );
     if (!canWriteDocument(staff.role, staff.id, existing.createdById)) {
       throw new Error(
         "Suppression réservée au créateur, à un admin ou au super admin",
@@ -1519,7 +1597,7 @@ export const listArchivedDocuments = createServerFn({ method: "GET" }).handler(
       include: docInclude,
       orderBy: { issueDate: "desc" },
     });
-    return mappedDocuments(rows);
+    return filterByMemberPole(staff, await mappedDocuments(rows));
   },
 );
 
@@ -1543,6 +1621,11 @@ export const recordDocumentPdf = createServerFn({ method: "POST" })
         : { id: data.documentId, cabinet: session.activeCabinet },
     });
     if (!doc) throw new Error("Document introuvable");
+    const pdfPoles = await loadDocumentPoles([doc.id]);
+    assertMemberCanAccessPole(
+      staff,
+      pdfPoles.get(doc.id) ?? parseClientPole(undefined),
+    );
     if (!canWriteDocument(staff.role, staff.id, doc.createdById)) {
       throw new Error("Accès refusé");
     }
@@ -1592,6 +1675,11 @@ export const listDocumentPdfTraces = createServerFn({ method: "GET" })
       select: { id: true },
     });
     if (!doc) throw new Error("Document introuvable");
+    const tracePoles = await loadDocumentPoles([doc.id]);
+    assertMemberCanAccessPole(
+      session.staff,
+      tracePoles.get(doc.id) ?? parseClientPole(undefined),
+    );
 
     const rows = await prisma.documentPdfTrace.findMany({
       where: { documentId: data.documentId },

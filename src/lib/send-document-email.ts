@@ -30,6 +30,9 @@ import {
 import { documentTypeLabel } from "@/lib/document-status-labels";
 import { amountInWords, number as formatAmount } from "@/lib/format";
 import { canWriteDocument, isAdmin, isSuperAdmin } from "@/lib/roles";
+import { loadDocumentPoles } from "@/lib/client-pole-db";
+import { assertMemberCanAccessPole } from "@/lib/staff-pole";
+import { parseClientPole } from "@/lib/client-pole";
 import type { CompanyInfo, DocumentType } from "@/store/types";
 import { logOutboundMail } from "@/lib/mail-log";
 import {
@@ -589,6 +592,7 @@ type MailStaff = {
   jobTitle: string;
   firstName: string;
   lastName: string;
+  pole?: import("@/lib/client-pole").ClientPole | null;
 };
 
 /** Envoi e-mail document (UI ou tâches planifiées). */
@@ -609,11 +613,15 @@ export async function sendDocumentEmailInternal(params: {
     },
   });
   if (!doc) throw new Error("Document introuvable");
-  if (
-    !params.skipAccessCheck &&
-    !canWriteDocument(params.staff.role, params.staff.id, doc.createdById)
-  ) {
-    throw new Error("Accès refusé — document en lecture seule");
+  if (!params.skipAccessCheck) {
+    const mailPoles = await loadDocumentPoles([doc.id]);
+    assertMemberCanAccessPole(
+      params.staff,
+      mailPoles.get(doc.id) ?? parseClientPole(undefined),
+    );
+    if (!canWriteDocument(params.staff.role, params.staff.id, doc.createdById)) {
+      throw new Error("Accès refusé — document en lecture seule");
+    }
   }
     if (isAccountantSignatory(doc.signatoryTitle)) {
       throw new Error(

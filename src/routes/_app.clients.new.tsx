@@ -1,9 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, Save } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
-import { useCreateClient, useUploadClientFiche } from "@/hooks/use-data";
+import { useCreateClient, useUploadClientFiche, useSession } from "@/hooks/use-data";
 import {
   ClientFicheUpload,
   fileToBase64Payload,
@@ -19,6 +19,7 @@ import {
 import { ClientBillingProfilePicker } from "@/components/clients/ClientBillingProfilePicker";
 import { ClientPolePicker } from "@/components/clients/ClientPolePicker";
 import { CLIENT_POLE_LABELS, type ClientPole } from "@/lib/client-pole";
+import { memberVisibilityPole } from "@/lib/staff-pole";
 
 export const Route = createFileRoute("/_app/clients/new")({
   head: () => ({ meta: [{ title: "Nouveau client — 2R Hub" }] }),
@@ -63,6 +64,8 @@ const empty: Omit<
 
 function NewClient() {
   const navigate = useNavigate();
+  const { data: session } = useSession();
+  const memberPole = memberVisibilityPole(session?.staff);
   const createClient = useCreateClient();
   const uploadFiche = useUploadClientFiche();
   const [form, setForm] = useState(empty);
@@ -71,6 +74,13 @@ function NewClient() {
   const [circuitFile, setCircuitFile] = useState<File | null>(null);
   const [statusFile, setStatusFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!memberPole) return;
+    setForm((f) => (f.pole === memberPole ? f : { ...f, pole: memberPole }));
+    setPoleChosen(true);
+    setStep((s) => (s === 1 ? 2 : s));
+  }, [memberPole]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -143,6 +153,7 @@ function NewClient() {
               setForm({ ...form, pole });
               setPoleChosen(true);
             }}
+            locked={Boolean(memberPole)}
           />
           <div className="flex justify-end">
             <button
@@ -187,6 +198,7 @@ function NewClient() {
           <ClientPolePicker
             value={form.pole}
             onChange={(pole) => setForm({ ...form, pole })}
+            locked={Boolean(memberPole)}
           />
         </Section>
         <Section title="Type de client">

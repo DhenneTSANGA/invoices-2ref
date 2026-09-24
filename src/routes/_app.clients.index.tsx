@@ -9,7 +9,7 @@ import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { shortDate } from "@/lib/format";
 import { toast } from "sonner";
 import { useClients, useDeleteClient, useDocuments, useSession } from "@/hooks/use-data";
-import { canDeleteClient } from "@/lib/roles";
+import { canDeleteClient, isMember } from "@/lib/roles";
 import type { Client, ClientBillingProfile, ClientPole } from "@/store/types";
 import { ClientBillingBadge } from "@/components/clients/ClientBillingProfilePicker";
 import {
@@ -30,6 +30,7 @@ function ClientsPage() {
   const { data: session } = useSession();
   const deleteClient = useDeleteClient();
   const staff = session?.staff;
+  const poleLocked = staff ? isMember(staff.role) : false;
   const [q, setQ] = useState("");
   const [city, setCity] = useState<string>("all");
   const [billingFilter, setBillingFilter] = useState<"all" | ClientBillingProfile>("all");
@@ -113,7 +114,9 @@ function ClientsPage() {
       </div>
 
       <div className="mb-4 space-y-3">
-        <PoleFilterChips value={poleFilter} onChange={setPoleFilter} />
+        {poleLocked ? null : (
+          <PoleFilterChips value={poleFilter} onChange={setPoleFilter} />
+        )}
         <div className="space-y-1.5">
           <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
             Type de client

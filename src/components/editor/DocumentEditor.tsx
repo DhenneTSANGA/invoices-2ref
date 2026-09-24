@@ -18,6 +18,7 @@ import {
 import type { Document, DocumentSection, DocumentType, LineItem } from "@/store/types";
 import { parseClientPole, type ClientPole } from "@/lib/client-pole";
 import { ClientPolePicker } from "@/components/clients/ClientPolePicker";
+import { memberVisibilityPole } from "@/lib/staff-pole";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 import { DocumentPdfButton } from "@/components/documents/DocumentPdfButton";
 import { number } from "@/lib/format";
@@ -127,6 +128,7 @@ export function DocumentEditor({ initial, type }: Props) {
   const isNew = !initial;
   const commercial = type === "invoice" || type === "quotation";
   const adminLike = session ? isAdmin(session.staff.role) : false;
+  const memberPole = memberVisibilityPole(session?.staff);
 
   const clientOptions = (() => {
     const map = new Map(clients.map((c) => [c.id, c.name]));
@@ -249,11 +251,14 @@ export function DocumentEditor({ initial, type }: Props) {
       lastClientIdRef.current !== effectiveClientId;
     lastClientIdRef.current = effectiveClientId;
     setDoc((d) => {
+      if (memberPole) {
+        return d.pole === memberPole ? d : { ...d, pole: memberPole };
+      }
       if (!switched && d.pole) return d;
       const nextPole = parseClientPole(client.pole);
       return d.pole === nextPole ? d : { ...d, pole: nextPole };
     });
-  }, [effectiveClientId, clients, docClient]);
+  }, [effectiveClientId, clients, docClient, memberPole]);
   const executionDays = parseExecutionDays(doc.executionTerms);
   const vatRate = commercial ? docVatRate : documentTaxRates(doc.items).vatRate;
   const cssRate = commercial ? docCssRate : documentTaxRates(doc.items).cssRate;
@@ -774,11 +779,14 @@ export function DocumentEditor({ initial, type }: Props) {
           <div className="sm:col-span-2">
             <ClientPolePicker
               compact
-              value={parseClientPole(doc.pole)}
+              locked={Boolean(memberPole)}
+              value={parseClientPole(memberPole ?? doc.pole)}
               onChange={(pole) => setDoc({ ...doc, pole })}
             />
             <p className="mt-1.5 text-[11px] text-muted-foreground">
-              Prérempli depuis la fiche client — modifiable pour ce document.
+              {memberPole
+                ? "Pôle attribué à votre compte."
+                : "Prérempli depuis la fiche client — modifiable pour ce document."}
             </p>
           </div>
           <Field

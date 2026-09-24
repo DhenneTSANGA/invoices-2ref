@@ -15,7 +15,7 @@ import { currency, shortDate } from "@/lib/format";
 import { paymentMethodLabel } from "@/lib/payment-method";
 import type { ClientBillingProfile, ClientPole, Document, DocumentStatus, DocumentType, PaymentMethod } from "@/store/types";
 import { cn } from "@/lib/utils";
-import { canWriteDocument } from "@/lib/roles";
+import { canWriteDocument, isMember } from "@/lib/roles";
 import {
   CLIENT_BILLING_LABELS,
   CLIENT_BILLING_PROFILES,
@@ -67,6 +67,7 @@ export function DocumentsList({ type }: { type: DocumentType }) {
   const [poleFilter, setPoleFilter] = useState<"all" | ClientPole>("all");
   const [paidPrompt, setPaidPrompt] = useState<{ id: string; number: string } | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Document | null>(null);
+  const poleLocked = session ? isMember(session.staff.role) : false;
   const L = labels[type];
   const statusOptions = statusesFor(type);
 
@@ -221,7 +222,9 @@ export function DocumentsList({ type }: { type: DocumentType }) {
       </div>
 
       <div className="mb-4 space-y-3">
-        <PoleFilterChips value={poleFilter} onChange={setPoleFilter} />
+        {poleLocked ? null : (
+          <PoleFilterChips value={poleFilter} onChange={setPoleFilter} />
+        )}
         <div className="space-y-1.5">
           <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
             Type de client

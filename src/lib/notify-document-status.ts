@@ -10,6 +10,9 @@ import { escapeHtml, resolveCabinetMailAddresses, resendErrorMessage } from "@/l
 import { currency as formatCurrency } from "@/lib/format";
 import type { DocumentStatus, DocumentType, PaymentMethod } from "@/store/types";
 import { paymentMethodLabel } from "@/lib/payment-method";
+import { loadDocumentPoles } from "@/lib/client-pole-db";
+import { loadStaffPoles } from "@/lib/staff-pole-db";
+import { parseClientPole } from "@/lib/client-pole";
 
 type BroadcastArgs = {
   actorStaffId: string;
@@ -71,10 +74,18 @@ export async function broadcastDocumentStatusChange(
       id: { not: args.actorStaffId },
       OR: [{ cabinet: doc.cabinet }, { role: "super_admin" }],
     },
-    select: { id: true },
+    select: { id: true, role: true },
   });
 
-  if (recipients.length > 0) {
+  const docPoles = await loadDocumentPoles([args.documentId]);
+  const docPole = docPoles.get(args.documentId);
+  const staffPoles = await loadStaffPoles(recipients.map((r) => r.id));
+  const visibleRecipients = recipients.filter((r) => {
+    if (r.role !== "member") return true;
+    return parseClientPole(staffPoles.get(r.id)) === parseClientPole(docPole);
+  });
+
+  if (visibleRecipients.length > 0) {
     const typeLabel = documentTypeLabel(args.documentType);
     const prevLabel = documentStatusLabel(args.previousStatus);
     const nextLabel = documentStatusLabel(args.nextStatus);
@@ -85,7 +96,7 @@ export async function broadcastDocumentStatusChange(
         : "";
 
     await db.notification.createMany({
-      data: recipients.map((r) => ({
+      data: visibleRecipients.map((r) => ({
         staffId: r.id,
         documentId: args.documentId,
         cabinet: doc.cabinet,

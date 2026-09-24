@@ -4,11 +4,14 @@ import { prisma } from "@/lib/prisma";
 import { formatPrismaError } from "@/lib/prisma-errors";
 import { getCurrentSession } from "@/lib/session.functions";
 import { isAdmin, isSuperAdmin, canWriteDocument } from "@/lib/roles";
+import { loadDocumentPoles } from "@/lib/client-pole-db";
+import { assertMemberCanAccessPole } from "@/lib/staff-pole";
+import { parseClientPole } from "@/lib/client-pole";
 import { isAccountantSignatory } from "@/lib/signatory";
 import { companyForPreview } from "@/lib/company-defaults";
 import { staffDisplayName } from "@/lib/notify-document-status";
 import { documentTypeLabel } from "@/lib/document-status-labels";
-import type { DocumentType } from "@/store/types";
+import type { DocumentType, StaffMember } from "@/store/types";
 
 async function requireSession() {
   const session = await getCurrentSession();
@@ -101,17 +104,22 @@ async function notifySignatureAudience(args: {
 
 async function loadSignableDoc(args: {
   documentId: string;
-  role: string;
+  staff: Pick<StaffMember, "role" | "pole">;
   activeCabinet: "conseil" | "expertise_fiscale";
   includeCreatedBy?: boolean;
 }) {
   const doc = await prisma.document.findFirst({
-    where: isSuperAdmin(args.role as "super_admin")
+    where: isSuperAdmin(args.staff.role)
       ? { id: args.documentId }
       : { id: args.documentId, cabinet: args.activeCabinet },
     include: args.includeCreatedBy ? { createdBy: true } : undefined,
   });
   if (!doc) throw new Error("Document introuvable");
+  const poles = await loadDocumentPoles([doc.id]);
+  assertMemberCanAccessPole(
+    args.staff,
+    poles.get(doc.id) ?? parseClientPole(undefined),
+  );
   if (!isSignableType(doc.type)) {
     throw new Error("Ce type de document ne prend pas en charge la signature en ligne");
   }
@@ -124,7 +132,7 @@ export const getLetterSignatureRequest = createServerFn({ method: "GET" })
     const session = await requireSession();
     await loadSignableDoc({
       documentId: data.documentId,
-      role: session.staff.role,
+      staff: session.staff,
       activeCabinet: session.activeCabinet,
     });
 
@@ -146,7 +154,7 @@ export const requestLetterSignature = createServerFn({ method: "POST" })
 
       const doc = await loadSignableDoc({
         documentId: data.documentId,
-        role: staff.role,
+        staff,
         activeCabinet,
       });
       if (!canWriteDocument(staff.role, staff.id, doc.createdById)) {
@@ -218,7 +226,7 @@ export const signLetterDocument = createServerFn({ method: "POST" })
 
     const doc = await loadSignableDoc({
       documentId: data.documentId,
-      role: staff.role,
+      staff,
       activeCabinet,
       includeCreatedBy: true,
     });
@@ -314,7 +322,7 @@ export const rejectLetterSignature = createServerFn({ method: "POST" })
 
     const doc = await loadSignableDoc({
       documentId: data.documentId,
-      role: staff.role,
+      staff,
       activeCabinet,
     });
 
