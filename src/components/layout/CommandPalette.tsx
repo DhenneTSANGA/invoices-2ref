@@ -18,7 +18,6 @@ import {
   Users,
   LayoutDashboard,
   Archive,
-  Package,
   Mails,
   Files,
   Mail,
@@ -105,7 +104,6 @@ const NAV_ACTIONS: NavAction[] = [
   { label: "Pôles", path: "/poles", icon: Layers },
   { label: "Tous les documents", path: "/documents", icon: Files },
   { label: "Clients", path: "/clients", icon: Users },
-  { label: "Catalogue", path: "/services", icon: Package },
   { label: "Archives", path: "/archive", icon: Archive },
 ];
 

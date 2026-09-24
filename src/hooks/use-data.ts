@@ -573,6 +573,7 @@ export function useNotifications() {
 
 export const adminRequestsKey = ["admin-requests"] as const;
 export const cabinetStaffKey = ["cabinet-staff"] as const;
+export const staffDocumentationKey = ["staff-documentation"] as const;
 
 export function useMarkAllNotificationsRead() {
   const qc = useQueryClient();

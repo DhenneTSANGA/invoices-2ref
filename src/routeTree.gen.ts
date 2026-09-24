@@ -35,6 +35,7 @@ import { Route as AppLettreRouteImport } from './routes/_app.lettre'
 import { Route as AppInvoicesRouteImport } from './routes/_app.invoices'
 import { Route as AppHomeRouteImport } from './routes/_app.home'
 import { Route as AppDocumentsRouteImport } from './routes/_app.documents'
+import { Route as AppDocumentationRouteImport } from './routes/_app.documentation'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppBilanRouteImport } from './routes/_app.bilan'
 import { Route as AppArchiveRouteImport } from './routes/_app.archive'
@@ -188,6 +189,11 @@ const AppDocumentsRoute = AppDocumentsRouteImport.update({
   path: '/documents',
   getParentRoute: () => AppRoute,
 } as any)
+const AppDocumentationRoute = AppDocumentationRouteImport.update({
+  id: '/documentation',
+  path: '/documentation',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -316,6 +322,7 @@ export interface FileRoutesByFullPath {
   '/archive': typeof AppArchiveRoute
   '/bilan': typeof AppBilanRoute
   '/dashboard': typeof AppDashboardRoute
+  '/documentation': typeof AppDocumentationRoute
   '/documents': typeof AppDocumentsRoute
   '/home': typeof AppHomeRoute
   '/invoices': typeof AppInvoicesRouteWithChildren
@@ -366,6 +373,7 @@ export interface FileRoutesByTo {
   '/archive': typeof AppArchiveRoute
   '/bilan': typeof AppBilanRoute
   '/dashboard': typeof AppDashboardRoute
+  '/documentation': typeof AppDocumentationRoute
   '/documents': typeof AppDocumentsRoute
   '/home': typeof AppHomeRoute
   '/mails': typeof AppMailsRoute
@@ -415,6 +423,7 @@ export interface FileRoutesById {
   '/_app/archive': typeof AppArchiveRoute
   '/_app/bilan': typeof AppBilanRoute
   '/_app/dashboard': typeof AppDashboardRoute
+  '/_app/documentation': typeof AppDocumentationRoute
   '/_app/documents': typeof AppDocumentsRoute
   '/_app/home': typeof AppHomeRoute
   '/_app/invoices': typeof AppInvoicesRouteWithChildren
@@ -467,6 +476,7 @@ export interface FileRouteTypes {
     | '/archive'
     | '/bilan'
     | '/dashboard'
+    | '/documentation'
     | '/documents'
     | '/home'
     | '/invoices'
@@ -517,6 +527,7 @@ export interface FileRouteTypes {
     | '/archive'
     | '/bilan'
     | '/dashboard'
+    | '/documentation'
     | '/documents'
     | '/home'
     | '/mails'
@@ -565,6 +576,7 @@ export interface FileRouteTypes {
     | '/_app/archive'
     | '/_app/bilan'
     | '/_app/dashboard'
+    | '/_app/documentation'
     | '/_app/documents'
     | '/_app/home'
     | '/_app/invoices'
@@ -803,6 +815,13 @@ declare module '@tanstack/react-router' {
       path: '/documents'
       fullPath: '/documents'
       preLoaderRoute: typeof AppDocumentsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/documentation': {
+      id: '/_app/documentation'
+      path: '/documentation'
+      fullPath: '/documentation'
+      preLoaderRoute: typeof AppDocumentationRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/dashboard': {
@@ -1047,6 +1066,7 @@ interface AppRouteChildren {
   AppArchiveRoute: typeof AppArchiveRoute
   AppBilanRoute: typeof AppBilanRoute
   AppDashboardRoute: typeof AppDashboardRoute
+  AppDocumentationRoute: typeof AppDocumentationRoute
   AppDocumentsRoute: typeof AppDocumentsRoute
   AppHomeRoute: typeof AppHomeRoute
   AppInvoicesRoute: typeof AppInvoicesRouteWithChildren
@@ -1073,6 +1093,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppArchiveRoute: AppArchiveRoute,
   AppBilanRoute: AppBilanRoute,
   AppDashboardRoute: AppDashboardRoute,
+  AppDocumentationRoute: AppDocumentationRoute,
   AppDocumentsRoute: AppDocumentsRoute,
   AppHomeRoute: AppHomeRoute,
   AppInvoicesRoute: AppInvoicesRouteWithChildren,

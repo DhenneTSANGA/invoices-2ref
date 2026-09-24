@@ -87,6 +87,11 @@ export function canInviteStaff(role: AppRole): boolean {
   return isSuperAdmin(role);
 }
 
+/** Fiches d’accès créés (sans mot de passe). */
+export function canAccessStaffDocumentation(role: AppRole): boolean {
+  return isSuperAdmin(role);
+}
+
 export function canSwitchCabinet(role: AppRole): boolean {
   return isSuperAdmin(role);
 }

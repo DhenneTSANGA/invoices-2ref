@@ -10,6 +10,7 @@ import {
   sessionKey,
   adminRequestsKey,
   cabinetStaffKey,
+  staffDocumentationKey,
 } from "@/hooks/use-data";
 import {
   listClients,
@@ -24,6 +25,7 @@ import { listMails } from "@/lib/mail.functions";
 import {
   listAdminRequests,
   listCabinetStaff,
+  listStaffDocumentation,
 } from "@/lib/admin.functions";
 import type { AppSession } from "@/lib/session.functions";
 import { CABINETS } from "@/lib/cabinets";
@@ -149,7 +151,7 @@ export function prefetchForNavPath(queryClient: QueryClient, to: string) {
     });
   }
 
-  if (to === "/search" || to === "/services") {
+  if (to === "/search") {
     ensureServices();
   }
 
@@ -227,6 +229,14 @@ export function prefetchForNavPath(queryClient: QueryClient, to: string) {
     void queryClient.prefetchQuery({
       queryKey: cabinetStaffKey,
       queryFn: () => listCabinetStaff(),
+      staleTime: LIST_STALE,
+    });
+  }
+
+  if (to === "/documentation") {
+    void queryClient.prefetchQuery({
+      queryKey: staffDocumentationKey,
+      queryFn: () => listStaffDocumentation(),
       staleTime: LIST_STALE,
     });
   }

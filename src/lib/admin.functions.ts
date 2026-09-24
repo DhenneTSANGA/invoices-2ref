@@ -21,6 +21,7 @@ import {
   canManageAdminRequests,
   canPromoteOrDemoteAdmins,
   isSuperAdmin,
+  canAccessStaffDocumentation,
 } from "@/lib/roles";
 import { jobTitleLabel, normalizeJobTitleValue } from "@/lib/cabinets";
 import {
@@ -410,6 +411,35 @@ export const listCabinetStaff = createServerFn({ method: "GET" }).handler(
     return rows.map((r) => ({
       ...mapStaff(r),
       jobTitleLabel: jobTitleLabel(r.jobTitle),
+    }));
+  },
+);
+
+/** Fiches des comptes créés — super admin uniquement, jamais le mot de passe. */
+export const listStaffDocumentation = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const session = await getCurrentSession();
+    if (!session) throw new Error("Non authentifié");
+    if (!canAccessStaffDocumentation(session.staff.role)) {
+      throw new Error("Accès réservé au super administrateur");
+    }
+
+    const rows = await prisma.staffMember.findMany({
+      where: { role: { not: "super_admin" } },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return rows.map((r) => ({
+      id: r.id,
+      email: r.email,
+      firstName: r.firstName,
+      lastName: r.lastName,
+      phone: r.phone,
+      jobTitle: r.jobTitle,
+      jobTitleLabel: jobTitleLabel(r.jobTitle),
+      role: r.role,
+      cabinet: r.cabinet,
+      createdAt: r.createdAt.toISOString(),
     }));
   },
 );

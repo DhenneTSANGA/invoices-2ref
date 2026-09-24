@@ -27,7 +27,6 @@ import { LoadingState } from "@/components/common/LoadingState";
 import {
   useClients,
   useClient,
-  useServices,
   useUpsertDocument,
   useSendDocumentEmail,
   useSession,
@@ -41,7 +40,6 @@ import {
   isBlankLineFigure,
   lineQuantityForTotal,
   parseLineQuantityUnit,
-  quantityUnitFromServiceUnit,
 } from "@/lib/line-quantity";
 import { isAdmin } from "@/lib/roles";
 import { documentCanSendEmail } from "@/components/documents/DocumentSignatureActions";
@@ -121,7 +119,6 @@ export function DocumentEditor({ initial, type }: Props) {
     initial?.cabinet ?? activeCabinet,
   );
   const { data: docClient } = useClient(initial?.clientId ?? "");
-  const { data: services = [] } = useServices();
   const upsertMutation = useUpsertDocument();
   const sendEmailMutation = useSendDocumentEmail();
   const requestSignMutation = useRequestLetterSignature();
@@ -479,42 +476,6 @@ export function DocumentEditor({ initial, type }: Props) {
     setFocusDescriptionLineId(id);
   };
 
-  const addFromService = (serviceId: string, sectionId?: string | null) => {
-    const s = services.find((x) => x.id === serviceId);
-    if (!s) return;
-    const id = newId();
-    setDoc((d) => {
-      const secs = d.sections ?? [];
-      const sid =
-        sectionId !== undefined
-          ? sectionId
-          : secs.length > 0
-            ? secs[secs.length - 1]!.id
-            : null;
-      return {
-        ...d,
-        items: [
-          ...d.items,
-          {
-            id,
-            serviceId: s.id,
-            description: s.name,
-            quantity: 1,
-            quantityUnit: quantityUnitFromServiceUnit(s.unit),
-            hideZeroFigures: true,
-            unitPrice: s.unitPrice,
-            vatRate: commercial ? docVatRate : s.vatRate || DEFAULT_VAT_RATE,
-            discount: 0,
-            tpsRate: commercial ? docTpsRate : 0,
-            cssRate: commercial ? docCssRate : DEFAULT_CSS_RATE,
-            sectionId: sid,
-          },
-        ],
-      };
-    });
-    setFocusDescriptionLineId(id);
-  };
-
   const enableSections = (on: boolean) => {
     if (!commercial) return;
     if (on) {
@@ -772,7 +733,7 @@ export function DocumentEditor({ initial, type }: Props) {
       <LoadingState
         icon={Users}
         title="Préparation de l'éditeur"
-        description="Chargement des clients et du catalogue…"
+        description="Chargement des clients…"
       />
     );
   }
@@ -1260,35 +1221,14 @@ export function DocumentEditor({ initial, type }: Props) {
               </Button>
             ) : null}
             {(!commercial || amountMode === "ht") && !sectionsEnabled && (
-              <div className="flex flex-wrap items-center gap-2">
-                <select
-                  className="rounded-xl border border-border bg-surface px-3 py-2 text-sm"
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      addFromService(e.target.value);
-                      e.target.value = "";
-                    }
-                  }}
-                  defaultValue=""
-                >
-                  <option value="" disabled>
-                    + Depuis le catalogue…
-                  </option>
-                  {services.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.code} — {s.name}
-                    </option>
-                  ))}
-                </select>
-                <Button
-                  onClick={() => addEmpty()}
-                  variant="outline"
-                  size="sm"
-                  className="rounded-xl"
-                >
-                  <Plus className="h-4 w-4" /> Ligne libre
-                </Button>
-              </div>
+              <Button
+                onClick={() => addEmpty()}
+                variant="outline"
+                size="sm"
+                className="rounded-xl"
+              >
+                <Plus className="h-4 w-4" /> Ligne libre
+              </Button>
             )}
           </div>
         </div>
@@ -1371,25 +1311,6 @@ export function DocumentEditor({ initial, type }: Props) {
                   </div>
                   {amountMode === "ht" ? (
                     <div className="flex flex-wrap items-center gap-2 border-t border-border/50 px-3 py-2">
-                      <select
-                        className="rounded-xl border border-border bg-surface px-3 py-1.5 text-sm"
-                        onChange={(e) => {
-                          if (e.target.value) {
-                            addFromService(e.target.value, sec.id);
-                            e.target.value = "";
-                          }
-                        }}
-                        defaultValue=""
-                      >
-                        <option value="" disabled>
-                          + Catalogue…
-                        </option>
-                        {services.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.code} — {s.name}
-                          </option>
-                        ))}
-                      </select>
                       <Button
                         type="button"
                         onClick={() => addEmpty(sec.id)}
@@ -1724,7 +1645,7 @@ function AnimateEmpty({
     <tr>
       <td colSpan={colSpan} className="py-8 text-center text-sm text-muted-foreground">
         {emptyHint ??
-          "Aucune ligne — ajoutez une prestation depuis le catalogue ou une ligne libre."}
+          "Aucune ligne — ajoutez une ligne libre."}
       </td>
     </tr>
   );

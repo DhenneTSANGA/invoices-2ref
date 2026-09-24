@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { LoadingState } from "@/components/common/LoadingState";
-import { useSession, adminRequestsKey, cabinetStaffKey } from "@/hooks/use-data";
+import { useSession, adminRequestsKey, cabinetStaffKey, staffDocumentationKey } from "@/hooks/use-data";
 import {
   createStaffWithPassword,
   deleteStaffMember,
@@ -440,6 +440,7 @@ function CreateStaffCard() {
     },
     onSuccess: ({ res, password, snapshot }) => {
       void qc.invalidateQueries({ queryKey: staffKey });
+      void qc.invalidateQueries({ queryKey: staffDocumentationKey });
       setCredentials({
         firstName: snapshot.firstName,
         lastName: snapshot.lastName,
@@ -653,8 +654,8 @@ function CredentialsModal({
                   Accès créé
                 </DialogTitle>
                 <DialogDescription className="text-primary-foreground/80">
-                  Copiez ces identifiants et envoyez-les à l’utilisateur. Ils ne
-                  seront plus affichés après fermeture.
+                  Copiez ces identifiants et envoyez-les à l’utilisateur. Le mot
+                  de passe ne sera plus affiché après fermeture.
                 </DialogDescription>
               </DialogHeader>
             </div>
