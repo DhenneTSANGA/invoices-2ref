@@ -391,13 +391,20 @@ export const listCabinetStaff = createServerFn({ method: "GET" }).handler(
       throw new Error("Accès réservé aux administrateurs");
     }
 
-    const where = { cabinet: session.activeCabinet };
+    const where = isSuperAdmin(session.staff.role)
+      ? {
+          OR: [
+            { cabinet: session.activeCabinet },
+            { role: "super_admin" as const },
+          ],
+        }
+      : {
+          cabinet: session.activeCabinet,
+          role: { not: "super_admin" as const },
+        };
 
     const rows = await prisma.staffMember.findMany({
-      where: {
-        ...where,
-        role: { not: "super_admin" },
-      },
+      where,
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
     });
     return rows.map((r) => ({
@@ -507,6 +514,7 @@ export const setStaffAdminRole = createServerFn({ method: "POST" })
     z.object({
       staffId: z.string(),
       role: z.enum(["member", "admin"]),
+      cabinet: z.enum(["conseil", "expertise_fiscale"]).optional(),
     }),
   )
   .handler(async ({ data }) => {
@@ -519,8 +527,26 @@ export const setStaffAdminRole = createServerFn({ method: "POST" })
     const target = await prisma.staffMember.findUnique({
       where: { id: data.staffId },
     });
-    if (!target || target.role === "super_admin") {
-      throw new Error("Collaborateur introuvable");
+    if (!target) throw new Error("Collaborateur introuvable");
+    if (target.id === session.staff.id) {
+      throw new Error("Vous ne pouvez pas modifier votre propre rôle ici");
+    }
+    if (isSuperAdminEmail(target.email)) {
+      throw new Error(
+        "Ce compte est défini super admin par SUPER_ADMIN_EMAIL : il redeviendrait super admin à la prochaine connexion.",
+      );
+    }
+
+    if (target.role === "super_admin") {
+      if (!data.cabinet) {
+        throw new Error("Choisissez un cabinet pour rétrograder ce super admin");
+      }
+      await prisma.staffMember.update({
+        where: { id: data.staffId },
+        data: { role: data.role, cabinet: data.cabinet },
+      });
+      clearSessionMemo(data.staffId);
+      return { ok: true };
     }
 
     await prisma.staffMember.update({

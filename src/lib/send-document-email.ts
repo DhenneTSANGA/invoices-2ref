@@ -28,7 +28,7 @@ import {
   staffDisplayName,
 } from "@/lib/notify-document-status";
 import { documentTypeLabel } from "@/lib/document-status-labels";
-import { currency } from "@/lib/format";
+import { amountInWords, number as formatAmount } from "@/lib/format";
 import { canWriteDocument, isAdmin, isSuperAdmin } from "@/lib/roles";
 import type { CompanyInfo, DocumentType } from "@/store/types";
 import { logOutboundMail } from "@/lib/mail-log";
@@ -69,7 +69,7 @@ async function requireSession() {
   return session;
 }
 
-function money(n: number | { toNumber?: () => number } | string, currencyCode = "XAF") {
+function money(n: number | { toNumber?: () => number } | string) {
   const value =
     typeof n === "number"
       ? n
@@ -78,7 +78,7 @@ function money(n: number | { toNumber?: () => number } | string, currencyCode = 
         : typeof n?.toNumber === "function"
           ? n.toNumber()
           : Number(n);
-  return currency(Number.isFinite(value) ? value : 0, currencyCode);
+  return formatAmount(Number.isFinite(value) ? value : 0);
 }
 
 function formatDate(d: Date) {
@@ -248,12 +248,12 @@ function buildCommercialEmailHtml(params: {
       const qtyLabel = formatLineQuantity(l, { mixed: mixedQty });
       const unitPriceLabel = formatPrintedFigure(
         l.unitPrice,
-        money(l.unitPrice, params.currency),
+        money(l.unitPrice),
         hideZero,
       );
       const totalLabel = formatPrintedFigure(
         l.total,
-        money(l.total, params.currency),
+        money(l.total),
         hideZero,
       );
       const qtyCell = showQty
@@ -271,13 +271,13 @@ function buildCommercialEmailHtml(params: {
 
   const taxRows = [
     params.tps > 0
-      ? `<tr><td style="padding:6px 12px;color:#64748B;font-size:13px;">TPS</td><td style="padding:6px 12px;text-align:right;font-size:13px;${isConseil ? timesFace : ""}">${escapeHtml(money(params.tps, params.currency))}</td></tr>`
+      ? `<tr><td style="padding:6px 12px;color:#64748B;font-size:13px;">TPS</td><td style="padding:6px 12px;text-align:right;font-size:13px;${isConseil ? timesFace : ""}">${escapeHtml(money(params.tps))}</td></tr>`
       : "",
     params.css > 0
-      ? `<tr><td style="padding:6px 12px;color:#64748B;font-size:13px;">CSS</td><td style="padding:6px 12px;text-align:right;font-size:13px;${isConseil ? timesFace : ""}">${escapeHtml(money(params.css, params.currency))}</td></tr>`
+      ? `<tr><td style="padding:6px 12px;color:#64748B;font-size:13px;">CSS</td><td style="padding:6px 12px;text-align:right;font-size:13px;${isConseil ? timesFace : ""}">${escapeHtml(money(params.css))}</td></tr>`
       : "",
     params.tps <= 0
-      ? `<tr><td style="padding:6px 12px;color:#64748B;font-size:13px;">TVA</td><td style="padding:6px 12px;text-align:right;font-size:13px;${isConseil ? timesFace : ""}">${escapeHtml(money(params.vat, params.currency))}</td></tr>`
+      ? `<tr><td style="padding:6px 12px;color:#64748B;font-size:13px;">TVA</td><td style="padding:6px 12px;text-align:right;font-size:13px;${isConseil ? timesFace : ""}">${escapeHtml(money(params.vat))}</td></tr>`
       : "",
   ].join("");
 
@@ -406,17 +406,26 @@ function buildCommercialEmailHtml(params: {
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E2E8F0;border-radius:10px;overflow:hidden;">
             <tr>
               <td style="padding:8px 12px;color:#64748B;font-size:13px;background:#FFFFFF;">Sous-total</td>
-              <td style="padding:8px 12px;text-align:right;font-size:13px;background:#FFFFFF;${isConseil ? timesFace : ""}">${escapeHtml(money(params.subtotal, params.currency))}</td>
+              <td style="padding:8px 12px;text-align:right;font-size:13px;background:#FFFFFF;${isConseil ? timesFace : ""}">${escapeHtml(money(params.subtotal))}</td>
             </tr>
             ${taxRows}
             <tr>
               <td style="padding:12px;font-size:13px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#FFFFFF;background:${barFill};">Total TTC</td>
-              <td style="padding:12px;text-align:right;font-size:14px;font-weight:700;color:#FFFFFF;background:${barFill};${isConseil ? timesFace : ""}">${escapeHtml(money(params.total, params.currency))}</td>
+              <td style="padding:12px;text-align:right;font-size:14px;font-weight:700;color:#FFFFFF;background:${barFill};${isConseil ? timesFace : ""}">${escapeHtml(money(params.total))}</td>
             </tr>
           </table>
         </td>
       </tr>
     </table>
+
+    <p style="margin:14px 0 0;text-align:center;font-size:13px;line-height:1.45;color:#0F172A;${isConseil ? timesFace : ""}">
+      ${
+        params.type === "quotation"
+          ? "Arrêtée le présent devis à la somme de"
+          : "Arrêtée la présente facture à la somme de"
+      }
+      <strong>${escapeHtml(amountInWords(params.total, params.currency))}</strong>
+    </p>
 
     ${
       params.paymentTerms?.trim()

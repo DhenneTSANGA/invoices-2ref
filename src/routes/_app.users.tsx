@@ -90,8 +90,11 @@ function UsersPage() {
   });
 
   const setRole = useMutation({
-    mutationFn: (data: { staffId: string; role: "member" | "admin" }) =>
-      setStaffAdminRole({ data }),
+    mutationFn: (data: {
+      staffId: string;
+      role: "member" | "admin";
+      cabinet?: "conseil" | "expertise_fiscale";
+    }) => setStaffAdminRole({ data }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: staffKey });
       toast.success("Rôle mis à jour");
@@ -116,6 +119,13 @@ function UsersPage() {
     id: string;
     name: string;
   } | null>(null);
+  const [demoteSa, setDemoteSa] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [demoteCabinet, setDemoteCabinet] = useState<
+    "" | "conseil" | "expertise_fiscale"
+  >("");
 
   if (loadingRequests || loadingStaff) {
     return (
@@ -145,6 +155,82 @@ function UsersPage() {
         }}
         onCancel={() => setDeleteTarget(null)}
       />
+
+      <Dialog
+        open={Boolean(demoteSa)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDemoteSa(null);
+            setDemoteCabinet("");
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Rétrograder {demoteSa?.name}</DialogTitle>
+            <DialogDescription>
+              Un super administrateur n’est rattaché à aucun cabinet. Choisissez
+              le cabinet dans lequel ce compte doit réapparaître, en tant
+              qu’administrateur.
+            </DialogDescription>
+          </DialogHeader>
+          <label className="mt-2 block">
+            <span className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Cabinet
+            </span>
+            <select
+              value={demoteCabinet}
+              onChange={(e) =>
+                setDemoteCabinet(
+                  e.target.value as "" | "conseil" | "expertise_fiscale",
+                )
+              }
+              className="w-full rounded-2xl border border-border/60 bg-surface px-3 py-2.5 text-sm"
+            >
+              <option value="">Choisir…</option>
+              <option value="conseil">{CABINET_LABELS.conseil}</option>
+              <option value="expertise_fiscale">
+                {CABINET_LABELS.expertise_fiscale}
+              </option>
+            </select>
+          </label>
+          <div className="mt-4 flex justify-end gap-2">
+            <button
+              type="button"
+              className="rounded-xl border border-border px-3 py-2 text-sm hover:bg-muted"
+              onClick={() => {
+                setDemoteSa(null);
+                setDemoteCabinet("");
+              }}
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              disabled={!demoteCabinet || setRole.isPending}
+              className="rounded-xl bg-gradient-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+              onClick={() => {
+                if (!demoteSa || !demoteCabinet) return;
+                setRole.mutate(
+                  {
+                    staffId: demoteSa.id,
+                    role: "admin",
+                    cabinet: demoteCabinet,
+                  },
+                  {
+                    onSuccess: () => {
+                      setDemoteSa(null);
+                      setDemoteCabinet("");
+                    },
+                  },
+                );
+              }}
+            >
+              Confirmer
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <div className="glass-panel mb-6 rounded-3xl p-5">
         <h3 className="font-display font-semibold">Demandes admin en attente</h3>
@@ -229,19 +315,43 @@ function UsersPage() {
                     <span
                       className={cn(
                         "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold",
-                        s.role === "admin"
-                          ? "bg-primary/10 text-primary"
-                          : "bg-muted text-muted-foreground",
+                        s.role === "super_admin"
+                          ? "bg-violet-500/15 text-violet-800 dark:text-violet-200"
+                          : s.role === "admin"
+                            ? "bg-primary/10 text-primary"
+                            : "bg-muted text-muted-foreground",
                       )}
                     >
-                      {s.role === "admin" && <Shield className="h-3 w-3" />}
+                      {(s.role === "admin" || s.role === "super_admin") && (
+                        <Shield className="h-3 w-3" />
+                      )}
                       {roleLabel(s.role)}
                     </span>
                   </td>
                   {isSuper && (
                     <td className="px-2 py-2.5">
                       <div className="flex justify-end gap-2">
-                        {s.role === "admin" ? (
+                        {s.role === "super_admin" ? (
+                          s.id !== session?.staff.id ? (
+                            <ActionButton
+                              variant="muted"
+                              icon={ArrowDownCircle}
+                              onClick={() =>
+                                setDemoteSa({
+                                  id: s.id,
+                                  name: `${s.firstName} ${s.lastName}`,
+                                })
+                              }
+                              disabled={setRole.isPending}
+                            >
+                              Rétrograder
+                            </ActionButton>
+                          ) : (
+                            <span className="self-center text-xs text-muted-foreground">
+                              Vous
+                            </span>
+                          )
+                        ) : s.role === "admin" ? (
                           <ActionButton
                             variant="muted"
                             icon={ArrowDownCircle}

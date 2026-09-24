@@ -14,7 +14,6 @@ import {
   PreviewBottomRow,
   TimesNum,
   timesDigits,
-  TIMES_NUMERALS,
 } from "./PreviewShell";
 import { computeDocumentTotals, documentTaxRates } from "@/lib/document-math";
 import {
@@ -167,7 +166,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
                   </td>
                   <td style={{ ...TWO_COL.right, textAlign: "right", verticalAlign: "middle" }}>
                     <div
-                      className="font-serif font-bold uppercase leading-none tracking-wide text-[34px]"
+                      className="font-bold uppercase leading-none tracking-wide text-[34px]"
                       style={{ color: REF.title }}
                     >
                       FACTURE
@@ -220,7 +219,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
             </div>
             <div className="shrink-0 text-right">
               <div
-                className="font-display font-bold uppercase tracking-wide text-[30px]"
+                className="font-bold uppercase tracking-wide text-[30px]"
                 style={{ color: accent }}
               >
                 FACTURE
@@ -543,12 +542,11 @@ function PartyBlock({
   const heading = title.trim();
 
   if (referenceDesign) {
-    /* Calibri/Arial + casse du papier : émetteur mixte, client et ville en capitales. */
-    const face = { fontFamily: 'Calibri, Arial, sans-serif' } as const;
+    /* Casse du papier : émetteur mixte, client et ville en capitales. Georgia héritée du shell. */
     const line = "leading-[1.2] break-words";
     const isClientParty = Boolean(heading);
     return (
-      <div className={cn("leading-[1.2]", DOC_TEXT.small)} style={face}>
+      <div className={cn("leading-[1.2]", DOC_TEXT.small)}>
         {heading ? (
           <div className={cn(line, DOC_TEXT.small, "text-[#0F172A]")}>
             {heading}
@@ -789,10 +787,7 @@ function ItemsTable({
                 className={referenceDesign ? undefined : rowBg}
                 style={referenceDesign ? { background: rowBg as string } : undefined}
               >
-                <td
-                  className={cn(cell, "align-top text-[#64748B]")}
-                  style={referenceDesign ? { fontFamily: 'Georgia, "Times New Roman", serif' } : undefined}
-                >
+                <td className={cn(cell, "align-top text-[#64748B]")}>
                   {String(i + 1).padStart(2, "0")}
                 </td>
                 <td className={cn(cell, "align-top leading-snug")}>
@@ -800,18 +795,15 @@ function ItemsTable({
                 </td>
                 {showQty ? (
                   <td
-                    className={cn(cell, "text-right align-top", !referenceDesign && "font-mono")}
-                    style={referenceDesign ? { fontFamily: 'Georgia, "Times New Roman", serif' } : undefined}
+                    className={cn(cell, "text-right align-top")}
                   >
                     {referenceDesign && qtyLabel ? timesDigits(qtyLabel) : qtyLabel}
                   </td>
                 ) : null}
                 <td
-                  className={cn(cell, "text-right align-top", !referenceDesign && "font-mono")}
+                  className={cn(cell, "text-right align-top")}
                   style={
-                    referenceDesign
-                      ? { fontFamily: TIMES_NUMERALS, letterSpacing: "0.04em" }
-                      : undefined
+                    referenceDesign ? { letterSpacing: "0.04em" } : undefined
                   }
                 >
                   {unitPriceLabel}
@@ -821,12 +813,9 @@ function ItemsTable({
                     cell,
                     "text-right align-top font-semibold",
                     DOC_TEXT.base,
-                    !referenceDesign && "font-mono",
                   )}
                   style={
-                    referenceDesign
-                      ? { fontFamily: TIMES_NUMERALS, letterSpacing: "0.04em" }
-                      : undefined
+                    referenceDesign ? { letterSpacing: "0.04em" } : undefined
                   }
                 >
                   {totalLabel}
@@ -999,7 +988,6 @@ function TotalsBlock({
         <AmountRow
           label="Sous-total HT"
           value={number(grossSubtotal)}
-          currency={doc.currency}
           accent={accent}
           compact={compact}
           variant={amountVariant}
@@ -1009,7 +997,6 @@ function TotalsBlock({
           <AmountRow
             label={`Remise (${discountPct} %)`}
             value={number(-discountAmount)}
-            currency={doc.currency}
             accent={accent}
             compact={compact}
             variant={amountVariant}
@@ -1020,7 +1007,6 @@ function TotalsBlock({
           <AmountRow
             label="HT net"
             value={number(subtotal)}
-            currency={doc.currency}
             accent={accent}
             compact={compact}
             variant={amountVariant}
@@ -1033,7 +1019,6 @@ function TotalsBlock({
               displayTpsRate > 0 ? `TPS (${displayTpsRate} %)` : "TPS"
             }
             value={number(-tps)}
-            currency={doc.currency}
             accent={accent}
             compact={compact}
             variant={amountVariant}
@@ -1043,7 +1028,6 @@ function TotalsBlock({
         <AmountRow
           label={`CSS (${cssRate} %)`}
           value={number(css)}
-          currency={doc.currency}
           accent={accent}
           compact={compact}
           variant={amountVariant}
@@ -1053,7 +1037,6 @@ function TotalsBlock({
           <AmountRow
             label={`TVA (${vatRate} %)`}
             value={number(vat)}
-            currency={doc.currency}
             accent={accent}
             compact={compact}
             variant={amountVariant}
@@ -1063,7 +1046,6 @@ function TotalsBlock({
         <AmountRow
           label="Total TTC"
           value={number(total)}
-          currency={doc.currency}
           strong
           accent={accent}
           compact={compact}

@@ -33,7 +33,7 @@ export const DOC_TEXT = {
   base: "text-[13px]",
 } as const;
 
-/** Chiffres documents 2R Conseil. */
+/** Police unique du papier (texte et chiffres). */
 export const TIMES_NUMERALS = 'Georgia, "Times New Roman", serif';
 
 export function TimesNum({
@@ -125,6 +125,7 @@ export function PreviewShell({
       <div
         className={cn("flex min-h-full flex-col leading-relaxed", baseTextClass)}
         style={{
+          fontFamily: TIMES_NUMERALS,
           minHeight: !isThumb ? A4_MIN_HEIGHT : undefined,
           padding: `${padX}px ${padX}px ${padBottom}px`,
         }}
@@ -214,7 +215,6 @@ export function PreviewLogo({
 export function AmountRow({
   label,
   value,
-  currency,
   strong,
   accent = "#01004C",
   compact,
@@ -223,7 +223,6 @@ export function AmountRow({
 }: {
   label: string;
   value: string;
-  currency: string;
   strong?: boolean;
   accent?: string;
   compact?: boolean;
@@ -265,11 +264,10 @@ export function AmountRow({
         className={cn(
           strong ? "font-bold" : "font-semibold text-[#0F172A]",
           DOC_TEXT.base,
-          !isRef && "font-mono",
         )}
-        style={isRef ? { fontFamily: TIMES_NUMERALS, letterSpacing: "0.04em" } : undefined}
+        style={{ fontFamily: TIMES_NUMERALS, letterSpacing: isRef ? "0.04em" : undefined }}
       >
-        {value} {currency}
+        {value}
       </span>
     </div>
   );
@@ -339,7 +337,7 @@ export function LegalFooter({
         <div
           className="mb-2.5 w-full text-center text-[12px] font-bold italic leading-[1.35]"
           style={{
-            fontFamily: '"Times New Roman", Times, serif',
+            fontFamily: TIMES_NUMERALS,
             color: thanksColor || CONSEIL_PAPER_COLORS.accent,
           }}
         >
@@ -422,23 +420,25 @@ export function AmountInWords({
 }) {
   const words = amountInWords(amount, currency);
   const isRef = variant === "reference";
+  const wordsFace = { fontFamily: TIMES_NUMERALS };
 
   if (isRef) {
     return (
       <div className={cn("text-center", compact ? "px-1 py-1" : "px-2 py-1.5")}>
         <p
           className={cn(
-            "break-words italic leading-snug",
+            "break-words leading-snug",
             prominent
               ? "text-[14px] text-[#0F172A]"
               : cn("text-[#334155]", DOC_TEXT.small),
           )}
+          style={wordsFace}
         >
           {intro}{" "}
           {prominent ? (
             <span className="font-bold">{words}</span>
           ) : (
-            <span className={cn("font-semibold not-italic text-[#0F172A]", DOC_TEXT.base)}>
+            <span className={cn("font-semibold text-[#0F172A]", DOC_TEXT.base)}>
               {words}
             </span>
           )}
@@ -458,8 +458,9 @@ export function AmountInWords({
       <div
         className={cn(
           "text-[#64748B]",
-          prominent ? "text-[14px] italic text-[#0F172A]" : cn("whitespace-nowrap", DOC_TEXT.small),
+          prominent ? "text-[14px] text-[#0F172A]" : cn("whitespace-nowrap", DOC_TEXT.small),
         )}
+        style={wordsFace}
       >
         {intro}
       </div>
@@ -469,6 +470,7 @@ export function AmountInWords({
           compact ? "mt-0.5" : "mt-1",
           prominent ? "text-[14px]" : DOC_TEXT.base,
         )}
+        style={wordsFace}
       >
         {words}
       </p>
