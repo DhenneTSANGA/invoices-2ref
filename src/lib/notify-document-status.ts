@@ -7,6 +7,7 @@ import {
 } from "@/lib/document-status-labels";
 import { CABINET_LABELS } from "@/lib/cabinets";
 import { escapeHtml, resolveCabinetMailAddresses, resendErrorMessage } from "@/lib/email";
+import { absoluteAppUrl } from "@/lib/app-url";
 import { currency as formatCurrency } from "@/lib/format";
 import type { DocumentStatus, DocumentType, PaymentMethod } from "@/store/types";
 import { paymentMethodLabel } from "@/lib/payment-method";
@@ -36,15 +37,6 @@ function documentPath(type: DocumentType, id: string): string {
     default:
       return `/documents`;
   }
-}
-
-function appBaseUrl(): string | null {
-  const raw =
-    process.env.APP_URL?.trim() ||
-    process.env.VITE_APP_URL?.trim() ||
-    process.env.SITE_URL?.trim();
-  if (!raw) return null;
-  return raw.replace(/\/$/, "");
 }
 
 /**
@@ -202,9 +194,8 @@ async function notifyAdminsDocumentPaid(args: {
   const prevLabel = documentStatusLabel(args.previousStatus);
   const amount = formatCurrency(args.total, args.currency);
 
-  const base = appBaseUrl();
   const path = documentPath(args.documentType, args.documentId);
-  const link = base ? `${base}${path}` : path;
+  const link = absoluteAppUrl(path);
 
   const subject = `${typeLabel} ${args.documentNumber} marquée payée — ${cabinetLabel}`;
   const html = `

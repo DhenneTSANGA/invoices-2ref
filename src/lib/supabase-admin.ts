@@ -1,5 +1,7 @@
 import { createClient as createSupabaseJsClient } from "@supabase/supabase-js";
 
+export { appPublicUrl, absoluteAppUrl } from "@/lib/app-url";
+
 /** Client Auth Admin (service role) — invites, suppressions, etc. */
 export function createAuthAdmin() {
   const url = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
@@ -16,10 +18,4 @@ export function createAuthAdmin() {
   return createSupabaseJsClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-}
-
-export function appPublicUrl(): string {
-  const fromEnv = process.env.APP_URL?.trim();
-  if (fromEnv) return fromEnv.replace(/\/$/, "");
-  return "http://localhost:8080";
 }
