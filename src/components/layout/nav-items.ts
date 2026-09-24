@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Users, FileText, ReceiptText, Package,
-  Files, Archive, Settings, Bell, Search, UserCircle2, FolderOpen, Mail, Shield, Globe, Inbox, BarChart3,
+  Files, Archive, Settings, Bell, Search, UserCircle2, FolderOpen, Mail, Shield, Globe, Inbox, BarChart3, Layers,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { AppRole } from "@/lib/roles";
@@ -17,6 +17,7 @@ type NavDef = {
 
 export const primaryNav: NavDef[] = [
   { to: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard, iconMotion: "bounce", roles: ["admin", "super_admin"] },
+  { to: "/poles", label: "Pôles", icon: Layers, iconMotion: "bounce", roles: ["admin", "super_admin"] },
   { to: "/home", label: "Accueil", icon: LayoutDashboard, iconMotion: "bounce", roles: ["member"] },
   { to: "/clients", label: "Clients", icon: Users, iconMotion: "pulse" },
   { to: "/services", label: "Catalogue", icon: Package, iconMotion: "bounce" },

@@ -26,6 +26,7 @@ import {
   FolderOpen,
   ArrowRight,
   Command,
+  Layers,
 } from "lucide-react";
 import { documentTypeLabel } from "@/lib/document-status-labels";
 import { CABINET_LABELS } from "@/lib/cabinets";
@@ -101,6 +102,7 @@ const QUICK_ACTIONS: QuickAction[] = [
 
 const NAV_ACTIONS: NavAction[] = [
   { label: "Tableau de bord", path: "/dashboard", icon: LayoutDashboard },
+  { label: "Pôles", path: "/poles", icon: Layers },
   { label: "Tous les documents", path: "/documents", icon: Files },
   { label: "Clients", path: "/clients", icon: Users },
   { label: "Catalogue", path: "/services", icon: Package },

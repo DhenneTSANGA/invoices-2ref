@@ -827,17 +827,50 @@ export function DocumentEditor({ initial, type }: Props) {
             onChange={(v) => setDoc({ ...doc, issueDate: v })}
           />
           {commercial ? (
-            <Field
-              label="Date d'échéance"
-              type="date"
-              value={doc.dueDate ?? ""}
-              onChange={(v) =>
-                setDoc({
-                  ...doc,
-                  dueDate: v.trim() || null,
-                })
-              }
-            />
+            <div className="block space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Date d&apos;échéance (optionnel)
+                </span>
+                <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+                  <Switch
+                    checked={doc.dueDate !== undefined && doc.dueDate !== null}
+                    onCheckedChange={(on) =>
+                      setDoc({
+                        ...doc,
+                        dueDate: on
+                          ? type === "quotation"
+                            ? addDaysIso(doc.issueDate, doc.validityDays ?? 30)
+                            : defaultInvoiceDueIso(doc.issueDate)
+                          : null,
+                      })
+                    }
+                  />
+                  <span>
+                    {doc.dueDate !== undefined && doc.dueDate !== null
+                      ? "Activée"
+                      : "Désactivée"}
+                  </span>
+                </label>
+              </div>
+              {doc.dueDate !== undefined && doc.dueDate !== null ? (
+                <input
+                  type="date"
+                  value={doc.dueDate}
+                  onChange={(e) =>
+                    setDoc({
+                      ...doc,
+                      dueDate: e.target.value.trim() || doc.dueDate,
+                    })
+                  }
+                  className="w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
+                />
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Désactivée : l’échéance n’apparaîtra pas sur le document.
+                </p>
+              )}
+            </div>
           ) : null}
           {type === "quotation" ? (
             <>
@@ -850,7 +883,9 @@ export function DocumentEditor({ initial, type }: Props) {
                   setDoc({
                     ...doc,
                     validityDays: days,
-                    dueDate: addDaysIso(doc.issueDate, days),
+                    ...(doc.dueDate
+                      ? { dueDate: addDaysIso(doc.issueDate, days) }
+                      : {}),
                   });
                 }}
               />

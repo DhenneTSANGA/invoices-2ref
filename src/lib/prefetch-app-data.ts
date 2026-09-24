@@ -121,6 +121,7 @@ export function prefetchForNavPath(queryClient: QueryClient, to: string) {
     to === "/templates" ||
     to === "/archive" ||
     to === "/dashboard" ||
+    to === "/poles" ||
     to === "/home" ||
     to === "/lettre" ||
     to === "/lettre/publipostage"
@@ -132,6 +133,7 @@ export function prefetchForNavPath(queryClient: QueryClient, to: string) {
     to === "/archive" ||
     to === "/search" ||
     to === "/dashboard" ||
+    to === "/poles" ||
     to === "/home"
   ) {
     ensureDocs();

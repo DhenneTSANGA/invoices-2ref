@@ -28,6 +28,7 @@ import { Route as AppServicesRouteImport } from './routes/_app.services'
 import { Route as AppSearchRouteImport } from './routes/_app.search'
 import { Route as AppQuotationsRouteImport } from './routes/_app.quotations'
 import { Route as AppProfileRouteImport } from './routes/_app.profile'
+import { Route as AppPolesRouteImport } from './routes/_app.poles'
 import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
 import { Route as AppMailsRouteImport } from './routes/_app.mails'
 import { Route as AppLettreRouteImport } from './routes/_app.lettre'
@@ -150,6 +151,11 @@ const AppQuotationsRoute = AppQuotationsRouteImport.update({
 const AppProfileRoute = AppProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPolesRoute = AppPolesRouteImport.update({
+  id: '/poles',
+  path: '/poles',
   getParentRoute: () => AppRoute,
 } as any)
 const AppNotificationsRoute = AppNotificationsRouteImport.update({
@@ -316,6 +322,7 @@ export interface FileRoutesByFullPath {
   '/lettre': typeof AppLettreRouteWithChildren
   '/mails': typeof AppMailsRoute
   '/notifications': typeof AppNotificationsRoute
+  '/poles': typeof AppPolesRoute
   '/profile': typeof AppProfileRoute
   '/quotations': typeof AppQuotationsRouteWithChildren
   '/search': typeof AppSearchRoute
@@ -363,6 +370,7 @@ export interface FileRoutesByTo {
   '/home': typeof AppHomeRoute
   '/mails': typeof AppMailsRoute
   '/notifications': typeof AppNotificationsRoute
+  '/poles': typeof AppPolesRoute
   '/profile': typeof AppProfileRoute
   '/search': typeof AppSearchRoute
   '/services': typeof AppServicesRoute
@@ -413,6 +421,7 @@ export interface FileRoutesById {
   '/_app/lettre': typeof AppLettreRouteWithChildren
   '/_app/mails': typeof AppMailsRoute
   '/_app/notifications': typeof AppNotificationsRoute
+  '/_app/poles': typeof AppPolesRoute
   '/_app/profile': typeof AppProfileRoute
   '/_app/quotations': typeof AppQuotationsRouteWithChildren
   '/_app/search': typeof AppSearchRoute
@@ -464,6 +473,7 @@ export interface FileRouteTypes {
     | '/lettre'
     | '/mails'
     | '/notifications'
+    | '/poles'
     | '/profile'
     | '/quotations'
     | '/search'
@@ -511,6 +521,7 @@ export interface FileRouteTypes {
     | '/home'
     | '/mails'
     | '/notifications'
+    | '/poles'
     | '/profile'
     | '/search'
     | '/services'
@@ -560,6 +571,7 @@ export interface FileRouteTypes {
     | '/_app/lettre'
     | '/_app/mails'
     | '/_app/notifications'
+    | '/_app/poles'
     | '/_app/profile'
     | '/_app/quotations'
     | '/_app/search'
@@ -742,6 +754,13 @@ declare module '@tanstack/react-router' {
       path: '/profile'
       fullPath: '/profile'
       preLoaderRoute: typeof AppProfileRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/poles': {
+      id: '/_app/poles'
+      path: '/poles'
+      fullPath: '/poles'
+      preLoaderRoute: typeof AppPolesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/notifications': {
@@ -1034,6 +1053,7 @@ interface AppRouteChildren {
   AppLettreRoute: typeof AppLettreRouteWithChildren
   AppMailsRoute: typeof AppMailsRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
+  AppPolesRoute: typeof AppPolesRoute
   AppProfileRoute: typeof AppProfileRoute
   AppQuotationsRoute: typeof AppQuotationsRouteWithChildren
   AppSearchRoute: typeof AppSearchRoute
@@ -1059,6 +1079,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppLettreRoute: AppLettreRouteWithChildren,
   AppMailsRoute: AppMailsRoute,
   AppNotificationsRoute: AppNotificationsRoute,
+  AppPolesRoute: AppPolesRoute,
   AppProfileRoute: AppProfileRoute,
   AppQuotationsRoute: AppQuotationsRouteWithChildren,
   AppSearchRoute: AppSearchRoute,

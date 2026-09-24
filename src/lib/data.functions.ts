@@ -29,7 +29,6 @@ import {
   clampSubscriptionDay,
   inferSubscriptionDuePattern,
   nextSubscriptionDate,
-  subscriptionDueDateFromIssue,
 } from "@/lib/subscription";
 import { runDueSubscriptions } from "@/lib/billing-jobs";
 import {
@@ -797,9 +796,6 @@ async function upsertDocumentHandler(
     const dueDateValue = (() => {
       if (data.dueDate && String(data.dueDate).trim()) {
         return new Date(data.dueDate);
-      }
-      if (data.type === "invoice") {
-        return subscriptionDueDateFromIssue(issueDateValue, { monthsOffset: 1 });
       }
       return null;
     })();
