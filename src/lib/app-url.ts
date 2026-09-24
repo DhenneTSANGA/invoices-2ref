@@ -1,5 +1,3 @@
-import { getRequest } from "@tanstack/react-start/server";
-
 function normalizePublicUrl(raw: string): string {
   let url = raw.trim().replace(/\/$/, "");
   if (!url) return url;
@@ -7,24 +5,10 @@ function normalizePublicUrl(raw: string): string {
   return url.replace(/\/$/, "");
 }
 
-function originFromRequest(): string | null {
+function originFromWindow(): string | null {
+  if (typeof window === "undefined") return null;
   try {
-    const request = getRequest();
-    const headerOrigin = request.headers.get("origin")?.trim();
-    if (headerOrigin) return normalizePublicUrl(headerOrigin);
-
-    const forwardedHost = request.headers
-      .get("x-forwarded-host")
-      ?.split(",")[0]
-      ?.trim();
-    const host = forwardedHost || request.headers.get("host")?.trim();
-    if (!host) return null;
-    const proto =
-      request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() ||
-      (host.startsWith("localhost") || host.startsWith("127.0.0.1")
-        ? "http"
-        : "https");
-    return normalizePublicUrl(`${proto}://${host}`);
+    return normalizePublicUrl(window.location.origin);
   } catch {
     return null;
   }
@@ -37,8 +21,8 @@ export function appPublicUrl(): string {
     process.env.VITE_APP_URL?.trim() ||
     process.env.SITE_URL?.trim();
   if (fromEnv) return normalizePublicUrl(fromEnv);
-  const fromReq = originFromRequest();
-  if (fromReq) return fromReq;
+  const fromWindow = originFromWindow();
+  if (fromWindow) return fromWindow;
   return "http://localhost:8080";
 }
 
