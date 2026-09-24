@@ -35,8 +35,10 @@ function parseArgs(argv) {
   };
 }
 
-async function printStatus() {
-  const today = todayUtc();
+async function printStatus(refDateStr) {
+  const today = refDateStr
+    ? todayUtc(new Date(`${refDateStr}T00:00:00.000Z`))
+    : todayUtc();
 
   const dueTemplates = await prisma.document.findMany({
     where: {
@@ -79,8 +81,14 @@ async function printStatus() {
   const reminderToday = REMINDER_DAYS.includes(day);
 
   console.log("\n=== État facturation automatique ===\n");
-  console.log(`Date du jour (UTC) : ${today.toISOString().slice(0, 10)}`);
-  console.log(`Jour de relance aujourd'hui ? ${reminderToday ? "oui" : "non"} (paliers : 15, 20, 25)\n`);
+  if (refDateStr) {
+    console.log(`Date simulée : ${refDateStr}`);
+  }
+  console.log(`Date de référence (UTC) : ${today.toISOString().slice(0, 10)}`);
+  console.log(`Jour de relance ? ${reminderToday ? "oui" : "non"} (paliers : 15, 20, 25)`);
+  console.log(
+    "Relance uniquement si facture envoyée, émise avant cette date, et échéance encore après cette date.\n",
+  );
 
   console.log(`Abonnements dus (subscriptionNextAt ≤ aujourd'hui) : ${dueTemplates.length}`);
   for (const t of dueTemplates) {
@@ -96,6 +104,41 @@ async function printStatus() {
       console.log(
         `      · ${inv.number} · échéance ${inv.dueDate?.toISOString().slice(0, 10) ?? "—"} · ${inv.status} · ${inv.total}`,
       );
+    }
+  }
+
+  const dueOrPast = [];
+  for (const client of subscriptionClients) {
+    const invoices = await prisma.document.findMany({
+      where: {
+        clientId: client.id,
+        type: "invoice",
+        status: "sent",
+        issueDate: { lt: today },
+        dueDate: { lte: today },
+        NOT: {
+          isSubscription: true,
+          subscriptionActive: true,
+          subscriptionOfId: null,
+        },
+      },
+      select: { number: true, dueDate: true },
+      orderBy: { dueDate: "asc" },
+    });
+    if (invoices.length > 0) {
+      dueOrPast.push({ client, invoices });
+    }
+  }
+  if (dueOrPast.length > 0) {
+    console.log(
+      `\nFactures envoyées déjà échues à cette date (relance 15/20/25 ignorée) : ${dueOrPast.length} client(s)`,
+    );
+    for (const row of dueOrPast) {
+      for (const inv of row.invoices) {
+        console.log(
+          `  - ${row.client.name} · ${inv.number} · échéance ${inv.dueDate?.toISOString().slice(0, 10) ?? "—"}`,
+        );
+      }
     }
   }
 
@@ -163,7 +206,7 @@ try {
     await printStatus();
   } else if (cmd === "run") {
     await runCron({ refDate, baseUrl });
-    await printStatus();
+    await printStatus(refDate);
   } else {
     console.error("Commande inconnue. Utilisez : status | run");
     process.exit(1);

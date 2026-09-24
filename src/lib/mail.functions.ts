@@ -4,8 +4,10 @@ import type { Cabinet, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session.functions";
 import { isAdmin } from "@/lib/roles";
-import { bareEmail } from "@/lib/email";
-import { htmlToPreview, mapMailRow, type MailListItem } from "@/lib/mail-log";
+import { bareEmail, escapeHtml, requireResendApiKey, resolveCabinetMailAddresses, resolveManagerCc, resendErrorMessage } from "@/lib/email";
+import { htmlToPreview, logOutboundMail, mapMailRow, type MailListItem } from "@/lib/mail-log";
+import { companyForPreview } from "@/lib/company-defaults";
+import { getResend } from "@/lib/resend";
 
 async function requireSession() {
   const session = await getCurrentSession();
@@ -452,5 +454,88 @@ export const clearMailHistory = createServerFn({ method: "POST" }).handler(
     return { deleted: result.count };
   },
 );
+
+/** Réponse manuelle à un client depuis l’espace mails. */
+export const replyToMail = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      mailId: z.string(),
+      body: z.string().min(1, "Message vide").max(20_000),
+    }),
+  )
+  .handler(async ({ data }) => {
+    requireResendApiKey();
+    const session = await requireSession();
+    const { staff, activeCabinet } = session;
+    const cabinet = activeCabinet;
+
+    const linkedDocs = await prisma.document.findMany({
+      where: { cabinet },
+      select: { id: true },
+    });
+    const linkedDocIds = linkedDocs.map((d) => d.id);
+
+    const row = await prisma.mailMessage.findFirst({
+      where: {
+        id: data.mailId,
+        OR: [
+          { cabinet },
+          ...(linkedDocIds.length
+            ? [{ cabinet: null, documentId: { in: linkedDocIds } }]
+            : []),
+        ],
+      },
+    });
+    if (!row) throw new Error("Message introuvable");
+
+    const clientEmail = bareEmail(
+      row.direction === "inbound" ? row.fromEmail : row.toEmail,
+    );
+    if (!clientEmail.includes("@")) {
+      throw new Error("Adresse du destinataire invalide");
+    }
+
+    const companyRow = await prisma.company.findUnique({
+      where: { cabinet },
+    });
+    const company = companyForPreview(companyRow, cabinet);
+    const { from, replyTo } = resolveCabinetMailAddresses(company);
+    const managerCc = resolveManagerCc(company, clientEmail);
+
+    const subject = /^\s*re\s*:/i.test(row.subject.trim())
+      ? row.subject.trim()
+      : `Re: ${row.subject.trim() || "(sans objet)"}`;
+    const text = data.body.trim();
+    const html = `<div style="font-family:system-ui,sans-serif;line-height:1.55;color:#0f172a;white-space:pre-wrap">${escapeHtml(text)}</div>`;
+
+    const resend = getResend();
+    const { data: sent, error } = await resend.emails.send({
+      from,
+      to: clientEmail,
+      ...(managerCc ? { cc: [managerCc] } : {}),
+      subject,
+      html,
+      text,
+      ...(replyTo ? { replyTo: [replyTo] } : {}),
+    });
+    if (error) throw new Error(resendErrorMessage(error));
+
+    await logOutboundMail({
+      cabinet,
+      resendId: sent?.id ?? null,
+      fromEmail: from,
+      toEmail: clientEmail,
+      ccEmail: managerCc ?? null,
+      subject,
+      html,
+      text,
+      documentId: row.documentId,
+      clientId: row.clientId,
+      staffId: staff.id,
+      lastEvent: "sent",
+    });
+
+    return { ok: true as const, to: clientEmail, subject };
+  });
 
 export type { MailListItem };
