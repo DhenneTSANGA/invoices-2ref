@@ -35,6 +35,7 @@ import {
   getMail,
   syncInboundMails,
   clearMailHistory,
+  replyToMail,
 } from "@/lib/mail.functions";
 import { sendDocumentEmail } from "@/lib/send-document-email";
 import {
@@ -445,6 +446,17 @@ export function useSyncMails() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: mailsKey });
       void qc.invalidateQueries({ queryKey: notificationsKey });
+    },
+  });
+}
+
+export function useReplyToMail() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { mailId: string; body: string }) =>
+      replyToMail({ data }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: mailsKey });
     },
   });
 }

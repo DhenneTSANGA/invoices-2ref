@@ -2,8 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Inbox,
+  Loader2,
   Mail,
   MailOpen,
+  Maximize2,
   RefreshCw,
   Reply,
   Send,
@@ -19,6 +21,7 @@ import {
   useMails,
   useSyncMails,
   useClearMailHistory,
+  useReplyToMail,
   useSession,
 } from "@/hooks/use-data";
 import { shortDate } from "@/lib/format";
@@ -36,6 +39,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 export const Route = createFileRoute("/_app/mails")({
   head: () => ({ meta: [{ title: "Mails — 2R Hub" }] }),
@@ -92,6 +103,7 @@ function buildConversations(items: MailListItem[]): Conversation[] {
 function MailsPage() {
   const [selectedPeer, setSelectedPeer] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [readerOpen, setReaderOpen] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
   const threadEndRef = useRef<HTMLDivElement>(null);
   const { data: session } = useSession();
@@ -236,6 +248,15 @@ function MailsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
+      <MailReaderModal
+        open={readerOpen}
+        onOpenChange={setReaderOpen}
+        mail={detail && detail.id === selectedId ? detail : null}
+        loading={Boolean(selectedId) && (loadingDetail || detail?.id !== selectedId)}
+        canReply={Boolean(activeConversation && activeConversation.inboundCount > 0)}
+        peerLabel={activeConversation?.peerLabel ?? ""}
+      />
+
       {inboundHint && (
         <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/40 dark:text-amber-100">
           Pour recevoir les réponses ici, activez{" "}
@@ -336,15 +357,34 @@ function MailsPage() {
                         {activeConversation.messages.length} message(s)
                       </p>
                     </div>
-                    {detail?.documentId ? (
-                      <Link
-                        to="/documents"
-                        search={{ focus: detail.documentId }}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!selectedId && activeConversation.messages.length) {
+                            setSelectedId(
+                              activeConversation.messages[
+                                activeConversation.messages.length - 1
+                              ].id,
+                            );
+                          }
+                          setReaderOpen(true);
+                        }}
                         className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-1.5 text-xs font-medium hover:bg-muted"
                       >
-                        <FileText className="h-3.5 w-3.5" /> Document lié
-                      </Link>
-                    ) : null}
+                        <Maximize2 className="h-3.5 w-3.5" />
+                        Voir en grand
+                      </button>
+                      {detail?.documentId ? (
+                        <Link
+                          to="/documents"
+                          search={{ focus: detail.documentId }}
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-1.5 text-xs font-medium hover:bg-muted"
+                        >
+                          <FileText className="h-3.5 w-3.5" /> Document lié
+                        </Link>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
 
@@ -353,18 +393,29 @@ function MailsPage() {
                     const outbound = mail.direction === "outbound";
                     const selected = mail.id === selectedId;
                     return (
-                      <button
+                      <div
                         key={mail.id}
-                        type="button"
-                        onClick={() => setSelectedId(mail.id)}
                         className={cn(
                           "flex w-full",
                           outbound ? "justify-end" : "justify-start",
                         )}
                       >
                         <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => setSelectedId(mail.id)}
+                          onDoubleClick={() => {
+                            setSelectedId(mail.id);
+                            setReaderOpen(true);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setSelectedId(mail.id);
+                            }
+                          }}
                           className={cn(
-                            "max-w-[min(100%,28rem)] rounded-3xl px-4 py-3 text-left shadow-sm transition",
+                            "max-w-[min(100%,28rem)] cursor-pointer rounded-3xl px-4 py-3 text-left shadow-sm transition",
                             outbound
                               ? "rounded-br-md bg-gradient-primary text-primary-foreground"
                               : "rounded-bl-md border border-border/60 bg-surface",
@@ -403,6 +454,23 @@ function MailsPage() {
                             >
                               {shortDate(mail.createdAt)}
                             </span>
+                            <button
+                              type="button"
+                              title="Voir clairement"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedId(mail.id);
+                                setReaderOpen(true);
+                              }}
+                              className={cn(
+                                "ml-auto inline-flex h-6 w-6 items-center justify-center rounded-full",
+                                outbound
+                                  ? "hover:bg-white/20"
+                                  : "hover:bg-muted",
+                              )}
+                            >
+                              <Maximize2 className="h-3 w-3" />
+                            </button>
                           </div>
                           <p
                             className={cn(
@@ -427,7 +495,7 @@ function MailsPage() {
                             </p>
                           ) : null}
                         </div>
-                      </button>
+                      </div>
                     );
                   })}
                   <div ref={threadEndRef} />
@@ -441,7 +509,19 @@ function MailsPage() {
                       description="Chargement du message…"
                     />
                   ) : detail && detail.id === selectedId ? (
-                    <MailDetailBody mail={detail} />
+                    <div className="space-y-2">
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => setReaderOpen(true)}
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-1.5 text-xs font-medium hover:bg-muted"
+                        >
+                          <Maximize2 className="h-3.5 w-3.5" />
+                          Voir clairement
+                        </button>
+                      </div>
+                      <MailDetailBody mail={detail} />
+                    </div>
                   ) : (
                     <p className="text-sm text-muted-foreground">
                       Sélectionnez une bulle pour lire le contenu complet.
@@ -486,20 +566,246 @@ function MailDetailBody({
         ) : null}
         {mail.lastEvent ? <span>· {mail.lastEvent}</span> : null}
       </div>
-      {mail.htmlBody ? (
-        <div
-          className="prose prose-sm max-w-none dark:prose-invert"
-          dangerouslySetInnerHTML={{ __html: mail.htmlBody }}
-        />
-      ) : mail.textBody ? (
-        <pre className="whitespace-pre-wrap font-sans text-sm">{mail.textBody}</pre>
-      ) : mail.preview ? (
-        <p className="text-sm text-muted-foreground">{mail.preview}</p>
-      ) : (
-        <p className="text-sm italic text-muted-foreground">
-          Contenu non disponible. Essayez Synchroniser.
-        </p>
-      )}
+      <MailBodyView mail={mail} compact />
     </div>
+  );
+}
+
+type MailBody = MailListItem & {
+  htmlBody?: string | null;
+  textBody?: string | null;
+};
+
+function wrapEmailHtml(html: string) {
+  const trimmed = html.trim();
+  if (/^<!DOCTYPE/i.test(trimmed) || /^<html[\s>]/i.test(trimmed)) {
+    return trimmed;
+  }
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>
+    html,body{margin:0;padding:0;background:#ffffff;color:#0f172a;}
+    body{padding:24px;font-family:ui-sans-serif,system-ui,sans-serif;line-height:1.55;}
+    img{max-width:100%;height:auto;}
+    a{color:#2563eb;}
+    table{border-collapse:collapse;}
+  </style></head><body>${trimmed}</body></html>`;
+}
+
+function EmailHtmlFrame({
+  html,
+  title,
+  className,
+}: {
+  html: string;
+  title?: string;
+  className?: string;
+}) {
+  return (
+    <iframe
+      title={title ?? "Contenu du mail"}
+      srcDoc={wrapEmailHtml(html)}
+      sandbox=""
+      className={cn(
+        "w-full rounded-xl border border-slate-200 bg-white",
+        className,
+      )}
+      style={{ colorScheme: "light" }}
+    />
+  );
+}
+
+function MailBodyView({
+  mail,
+  compact,
+}: {
+  mail: MailBody;
+  compact?: boolean;
+}) {
+  if (mail.htmlBody) {
+    return (
+      <EmailHtmlFrame
+        html={mail.htmlBody}
+        title={mail.subject}
+        className={compact ? "min-h-[220px] h-[32vh]" : "h-full min-h-0"}
+      />
+    );
+  }
+  if (mail.textBody) {
+    return (
+      <pre
+        className={cn(
+          "whitespace-pre-wrap rounded-xl bg-white p-4 font-sans text-sm text-slate-900",
+          compact ? "max-h-[32vh] overflow-auto" : "h-full overflow-auto",
+        )}
+      >
+        {mail.textBody}
+      </pre>
+    );
+  }
+  if (mail.preview) {
+    return (
+      <p className="rounded-xl bg-white p-4 text-sm text-slate-700">{mail.preview}</p>
+    );
+  }
+  return (
+    <p className="text-sm italic text-muted-foreground">
+      Contenu non disponible. Essayez Synchroniser.
+    </p>
+  );
+}
+
+function MailReaderModal({
+  open,
+  onOpenChange,
+  mail,
+  loading,
+  canReply,
+  peerLabel,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  mail: MailBody | null;
+  loading: boolean;
+  canReply: boolean;
+  peerLabel: string;
+}) {
+  const [replyBody, setReplyBody] = useState("");
+  const replyMutation = useReplyToMail();
+
+  useEffect(() => {
+    setReplyBody("");
+  }, [mail?.id]);
+
+  const sendReply = () => {
+    if (!mail) return;
+    const body = replyBody.trim();
+    if (!body) {
+      toast.error("Écrivez un message avant d’envoyer.");
+      return;
+    }
+    replyMutation.mutate(
+      { mailId: mail.id, body },
+      {
+        onSuccess: (res) => {
+          setReplyBody("");
+          toast.success(`Réponse envoyée à ${res.to}`);
+        },
+        onError: (err) => {
+          toast.error(
+            err instanceof Error ? err.message : "Envoi de la réponse impossible",
+          );
+        },
+      },
+    );
+  };
+
+  const outbound = mail?.direction === "outbound";
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="flex h-[92vh] w-[96vw] max-w-none flex-col gap-0 overflow-hidden p-0 sm:rounded-2xl">
+        <DialogHeader className="shrink-0 space-y-1 border-b border-border px-6 py-4 pr-12 text-left">
+          <DialogTitle className="font-display text-lg leading-snug">
+            {mail?.subject ?? "Lecture du mail"}
+          </DialogTitle>
+          <DialogDescription asChild>
+            <div className="text-xs">
+              {mail ? (
+                <div className="flex flex-wrap gap-x-4 gap-y-1">
+                  <span>
+                    <strong className="text-foreground">De</strong> {mail.fromEmail}
+                  </span>
+                  <span>
+                    <strong className="text-foreground">À</strong> {mail.toEmail}
+                  </span>
+                  {mail.ccEmail ? (
+                    <span>
+                      <strong className="text-foreground">Cc</strong> {mail.ccEmail}
+                    </span>
+                  ) : null}
+                  <span>{shortDate(mail.createdAt)}</span>
+                  {peerLabel ? <span>· {peerLabel}</span> : null}
+                  {mail.documentId ? (
+                    <Link
+                      to="/documents"
+                      search={{ focus: mail.documentId }}
+                      className="font-medium text-primary underline-offset-2 hover:underline"
+                    >
+                      Document lié
+                    </Link>
+                  ) : null}
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 font-semibold uppercase tracking-wide",
+                      outbound
+                        ? "bg-primary/10 text-primary"
+                        : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+                    )}
+                  >
+                    {outbound ? "Envoyé" : "Reçu"}
+                  </span>
+                </div>
+              ) : (
+                "Le site reste en arrière-plan. Fermez avec Échap ou la croix."
+              )}
+            </div>
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="min-h-0 flex-1 overflow-hidden bg-slate-200 p-3 dark:bg-slate-800">
+          {loading ? (
+            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Chargement du message…
+            </div>
+          ) : mail ? (
+            <div className="h-full min-h-0">
+              <MailBodyView mail={mail} />
+            </div>
+          ) : (
+            <p className="p-6 text-sm text-muted-foreground">
+              Sélectionnez un message pour l’afficher ici.
+            </p>
+          )}
+        </div>
+
+        {canReply && mail ? (
+          <div className="shrink-0 border-t border-border bg-background px-4 py-3 sm:px-6">
+            <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <Reply className="h-3.5 w-3.5" />
+              Répondre à {peerLabel || mail.fromEmail}
+            </p>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+              <Textarea
+                value={replyBody}
+                onChange={(e) => setReplyBody(e.target.value)}
+                placeholder="Votre réponse au client…"
+                rows={3}
+                disabled={replyMutation.isPending}
+                className="min-h-[72px] flex-1 bg-white dark:bg-surface"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                    e.preventDefault();
+                    sendReply();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={sendReply}
+                disabled={replyMutation.isPending || !replyBody.trim()}
+                className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+              >
+                {replyMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+                Envoyer
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </DialogContent>
+    </Dialog>
   );
 }
