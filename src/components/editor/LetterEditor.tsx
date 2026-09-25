@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import {
   Save,
@@ -140,20 +140,15 @@ export function LetterEditor({ initial }: Props) {
     setDoc((d) => (d.clientId ? d : { ...d, clientId: firstId }));
   }, [clients, initial?.clientId]);
 
-  const lastClientIdRef = useRef(initial?.clientId ?? "");
   useEffect(() => {
     const clientId = doc.clientId || clients[0]?.id || "";
     const client = clients.find((c) => c.id === clientId);
     if (!client) return;
-    const switched =
-      Boolean(lastClientIdRef.current) && lastClientIdRef.current !== clientId;
-    lastClientIdRef.current = clientId;
+    const nextPole = parseClientPole(client.pole);
     setDoc((d) => {
       if (memberPole) {
         return d.pole === memberPole ? d : { ...d, pole: memberPole };
       }
-      if (!switched && d.pole) return d;
-      const nextPole = parseClientPole(client.pole);
       return d.pole === nextPole ? d : { ...d, pole: nextPole };
     });
   }, [doc.clientId, clients, memberPole]);

@@ -73,7 +73,53 @@ export function abbrevForPrestationTitle(title: string): string | null {
   const found = DEFAULT_PRESTATION_TITLES.find(
     (s) => s.toLowerCase() === key.toLowerCase(),
   );
-  return found ? PRESTATION_TITLE_ABBREVS[found] : null;
+  if (found) return PRESTATION_TITLE_ABBREVS[found];
+  return derivePrestationAbbrev(key);
+}
+
+/** Mots ignorés pour composer un abrégé (de, et, la…). */
+const PRESTATION_STOPWORDS = new Set([
+  "DE",
+  "DES",
+  "DU",
+  "D",
+  "LA",
+  "LE",
+  "LES",
+  "L",
+  "ET",
+  "OU",
+  "A",
+  "AU",
+  "AUX",
+  "POUR",
+  "EN",
+  "UN",
+  "UNE",
+  "SUR",
+  "PAR",
+  "AVEC",
+]);
+
+/**
+ * Abrégé d’un titre libre : initiales des mots utiles, ou 3–4 lettres
+ * s’il n’y a qu’un mot (ex. « Mission audit interne » → MAI, « Conseil » → CONS).
+ */
+export function derivePrestationAbbrev(title: string): string | null {
+  const prepared = title
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, " ")
+    .trim();
+  if (prepared.replace(/\s/g, "").length < 3) return null;
+
+  const tokens = prepared.split(/\s+/).filter(Boolean);
+  const useful = tokens.filter((w) => !PRESTATION_STOPWORDS.has(w));
+  const words = useful.length > 0 ? useful : tokens;
+  if (words.length === 0) return null;
+  if (words.length === 1) return words[0]!.slice(0, 4);
+  return words.map((w) => w[0]!).join("").slice(0, 6);
 }
 
 export function prestationAbbrevFromSections(
@@ -86,7 +132,7 @@ export function prestationAbbrevFromSections(
   return null;
 }
 
-/** Suffixe le n° commercial avec l’abrégé de la première tâche prédéfinie. */
+/** Suffixe le n° commercial avec l’abrégé de la première tâche. */
 export function applyPrestationAbbrevToNumber(
   number: string,
   sections?: Array<{ title?: string | null }> | null,

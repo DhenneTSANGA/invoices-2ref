@@ -200,9 +200,8 @@ async function assertClientInCabinet(
 }
 
 async function resolveDocumentPole(clientId: string, raw: unknown) {
-  if (isClientPole(raw)) return raw;
   const poles = await loadClientPoles([clientId]);
-  return poles.get(clientId) ?? parseClientPole(raw);
+  return poles.get(clientId) ?? (isClientPole(raw) ? raw : parseClientPole(raw));
 }
 
 // ─── Clients ───────────────────────────────────────────────────────────────
@@ -538,12 +537,14 @@ export const deleteService = createServerFn({ method: "POST" })
 async function mappedDocuments(rows: Parameters<typeof mapDocument>[0][]) {
   const mapped = rows.map(mapDocument);
   const ids = mapped.map((d) => d.id);
-  const [flags, hideZeroFlags, roundingFlags, poles] = await Promise.all([
-    loadShowDueMonthOnLines(ids),
-    loadHideZeroLineFigures(ids),
-    loadTotalRounding(ids),
-    loadDocumentPoles(ids),
-  ]);
+  const [flags, hideZeroFlags, roundingFlags, poles, clientPoles] =
+    await Promise.all([
+      loadShowDueMonthOnLines(ids),
+      loadHideZeroLineFigures(ids),
+      loadTotalRounding(ids),
+      loadDocumentPoles(ids),
+      loadClientPoles([...new Set(mapped.map((d) => d.clientId))]),
+    ]);
   const units = await loadLineQuantityUnits(
     mapped.flatMap((d) => d.items.map((it) => it.id)),
   );
@@ -558,8 +559,10 @@ async function mappedDocuments(rows: Parameters<typeof mapDocument>[0][]) {
       ),
       poles,
     );
+    const fromClient = clientPoles.get(d.clientId);
     return {
       ...withFlags,
+      pole: fromClient ?? withFlags.pole,
       items: d.items.map((it) => ({
         ...it,
         quantityUnit: units.get(it.id) ?? it.quantityUnit ?? "quantity",

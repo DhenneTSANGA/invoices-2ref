@@ -53,7 +53,7 @@ import {
   type SignatoryRole,
 } from "@/lib/signatory";
 import { PrestationTitleInput } from "@/components/editor/PrestationTitleInput";
-import { applyPrestationAbbrevToNumber } from "@/lib/default-prestation-titles";
+import { abbrevForPrestationTitle, applyPrestationAbbrevToNumber } from "@/lib/default-prestation-titles";
 
 const DEFAULT_PAYMENT_MODALITY = "Le 05 suivant le mois de la prestation";
 
@@ -185,7 +185,7 @@ export function DocumentEditor({ initial, type }: Props) {
     setDoc((d) => (d.clientId ? d : { ...d, clientId: firstId }));
   }, [clients, initial?.clientId]);
 
-  // Numéro chronologique FA{n}-JJ-MM-AAAA / DV… + abrégé de tâche prédéfinie
+  // Numéro chronologique FA{n}-JJ-MM-AAAA / DV… + abrégé de la 1re tâche.
   // (aperçu ; allocation définitive à l'enregistrement).
   const sectionTitlesKey = (doc.sections ?? []).map((s) => s.title).join("\n");
   useEffect(() => {
@@ -240,22 +240,16 @@ export function DocumentEditor({ initial, type }: Props) {
   }, [focusDescriptionLineId, doc.items]);
 
   const effectiveClientId = doc.clientId || clients[0]?.id || "";
-  const lastClientIdRef = useRef(initial?.clientId ?? "");
   useEffect(() => {
     const client =
       clients.find((c) => c.id === effectiveClientId) ??
       (docClient?.id === effectiveClientId ? docClient : undefined);
     if (!client) return;
-    const switched =
-      Boolean(lastClientIdRef.current) &&
-      lastClientIdRef.current !== effectiveClientId;
-    lastClientIdRef.current = effectiveClientId;
+    const nextPole = parseClientPole(client.pole);
     setDoc((d) => {
       if (memberPole) {
         return d.pole === memberPole ? d : { ...d, pole: memberPole };
       }
-      if (!switched && d.pole) return d;
-      const nextPole = parseClientPole(client.pole);
       return d.pole === nextPole ? d : { ...d, pole: nextPole };
     });
   }, [effectiveClientId, clients, docClient, memberPole]);
@@ -1247,6 +1241,7 @@ export function DocumentEditor({ initial, type }: Props) {
               const sectionItems = doc.items.filter(
                 (it) => it.sectionId === sec.id,
               );
+              const titleAbbrev = abbrevForPrestationTitle(sec.title);
               return (
                 <div
                   key={sec.id}
@@ -1260,6 +1255,14 @@ export function DocumentEditor({ initial, type }: Props) {
                       value={sec.title}
                       onChange={(title) => updateSection(sec.id, title)}
                     />
+                    {titleAbbrev ? (
+                      <span
+                        className="shrink-0 rounded-md bg-primary/15 px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-wide text-primary"
+                        title="Abrégé ajouté au numéro du document"
+                      >
+                        {titleAbbrev}
+                      </span>
+                    ) : null}
                     <button
                       type="button"
                       onClick={() => removeSection(sec.id)}

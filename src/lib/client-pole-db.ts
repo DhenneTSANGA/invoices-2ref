@@ -12,6 +12,20 @@ export async function persistClientPole(id: string, pole: ClientPole) {
     SET pole = CAST(${value} AS "ClientPole")
     WHERE id = ${id}
   `;
+  await syncDocumentsPoleForClient(id, value);
+}
+
+/** Aligne toutes les factures / devis / lettres du client sur son pôle. */
+export async function syncDocumentsPoleForClient(
+  clientId: string,
+  pole: ClientPole,
+) {
+  const value = parseClientPole(pole);
+  await prisma.$executeRaw`
+    UPDATE "documents"
+    SET pole = CAST(${value} AS "ClientPole")
+    WHERE "clientId" = ${clientId}
+  `;
 }
 
 export async function persistDocumentPole(id: string, pole: ClientPole) {
