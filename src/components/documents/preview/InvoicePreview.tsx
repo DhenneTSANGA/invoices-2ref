@@ -15,7 +15,12 @@ import {
   TimesNum,
   timesDigits,
 } from "./PreviewShell";
-import { computeDocumentTotals, documentTaxRates } from "@/lib/document-math";
+import {
+  computeDocumentTotals,
+  documentTaxRates,
+  remainingDue,
+  normalizedDeposit,
+} from "@/lib/document-math";
 import {
   COMPANY_DEFAULTS,
   DOCUMENT_COLORS,
@@ -970,6 +975,9 @@ function TotalsBlock({
   const css = computed.css || doc.css || 0;
   const vat = tpsActive ? 0 : (computed.vat || doc.vat || 0);
   const total = computed.total;
+  const deposit = normalizedDeposit(doc.deposit);
+  const showDeposits = deposit > 0;
+  const due = remainingDue(total, deposit);
 
   const displayTpsRate =
     tpsRate > 0
@@ -1046,12 +1054,33 @@ function TotalsBlock({
         <AmountRow
           label="Total TTC"
           value={number(total)}
-          strong
+          strong={!showDeposits}
           accent={accent}
           compact={compact}
           variant={amountVariant}
           tint={tint}
         />
+        {showDeposits ? (
+          <>
+            <AmountRow
+              label="Acompte"
+              value={number(-deposit)}
+              accent={accent}
+              compact={compact}
+              variant={amountVariant}
+              tint={tint}
+            />
+            <AmountRow
+              label="Reste à payer"
+              value={number(due)}
+              strong
+              accent={accent}
+              compact={compact}
+              variant={amountVariant}
+              tint={tint}
+            />
+          </>
+        ) : null}
       </div>
     </div>
   );

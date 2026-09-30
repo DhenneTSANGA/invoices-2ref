@@ -1,5 +1,6 @@
 import { Link, useNavigate, useRouteContext } from "@tanstack/react-router";
 import { Logo } from "@/components/common/Logo";
+import { SpaceSwitcher } from "./SpaceSwitcher";
 import { Bell, Moon, Search, Sun, Plus, ChevronDown } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { useTheme } from "@/components/theme/ThemeProvider";
@@ -89,6 +90,9 @@ export function AppTopbar() {
         </button>
 
         <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-1.5">
+          <div className="hidden md:block">
+            <SpaceSwitcher current="facturation" />
+          </div>
           <Link
             to="/invoices/new"
             className="hidden md:inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow transition-transform hover:scale-[1.02] active:scale-[0.98]"

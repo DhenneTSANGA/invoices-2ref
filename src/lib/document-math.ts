@@ -240,3 +240,33 @@ export function formatExecutionTerms(days: number): string {
   const n = Math.max(1, Math.round(days) || 15);
   return `Délai d'exécution : ${n} jours ouvrés après acceptation du devis.`;
 }
+
+/** Acompte saisi (XAF), jamais négatif. */
+export function normalizedDeposit(value?: number | null): number {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.round(n);
+}
+
+/** TTC − acomptes (plancher 0). */
+export function remainingDue(total: number, deposit?: number | null): number {
+  return Math.max(0, Math.round(total) - normalizedDeposit(deposit));
+}
+
+export function isConseilInvoice(doc: {
+  cabinet?: string | null;
+  type?: string | null;
+}): boolean {
+  return doc.cabinet === "conseil" && doc.type === "invoice";
+}
+
+/** Bloc acomptes / reste à payer — papier 2R Conseil (facture et devis). */
+export function showsConseilDeposits(doc: {
+  cabinet?: string | null;
+  type?: string | null;
+}): boolean {
+  return (
+    doc.cabinet === "conseil" &&
+    (doc.type === "invoice" || doc.type === "quotation" || !doc.type)
+  );
+}

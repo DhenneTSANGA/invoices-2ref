@@ -65,6 +65,8 @@ import {
 } from "@/lib/line-quantity";
 import { loadLineHideZeroFigures } from "@/lib/document-line-hide-zero-db";
 import { loadTotalRounding } from "@/lib/document-total-rounding-db";
+import { loadDeposits } from "@/lib/document-deposit-db";
+import { remainingDue, normalizedDeposit } from "@/lib/document-math";
 
 async function requireSession() {
   const session = await getCurrentSession();
@@ -215,6 +217,7 @@ function buildCommercialEmailHtml(params: {
   vat: number;
   rounding?: number;
   total: number;
+  deposit?: number;
   paymentTerms?: string | null;
   showRib?: boolean;
   executionTerms?: string | null;
@@ -283,6 +286,20 @@ function buildCommercialEmailHtml(params: {
       ? `<tr><td style="padding:6px 12px;color:#64748B;font-size:13px;">TVA</td><td style="padding:6px 12px;text-align:right;font-size:13px;${isConseil ? timesFace : ""}">${escapeHtml(money(params.vat))}</td></tr>`
       : "",
   ].join("");
+
+  const deposit = normalizedDeposit(params.deposit);
+  const due = remainingDue(params.total, deposit);
+  const depositRows =
+    deposit > 0 && (params.type === "invoice" || params.type === "quotation")
+      ? `<tr>
+              <td style="padding:8px 12px;color:#64748B;font-size:13px;background:#FFFFFF;">Acompte</td>
+              <td style="padding:8px 12px;text-align:right;font-size:13px;background:#FFFFFF;${timesFace}">${escapeHtml(money(-deposit))}</td>
+            </tr>
+            <tr>
+              <td style="padding:12px;font-size:13px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#FFFFFF;background:${barFill};">Reste à payer</td>
+              <td style="padding:12px;text-align:right;font-size:14px;font-weight:700;color:#FFFFFF;background:${barFill};${timesFace}">${escapeHtml(money(due))}</td>
+            </tr>`
+      : "";
 
   const emitterLines = isConseil
     ? [
@@ -413,9 +430,10 @@ function buildCommercialEmailHtml(params: {
             </tr>
             ${taxRows}
             <tr>
-              <td style="padding:12px;font-size:13px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#FFFFFF;background:${barFill};">Total TTC</td>
-              <td style="padding:12px;text-align:right;font-size:14px;font-weight:700;color:#FFFFFF;background:${barFill};${isConseil ? timesFace : ""}">${escapeHtml(money(params.total))}</td>
+              <td style="padding:${depositRows ? "8px" : "12px"} 12px;font-size:13px;${depositRows ? "color:#64748B;background:#FFFFFF;" : `font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#FFFFFF;background:${barFill};`}">Total TTC</td>
+              <td style="padding:${depositRows ? "8px" : "12px"} 12px;text-align:right;font-size:${depositRows ? "13px" : "14px"};${depositRows ? `color:#0F172A;background:#FFFFFF;${isConseil ? timesFace : ""}` : `font-weight:700;color:#FFFFFF;background:${barFill};${isConseil ? timesFace : ""}`}">${escapeHtml(money(params.total))}</td>
             </tr>
+            ${depositRows}
           </table>
         </td>
       </tr>
@@ -689,6 +707,8 @@ export async function sendDocumentEmailInternal(params: {
       const dueMonthFlags = await loadShowDueMonthOnLines([doc.id]);
       const roundingFlags = await loadTotalRounding([doc.id]);
       const rounding = roundingFlags.get(doc.id) ?? 0;
+      const depositFlags = await loadDeposits([doc.id]);
+      const deposit = depositFlags.get(doc.id) ?? 0;
       const quantityUnits = await loadLineQuantityUnits(doc.lines.map((l) => l.id));
       const hideZeroFlags = await loadLineHideZeroFigures(doc.lines.map((l) => l.id));
       const showDueMonth = shouldAppendDueMonthToLines({
@@ -741,6 +761,7 @@ export async function sendDocumentEmailInternal(params: {
         vat: Number(doc.vat),
         rounding,
         total: Math.max(0, Number(doc.total)),
+        deposit,
         paymentTerms: doc.paymentTerms,
         showRib: doc.cabinet === "conseil" ? true : Boolean(doc.showRib),
         executionTerms: doc.executionTerms,

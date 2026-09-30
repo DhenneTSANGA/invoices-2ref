@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useMemo, useState, useEffect } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, Save, FileText, ReceiptText, Mail } from "lucide-react";
+import { ArrowLeft, Save, FileText, ReceiptText, Mail, FolderKanban } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { LoadingState } from "@/components/common/LoadingState";
 import {
@@ -134,6 +134,15 @@ function EditClient() {
             <ClientBillingBadge profile={form.billingProfile} />
             <ClientPoleBadge pole={form.pole} />
           </span>
+        }
+        actions={
+          <Link
+            to="/dossiers"
+            search={{ q: client.name }}
+            className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted"
+          >
+            <FolderKanban className="h-4 w-4" /> Dossier (démo)
+          </Link>
         }
       />
 

@@ -184,6 +184,8 @@ export type Document = {
   hideZeroLineFigures?: boolean;
   /** Ajustement manuel du TTC en XAF (ex. -1 pour 175 001 → 175 000). */
   totalRounding?: number;
+  /** Acompte déjà versé (XAF), déduit du TTC — factures 2R Conseil. */
+  deposit?: number;
   mailMergeCampaignId?: string | null;
   /** Devis */
   validityDays?: number;

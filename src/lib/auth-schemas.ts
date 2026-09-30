@@ -283,6 +283,7 @@ export const documentInputSchema = z.object({
   showDueMonthOnLines: z.boolean().optional().default(false),
   hideZeroLineFigures: z.boolean().optional().default(true),
   totalRounding: z.coerce.number().int().optional().default(0),
+  deposit: z.coerce.number().min(0).optional().default(0),
   validityDays: z.number().optional().nullable(),
   executionTerms: z.string().optional().nullable(),
   subject: z.string().optional().nullable(),

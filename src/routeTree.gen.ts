@@ -12,12 +12,34 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as QuotasRouteImport } from './routes/quotas'
+import { Route as ProspectionRouteImport } from './routes/prospection'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as HubRouteImport } from './routes/hub'
 import { Route as EquipeRouteImport } from './routes/equipe'
 import { Route as CompteSupprimeRouteImport } from './routes/compte-supprime'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ProspectionIndexRouteImport } from './routes/prospection.index'
+import { Route as ProspectionStrategiquesRouteImport } from './routes/prospection.strategiques'
+import { Route as ProspectionProspectsRouteImport } from './routes/prospection.prospects'
+import { Route as ProspectionPortefeuilleRouteImport } from './routes/prospection.portefeuille'
+import { Route as ProspectionPortGentilRouteImport } from './routes/prospection.port-gentil'
+import { Route as ProspectionPistesRouteImport } from './routes/prospection.pistes'
+import { Route as ProspectionPisteRouteImport } from './routes/prospection.piste'
+import { Route as ProspectionPipelineRouteImport } from './routes/prospection.pipeline'
+import { Route as ProspectionOpportunitesRouteImport } from './routes/prospection.opportunites'
+import { Route as ProspectionObjectifsRouteImport } from './routes/prospection.objectifs'
+import { Route as ProspectionNotificationsRouteImport } from './routes/prospection.notifications'
+import { Route as ProspectionKpiRouteImport } from './routes/prospection.kpi'
+import { Route as ProspectionImportRouteImport } from './routes/prospection.import'
+import { Route as ProspectionClientsRouteImport } from './routes/prospection.clients'
+import { Route as ProspectionBudgetRouteImport } from './routes/prospection.budget'
+import { Route as ProspectionBibliothequeRouteImport } from './routes/prospection.bibliotheque'
+import { Route as ProspectionAgendaRouteImport } from './routes/prospection.agenda'
+import { Route as ProspectionAdminRouteImport } from './routes/prospection.admin'
+import { Route as ProspectionActivitesRouteImport } from './routes/prospection.activites'
+import { Route as ProspectionActionsRouteImport } from './routes/prospection.actions'
 import { Route as AuthSetPasswordRouteImport } from './routes/auth.set-password'
 import { Route as AuthResetPasswordRouteImport } from './routes/auth.reset-password'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
@@ -30,10 +52,13 @@ import { Route as AppQuotationsRouteImport } from './routes/_app.quotations'
 import { Route as AppProfileRouteImport } from './routes/_app.profile'
 import { Route as AppPolesRouteImport } from './routes/_app.poles'
 import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
+import { Route as AppMissionsRouteImport } from './routes/_app.missions'
 import { Route as AppMailsRouteImport } from './routes/_app.mails'
 import { Route as AppLettreRouteImport } from './routes/_app.lettre'
 import { Route as AppInvoicesRouteImport } from './routes/_app.invoices'
 import { Route as AppHomeRouteImport } from './routes/_app.home'
+import { Route as AppGedRouteImport } from './routes/_app.ged'
+import { Route as AppDossiersRouteImport } from './routes/_app.dossiers'
 import { Route as AppDocumentsRouteImport } from './routes/_app.documents'
 import { Route as AppDocumentationRouteImport } from './routes/_app.documentation'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
@@ -43,7 +68,10 @@ import { Route as AppQuotationsIndexRouteImport } from './routes/_app.quotations
 import { Route as AppLettreIndexRouteImport } from './routes/_app.lettre.index'
 import { Route as AppLettersIndexRouteImport } from './routes/_app.letters.index'
 import { Route as AppInvoicesIndexRouteImport } from './routes/_app.invoices.index'
+import { Route as AppDossiersIndexRouteImport } from './routes/_app.dossiers.index'
 import { Route as AppClientsIndexRouteImport } from './routes/_app.clients.index'
+import { Route as ProspectionProspectsIdRouteImport } from './routes/prospection.prospects.$id'
+import { Route as ProspectionClientsIdRouteImport } from './routes/prospection.clients.$id'
 import { Route as ApiStaffSyncRouteImport } from './routes/api/staff.sync'
 import { Route as ApiCronBillingRouteImport } from './routes/api/cron.billing'
 import { Route as AppQuotationsNewRouteImport } from './routes/_app.quotations.new'
@@ -55,6 +83,7 @@ import { Route as AppLettersNewRouteImport } from './routes/_app.letters.new'
 import { Route as AppLettersIdRouteImport } from './routes/_app.letters.$id'
 import { Route as AppInvoicesNewRouteImport } from './routes/_app.invoices.new'
 import { Route as AppInvoicesIdRouteImport } from './routes/_app.invoices.$id'
+import { Route as AppDossiersIdRouteImport } from './routes/_app.dossiers.$id'
 import { Route as AppClientsNewRouteImport } from './routes/_app.clients.new'
 import { Route as AppClientsIdRouteImport } from './routes/_app.clients.$id'
 import { Route as AppQuotationsIdEditRouteImport } from './routes/_app.quotations.$id.edit'
@@ -75,6 +104,11 @@ const QuotasRoute = QuotasRouteImport.update({
   path: '/quotas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProspectionRoute = ProspectionRouteImport.update({
+  id: '/prospection',
+  path: '/prospection',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
@@ -83,6 +117,11 @@ const OnboardingRoute = OnboardingRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HubRoute = HubRouteImport.update({
+  id: '/hub',
+  path: '/hub',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EquipeRoute = EquipeRouteImport.update({
@@ -103,6 +142,107 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ProspectionIndexRoute = ProspectionIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ProspectionRoute,
+} as any)
+const ProspectionStrategiquesRoute = ProspectionStrategiquesRouteImport.update({
+  id: '/strategiques',
+  path: '/strategiques',
+  getParentRoute: () => ProspectionRoute,
+} as any)
+const ProspectionProspectsRoute = ProspectionProspectsRouteImport.update({
+  id: '/prospects',
+  path: '/prospects',
+  getParentRoute: () => ProspectionRoute,
+} as any)
+const ProspectionPortefeuilleRoute = ProspectionPortefeuilleRouteImport.update({
+  id: '/portefeuille',
+  path: '/portefeuille',
+  getParentRoute: () => ProspectionRoute,
+} as any)
+const ProspectionPortGentilRoute = ProspectionPortGentilRouteImport.update({
+  id: '/port-gentil',
+  path: '/port-gentil',
+  getParentRoute: () => ProspectionRoute,
+} as any)
+const ProspectionPistesRoute = ProspectionPistesRouteImport.update({
+  id: '/pistes',
+  path: '/pistes',
+  getParentRoute: () => ProspectionRoute,
+} as any)
+const ProspectionPisteRoute = ProspectionPisteRouteImport.update({
+  id: '/piste',
+  path: '/piste',
+  getParentRoute: () => ProspectionRoute,
+} as any)
+const ProspectionPipelineRoute = ProspectionPipelineRouteImport.update({
+  id: '/pipeline',
+  path: '/pipeline',
+  getParentRoute: () => ProspectionRoute,
+} as any)
+const ProspectionOpportunitesRoute = ProspectionOpportunitesRouteImport.update({
+  id: '/opportunites',
+  path: '/opportunites',
+  getParentRoute: () => ProspectionRoute,
+} as any)
+const ProspectionObjectifsRoute = ProspectionObjectifsRouteImport.update({
+  id: '/objectifs',
+  path: '/objectifs',
+  getParentRoute: () => ProspectionRoute,
+} as any)
+const ProspectionNotificationsRoute =
+  ProspectionNotificationsRouteImport.update({
+    id: '/notifications',
+    path: '/notifications',
+    getParentRoute: () => ProspectionRoute,
+  } as any)
+const ProspectionKpiRoute = ProspectionKpiRouteImport.update({
+  id: '/kpi',
+  path: '/kpi',
+  getParentRoute: () => ProspectionRoute,
+} as any)
+const ProspectionImportRoute = ProspectionImportRouteImport.update({
+  id: '/import',
+  path: '/import',
+  getParentRoute: () => ProspectionRoute,
+} as any)
+const ProspectionClientsRoute = ProspectionClientsRouteImport.update({
+  id: '/clients',
+  path: '/clients',
+  getParentRoute: () => ProspectionRoute,
+} as any)
+const ProspectionBudgetRoute = ProspectionBudgetRouteImport.update({
+  id: '/budget',
+  path: '/budget',
+  getParentRoute: () => ProspectionRoute,
+} as any)
+const ProspectionBibliothequeRoute = ProspectionBibliothequeRouteImport.update({
+  id: '/bibliotheque',
+  path: '/bibliotheque',
+  getParentRoute: () => ProspectionRoute,
+} as any)
+const ProspectionAgendaRoute = ProspectionAgendaRouteImport.update({
+  id: '/agenda',
+  path: '/agenda',
+  getParentRoute: () => ProspectionRoute,
+} as any)
+const ProspectionAdminRoute = ProspectionAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => ProspectionRoute,
+} as any)
+const ProspectionActivitesRoute = ProspectionActivitesRouteImport.update({
+  id: '/activites',
+  path: '/activites',
+  getParentRoute: () => ProspectionRoute,
+} as any)
+const ProspectionActionsRoute = ProspectionActionsRouteImport.update({
+  id: '/actions',
+  path: '/actions',
+  getParentRoute: () => ProspectionRoute,
 } as any)
 const AuthSetPasswordRoute = AuthSetPasswordRouteImport.update({
   id: '/auth/set-password',
@@ -164,6 +304,11 @@ const AppNotificationsRoute = AppNotificationsRouteImport.update({
   path: '/notifications',
   getParentRoute: () => AppRoute,
 } as any)
+const AppMissionsRoute = AppMissionsRouteImport.update({
+  id: '/missions',
+  path: '/missions',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppMailsRoute = AppMailsRouteImport.update({
   id: '/mails',
   path: '/mails',
@@ -182,6 +327,16 @@ const AppInvoicesRoute = AppInvoicesRouteImport.update({
 const AppHomeRoute = AppHomeRouteImport.update({
   id: '/home',
   path: '/home',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppGedRoute = AppGedRouteImport.update({
+  id: '/ged',
+  path: '/ged',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDossiersRoute = AppDossiersRouteImport.update({
+  id: '/dossiers',
+  path: '/dossiers',
   getParentRoute: () => AppRoute,
 } as any)
 const AppDocumentsRoute = AppDocumentsRouteImport.update({
@@ -229,10 +384,25 @@ const AppInvoicesIndexRoute = AppInvoicesIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppInvoicesRoute,
 } as any)
+const AppDossiersIndexRoute = AppDossiersIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppDossiersRoute,
+} as any)
 const AppClientsIndexRoute = AppClientsIndexRouteImport.update({
   id: '/clients/',
   path: '/clients/',
   getParentRoute: () => AppRoute,
+} as any)
+const ProspectionProspectsIdRoute = ProspectionProspectsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ProspectionProspectsRoute,
+} as any)
+const ProspectionClientsIdRoute = ProspectionClientsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ProspectionClientsRoute,
 } as any)
 const ApiStaffSyncRoute = ApiStaffSyncRouteImport.update({
   id: '/api/staff/sync',
@@ -289,6 +459,11 @@ const AppInvoicesIdRoute = AppInvoicesIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => AppInvoicesRoute,
 } as any)
+const AppDossiersIdRoute = AppDossiersIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppDossiersRoute,
+} as any)
 const AppClientsNewRoute = AppClientsNewRouteImport.update({
   id: '/clients/new',
   path: '/clients/new',
@@ -314,8 +489,10 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/compte-supprime': typeof CompteSupprimeRoute
   '/equipe': typeof EquipeRoute
+  '/hub': typeof HubRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
+  '/prospection': typeof ProspectionRouteWithChildren
   '/quotas': typeof QuotasRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -324,10 +501,13 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AppDashboardRoute
   '/documentation': typeof AppDocumentationRoute
   '/documents': typeof AppDocumentsRoute
+  '/dossiers': typeof AppDossiersRouteWithChildren
+  '/ged': typeof AppGedRoute
   '/home': typeof AppHomeRoute
   '/invoices': typeof AppInvoicesRouteWithChildren
   '/lettre': typeof AppLettreRouteWithChildren
   '/mails': typeof AppMailsRoute
+  '/missions': typeof AppMissionsRoute
   '/notifications': typeof AppNotificationsRoute
   '/poles': typeof AppPolesRoute
   '/profile': typeof AppProfileRoute
@@ -340,8 +520,29 @@ export interface FileRoutesByFullPath {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/set-password': typeof AuthSetPasswordRoute
+  '/prospection/actions': typeof ProspectionActionsRoute
+  '/prospection/activites': typeof ProspectionActivitesRoute
+  '/prospection/admin': typeof ProspectionAdminRoute
+  '/prospection/agenda': typeof ProspectionAgendaRoute
+  '/prospection/bibliotheque': typeof ProspectionBibliothequeRoute
+  '/prospection/budget': typeof ProspectionBudgetRoute
+  '/prospection/clients': typeof ProspectionClientsRouteWithChildren
+  '/prospection/import': typeof ProspectionImportRoute
+  '/prospection/kpi': typeof ProspectionKpiRoute
+  '/prospection/notifications': typeof ProspectionNotificationsRoute
+  '/prospection/objectifs': typeof ProspectionObjectifsRoute
+  '/prospection/opportunites': typeof ProspectionOpportunitesRoute
+  '/prospection/pipeline': typeof ProspectionPipelineRoute
+  '/prospection/piste': typeof ProspectionPisteRoute
+  '/prospection/pistes': typeof ProspectionPistesRoute
+  '/prospection/port-gentil': typeof ProspectionPortGentilRoute
+  '/prospection/portefeuille': typeof ProspectionPortefeuilleRoute
+  '/prospection/prospects': typeof ProspectionProspectsRouteWithChildren
+  '/prospection/strategiques': typeof ProspectionStrategiquesRoute
+  '/prospection/': typeof ProspectionIndexRoute
   '/clients/$id': typeof AppClientsIdRoute
   '/clients/new': typeof AppClientsNewRoute
+  '/dossiers/$id': typeof AppDossiersIdRoute
   '/invoices/$id': typeof AppInvoicesIdRouteWithChildren
   '/invoices/new': typeof AppInvoicesNewRoute
   '/letters/$id': typeof AppLettersIdRoute
@@ -353,7 +554,10 @@ export interface FileRoutesByFullPath {
   '/quotations/new': typeof AppQuotationsNewRoute
   '/api/cron/billing': typeof ApiCronBillingRoute
   '/api/staff/sync': typeof ApiStaffSyncRoute
+  '/prospection/clients/$id': typeof ProspectionClientsIdRoute
+  '/prospection/prospects/$id': typeof ProspectionProspectsIdRoute
   '/clients/': typeof AppClientsIndexRoute
+  '/dossiers/': typeof AppDossiersIndexRoute
   '/invoices/': typeof AppInvoicesIndexRoute
   '/letters/': typeof AppLettersIndexRoute
   '/lettre/': typeof AppLettreIndexRoute
@@ -365,6 +569,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/compte-supprime': typeof CompteSupprimeRoute
   '/equipe': typeof EquipeRoute
+  '/hub': typeof HubRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/quotas': typeof QuotasRoute
@@ -375,8 +580,10 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AppDashboardRoute
   '/documentation': typeof AppDocumentationRoute
   '/documents': typeof AppDocumentsRoute
+  '/ged': typeof AppGedRoute
   '/home': typeof AppHomeRoute
   '/mails': typeof AppMailsRoute
+  '/missions': typeof AppMissionsRoute
   '/notifications': typeof AppNotificationsRoute
   '/poles': typeof AppPolesRoute
   '/profile': typeof AppProfileRoute
@@ -388,8 +595,29 @@ export interface FileRoutesByTo {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/set-password': typeof AuthSetPasswordRoute
+  '/prospection/actions': typeof ProspectionActionsRoute
+  '/prospection/activites': typeof ProspectionActivitesRoute
+  '/prospection/admin': typeof ProspectionAdminRoute
+  '/prospection/agenda': typeof ProspectionAgendaRoute
+  '/prospection/bibliotheque': typeof ProspectionBibliothequeRoute
+  '/prospection/budget': typeof ProspectionBudgetRoute
+  '/prospection/clients': typeof ProspectionClientsRouteWithChildren
+  '/prospection/import': typeof ProspectionImportRoute
+  '/prospection/kpi': typeof ProspectionKpiRoute
+  '/prospection/notifications': typeof ProspectionNotificationsRoute
+  '/prospection/objectifs': typeof ProspectionObjectifsRoute
+  '/prospection/opportunites': typeof ProspectionOpportunitesRoute
+  '/prospection/pipeline': typeof ProspectionPipelineRoute
+  '/prospection/piste': typeof ProspectionPisteRoute
+  '/prospection/pistes': typeof ProspectionPistesRoute
+  '/prospection/port-gentil': typeof ProspectionPortGentilRoute
+  '/prospection/portefeuille': typeof ProspectionPortefeuilleRoute
+  '/prospection/prospects': typeof ProspectionProspectsRouteWithChildren
+  '/prospection/strategiques': typeof ProspectionStrategiquesRoute
+  '/prospection': typeof ProspectionIndexRoute
   '/clients/$id': typeof AppClientsIdRoute
   '/clients/new': typeof AppClientsNewRoute
+  '/dossiers/$id': typeof AppDossiersIdRoute
   '/invoices/$id': typeof AppInvoicesIdRouteWithChildren
   '/invoices/new': typeof AppInvoicesNewRoute
   '/letters/$id': typeof AppLettersIdRoute
@@ -401,7 +629,10 @@ export interface FileRoutesByTo {
   '/quotations/new': typeof AppQuotationsNewRoute
   '/api/cron/billing': typeof ApiCronBillingRoute
   '/api/staff/sync': typeof ApiStaffSyncRoute
+  '/prospection/clients/$id': typeof ProspectionClientsIdRoute
+  '/prospection/prospects/$id': typeof ProspectionProspectsIdRoute
   '/clients': typeof AppClientsIndexRoute
+  '/dossiers': typeof AppDossiersIndexRoute
   '/invoices': typeof AppInvoicesIndexRoute
   '/letters': typeof AppLettersIndexRoute
   '/lettre': typeof AppLettreIndexRoute
@@ -415,8 +646,10 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/compte-supprime': typeof CompteSupprimeRoute
   '/equipe': typeof EquipeRoute
+  '/hub': typeof HubRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
+  '/prospection': typeof ProspectionRouteWithChildren
   '/quotas': typeof QuotasRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -425,10 +658,13 @@ export interface FileRoutesById {
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/documentation': typeof AppDocumentationRoute
   '/_app/documents': typeof AppDocumentsRoute
+  '/_app/dossiers': typeof AppDossiersRouteWithChildren
+  '/_app/ged': typeof AppGedRoute
   '/_app/home': typeof AppHomeRoute
   '/_app/invoices': typeof AppInvoicesRouteWithChildren
   '/_app/lettre': typeof AppLettreRouteWithChildren
   '/_app/mails': typeof AppMailsRoute
+  '/_app/missions': typeof AppMissionsRoute
   '/_app/notifications': typeof AppNotificationsRoute
   '/_app/poles': typeof AppPolesRoute
   '/_app/profile': typeof AppProfileRoute
@@ -441,8 +677,29 @@ export interface FileRoutesById {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/set-password': typeof AuthSetPasswordRoute
+  '/prospection/actions': typeof ProspectionActionsRoute
+  '/prospection/activites': typeof ProspectionActivitesRoute
+  '/prospection/admin': typeof ProspectionAdminRoute
+  '/prospection/agenda': typeof ProspectionAgendaRoute
+  '/prospection/bibliotheque': typeof ProspectionBibliothequeRoute
+  '/prospection/budget': typeof ProspectionBudgetRoute
+  '/prospection/clients': typeof ProspectionClientsRouteWithChildren
+  '/prospection/import': typeof ProspectionImportRoute
+  '/prospection/kpi': typeof ProspectionKpiRoute
+  '/prospection/notifications': typeof ProspectionNotificationsRoute
+  '/prospection/objectifs': typeof ProspectionObjectifsRoute
+  '/prospection/opportunites': typeof ProspectionOpportunitesRoute
+  '/prospection/pipeline': typeof ProspectionPipelineRoute
+  '/prospection/piste': typeof ProspectionPisteRoute
+  '/prospection/pistes': typeof ProspectionPistesRoute
+  '/prospection/port-gentil': typeof ProspectionPortGentilRoute
+  '/prospection/portefeuille': typeof ProspectionPortefeuilleRoute
+  '/prospection/prospects': typeof ProspectionProspectsRouteWithChildren
+  '/prospection/strategiques': typeof ProspectionStrategiquesRoute
+  '/prospection/': typeof ProspectionIndexRoute
   '/_app/clients/$id': typeof AppClientsIdRoute
   '/_app/clients/new': typeof AppClientsNewRoute
+  '/_app/dossiers/$id': typeof AppDossiersIdRoute
   '/_app/invoices/$id': typeof AppInvoicesIdRouteWithChildren
   '/_app/invoices/new': typeof AppInvoicesNewRoute
   '/_app/letters/$id': typeof AppLettersIdRoute
@@ -454,7 +711,10 @@ export interface FileRoutesById {
   '/_app/quotations/new': typeof AppQuotationsNewRoute
   '/api/cron/billing': typeof ApiCronBillingRoute
   '/api/staff/sync': typeof ApiStaffSyncRoute
+  '/prospection/clients/$id': typeof ProspectionClientsIdRoute
+  '/prospection/prospects/$id': typeof ProspectionProspectsIdRoute
   '/_app/clients/': typeof AppClientsIndexRoute
+  '/_app/dossiers/': typeof AppDossiersIndexRoute
   '/_app/invoices/': typeof AppInvoicesIndexRoute
   '/_app/letters/': typeof AppLettersIndexRoute
   '/_app/lettre/': typeof AppLettreIndexRoute
@@ -468,8 +728,10 @@ export interface FileRouteTypes {
     | '/'
     | '/compte-supprime'
     | '/equipe'
+    | '/hub'
     | '/login'
     | '/onboarding'
+    | '/prospection'
     | '/quotas'
     | '/signup'
     | '/sitemap.xml'
@@ -478,10 +740,13 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/documentation'
     | '/documents'
+    | '/dossiers'
+    | '/ged'
     | '/home'
     | '/invoices'
     | '/lettre'
     | '/mails'
+    | '/missions'
     | '/notifications'
     | '/poles'
     | '/profile'
@@ -494,8 +759,29 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/reset-password'
     | '/auth/set-password'
+    | '/prospection/actions'
+    | '/prospection/activites'
+    | '/prospection/admin'
+    | '/prospection/agenda'
+    | '/prospection/bibliotheque'
+    | '/prospection/budget'
+    | '/prospection/clients'
+    | '/prospection/import'
+    | '/prospection/kpi'
+    | '/prospection/notifications'
+    | '/prospection/objectifs'
+    | '/prospection/opportunites'
+    | '/prospection/pipeline'
+    | '/prospection/piste'
+    | '/prospection/pistes'
+    | '/prospection/port-gentil'
+    | '/prospection/portefeuille'
+    | '/prospection/prospects'
+    | '/prospection/strategiques'
+    | '/prospection/'
     | '/clients/$id'
     | '/clients/new'
+    | '/dossiers/$id'
     | '/invoices/$id'
     | '/invoices/new'
     | '/letters/$id'
@@ -507,7 +793,10 @@ export interface FileRouteTypes {
     | '/quotations/new'
     | '/api/cron/billing'
     | '/api/staff/sync'
+    | '/prospection/clients/$id'
+    | '/prospection/prospects/$id'
     | '/clients/'
+    | '/dossiers/'
     | '/invoices/'
     | '/letters/'
     | '/lettre/'
@@ -519,6 +808,7 @@ export interface FileRouteTypes {
     | '/'
     | '/compte-supprime'
     | '/equipe'
+    | '/hub'
     | '/login'
     | '/onboarding'
     | '/quotas'
@@ -529,8 +819,10 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/documentation'
     | '/documents'
+    | '/ged'
     | '/home'
     | '/mails'
+    | '/missions'
     | '/notifications'
     | '/poles'
     | '/profile'
@@ -542,8 +834,29 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/reset-password'
     | '/auth/set-password'
+    | '/prospection/actions'
+    | '/prospection/activites'
+    | '/prospection/admin'
+    | '/prospection/agenda'
+    | '/prospection/bibliotheque'
+    | '/prospection/budget'
+    | '/prospection/clients'
+    | '/prospection/import'
+    | '/prospection/kpi'
+    | '/prospection/notifications'
+    | '/prospection/objectifs'
+    | '/prospection/opportunites'
+    | '/prospection/pipeline'
+    | '/prospection/piste'
+    | '/prospection/pistes'
+    | '/prospection/port-gentil'
+    | '/prospection/portefeuille'
+    | '/prospection/prospects'
+    | '/prospection/strategiques'
+    | '/prospection'
     | '/clients/$id'
     | '/clients/new'
+    | '/dossiers/$id'
     | '/invoices/$id'
     | '/invoices/new'
     | '/letters/$id'
@@ -555,7 +868,10 @@ export interface FileRouteTypes {
     | '/quotations/new'
     | '/api/cron/billing'
     | '/api/staff/sync'
+    | '/prospection/clients/$id'
+    | '/prospection/prospects/$id'
     | '/clients'
+    | '/dossiers'
     | '/invoices'
     | '/letters'
     | '/lettre'
@@ -568,8 +884,10 @@ export interface FileRouteTypes {
     | '/_app'
     | '/compte-supprime'
     | '/equipe'
+    | '/hub'
     | '/login'
     | '/onboarding'
+    | '/prospection'
     | '/quotas'
     | '/signup'
     | '/sitemap.xml'
@@ -578,10 +896,13 @@ export interface FileRouteTypes {
     | '/_app/dashboard'
     | '/_app/documentation'
     | '/_app/documents'
+    | '/_app/dossiers'
+    | '/_app/ged'
     | '/_app/home'
     | '/_app/invoices'
     | '/_app/lettre'
     | '/_app/mails'
+    | '/_app/missions'
     | '/_app/notifications'
     | '/_app/poles'
     | '/_app/profile'
@@ -594,8 +915,29 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/reset-password'
     | '/auth/set-password'
+    | '/prospection/actions'
+    | '/prospection/activites'
+    | '/prospection/admin'
+    | '/prospection/agenda'
+    | '/prospection/bibliotheque'
+    | '/prospection/budget'
+    | '/prospection/clients'
+    | '/prospection/import'
+    | '/prospection/kpi'
+    | '/prospection/notifications'
+    | '/prospection/objectifs'
+    | '/prospection/opportunites'
+    | '/prospection/pipeline'
+    | '/prospection/piste'
+    | '/prospection/pistes'
+    | '/prospection/port-gentil'
+    | '/prospection/portefeuille'
+    | '/prospection/prospects'
+    | '/prospection/strategiques'
+    | '/prospection/'
     | '/_app/clients/$id'
     | '/_app/clients/new'
+    | '/_app/dossiers/$id'
     | '/_app/invoices/$id'
     | '/_app/invoices/new'
     | '/_app/letters/$id'
@@ -607,7 +949,10 @@ export interface FileRouteTypes {
     | '/_app/quotations/new'
     | '/api/cron/billing'
     | '/api/staff/sync'
+    | '/prospection/clients/$id'
+    | '/prospection/prospects/$id'
     | '/_app/clients/'
+    | '/_app/dossiers/'
     | '/_app/invoices/'
     | '/_app/letters/'
     | '/_app/lettre/'
@@ -621,8 +966,10 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   CompteSupprimeRoute: typeof CompteSupprimeRoute
   EquipeRoute: typeof EquipeRoute
+  HubRoute: typeof HubRoute
   LoginRoute: typeof LoginRoute
   OnboardingRoute: typeof OnboardingRoute
+  ProspectionRoute: typeof ProspectionRouteWithChildren
   QuotasRoute: typeof QuotasRoute
   SignupRoute: typeof SignupRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
@@ -656,6 +1003,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof QuotasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/prospection': {
+      id: '/prospection'
+      path: '/prospection'
+      fullPath: '/prospection'
+      preLoaderRoute: typeof ProspectionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/onboarding': {
       id: '/onboarding'
       path: '/onboarding'
@@ -668,6 +1022,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/hub': {
+      id: '/hub'
+      path: '/hub'
+      fullPath: '/hub'
+      preLoaderRoute: typeof HubRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/equipe': {
@@ -697,6 +1058,146 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/prospection/': {
+      id: '/prospection/'
+      path: '/'
+      fullPath: '/prospection/'
+      preLoaderRoute: typeof ProspectionIndexRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
+    '/prospection/strategiques': {
+      id: '/prospection/strategiques'
+      path: '/strategiques'
+      fullPath: '/prospection/strategiques'
+      preLoaderRoute: typeof ProspectionStrategiquesRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
+    '/prospection/prospects': {
+      id: '/prospection/prospects'
+      path: '/prospects'
+      fullPath: '/prospection/prospects'
+      preLoaderRoute: typeof ProspectionProspectsRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
+    '/prospection/portefeuille': {
+      id: '/prospection/portefeuille'
+      path: '/portefeuille'
+      fullPath: '/prospection/portefeuille'
+      preLoaderRoute: typeof ProspectionPortefeuilleRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
+    '/prospection/port-gentil': {
+      id: '/prospection/port-gentil'
+      path: '/port-gentil'
+      fullPath: '/prospection/port-gentil'
+      preLoaderRoute: typeof ProspectionPortGentilRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
+    '/prospection/pistes': {
+      id: '/prospection/pistes'
+      path: '/pistes'
+      fullPath: '/prospection/pistes'
+      preLoaderRoute: typeof ProspectionPistesRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
+    '/prospection/piste': {
+      id: '/prospection/piste'
+      path: '/piste'
+      fullPath: '/prospection/piste'
+      preLoaderRoute: typeof ProspectionPisteRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
+    '/prospection/pipeline': {
+      id: '/prospection/pipeline'
+      path: '/pipeline'
+      fullPath: '/prospection/pipeline'
+      preLoaderRoute: typeof ProspectionPipelineRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
+    '/prospection/opportunites': {
+      id: '/prospection/opportunites'
+      path: '/opportunites'
+      fullPath: '/prospection/opportunites'
+      preLoaderRoute: typeof ProspectionOpportunitesRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
+    '/prospection/objectifs': {
+      id: '/prospection/objectifs'
+      path: '/objectifs'
+      fullPath: '/prospection/objectifs'
+      preLoaderRoute: typeof ProspectionObjectifsRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
+    '/prospection/notifications': {
+      id: '/prospection/notifications'
+      path: '/notifications'
+      fullPath: '/prospection/notifications'
+      preLoaderRoute: typeof ProspectionNotificationsRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
+    '/prospection/kpi': {
+      id: '/prospection/kpi'
+      path: '/kpi'
+      fullPath: '/prospection/kpi'
+      preLoaderRoute: typeof ProspectionKpiRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
+    '/prospection/import': {
+      id: '/prospection/import'
+      path: '/import'
+      fullPath: '/prospection/import'
+      preLoaderRoute: typeof ProspectionImportRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
+    '/prospection/clients': {
+      id: '/prospection/clients'
+      path: '/clients'
+      fullPath: '/prospection/clients'
+      preLoaderRoute: typeof ProspectionClientsRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
+    '/prospection/budget': {
+      id: '/prospection/budget'
+      path: '/budget'
+      fullPath: '/prospection/budget'
+      preLoaderRoute: typeof ProspectionBudgetRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
+    '/prospection/bibliotheque': {
+      id: '/prospection/bibliotheque'
+      path: '/bibliotheque'
+      fullPath: '/prospection/bibliotheque'
+      preLoaderRoute: typeof ProspectionBibliothequeRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
+    '/prospection/agenda': {
+      id: '/prospection/agenda'
+      path: '/agenda'
+      fullPath: '/prospection/agenda'
+      preLoaderRoute: typeof ProspectionAgendaRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
+    '/prospection/admin': {
+      id: '/prospection/admin'
+      path: '/admin'
+      fullPath: '/prospection/admin'
+      preLoaderRoute: typeof ProspectionAdminRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
+    '/prospection/activites': {
+      id: '/prospection/activites'
+      path: '/activites'
+      fullPath: '/prospection/activites'
+      preLoaderRoute: typeof ProspectionActivitesRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
+    '/prospection/actions': {
+      id: '/prospection/actions'
+      path: '/actions'
+      fullPath: '/prospection/actions'
+      preLoaderRoute: typeof ProspectionActionsRouteImport
+      parentRoute: typeof ProspectionRoute
     }
     '/auth/set-password': {
       id: '/auth/set-password'
@@ -782,6 +1283,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppNotificationsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/missions': {
+      id: '/_app/missions'
+      path: '/missions'
+      fullPath: '/missions'
+      preLoaderRoute: typeof AppMissionsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/mails': {
       id: '/_app/mails'
       path: '/mails'
@@ -808,6 +1316,20 @@ declare module '@tanstack/react-router' {
       path: '/home'
       fullPath: '/home'
       preLoaderRoute: typeof AppHomeRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/ged': {
+      id: '/_app/ged'
+      path: '/ged'
+      fullPath: '/ged'
+      preLoaderRoute: typeof AppGedRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/dossiers': {
+      id: '/_app/dossiers'
+      path: '/dossiers'
+      fullPath: '/dossiers'
+      preLoaderRoute: typeof AppDossiersRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/documents': {
@@ -873,12 +1395,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppInvoicesIndexRouteImport
       parentRoute: typeof AppInvoicesRoute
     }
+    '/_app/dossiers/': {
+      id: '/_app/dossiers/'
+      path: '/'
+      fullPath: '/dossiers/'
+      preLoaderRoute: typeof AppDossiersIndexRouteImport
+      parentRoute: typeof AppDossiersRoute
+    }
     '/_app/clients/': {
       id: '/_app/clients/'
       path: '/clients'
       fullPath: '/clients/'
       preLoaderRoute: typeof AppClientsIndexRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/prospection/prospects/$id': {
+      id: '/prospection/prospects/$id'
+      path: '/$id'
+      fullPath: '/prospection/prospects/$id'
+      preLoaderRoute: typeof ProspectionProspectsIdRouteImport
+      parentRoute: typeof ProspectionProspectsRoute
+    }
+    '/prospection/clients/$id': {
+      id: '/prospection/clients/$id'
+      path: '/$id'
+      fullPath: '/prospection/clients/$id'
+      preLoaderRoute: typeof ProspectionClientsIdRouteImport
+      parentRoute: typeof ProspectionClientsRoute
     }
     '/api/staff/sync': {
       id: '/api/staff/sync'
@@ -957,6 +1500,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppInvoicesIdRouteImport
       parentRoute: typeof AppInvoicesRoute
     }
+    '/_app/dossiers/$id': {
+      id: '/_app/dossiers/$id'
+      path: '/$id'
+      fullPath: '/dossiers/$id'
+      preLoaderRoute: typeof AppDossiersIdRouteImport
+      parentRoute: typeof AppDossiersRoute
+    }
     '/_app/clients/new': {
       id: '/_app/clients/new'
       path: '/clients/new'
@@ -987,6 +1537,20 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface AppDossiersRouteChildren {
+  AppDossiersIdRoute: typeof AppDossiersIdRoute
+  AppDossiersIndexRoute: typeof AppDossiersIndexRoute
+}
+
+const AppDossiersRouteChildren: AppDossiersRouteChildren = {
+  AppDossiersIdRoute: AppDossiersIdRoute,
+  AppDossiersIndexRoute: AppDossiersIndexRoute,
+}
+
+const AppDossiersRouteWithChildren = AppDossiersRoute._addFileChildren(
+  AppDossiersRouteChildren,
+)
 
 interface AppInvoicesIdRouteChildren {
   AppInvoicesIdEditRoute: typeof AppInvoicesIdEditRoute
@@ -1068,10 +1632,13 @@ interface AppRouteChildren {
   AppDashboardRoute: typeof AppDashboardRoute
   AppDocumentationRoute: typeof AppDocumentationRoute
   AppDocumentsRoute: typeof AppDocumentsRoute
+  AppDossiersRoute: typeof AppDossiersRouteWithChildren
+  AppGedRoute: typeof AppGedRoute
   AppHomeRoute: typeof AppHomeRoute
   AppInvoicesRoute: typeof AppInvoicesRouteWithChildren
   AppLettreRoute: typeof AppLettreRouteWithChildren
   AppMailsRoute: typeof AppMailsRoute
+  AppMissionsRoute: typeof AppMissionsRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
   AppPolesRoute: typeof AppPolesRoute
   AppProfileRoute: typeof AppProfileRoute
@@ -1095,10 +1662,13 @@ const AppRouteChildren: AppRouteChildren = {
   AppDashboardRoute: AppDashboardRoute,
   AppDocumentationRoute: AppDocumentationRoute,
   AppDocumentsRoute: AppDocumentsRoute,
+  AppDossiersRoute: AppDossiersRouteWithChildren,
+  AppGedRoute: AppGedRoute,
   AppHomeRoute: AppHomeRoute,
   AppInvoicesRoute: AppInvoicesRouteWithChildren,
   AppLettreRoute: AppLettreRouteWithChildren,
   AppMailsRoute: AppMailsRoute,
+  AppMissionsRoute: AppMissionsRoute,
   AppNotificationsRoute: AppNotificationsRoute,
   AppPolesRoute: AppPolesRoute,
   AppProfileRoute: AppProfileRoute,
@@ -1118,13 +1688,87 @@ const AppRouteChildren: AppRouteChildren = {
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
+interface ProspectionClientsRouteChildren {
+  ProspectionClientsIdRoute: typeof ProspectionClientsIdRoute
+}
+
+const ProspectionClientsRouteChildren: ProspectionClientsRouteChildren = {
+  ProspectionClientsIdRoute: ProspectionClientsIdRoute,
+}
+
+const ProspectionClientsRouteWithChildren =
+  ProspectionClientsRoute._addFileChildren(ProspectionClientsRouteChildren)
+
+interface ProspectionProspectsRouteChildren {
+  ProspectionProspectsIdRoute: typeof ProspectionProspectsIdRoute
+}
+
+const ProspectionProspectsRouteChildren: ProspectionProspectsRouteChildren = {
+  ProspectionProspectsIdRoute: ProspectionProspectsIdRoute,
+}
+
+const ProspectionProspectsRouteWithChildren =
+  ProspectionProspectsRoute._addFileChildren(ProspectionProspectsRouteChildren)
+
+interface ProspectionRouteChildren {
+  ProspectionActionsRoute: typeof ProspectionActionsRoute
+  ProspectionActivitesRoute: typeof ProspectionActivitesRoute
+  ProspectionAdminRoute: typeof ProspectionAdminRoute
+  ProspectionAgendaRoute: typeof ProspectionAgendaRoute
+  ProspectionBibliothequeRoute: typeof ProspectionBibliothequeRoute
+  ProspectionBudgetRoute: typeof ProspectionBudgetRoute
+  ProspectionClientsRoute: typeof ProspectionClientsRouteWithChildren
+  ProspectionImportRoute: typeof ProspectionImportRoute
+  ProspectionKpiRoute: typeof ProspectionKpiRoute
+  ProspectionNotificationsRoute: typeof ProspectionNotificationsRoute
+  ProspectionObjectifsRoute: typeof ProspectionObjectifsRoute
+  ProspectionOpportunitesRoute: typeof ProspectionOpportunitesRoute
+  ProspectionPipelineRoute: typeof ProspectionPipelineRoute
+  ProspectionPisteRoute: typeof ProspectionPisteRoute
+  ProspectionPistesRoute: typeof ProspectionPistesRoute
+  ProspectionPortGentilRoute: typeof ProspectionPortGentilRoute
+  ProspectionPortefeuilleRoute: typeof ProspectionPortefeuilleRoute
+  ProspectionProspectsRoute: typeof ProspectionProspectsRouteWithChildren
+  ProspectionStrategiquesRoute: typeof ProspectionStrategiquesRoute
+  ProspectionIndexRoute: typeof ProspectionIndexRoute
+}
+
+const ProspectionRouteChildren: ProspectionRouteChildren = {
+  ProspectionActionsRoute: ProspectionActionsRoute,
+  ProspectionActivitesRoute: ProspectionActivitesRoute,
+  ProspectionAdminRoute: ProspectionAdminRoute,
+  ProspectionAgendaRoute: ProspectionAgendaRoute,
+  ProspectionBibliothequeRoute: ProspectionBibliothequeRoute,
+  ProspectionBudgetRoute: ProspectionBudgetRoute,
+  ProspectionClientsRoute: ProspectionClientsRouteWithChildren,
+  ProspectionImportRoute: ProspectionImportRoute,
+  ProspectionKpiRoute: ProspectionKpiRoute,
+  ProspectionNotificationsRoute: ProspectionNotificationsRoute,
+  ProspectionObjectifsRoute: ProspectionObjectifsRoute,
+  ProspectionOpportunitesRoute: ProspectionOpportunitesRoute,
+  ProspectionPipelineRoute: ProspectionPipelineRoute,
+  ProspectionPisteRoute: ProspectionPisteRoute,
+  ProspectionPistesRoute: ProspectionPistesRoute,
+  ProspectionPortGentilRoute: ProspectionPortGentilRoute,
+  ProspectionPortefeuilleRoute: ProspectionPortefeuilleRoute,
+  ProspectionProspectsRoute: ProspectionProspectsRouteWithChildren,
+  ProspectionStrategiquesRoute: ProspectionStrategiquesRoute,
+  ProspectionIndexRoute: ProspectionIndexRoute,
+}
+
+const ProspectionRouteWithChildren = ProspectionRoute._addFileChildren(
+  ProspectionRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   CompteSupprimeRoute: CompteSupprimeRoute,
   EquipeRoute: EquipeRoute,
+  HubRoute: HubRoute,
   LoginRoute: LoginRoute,
   OnboardingRoute: OnboardingRoute,
+  ProspectionRoute: ProspectionRouteWithChildren,
   QuotasRoute: QuotasRoute,
   SignupRoute: SignupRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,

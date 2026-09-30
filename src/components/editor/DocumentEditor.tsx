@@ -14,6 +14,8 @@ import {
   breakdownFromTtc,
   htFromTtc,
   withDocumentTaxRates,
+  remainingDue,
+  normalizedDeposit,
 } from "@/lib/document-math";
 import type { Document, DocumentSection, DocumentType, LineItem } from "@/store/types";
 import { parseClientPole, type ClientPole } from "@/lib/client-pole";
@@ -596,6 +598,7 @@ export function DocumentEditor({ initial, type }: Props) {
       type === "invoice" || type === "quotation"
         ? Math.round(merged.totalRounding ?? 0)
         : 0,
+    deposit: commercial ? Math.max(0, Math.round(merged.deposit ?? 0)) : 0,
     validityDays: merged.validityDays ?? null,
     executionTerms: merged.executionTerms ?? null,
     subject: merged.subject ?? null,
@@ -1537,6 +1540,30 @@ export function DocumentEditor({ initial, type }: Props) {
                   </button>
                 </div>
               </div>
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="text-muted-foreground">
+                  Acompte
+                  <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground/80">
+                    Avance du client (optionnel)
+                  </span>
+                </span>
+                <NumInput
+                  value={doc.deposit ?? 0}
+                  min={0}
+                  onChange={(v) =>
+                    setDoc((d) => ({
+                      ...d,
+                      deposit: Math.max(0, Math.round(v)),
+                    }))
+                  }
+                  className="w-28 rounded-lg border border-border/60 bg-transparent px-2 py-1.5 text-right font-numeric focus:border-primary focus:outline-none"
+                />
+              </div>
+              <Total
+                label="Reste à payer"
+                value={remainingDue(commercialTotals.total, doc.deposit)}
+                strong
+              />
               <p className="text-right text-[11px] text-muted-foreground">
                 {(doc.totalRounding ?? 0) !== 0 ? (
                   <>
@@ -2023,6 +2050,7 @@ function defaultDoc(
     showRib: cabinet === "conseil",
     hideZeroLineFigures: cabinet === "conseil",
     totalRounding: 0,
+    deposit: 0,
     signatoryTitle: DEFAULT_SIGNATORY_TITLE,
     };
   }
@@ -2034,6 +2062,7 @@ function defaultDoc(
     showDueMonthOnLines: false,
       hideZeroLineFigures: cabinet === "conseil",
       totalRounding: 0,
+      deposit: 0,
       signatoryTitle: DEFAULT_SIGNATORY_TITLE,
   };
 }

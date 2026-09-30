@@ -51,6 +51,11 @@ import {
   persistTotalRounding,
   withTotalRounding,
 } from "@/lib/document-total-rounding-db";
+import {
+  loadDeposits,
+  persistDeposit,
+  withDeposit,
+} from "@/lib/document-deposit-db";
 import { persistLineQuantityUnitsForDocument, loadLineQuantityUnits } from "@/lib/document-line-quantity-db";
 import {
   loadClientPoles,
@@ -537,11 +542,15 @@ export const deleteService = createServerFn({ method: "POST" })
 async function mappedDocuments(rows: Parameters<typeof mapDocument>[0][]) {
   const mapped = rows.map(mapDocument);
   const ids = mapped.map((d) => d.id);
-  const [flags, hideZeroFlags, roundingFlags, poles, clientPoles] =
+  const [flags, hideZeroFlags, roundingFlags, depositFlags, poles, clientPoles] =
     await Promise.all([
       loadShowDueMonthOnLines(ids),
       loadHideZeroLineFigures(ids),
       loadTotalRounding(ids),
+      loadDeposits(ids).catch((err) => {
+        if (isPrismaColumnMissing(err, "deposit")) return new Map<string, number>();
+        throw err;
+      }),
       loadDocumentPoles(ids),
       loadClientPoles([...new Set(mapped.map((d) => d.clientId))]),
     ]);
@@ -553,9 +562,12 @@ async function mappedDocuments(rows: Parameters<typeof mapDocument>[0][]) {
   );
   return mapped.map((d) => {
     const withFlags = withClientPole(
-      withTotalRounding(
-        withHideZeroFlag(withDueMonthFlag(d, flags), hideZeroFlags),
-        roundingFlags,
+      withDeposit(
+        withTotalRounding(
+          withHideZeroFlag(withDueMonthFlag(d, flags), hideZeroFlags),
+          roundingFlags,
+        ),
+        depositFlags,
       ),
       poles,
     );
@@ -984,6 +996,9 @@ async function upsertDocumentHandler(
       if (existing.type === "invoice" || existing.type === "quotation") {
         await persistTotalRounding(updated.id, data.totalRounding ?? 0);
       }
+      if (existing.type === "invoice" || existing.type === "quotation") {
+        await persistDeposit(updated.id, data.deposit ?? 0);
+      }
       await persistDocumentPole(
         updated.id,
         resolveStaffWritePole(
@@ -1073,6 +1088,9 @@ async function upsertDocumentHandler(
     }
     if (data.type === "invoice" || data.type === "quotation") {
       await persistTotalRounding(created.id, data.totalRounding ?? 0);
+    }
+    if (data.type === "invoice" || data.type === "quotation") {
+      await persistDeposit(created.id, data.deposit ?? 0);
     }
     await persistDocumentPole(
       created.id,

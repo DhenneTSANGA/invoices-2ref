@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { Building2, Mail, Phone, Plus, Search, Trash2, Pencil } from "lucide-react";
+import { Building2, FolderKanban, Mail, Phone, Plus, Search, Trash2, Pencil } from "lucide-react";
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -197,6 +197,14 @@ function ClientsPage() {
                     </div>
                   </div>
                   <div className="flex gap-1">
+                    <Link
+                      to="/dossiers"
+                      search={{ q: c.name }}
+                      title="Dossier fiscal (démo)"
+                      className="rounded-xl p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                    >
+                      <FolderKanban className="h-4 w-4" />
+                    </Link>
                     <Link
                       to="/clients/$id"
                       params={{ id: c.id }}

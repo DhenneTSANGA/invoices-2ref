@@ -359,6 +359,8 @@ model Document {
   hideZeroLineFigures  Boolean   @default(true)
   /** Ajustement manuel du TTC (XAF, positif = ajouter, négatif = retirer). */
   totalRounding        Int       @default(0)
+  /** Acompte déjà versé (XAF), déduit du TTC — factures 2R Conseil. */
+  deposit              Decimal   @default(0) @db.Decimal(18, 2)
   /** Campagne de publipostage (lettres groupées). */
   mailMergeCampaignId  String?
   createdAt         DateTime       @default(now())

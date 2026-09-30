@@ -26,6 +26,11 @@ import {
   ArrowRight,
   Command,
   Layers,
+  FolderKanban,
+  Library,
+  CalendarClock,
+  LayoutGrid,
+  Compass,
 } from "lucide-react";
 import { documentTypeLabel } from "@/lib/document-status-labels";
 import { CABINET_LABELS } from "@/lib/cabinets";
@@ -100,10 +105,15 @@ const QUICK_ACTIONS: QuickAction[] = [
 ];
 
 const NAV_ACTIONS: NavAction[] = [
+  { label: "Espaces", path: "/hub", icon: LayoutGrid },
+  { label: "Prospection", path: "/prospection", icon: Compass },
   { label: "Tableau de bord", path: "/dashboard", icon: LayoutDashboard },
   { label: "Pôles", path: "/poles", icon: Layers },
   { label: "Tous les documents", path: "/documents", icon: Files },
   { label: "Clients", path: "/clients", icon: Users },
+  { label: "Dossiers fiscaux", path: "/dossiers", icon: FolderKanban },
+  { label: "GED", path: "/ged", icon: Library },
+  { label: "Missions", path: "/missions", icon: CalendarClock },
   { label: "Archives", path: "/archive", icon: Archive },
 ];
 

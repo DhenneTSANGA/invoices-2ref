@@ -101,7 +101,13 @@ export function archiveScope(role: AppRole): "own" | "cabinet" {
   return isAdmin(role) ? "cabinet" : "own";
 }
 
-export function homePathForRole(role: AppRole): "/dashboard" | "/home" {
+/** Choix d’espace après connexion (facturation vs prospection). */
+export function homePathForRole(_role?: AppRole): "/hub" {
+  return "/hub";
+}
+
+/** Accueil de l’espace facturation, selon le rôle. */
+export function facturationHomePath(role: AppRole): "/dashboard" | "/home" {
   return canAccessDashboard(role) ? "/dashboard" : "/home";
 }
 

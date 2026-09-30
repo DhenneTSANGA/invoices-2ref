@@ -199,6 +199,7 @@ export function mapDocument(row: {
   showDueMonthOnLines?: boolean;
   hideZeroLineFigures?: boolean;
   totalRounding?: number;
+  deposit?: Decimal | number;
   mailMergeCampaignId?: string | null;
   validityDays: number | null;
   executionTerms: string | null;
@@ -311,6 +312,10 @@ export function mapDocument(row: {
     showDueMonthOnLines: row.showDueMonthOnLines ?? false,
     hideZeroLineFigures: row.hideZeroLineFigures ?? true,
     totalRounding: row.totalRounding ?? 0,
+    deposit:
+      row.deposit != null
+        ? Math.max(0, Math.round(decimalToNumber(row.deposit)))
+        : 0,
     mailMergeCampaignId: row.mailMergeCampaignId ?? null,
     validityDays: row.validityDays ?? undefined,
     executionTerms: row.executionTerms ?? undefined,

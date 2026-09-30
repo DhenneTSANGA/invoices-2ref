@@ -15,6 +15,10 @@ import {
   persistTotalRounding,
 } from "@/lib/document-total-rounding-db";
 import {
+  loadDeposits,
+  persistDeposit,
+} from "@/lib/document-deposit-db";
+import {
   loadLineQuantityUnits,
   persistLineQuantityUnitsForDocument,
 } from "@/lib/document-line-quantity-db";
@@ -280,6 +284,8 @@ async function generateSubscriptionInvoice(
     created.id,
     templateRounding.get(template.id) ?? 0,
   );
+  const templateDeposits = await loadDeposits([template.id]);
+  await persistDeposit(created.id, templateDeposits.get(template.id) ?? 0);
   const templateUnits = await loadLineQuantityUnits(
     template.lines.map((l) => l.id),
   );

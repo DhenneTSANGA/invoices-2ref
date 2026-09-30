@@ -37,6 +37,7 @@ import { DocumentCreatorCard } from "@/components/documents/DocumentCreatorCard"
 import { DocumentPdfTracesPanel } from "@/components/documents/DocumentPdfTracesPanel";
 import { documentDetailRoute } from "@/lib/document-nav";
 import { currency, longDate, shortDate } from "@/lib/format";
+import { remainingDue, normalizedDeposit } from "@/lib/document-math";
 import { dueMonthMention } from "@/lib/subscription";
 import { paymentMethodLabel } from "@/lib/payment-method";
 import { isAdmin } from "@/lib/roles";
@@ -292,6 +293,18 @@ function InvoiceDetailPage() {
             <div className="mt-5 rounded-2xl bg-gradient-mesh p-4">
               <div className="text-xs uppercase tracking-wider text-muted-foreground">Total TTC</div>
               <div className="font-display text-3xl font-bold text-gradient-primary">{currency(doc.total)}</div>
+              {normalizedDeposit(doc.deposit) > 0 ? (
+                <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <div className="text-muted-foreground">Acompte</div>
+                    <div className="font-numeric font-semibold">{currency(normalizedDeposit(doc.deposit))}</div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground">Reste à payer</div>
+                    <div className="font-numeric font-semibold">{currency(remainingDue(doc.total, doc.deposit))}</div>
+                  </div>
+                </div>
+              ) : null}
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
               <div className="rounded-xl bg-surface-2 p-2"><div className="text-muted-foreground">Sous-total HT</div><div className="font-numeric font-semibold">{currency(doc.subtotal)}</div></div>
