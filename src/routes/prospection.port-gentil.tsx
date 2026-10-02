@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { AccountPlanDialog, NewActivityDialog, NewOpportunityDialog } from "@/components/prospection/CrmForms";
 import {
@@ -9,9 +9,9 @@ import {
   MetricTile,
   NextActionRow,
 } from "@/components/prospection/CrmCards";
-import { CRM_PRIMARY_BTN, CRM_SECONDARY_BTN } from "@/components/prospection/CrmUi";
+import { CRM_PRIMARY_BTN, CRM_SECONDARY_BTN, CrmSearchEmpty, CrmSearchField, matchesSearch } from "@/components/prospection/CrmUi";
 import { LineBadge, StageBadge } from "@/components/prospection/ProspectionBadges";
-import { ACTIVE_STAGES, managerName, type Company } from "@/lib/prospection-demo";
+import { ACTIVE_STAGES, SERVICE_LINE_LABELS, STAGE_LABELS, managerName, type Company } from "@/lib/prospection-demo";
 import { currency, shortDate } from "@/lib/format";
 import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
 
@@ -24,7 +24,25 @@ function PortGentilPage() {
   const companies = useProspectionDemoStore((s) => s.companies);
   const opportunities = useProspectionDemoStore((s) => s.opportunities);
   const activities = useProspectionDemoStore((s) => s.activities);
-  const six = companies.filter((c) => c.site === "port_gentil" && c.strategic);
+  const [query, setQuery] = useState("");
+  const six = useMemo(
+    () =>
+      companies.filter((c) => {
+        if (c.site !== "port_gentil" || !c.strategic) return false;
+        const ops = opportunities.filter((o) => o.companyId === c.id);
+        return matchesSearch(
+          query,
+          c.name,
+          c.sector,
+          managerName(c.managerId),
+          c.plan?.stakes,
+          c.notes,
+          ...c.servicesBought.map((l) => SERVICE_LINE_LABELS[l]),
+          ...ops.flatMap((o) => [o.title, o.nextAction, STAGE_LABELS[o.stage]]),
+        );
+      }),
+    [companies, opportunities, query],
+  );
   const [planFor, setPlanFor] = useState<Company | null>(null);
   const [oppFor, setOppFor] = useState<string | null>(null);
   const [actFor, setActFor] = useState<string | null>(null);
@@ -41,6 +59,19 @@ function PortGentilPage() {
           </button>
         }
       />
+      <CrmSearchField
+        value={query}
+        onChange={setQuery}
+        label="Rechercher un client de Port-Gentil"
+        placeholder="Rechercher un client, un manager, une affaire…"
+      />
+      {six.length === 0 ? (
+        <CrmSearchEmpty
+          title="Aucun client"
+          description="Aucun client de Port-Gentil ne correspond à cette recherche."
+          onClear={query ? () => setQuery("") : undefined}
+        />
+      ) : (
       <CrmCardGrid dense>
         {six.map((c, i) => {
           const ops = opportunities.filter((o) => o.companyId === c.id);
@@ -113,6 +144,7 @@ function PortGentilPage() {
           );
         })}
       </CrmCardGrid>
+      )}
       <AccountPlanDialog
         open={Boolean(planFor)}
         onOpenChange={(v) => {

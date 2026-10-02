@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { NewLibraryDialog } from "@/components/prospection/CrmForms";
 import { CrmCard, CrmCardGrid, IconMark } from "@/components/prospection/CrmCards";
-import { CRM_PRIMARY_BTN, CRM_SECONDARY_BTN, FilterChip } from "@/components/prospection/CrmUi";
+import { CRM_PRIMARY_BTN, CRM_SECONDARY_BTN, CrmSearchEmpty, CrmSearchField, FilterChip, matchesSearch } from "@/components/prospection/CrmUi";
 import { LineBadge } from "@/components/prospection/ProspectionBadges";
 import {
   HELP_LIBRARY,
@@ -33,9 +33,15 @@ function LibraryPage() {
   const extras = useProspectionDemoStore((s) => s.libraryItems);
   const [open, setOpen] = useState(false);
   const [line, setLine] = useState<"all" | ServiceLine>("all");
+  const [query, setQuery] = useState("");
   const items = useMemo(
-    () => [...extras, ...HELP_LIBRARY].filter((i) => line === "all" || i.line === line),
-    [extras, line],
+    () =>
+      [...extras, ...HELP_LIBRARY].filter(
+        (i) =>
+          (line === "all" || i.line === line) &&
+          matchesSearch(query, i.title, i.body, i.category, SERVICE_LINE_LABELS[i.line]),
+      ),
+    [extras, line, query],
   );
 
   return (
@@ -50,6 +56,12 @@ function LibraryPage() {
           </button>
         }
       />
+      <CrmSearchField
+        value={query}
+        onChange={setQuery}
+        label="Rechercher dans la bibliothèque"
+        placeholder="Rechercher un argumentaire, une offre, un e-mail…"
+      />
       <div className="mb-4 flex flex-wrap gap-2">
         <FilterChip active={line === "all"} onClick={() => setLine("all")}>
           Toutes les lignes
@@ -60,6 +72,13 @@ function LibraryPage() {
           </FilterChip>
         ))}
       </div>
+      {items.length === 0 ? (
+        <CrmSearchEmpty
+          title="Aucune ressource"
+          description="Aucune fiche ne correspond à cette recherche."
+          onClear={query ? () => setQuery("") : undefined}
+        />
+      ) : (
       <CrmCardGrid>
         {items.map((item, i) => {
           const mark = CATEGORY_MARK[item.category] ?? {
@@ -98,6 +117,7 @@ function LibraryPage() {
           );
         })}
       </CrmCardGrid>
+      )}
       <NewLibraryDialog open={open} onOpenChange={setOpen} />
     </div>
   );

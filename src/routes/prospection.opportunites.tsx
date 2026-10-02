@@ -13,8 +13,9 @@ import {
   ProbabilityMeter,
   STAGE_ACCENT,
 } from "@/components/prospection/CrmCards";
-import { CRM_PRIMARY_BTN, FilterChip } from "@/components/prospection/CrmUi";
+import { CRM_PRIMARY_BTN, CrmSearchEmpty, CrmSearchField, FilterChip, matchesSearch } from "@/components/prospection/CrmUi";
 import {
+  SERVICE_LINE_LABELS,
   SOURCE_LABELS,
   STAGE_LABELS,
   managerName,
@@ -48,17 +49,30 @@ function OpportunitiesPage() {
   const companies = useProspectionDemoStore((s) => s.companies);
   const opportunities = useProspectionDemoStore((s) => s.opportunities);
   const [stage, setFilter] = useState<"all" | PipelineStage>("all");
+  const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Opportunity | null>(null);
   const [pending, setPending] = useState<{ id: string; stage: PipelineStage } | null>(null);
 
-  const list = useMemo(
-    () =>
-      opportunities.filter(
-        (o) => o.id === focus || stage === "all" || o.stage === stage,
-      ),
-    [opportunities, stage, focus],
-  );
+  const list = useMemo(() => {
+    return opportunities.filter((o) => {
+      if (o.id === focus) return true;
+      if (stage !== "all" && o.stage !== stage) return false;
+      const co = companies.find((c) => c.id === o.companyId);
+      return matchesSearch(
+        query,
+        co?.name,
+        o.title,
+        SERVICE_LINE_LABELS[o.line],
+        SOURCE_LABELS[o.source],
+        STAGE_LABELS[o.stage],
+        managerName(o.ownerId),
+        o.nextAction,
+        o.notes,
+        o.amount,
+      );
+    });
+  }, [opportunities, companies, stage, query, focus]);
 
   const counts = useMemo(() => {
     const map = Object.fromEntries(STAGES.map((st) => [st, 0])) as Record<PipelineStage, number>;
@@ -86,6 +100,12 @@ function OpportunitiesPage() {
           </button>
         }
       />
+      <CrmSearchField
+        value={query}
+        onChange={setQuery}
+        label="Rechercher une opportunité"
+        placeholder="Rechercher une entreprise, une affaire, une ligne, un manager…"
+      />
       <div className="mb-4 flex flex-wrap gap-2">
         <FilterChip active={stage === "all"} onClick={() => setFilter("all")}>
           Toutes ({opportunities.length})
@@ -96,6 +116,13 @@ function OpportunitiesPage() {
           </FilterChip>
         ))}
       </div>
+      {list.length === 0 ? (
+        <CrmSearchEmpty
+          title="Aucune opportunité"
+          description="Aucune affaire ne correspond à cette recherche."
+          onClear={query ? () => setQuery("") : undefined}
+        />
+      ) : (
       <CrmCardGrid dense>
         {list.map((o, i) => {
           const co = companies.find((c) => c.id === o.companyId);
@@ -111,12 +138,12 @@ function OpportunitiesPage() {
               <div className="flex items-start gap-3">
                 <button
                   type="button"
-                  className="flex min-w-0 flex-1 items-start gap-3 text-left"
+                  className="crm-quiet-hit group/hit flex min-w-0 flex-1 items-start gap-3 text-left"
                   onClick={() => setEditing(o)}
                 >
                   <EntityMark name={co?.name ?? o.title} />
-                  <div className="min-w-0 flex-1">
-                    <h2 className="font-display text-base font-semibold leading-tight hover:text-primary">
+                  <div className="min-w-0 flex-1 rounded-2xl bg-primary/10 px-3 py-2.5 transition-colors group-hover/hit:bg-primary/20">
+                    <h2 className="font-display text-base font-semibold leading-tight transition-colors group-hover/hit:text-primary">
                       {co?.name ?? "Entreprise"}
                     </h2>
                     <p className="mt-0.5 text-sm text-muted-foreground">{o.title}</p>
@@ -153,6 +180,7 @@ function OpportunitiesPage() {
           );
         })}
       </CrmCardGrid>
+      )}
       <NewOpportunityDialog open={open} onOpenChange={setOpen} />
       <NewOpportunityDialog
         open={Boolean(editing)}

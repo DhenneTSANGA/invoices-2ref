@@ -6,9 +6,10 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { NewActivityDialog } from "@/components/prospection/CrmForms";
 import { ActivityStatusBadge } from "@/components/prospection/ProspectionBadges";
 import { CrmCard, CrmCardGrid, KindMark } from "@/components/prospection/CrmCards";
-import { CRM_PRIMARY_BTN, CRM_SECONDARY_BTN, FilterChip } from "@/components/prospection/CrmUi";
+import { CRM_PRIMARY_BTN, CRM_SECONDARY_BTN, CrmSearchEmpty, CrmSearchField, FilterChip, matchesSearch } from "@/components/prospection/CrmUi";
 import {
   ACTIVITY_LABELS,
+  ACTIVITY_STATUS_LABELS,
   managerName,
   type ActivityKind,
 } from "@/lib/prospection-demo";
@@ -26,16 +27,28 @@ function ActivitiesPage() {
   const setActivityStatus = useProspectionDemoStore((s) => s.setActivityStatus);
   const [open, setOpen] = useState(false);
   const [kindFilter, setKindFilter] = useState<"all" | ActivityKind>("all");
+  const [query, setQuery] = useState("");
   const [crFor, setCrFor] = useState<string | undefined>();
 
-  const list = useMemo(
-    () =>
-      [...activities]
-        .sort((a, b) => b.at.localeCompare(a.at) || (b.time ?? "").localeCompare(a.time ?? ""))
-        .filter((a) => kindFilter === "all" || a.kind === kindFilter)
-        .slice(0, 60),
-    [activities, kindFilter],
-  );
+  const list = useMemo(() => {
+    const filtered = [...activities]
+      .sort((a, b) => b.at.localeCompare(a.at) || (b.time ?? "").localeCompare(a.time ?? ""))
+      .filter((a) => {
+        if (kindFilter !== "all" && a.kind !== kindFilter) return false;
+        const co = companies.find((c) => c.id === a.companyId);
+        return matchesSearch(
+          query,
+          co?.name,
+          a.title,
+          a.summary,
+          a.nextAction,
+          ACTIVITY_LABELS[a.kind],
+          ACTIVITY_STATUS_LABELS[a.status],
+          managerName(a.ownerId),
+        );
+      });
+    return query.trim() ? filtered : filtered.slice(0, 60);
+  }, [activities, companies, kindFilter, query]);
 
   return (
     <div>
@@ -49,6 +62,12 @@ function ActivitiesPage() {
           </button>
         }
       />
+      <CrmSearchField
+        value={query}
+        onChange={setQuery}
+        label="Rechercher une activité"
+        placeholder="Rechercher une entreprise, un objet, un manager…"
+      />
 
       <div className="mb-4 flex flex-wrap gap-2">
         <FilterChip active={kindFilter === "all"} onClick={() => setKindFilter("all")}>
@@ -61,6 +80,13 @@ function ActivitiesPage() {
         ))}
       </div>
 
+      {list.length === 0 ? (
+        <CrmSearchEmpty
+          title="Aucune activité"
+          description="Aucune activité ne correspond à cette recherche."
+          onClear={query ? () => setQuery("") : undefined}
+        />
+      ) : (
       <CrmCardGrid dense>
         {list.map((a, i) => {
           const co = companies.find((c) => c.id === a.companyId);
@@ -128,6 +154,7 @@ function ActivitiesPage() {
           );
         })}
       </CrmCardGrid>
+      )}
 
       <NewActivityDialog open={open} onOpenChange={setOpen} />
       <NewActivityDialog

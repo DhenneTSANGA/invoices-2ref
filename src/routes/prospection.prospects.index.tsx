@@ -12,7 +12,7 @@ import {
   NextActionRow,
 } from "@/components/prospection/CrmCards";
 import { CompanyDialog } from "@/components/prospection/CrmForms";
-import { CRM_PRIMARY_BTN, FilterChip } from "@/components/prospection/CrmUi";
+import { CRM_PRIMARY_BTN, CrmSelect, FilterChip } from "@/components/prospection/CrmUi";
 import { currency, shortDate } from "@/lib/format";
 import {
   MANAGERS,
@@ -97,30 +97,26 @@ function ProspectsPage() {
             />
           </div>
           <div className="flex flex-wrap gap-2">
-            <select
+            <CrmSelect
               value={siteFilter}
-              onChange={(e) => setSiteFilter(e.target.value as "all" | Site)}
-              className="rounded-xl border border-border/60 bg-surface px-3 py-2.5 text-sm"
-            >
-              <option value="all">Tous les sites</option>
-              {Object.entries(SITE_LABELS).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v}
-                </option>
-              ))}
-            </select>
-            <select
+              onChange={(value) => setSiteFilter(value as "all" | Site)}
+              placeholder="Tous les sites"
+              options={[
+                { value: "all", label: "Tous les sites" },
+                ...Object.entries(SITE_LABELS).map(([value, label]) => ({ value, label })),
+              ]}
+              className="w-auto min-w-44 bg-surface"
+            />
+            <CrmSelect
               value={managerFilter}
-              onChange={(e) => setManagerFilter(e.target.value)}
-              className="rounded-xl border border-border/60 bg-surface px-3 py-2.5 text-sm"
-            >
-              <option value="all">Tous les managers</option>
-              {MANAGERS.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
+              onChange={setManagerFilter}
+              placeholder="Tous les managers"
+              options={[
+                { value: "all", label: "Tous les managers" },
+                ...MANAGERS.map((m) => ({ value: m.id, label: m.name })),
+              ]}
+              className="w-auto min-w-48 bg-surface"
+            />
           </div>
         </div>
         <div className="flex flex-wrap gap-2">

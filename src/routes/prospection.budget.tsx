@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, useRouteContext } from "@tanstack/react-router";
 import { Plus, Wallet } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { StatCard } from "@/components/common/StatCard";
@@ -13,7 +13,7 @@ import {
   MetricTile,
   ProgressMeter,
 } from "@/components/prospection/CrmCards";
-import { CRM_PRIMARY_BTN } from "@/components/prospection/CrmUi";
+import { CRM_PRIMARY_BTN, CrmSearchEmpty, CrmSearchField, matchesSearch } from "@/components/prospection/CrmUi";
 import {
   BUDGET_ALERT_RATIO,
   EXPENSE_APPROVAL_LABELS,
@@ -61,7 +61,40 @@ function BudgetPage() {
   const companies = useProspectionDemoStore((s) => s.companies);
   const setExpenseApproval = useProspectionDemoStore((s) => s.setExpenseApproval);
   const [open, setOpen] = useState(false);
-  const pending = expenses.filter((e) => e.approval === "pending");
+  const [query, setQuery] = useState("");
+
+  const matchesExpense = useMemo(() => {
+    return (id: string) => {
+      const expense = expenses.find((e) => e.id === id);
+      if (!expense) return false;
+      if (expense.id === focus) return true;
+      const co = companies.find((c) => c.id === expense.companyId);
+      return matchesSearch(
+        query,
+        expense.label,
+        expense.amount,
+        managerName(expense.managerId),
+        EXPENSE_LABELS[expense.category],
+        EXPENSE_APPROVAL_LABELS[expense.approval],
+        co?.name,
+      );
+    };
+  }, [expenses, companies, query, focus]);
+
+  const pending = useMemo(
+    () => expenses.filter((e) => e.approval === "pending" && matchesExpense(e.id)),
+    [expenses, matchesExpense],
+  );
+  const journal = useMemo(() => expenses.filter((e) => matchesExpense(e.id)), [expenses, matchesExpense]);
+  const managers = useMemo(
+    () =>
+      MANAGERS.filter((m) => {
+        if (!query.trim()) return true;
+        if (matchesSearch(query, m.name)) return true;
+        return expenses.some((e) => e.managerId === m.id && e.id !== focus && matchesExpense(e.id));
+      }),
+    [query, expenses, focus, matchesExpense],
+  );
 
   const spentCabinet = expenses.reduce((s, e) => s + e.amount, 0);
   const capCabinet = MONTHLY_BUDGET * MANAGERS.length;
@@ -77,6 +110,12 @@ function BudgetPage() {
             Nouvelle dépense
           </button>
         }
+      />
+      <CrmSearchField
+        value={query}
+        onChange={setQuery}
+        label="Rechercher une dépense"
+        placeholder="Rechercher un libellé, un manager, une catégorie…"
       />
 
       {canApprove && pending.length > 0 ? (
@@ -142,9 +181,10 @@ function BudgetPage() {
         />
       </div>
 
+      {managers.length > 0 ? (
       <div className="mb-5">
         <CrmCardGrid>
-          {MANAGERS.map((m, i) => {
+          {managers.map((m, i) => {
           const spent = expenses.filter((e) => e.managerId === m.id).reduce((s, e) => s + e.amount, 0);
           const ratio = spent / MONTHLY_BUDGET;
           const remaining = Math.max(0, MONTHLY_BUDGET - spent);
@@ -178,10 +218,19 @@ function BudgetPage() {
         })}
         </CrmCardGrid>
       </div>
+      ) : null}
 
+      {journal.length === 0 ? (
+        <CrmSearchEmpty
+          title="Aucune dépense"
+          description="Aucune dépense ne correspond à cette recherche."
+          onClear={query ? () => setQuery("") : undefined}
+        />
+      ) : (
+      <>
       <h3 className="mb-3 font-display font-semibold">Journal des dépenses</h3>
       <CrmCardGrid dense>
-        {expenses.map((e, i) => {
+        {journal.map((e, i) => {
           const co = companies.find((c) => c.id === e.companyId);
           return (
             <CrmCard
@@ -223,6 +272,8 @@ function BudgetPage() {
           );
         })}
       </CrmCardGrid>
+      </>
+      )}
 
       <NewExpenseDialog open={open} onOpenChange={setOpen} />
     </div>

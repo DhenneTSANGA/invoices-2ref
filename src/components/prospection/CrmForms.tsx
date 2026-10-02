@@ -1,13 +1,21 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   BookOpen,
+  Briefcase,
   Building2,
   CalendarDays,
+  Globe,
+  Mail,
+  MapPin,
   Megaphone,
+  Phone,
   Settings,
+  Star,
+  StickyNote,
   Target,
   UserRound,
   Wallet,
+  type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -45,7 +53,34 @@ import {
 } from "@/lib/prospection-demo";
 import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
 import { cn } from "@/lib/utils";
-import { CRM_FIELD, CrmDialog, CrmFormActions, CrmLabeledField } from "./CrmUi";
+import { CRM_FIELD, CrmDialog, CrmFormActions, CrmLabeledField, CrmSelect } from "./CrmUi";
+
+function FormSection({
+  icon: Icon,
+  title,
+  hint,
+  children,
+}: {
+  icon: LucideIcon;
+  title: string;
+  hint?: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl border border-border/70 bg-background p-4 shadow-sm sm:p-5">
+      <div className="mb-4 flex items-start gap-3">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <Icon className="h-4 w-4" />
+        </span>
+        <div className="min-w-0">
+          <h3 className="font-display text-sm font-semibold">{title}</h3>
+          {hint ? <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{hint}</p> : null}
+        </div>
+      </div>
+      <div className="space-y-3">{children}</div>
+    </section>
+  );
+}
 
 export function CompanyDialog({
   open,
@@ -151,6 +186,7 @@ export function CompanyDialog({
       onOpenChange={onOpenChange}
       icon={Building2}
       wide
+      className="sm:max-w-3xl"
       title={
         editing
           ? `Modifier ${editing.name}`
@@ -160,12 +196,12 @@ export function CompanyDialog({
       }
       description={
         editing
-          ? "Mise à jour de la fiche (démo, non persistée en base)."
-          : "Cahier : raison sociale, secteur, taille, implantation, source, ligne visée, contact décideur."
+          ? "Mettez à jour l’identité, le suivi commercial et les notes de la fiche."
+          : "Trois blocs : l’entreprise, le suivi commercial, puis le contact décideur si vous l’avez déjà."
       }
     >
       <form
-        className="space-y-6 p-5 sm:p-6"
+        className="bg-muted/40"
         onSubmit={(e) => {
           e.preventDefault();
           if (!name.trim()) {
@@ -222,152 +258,147 @@ export function CompanyDialog({
           onOpenChange(false);
         }}
       >
-        <section className="space-y-3">
-          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Entreprise
-          </h3>
-          <CrmLabeledField label="Raison sociale">
+        <div className="space-y-4 px-4 py-4 sm:px-5 sm:py-5">
+        <FormSection
+          icon={Building2}
+          title="Entreprise"
+          hint="Identité et coordonnées. La raison sociale, le secteur, la taille et l’implantation sont obligatoires."
+        >
+          <CrmLabeledField label="Raison sociale" required>
             <input
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Raison sociale"
+              placeholder="Ex. Banque de l’Habitat du Gabon"
               className={CRM_FIELD}
             />
           </CrmLabeledField>
           <div className="grid gap-3 sm:grid-cols-2">
-            <CrmLabeledField label="Secteur">
-              <select
+            <CrmLabeledField label="Secteur" required>
+              <CrmSelect
                 value={sector}
-                onChange={(e) => setSector(e.target.value)}
-                className={cn(CRM_FIELD, !sector && "text-muted-foreground")}
-              >
-                <option value="" disabled>
-                  Choisir le secteur
-                </option>
-                {SECTORS.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
+                onChange={setSector}
+                placeholder="Choisir le secteur"
+                options={SECTORS}
+              />
             </CrmLabeledField>
-            <CrmLabeledField label="Taille">
-              <select
+            <CrmLabeledField label="Taille" required>
+              <CrmSelect
                 value={size}
-                onChange={(e) => setSize(e.target.value)}
-                className={cn(CRM_FIELD, !size && "text-muted-foreground")}
-              >
-                <option value="" disabled>
-                  Choisir la taille
-                </option>
-                {COMPANY_SIZES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
+                onChange={setSize}
+                placeholder="Choisir la taille"
+                options={COMPANY_SIZES}
+              />
             </CrmLabeledField>
-            <CrmLabeledField label="Implantation">
-              <select
+            <CrmLabeledField label="Implantation" required>
+              <CrmSelect
                 value={site}
-                onChange={(e) => setSite(e.target.value as Site)}
-                className={cn(CRM_FIELD, !site && "text-muted-foreground")}
-              >
-                <option value="" disabled>
-                  Libreville ou Port-Gentil
-                </option>
-                {Object.entries(SITE_LABELS).map(([k, v]) => (
-                  <option key={k} value={k}>
-                    {v}
-                  </option>
-                ))}
-              </select>
+                onChange={(value) => setSite(value as Site)}
+                placeholder="Choisir le site"
+                options={Object.entries(SITE_LABELS).map(([value, label]) => ({ value, label }))}
+              />
             </CrmLabeledField>
             <CrmLabeledField label="Adresse">
-              <input
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="Adresse"
-                className={CRM_FIELD}
-              />
+              <span className="relative block">
+                <MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Quartier, ville"
+                  className={cn(CRM_FIELD, "pl-9")}
+                />
+              </span>
             </CrmLabeledField>
             <CrmLabeledField label="Téléphone">
-              <input
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="Téléphone"
-                className={CRM_FIELD}
-              />
+              <span className="relative block">
+                <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+241 …"
+                  className={cn(CRM_FIELD, "pl-9")}
+                />
+              </span>
             </CrmLabeledField>
             <CrmLabeledField label="E-mail">
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="E-mail"
-                className={CRM_FIELD}
-              />
+              <span className="relative block">
+                <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="contact@entreprise.ga"
+                  className={cn(CRM_FIELD, "pl-9")}
+                />
+              </span>
             </CrmLabeledField>
             <CrmLabeledField label="Site web" className="sm:col-span-2">
-              <input
-                value={website}
-                onChange={(e) => setWebsite(e.target.value)}
-                placeholder="https://"
-                className={CRM_FIELD}
-              />
+              <span className="relative block">
+                <Globe className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  value={website}
+                  onChange={(e) => setWebsite(e.target.value)}
+                  placeholder="https://"
+                  className={cn(CRM_FIELD, "pl-9")}
+                />
+              </span>
             </CrmLabeledField>
           </div>
-        </section>
-        <section className="space-y-3">
-          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Commercial
-          </h3>
+        </FormSection>
+        <FormSection
+          icon={Briefcase}
+          title="Suivi commercial"
+          hint="Qui porte le compte, d’où vient la relation, et quelles lignes sont visées."
+        >
           <div className="grid gap-3 sm:grid-cols-2">
-            <CrmLabeledField label="Source">
-              <select
+            <CrmLabeledField label="Source" required>
+              <CrmSelect
                 value={source}
-                onChange={(e) => setSource(e.target.value as OpportunitySource)}
-                className={cn(CRM_FIELD, !source && "text-muted-foreground")}
-              >
-                <option value="" disabled>
-                  Source (dont client formation)
-                </option>
-                {sources.map((s) => (
-                  <option key={s} value={s}>
-                    {SOURCE_LABELS[s]}
-                  </option>
-                ))}
-              </select>
+                onChange={(value) => setSource(value as OpportunitySource)}
+                placeholder="Choisir la source"
+                options={sources.map((s) => ({ value: s, label: SOURCE_LABELS[s] }))}
+              />
             </CrmLabeledField>
-            <CrmLabeledField label="Manager référent">
-              <select
+            <CrmLabeledField label="Manager référent" required>
+              <CrmSelect
                 value={managerId}
-                onChange={(e) => setManagerId(e.target.value)}
-                className={cn(CRM_FIELD, !managerId && "text-muted-foreground")}
-              >
-                <option value="" disabled>
-                  Choisir le manager
-                </option>
-                {MANAGERS.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                  </option>
-                ))}
-              </select>
+                onChange={setManagerId}
+                placeholder="Choisir le manager"
+                options={MANAGERS.map((m) => ({ value: m.id, label: m.name }))}
+              />
             </CrmLabeledField>
           </div>
           {!isProspect ? (
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={strategic} onChange={(e) => setStrategic(e.target.checked)} />
-              Client stratégique
-            </label>
+            <button
+              type="button"
+              onClick={() => setStrategic((v) => !v)}
+              className={cn(
+                "flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left transition",
+                strategic
+                  ? "border-amber-500/40 bg-amber-500/10"
+                  : "border-border/70 bg-muted/30 hover:border-amber-500/30 hover:bg-amber-500/5",
+              )}
+            >
+              <span
+                className={cn(
+                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
+                  strategic ? "bg-amber-500 text-white" : "bg-muted text-muted-foreground",
+                )}
+              >
+                <Star className="h-4 w-4" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold">Client stratégique</span>
+                <span className="block text-xs text-muted-foreground">À suivre de près, même sans affaire ouverte.</span>
+              </span>
+            </button>
           ) : null}
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               {isProspect ? "Lignes ciblées" : "Services achetés"}
+              <span className="ml-1 text-danger">*</span>
             </span>
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {SERVICE_LINES.map((line) => {
                 const on = lines.includes(line);
                 return (
@@ -376,10 +407,10 @@ export function CompanyDialog({
                     type="button"
                     onClick={() => toggleLine(line)}
                     className={cn(
-                      "rounded-full px-3 py-1.5 text-xs font-semibold",
+                      "rounded-2xl border px-3 py-2.5 text-left text-sm font-semibold transition",
                       on
-                        ? "bg-primary/15 text-primary ring-1 ring-primary/30"
-                        : "bg-muted text-muted-foreground hover:bg-muted/80",
+                        ? "border-primary bg-primary/10 text-primary shadow-sm ring-2 ring-primary/15"
+                        : "border-border/70 bg-muted/30 text-foreground hover:border-primary/40 hover:bg-primary/5",
                     )}
                   >
                     {SERVICE_LINE_LABELS[line]}
@@ -389,21 +420,24 @@ export function CompanyDialog({
             </div>
           </div>
           <CrmLabeledField label="Notes">
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-              placeholder="Contexte, historique, points d’attention"
-              className={cn(CRM_FIELD, "min-h-[72px] resize-y")}
-            />
+            <span className="relative block">
+              <StickyNote className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={3}
+                placeholder="Contexte, historique, points d’attention"
+                className={cn(CRM_FIELD, "min-h-[88px] resize-y pl-9")}
+              />
+            </span>
           </CrmLabeledField>
-        </section>
+        </FormSection>
         {!editing ? (
-          <section className="space-y-3">
-            <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              <UserRound className="h-3.5 w-3.5" />
-              Contact décideur (optionnel)
-            </h3>
+          <FormSection
+            icon={UserRound}
+            title="Contact décideur"
+            hint="Optionnel. Si vous saisissez un nom, précisez aussi son niveau d’influence."
+          >
             <div className="grid gap-3 sm:grid-cols-2">
               <CrmLabeledField label="Prénom">
                 <input
@@ -425,56 +459,95 @@ export function CompanyDialog({
                 <input
                   value={contactRole}
                   onChange={(e) => setContactRole(e.target.value)}
-                  placeholder="Fonction"
+                  placeholder="DAF, DG, DRH…"
                   className={CRM_FIELD}
                 />
               </CrmLabeledField>
               <CrmLabeledField label="Téléphone">
-                <input
-                  value={contactPhone}
-                  onChange={(e) => setContactPhone(e.target.value)}
-                  placeholder="Téléphone"
-                  className={CRM_FIELD}
-                />
+                <span className="relative block">
+                  <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    value={contactPhone}
+                    onChange={(e) => setContactPhone(e.target.value)}
+                    placeholder="+241 …"
+                    className={cn(CRM_FIELD, "pl-9")}
+                  />
+                </span>
               </CrmLabeledField>
               <CrmLabeledField label="E-mail">
-                <input
-                  type="email"
-                  value={contactEmail}
-                  onChange={(e) => setContactEmail(e.target.value)}
-                  placeholder="E-mail"
-                  className={CRM_FIELD}
-                />
+                <span className="relative block">
+                  <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    type="email"
+                    value={contactEmail}
+                    onChange={(e) => setContactEmail(e.target.value)}
+                    placeholder="prenom@entreprise.ga"
+                    className={cn(CRM_FIELD, "pl-9")}
+                  />
+                </span>
               </CrmLabeledField>
-              <CrmLabeledField label="Influence">
-                <select
-                  value={contactInfluence}
-                  onChange={(e) => setContactInfluence(e.target.value as "faible" | "moyen" | "fort")}
-                  className={cn(CRM_FIELD, !contactInfluence && "text-muted-foreground")}
-                >
-                  <option value="" disabled>
-                    Faible, moyen ou fort
-                  </option>
-                  <option value="faible">Faible</option>
-                  <option value="moyen">Moyen</option>
-                  <option value="fort">Fort</option>
-                </select>
-              </CrmLabeledField>
-              <label className="flex items-center gap-2 text-sm self-end pb-2">
-                <input
-                  type="checkbox"
-                  checked={contactDecisionMaker}
-                  onChange={(e) => setContactDecisionMaker(e.target.checked)}
-                />
-                Décideur
-              </label>
+              <div className="space-y-1.5 sm:col-span-2">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Influence
+                </span>
+                <div className="grid grid-cols-3 gap-2">
+                  {(
+                    [
+                      ["faible", "Faible"],
+                      ["moyen", "Moyen"],
+                      ["fort", "Fort"],
+                    ] as const
+                  ).map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setContactInfluence(value)}
+                      className={cn(
+                        "rounded-2xl border px-3 py-2.5 text-sm font-semibold transition",
+                        contactInfluence === value
+                          ? "border-primary bg-primary/10 text-primary ring-2 ring-primary/15"
+                          : "border-border/70 bg-muted/30 hover:border-primary/40 hover:bg-primary/5",
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
-          </section>
+            <button
+              type="button"
+              onClick={() => setContactDecisionMaker((v) => !v)}
+              className={cn(
+                "flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left transition",
+                contactDecisionMaker
+                  ? "border-primary/40 bg-primary/10"
+                  : "border-border/70 bg-muted/30 hover:border-primary/30 hover:bg-primary/5",
+              )}
+            >
+              <span
+                className={cn(
+                  "flex h-5 w-5 shrink-0 items-center justify-center rounded-md border",
+                  contactDecisionMaker ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background",
+                )}
+              >
+                {contactDecisionMaker ? <span className="text-[11px] font-bold">✓</span> : null}
+              </span>
+              <span>
+                <span className="block text-sm font-semibold">C’est le décideur</span>
+                <span className="block text-xs text-muted-foreground">La personne qui signe ou arbitre la mission.</span>
+              </span>
+            </button>
+          </FormSection>
         ) : null}
-        <CrmFormActions
-          onCancel={() => onOpenChange(false)}
-          submitLabel={editing ? "Enregistrer" : isProspect ? "Créer le prospect" : "Créer le client"}
-        />
+        </div>
+        <div className="sticky bottom-0 z-10 border-t border-border/70 bg-background/95 px-4 py-4 backdrop-blur sm:px-5">
+          <CrmFormActions
+            className="border-0 p-0 pt-0"
+            onCancel={() => onOpenChange(false)}
+            submitLabel={editing ? "Enregistrer" : isProspect ? "Créer le prospect" : "Créer le client"}
+          />
+        </div>
       </form>
     </CrmDialog>
   );
@@ -582,20 +655,12 @@ export function NewLeadDialog({
           />
         </CrmLabeledField>
         <CrmLabeledField label="Ligne visée">
-          <select
+          <CrmSelect
             value={line}
-            onChange={(e) => setLine(e.target.value as ServiceLine)}
-            className={cn(CRM_FIELD, !line && "text-muted-foreground")}
-          >
-            <option value="" disabled>
-              Ligne de service
-            </option>
-            {SERVICE_LINES.map((l) => (
-              <option key={l} value={l}>
-                {SERVICE_LINE_LABELS[l]}
-              </option>
-            ))}
-          </select>
+            onChange={(value) => setLine(value as ServiceLine)}
+            placeholder="Ligne de service"
+            options={SERVICE_LINES.map((l) => ({ value: l, label: SERVICE_LINE_LABELS[l] }))}
+          />
         </CrmLabeledField>
         {assignedManager ? (
           <p className="rounded-xl bg-muted/60 px-3 py-2 text-sm">
@@ -603,20 +668,12 @@ export function NewLeadDialog({
           </p>
         ) : (
           <CrmLabeledField label="Manager">
-            <select
+            <CrmSelect
               value={ownerId}
-              onChange={(e) => setOwnerId(e.target.value)}
-              className={cn(CRM_FIELD, !ownerId && "text-muted-foreground")}
-            >
-              <option value="" disabled>
-                Choisir un manager
-              </option>
-              {MANAGERS.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
+              onChange={setOwnerId}
+              placeholder="Choisir un manager"
+              options={MANAGERS.map((m) => ({ value: m.id, label: m.name }))}
+            />
           </CrmLabeledField>
         )}
         <CrmLabeledField label="Commentaire">
@@ -726,36 +783,23 @@ export function NewExpenseDialog({
         }}
       >
         <CrmLabeledField label="Manager">
-          <select
+          <CrmSelect
             value={managerId}
-            onChange={(e) => setManagerId(e.target.value)}
-            className={cn(CRM_FIELD, !managerId && "text-muted-foreground")}
-          >
-            <option value="" disabled>
-              Qui a engagé la dépense
-            </option>
-            {MANAGERS.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
-            ))}
-          </select>
+            onChange={setManagerId}
+            placeholder="Qui a engagé la dépense"
+            options={MANAGERS.map((m) => ({ value: m.id, label: m.name }))}
+          />
         </CrmLabeledField>
         <CrmLabeledField label="Catégorie">
-          <select
+          <CrmSelect
             value={category}
-            onChange={(e) => setCategory(e.target.value as ExpenseCategory)}
-            className={cn(CRM_FIELD, !category && "text-muted-foreground")}
-          >
-            <option value="" disabled>
-              Catégorie
-            </option>
-            {(Object.keys(EXPENSE_LABELS) as ExpenseCategory[]).map((c) => (
-              <option key={c} value={c}>
-                {EXPENSE_LABELS[c]}
-              </option>
-            ))}
-          </select>
+            onChange={(value) => setCategory(value as ExpenseCategory)}
+            placeholder="Catégorie"
+            options={(Object.keys(EXPENSE_LABELS) as ExpenseCategory[]).map((c) => ({
+              value: c,
+              label: EXPENSE_LABELS[c],
+            }))}
+          />
         </CrmLabeledField>
         <CrmLabeledField label="Libellé">
           <input
@@ -779,28 +823,22 @@ export function NewExpenseDialog({
           </CrmLabeledField>
         </div>
         <CrmLabeledField label="Prospect / client (si possible)">
-          <select
+          <CrmSelect
             value={companyId}
-            onChange={(e) => {
-              setCompanyId(e.target.value);
+            onChange={(value) => {
+              setCompanyId(value);
               setActivityId("");
               setOpportunityId("");
             }}
-            className={cn(CRM_FIELD, !companyId && "text-muted-foreground")}
-          >
-            <option value="">Aucun rattachement entreprise</option>
-            {companies.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+            placeholder="Aucun rattachement entreprise"
+            emptyLabel="Aucun rattachement entreprise"
+            options={companies.map((c) => ({ value: c.id, label: c.name }))}
+          />
         </CrmLabeledField>
         <CrmLabeledField label="Action commerciale">
-          <select
+          <CrmSelect
             value={activityId}
-            onChange={(e) => {
-              const id = e.target.value;
+            onChange={(id) => {
               setActivityId(id);
               const act = activities.find((a) => a.id === id);
               if (act) {
@@ -808,31 +846,21 @@ export function NewExpenseDialog({
                 if (act.opportunityId) setOpportunityId(act.opportunityId);
               }
             }}
-            className={cn(CRM_FIELD, !activityId && "text-muted-foreground")}
-          >
-            <option value="" disabled>
-              Rattacher à une action
-            </option>
-            {linkedActivities.map((a) => (
-              <option key={a.id} value={a.id}>
-                {ACTIVITY_LABELS[a.kind]} · {a.title}
-              </option>
-            ))}
-          </select>
+            placeholder="Rattacher à une action"
+            options={linkedActivities.map((a) => ({
+              value: a.id,
+              label: `${ACTIVITY_LABELS[a.kind]} · ${a.title}`,
+            }))}
+          />
         </CrmLabeledField>
         <CrmLabeledField label="Opportunité (optionnel)">
-          <select
+          <CrmSelect
             value={opportunityId}
-            onChange={(e) => setOpportunityId(e.target.value)}
-            className={cn(CRM_FIELD, !opportunityId && "text-muted-foreground")}
-          >
-            <option value="">Pas d’opportunité liée</option>
-            {linkedOpps.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.title}
-              </option>
-            ))}
-          </select>
+            onChange={setOpportunityId}
+            placeholder="Pas d’opportunité liée"
+            emptyLabel="Pas d’opportunité liée"
+            options={linkedOpps.map((o) => ({ value: o.id, label: o.title }))}
+          />
         </CrmLabeledField>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={receipt} onChange={(e) => setReceipt(e.target.checked)} />
@@ -934,76 +962,56 @@ export function NewActivityDialog({
         }}
       >
         <CrmLabeledField label="Entreprise">
-          <select
+          <CrmSelect
             value={companyId}
-            onChange={(e) => {
-              setCompanyId(e.target.value);
+            onChange={(value) => {
+              setCompanyId(value);
               setOpportunityId("");
             }}
-            className={cn(CRM_FIELD, !companyId && "text-muted-foreground")}
-          >
-            <option value="" disabled>
-              Client ou prospect
-            </option>
-            {companies.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} ({c.kind === "client" ? "client" : "prospect"})
-              </option>
-            ))}
-          </select>
+            placeholder="Client ou prospect"
+            options={companies.map((c) => ({
+              value: c.id,
+              label: `${c.name} (${c.kind === "client" ? "client" : "prospect"})`,
+            }))}
+          />
         </CrmLabeledField>
         <CrmLabeledField label="Opportunité (optionnel)">
-          <select
+          <CrmSelect
             value={opportunityId}
-            onChange={(e) => setOpportunityId(e.target.value)}
-            className={cn(CRM_FIELD, !opportunityId && "text-muted-foreground")}
-          >
-            <option value="">Sans affaire liée</option>
-            {linkedOps.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.title}
-              </option>
-            ))}
-          </select>
+            onChange={setOpportunityId}
+            placeholder="Sans affaire liée"
+            emptyLabel="Sans affaire liée"
+            options={linkedOps.map((o) => ({ value: o.id, label: o.title }))}
+          />
         </CrmLabeledField>
         <div className="grid gap-3 sm:grid-cols-2">
           <CrmLabeledField label="Type">
-            <select
+            <CrmSelect
               value={kind}
-              onChange={(e) => {
-                const next = e.target.value as ActivityKind;
+              onChange={(value) => {
+                const next = value as ActivityKind;
                 setKind(next);
                 if (!status) {
                   setStatus(next === "rdv" || next === "evenement" ? "planifiee" : "terminee");
                 }
               }}
-              className={cn(CRM_FIELD, !kind && "text-muted-foreground")}
-            >
-              <option value="" disabled>
-                Appel, e-mail, visite…
-              </option>
-              {(Object.keys(ACTIVITY_LABELS) as ActivityKind[]).map((k) => (
-                <option key={k} value={k}>
-                  {ACTIVITY_LABELS[k]}
-                </option>
-              ))}
-            </select>
+              placeholder="Appel, e-mail, visite…"
+              options={(Object.keys(ACTIVITY_LABELS) as ActivityKind[]).map((k) => ({
+                value: k,
+                label: ACTIVITY_LABELS[k],
+              }))}
+            />
           </CrmLabeledField>
           <CrmLabeledField label="Statut">
-            <select
+            <CrmSelect
               value={status}
-              onChange={(e) => setStatus(e.target.value as ActivityStatus)}
-              className={cn(CRM_FIELD, !status && "text-muted-foreground")}
-            >
-              <option value="" disabled>
-                Planifiée ou terminée
-              </option>
-              {(Object.keys(ACTIVITY_STATUS_LABELS) as ActivityStatus[]).map((s) => (
-                <option key={s} value={s}>
-                  {ACTIVITY_STATUS_LABELS[s]}
-                </option>
-              ))}
-            </select>
+              onChange={(value) => setStatus(value as ActivityStatus)}
+              placeholder="Planifiée ou terminée"
+              options={(Object.keys(ACTIVITY_STATUS_LABELS) as ActivityStatus[]).map((s) => ({
+                value: s,
+                label: ACTIVITY_STATUS_LABELS[s],
+              }))}
+            />
           </CrmLabeledField>
           <CrmLabeledField label="Date">
             <input type="date" value={at} onChange={(e) => setAt(e.target.value)} className={CRM_FIELD} />
@@ -1013,20 +1021,12 @@ export function NewActivityDialog({
           </CrmLabeledField>
         </div>
         <CrmLabeledField label="Responsable">
-          <select
+          <CrmSelect
             value={ownerId}
-            onChange={(e) => setOwnerId(e.target.value)}
-            className={cn(CRM_FIELD, !ownerId && "text-muted-foreground")}
-          >
-            <option value="" disabled>
-              Manager
-            </option>
-            {MANAGERS.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
-            ))}
-          </select>
+            onChange={setOwnerId}
+            placeholder="Manager"
+            options={MANAGERS.map((m) => ({ value: m.id, label: m.name }))}
+          />
         </CrmLabeledField>
         <CrmLabeledField label={done ? "Compte rendu" : "Notes / ordre du jour"}>
           <textarea
@@ -1171,25 +1171,19 @@ export function NewOpportunityDialog({
         }}
       >
         <CrmLabeledField label="Entreprise">
-          <select
+          <CrmSelect
             value={companyId}
-            onChange={(e) => {
-              const id = e.target.value;
+            onChange={(id) => {
               setCompanyId(id);
               const co = companies.find((c) => c.id === id);
               if (co && !editing) setOwnerId(co.managerId);
             }}
-            className={cn(CRM_FIELD, !companyId && "text-muted-foreground")}
-          >
-            <option value="" disabled>
-              Client ou prospect
-            </option>
-            {companies.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} ({c.kind === "client" ? "client" : "prospect"})
-              </option>
-            ))}
-          </select>
+            placeholder="Client ou prospect"
+            options={companies.map((c) => ({
+              value: c.id,
+              label: `${c.name} (${c.kind === "client" ? "client" : "prospect"})`,
+            }))}
+          />
         </CrmLabeledField>
         <CrmLabeledField label="Intitulé">
           <input
@@ -1201,36 +1195,23 @@ export function NewOpportunityDialog({
         </CrmLabeledField>
         <div className="grid gap-3 sm:grid-cols-2">
           <CrmLabeledField label="Ligne de service">
-            <select
+            <CrmSelect
               value={line}
-              onChange={(e) => setLine(e.target.value as ServiceLine)}
-              className={cn(CRM_FIELD, !line && "text-muted-foreground")}
-            >
-              <option value="" disabled>
-                Ligne visée
-              </option>
-              {SERVICE_LINES.map((l) => (
-                <option key={l} value={l}>
-                  {SERVICE_LINE_LABELS[l]}
-                </option>
-              ))}
-            </select>
+              onChange={(value) => setLine(value as ServiceLine)}
+              placeholder="Ligne visée"
+              options={SERVICE_LINES.map((l) => ({ value: l, label: SERVICE_LINE_LABELS[l] }))}
+            />
           </CrmLabeledField>
           <CrmLabeledField label="Source">
-            <select
+            <CrmSelect
               value={source}
-              onChange={(e) => setSource(e.target.value as OpportunitySource)}
-              className={cn(CRM_FIELD, !source && "text-muted-foreground")}
-            >
-              <option value="" disabled>
-                Origine
-              </option>
-              {(Object.keys(SOURCE_LABELS) as OpportunitySource[]).map((s) => (
-                <option key={s} value={s}>
-                  {SOURCE_LABELS[s]}
-                </option>
-              ))}
-            </select>
+              onChange={(value) => setSource(value as OpportunitySource)}
+              placeholder="Origine"
+              options={(Object.keys(SOURCE_LABELS) as OpportunitySource[]).map((s) => ({
+                value: s,
+                label: SOURCE_LABELS[s],
+              }))}
+            />
           </CrmLabeledField>
           <CrmLabeledField label="Montant (FCFA)">
             <input
@@ -1249,20 +1230,12 @@ export function NewOpportunityDialog({
             />
           </CrmLabeledField>
           <CrmLabeledField label="Responsable">
-            <select
+            <CrmSelect
               value={ownerId}
-              onChange={(e) => setOwnerId(e.target.value)}
-              className={cn(CRM_FIELD, !ownerId && "text-muted-foreground")}
-            >
-              <option value="" disabled>
-                Manager
-              </option>
-              {MANAGERS.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
+              onChange={setOwnerId}
+              placeholder="Manager"
+              options={MANAGERS.map((m) => ({ value: m.id, label: m.name }))}
+            />
           </CrmLabeledField>
           <CrmLabeledField label="Date prochaine action">
             <input
@@ -1417,18 +1390,16 @@ export function NewContactDialog({
           Décideur
         </label>
         <CrmLabeledField label="Influence">
-          <select
+          <CrmSelect
             value={influence}
-            onChange={(e) => setInfluence(e.target.value as "faible" | "moyen" | "fort")}
-            className={cn(CRM_FIELD, !influence && "text-muted-foreground")}
-          >
-            <option value="" disabled>
-              Faible, moyen ou fort
-            </option>
-            <option value="faible">Faible</option>
-            <option value="moyen">Moyen</option>
-            <option value="fort">Fort</option>
-          </select>
+            onChange={(value) => setInfluence(value as "faible" | "moyen" | "fort")}
+            placeholder="Faible, moyen ou fort"
+            options={[
+              { value: "faible", label: "Faible" },
+              { value: "moyen", label: "Moyen" },
+              { value: "fort", label: "Fort" },
+            ]}
+          />
         </CrmLabeledField>
         <CrmFormActions onCancel={() => onOpenChange(false)} submitLabel="Ajouter" />
       </form>
@@ -1641,36 +1612,20 @@ export function NewLibraryDialog({
         }}
       >
         <CrmLabeledField label="Ligne de service">
-          <select
+          <CrmSelect
             value={line}
-            onChange={(e) => setLine(e.target.value as ServiceLine)}
-            className={cn(CRM_FIELD, !line && "text-muted-foreground")}
-          >
-            <option value="" disabled>
-              Ligne
-            </option>
-            {SERVICE_LINES.map((l) => (
-              <option key={l} value={l}>
-                {SERVICE_LINE_LABELS[l]}
-              </option>
-            ))}
-          </select>
+            onChange={(value) => setLine(value as ServiceLine)}
+            placeholder="Ligne"
+            options={SERVICE_LINES.map((l) => ({ value: l, label: SERVICE_LINE_LABELS[l] }))}
+          />
         </CrmLabeledField>
         <CrmLabeledField label="Catégorie">
-          <select
+          <CrmSelect
             value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className={cn(CRM_FIELD, !category && "text-muted-foreground")}
-          >
-            <option value="" disabled>
-              Type de ressource
-            </option>
-            {LIBRARY_CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
+            onChange={setCategory}
+            placeholder="Type de ressource"
+            options={LIBRARY_CATEGORIES}
+          />
         </CrmLabeledField>
         <CrmLabeledField label="Titre">
           <input
@@ -1743,20 +1698,15 @@ export function AddReferentialDialog({
         }}
       >
         <CrmLabeledField label="Référentiel">
-          <select
+          <CrmSelect
             value={kind}
-            onChange={(e) => setKind(e.target.value as ReferentialKind)}
-            className={cn(CRM_FIELD, !kind && "text-muted-foreground")}
-          >
-            <option value="" disabled>
-              Type de valeur
-            </option>
-            {(Object.keys(kindLabel) as ReferentialKind[]).map((k) => (
-              <option key={k} value={k}>
-                {kindLabel[k]}
-              </option>
-            ))}
-          </select>
+            onChange={(value) => setKind(value as ReferentialKind)}
+            placeholder="Type de valeur"
+            options={(Object.keys(kindLabel) as ReferentialKind[]).map((k) => ({
+              value: k,
+              label: kindLabel[k],
+            }))}
+          />
         </CrmLabeledField>
         <CrmLabeledField label="Libellé">
           <input
@@ -1885,13 +1835,15 @@ export function StageChangeDialog({
         ) : null}
         <div className="grid gap-3 sm:grid-cols-2">
           <CrmLabeledField label="Type d’action">
-            <select value={kind} onChange={(e) => setKind(e.target.value as ActivityKind)} className={CRM_FIELD}>
-              {(Object.keys(ACTIVITY_LABELS) as ActivityKind[]).map((k) => (
-                <option key={k} value={k}>
-                  {ACTIVITY_LABELS[k]}
-                </option>
-              ))}
-            </select>
+            <CrmSelect
+              value={kind}
+              onChange={(value) => setKind(value as ActivityKind)}
+              placeholder="Type d’action"
+              options={(Object.keys(ACTIVITY_LABELS) as ActivityKind[]).map((k) => ({
+                value: k,
+                label: ACTIVITY_LABELS[k],
+              }))}
+            />
           </CrmLabeledField>
           <CrmLabeledField label="Date prochaine action">
             <input

@@ -1,13 +1,13 @@
 import { createFileRoute, useNavigate, useRouteContext } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { LeadBadge, LineBadge } from "@/components/prospection/ProspectionBadges";
 import { NewLeadDialog } from "@/components/prospection/CrmForms";
 import { CrmCard, CrmCardGrid, EntityMark, MetricTile } from "@/components/prospection/CrmCards";
-import { CRM_PRIMARY_BTN, CRM_SECONDARY_BTN } from "@/components/prospection/CrmUi";
-import { LEAD_STATUS_LABELS, managerName, type LeadStatus } from "@/lib/prospection-demo";
+import { CRM_PRIMARY_BTN, CRM_SECONDARY_BTN, CrmSearchEmpty, CrmSearchField, matchesSearch } from "@/components/prospection/CrmUi";
+import { LEAD_STATUS_LABELS, SERVICE_LINE_LABELS, managerName, type LeadStatus } from "@/lib/prospection-demo";
 import { canManagePipeline, crmRoleFromStaff } from "@/lib/prospection-access";
 import { shortDate } from "@/lib/format";
 import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
@@ -28,6 +28,24 @@ function LeadsPage() {
   const convertLead = useProspectionDemoStore((s) => s.convertLead);
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+
+  const list = useMemo(
+    () =>
+      leads.filter((l) =>
+        matchesSearch(
+          query,
+          l.companyName,
+          l.need,
+          l.comment,
+          l.author,
+          managerName(l.ownerId),
+          LEAD_STATUS_LABELS[l.status],
+          SERVICE_LINE_LABELS[l.line],
+        ),
+      ),
+    [leads, query],
+  );
 
   return (
     <div>
@@ -45,9 +63,22 @@ function LeadsPage() {
           </button>
         }
       />
+      <CrmSearchField
+        value={query}
+        onChange={setQuery}
+        label="Rechercher une piste"
+        placeholder="Rechercher une entreprise, un besoin, un manager…"
+      />
 
+      {list.length === 0 ? (
+        <CrmSearchEmpty
+          title="Aucune piste"
+          description="Aucune piste ne correspond à cette recherche."
+          onClear={query ? () => setQuery("") : undefined}
+        />
+      ) : (
       <CrmCardGrid dense>
-        {leads.map((l, i) => (
+        {list.map((l, i) => (
           <CrmCard key={l.id} index={i} className="h-full">
             <div className="flex items-start gap-3">
               <EntityMark name={l.companyName} />
@@ -98,6 +129,7 @@ function LeadsPage() {
           </CrmCard>
         ))}
       </CrmCardGrid>
+      )}
 
       <NewLeadDialog open={open} onOpenChange={setOpen} />
     </div>

@@ -1,12 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Star } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { AccountPlanDialog, NewActivityDialog, NewOpportunityDialog } from "@/components/prospection/CrmForms";
 import { CrmCard, CrmCardGrid, EntityMark, MetricTile } from "@/components/prospection/CrmCards";
-import { CRM_PRIMARY_BTN, CRM_SECONDARY_BTN } from "@/components/prospection/CrmUi";
+import { CRM_PRIMARY_BTN, CRM_SECONDARY_BTN, CrmSearchEmpty, CrmSearchField, matchesSearch } from "@/components/prospection/CrmUi";
 import { LineBadge } from "@/components/prospection/ProspectionBadges";
-import { managerName, type Company } from "@/lib/prospection-demo";
+import { SERVICE_LINE_LABELS, managerName, type Company } from "@/lib/prospection-demo";
 import { currency } from "@/lib/format";
 import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
 
@@ -17,7 +17,26 @@ export const Route = createFileRoute("/prospection/strategiques")({
 
 function StrategicPage() {
   const companies = useProspectionDemoStore((s) => s.companies);
-  const list = companies.filter((c) => c.kind === "client" && c.strategic);
+  const [query, setQuery] = useState("");
+  const list = useMemo(
+    () =>
+      companies.filter(
+        (c) =>
+          c.kind === "client" &&
+          c.strategic &&
+          matchesSearch(
+            query,
+            c.name,
+            c.sector,
+            managerName(c.managerId),
+            c.plan?.stakes,
+            c.plan?.decisionMakers,
+            c.notes,
+            ...c.servicesBought.map((l) => SERVICE_LINE_LABELS[l]),
+          ),
+      ),
+    [companies, query],
+  );
   const [planFor, setPlanFor] = useState<Company | null>(null);
   const [oppFor, setOppFor] = useState<string | null>(null);
   const [actFor, setActFor] = useState<string | null>(null);
@@ -34,6 +53,19 @@ function StrategicPage() {
           </button>
         }
       />
+      <CrmSearchField
+        value={query}
+        onChange={setQuery}
+        label="Rechercher un client stratégique"
+        placeholder="Rechercher un client, un manager, un enjeu…"
+      />
+      {list.length === 0 ? (
+        <CrmSearchEmpty
+          title="Aucun client stratégique"
+          description="Aucun client ne correspond à cette recherche."
+          onClear={query ? () => setQuery("") : undefined}
+        />
+      ) : (
       <CrmCardGrid dense>
         {list.map((c, i) => (
           <CrmCard key={c.id} index={i} className="h-full">
@@ -94,6 +126,7 @@ function StrategicPage() {
           </CrmCard>
         ))}
       </CrmCardGrid>
+      )}
       <AccountPlanDialog
         open={Boolean(planFor)}
         onOpenChange={(v) => {

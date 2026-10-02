@@ -9,7 +9,7 @@ import {
   EntityMark,
   MetricTile,
 } from "@/components/prospection/CrmCards";
-import { CRM_PRIMARY_BTN, FilterChip, ProposeLineButton } from "@/components/prospection/CrmUi";
+import { CRM_PRIMARY_BTN, CrmSearchEmpty, CrmSearchField, FilterChip, ProposeLineButton, matchesSearch } from "@/components/prospection/CrmUi";
 import { LineBadge } from "@/components/prospection/ProspectionBadges";
 import {
   SERVICE_LINE_LABELS,
@@ -31,12 +31,27 @@ export const Route = createFileRoute("/prospection/portefeuille")({
 function PortefeuillePage() {
   const companies = useProspectionDemoStore((s) => s.companies);
   const [site, setSite] = useState<"all" | Site>("all");
+  const [query, setQuery] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [cross, setCross] = useState<{ companyId: string; line: ServiceLine } | null>(null);
 
   const filtered = useMemo(
-    () => companies.filter((a) => a.kind === "client" && (site === "all" || a.site === site)),
-    [companies, site],
+    () =>
+      companies.filter((a) => {
+        if (a.kind !== "client") return false;
+        if (site !== "all" && a.site !== site) return false;
+        return matchesSearch(
+          query,
+          a.name,
+          a.sector,
+          SITE_LABELS[a.site],
+          managerName(a.managerId),
+          a.notes,
+          a.plan?.stakes,
+          ...a.servicesBought.map((l) => SERVICE_LINE_LABELS[l]),
+        );
+      }),
+    [companies, site, query],
   );
 
   const potential = filtered.reduce((s, c) => s + (c.plan?.feePotential ?? 0), 0);
@@ -53,6 +68,12 @@ function PortefeuillePage() {
           </button>
         }
       />
+      <CrmSearchField
+        value={query}
+        onChange={setQuery}
+        label="Rechercher dans le portefeuille"
+        placeholder="Rechercher un client, un site, un manager…"
+      />
       <div className="mb-4 flex flex-wrap gap-2">
         <FilterChip active={site === "all"} onClick={() => setSite("all")}>
           Toutes implantations
@@ -63,6 +84,13 @@ function PortefeuillePage() {
           </FilterChip>
         ))}
       </div>
+      {filtered.length === 0 ? (
+        <CrmSearchEmpty
+          title="Aucun client"
+          description="Aucun client du portefeuille ne correspond à cette recherche."
+          onClear={query ? () => setQuery("") : undefined}
+        />
+      ) : (
       <CrmCardGrid>
         {filtered.map((a, i) => {
           const miss = missingServices(a);
@@ -122,6 +150,7 @@ function PortefeuillePage() {
           );
         })}
       </CrmCardGrid>
+      )}
       <NewOpportunityDialog open={createOpen} onOpenChange={setCreateOpen} />
       <NewOpportunityDialog
         open={Boolean(cross)}

@@ -6,8 +6,8 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { NewActivityDialog } from "@/components/prospection/CrmForms";
 import { ActivityStatusBadge } from "@/components/prospection/ProspectionBadges";
 import { CrmCard, CrmCardGrid, DateTile, KindMark } from "@/components/prospection/CrmCards";
-import { CRM_PRIMARY_BTN, CRM_SECONDARY_BTN, FilterChip } from "@/components/prospection/CrmUi";
-import { ACTIVITY_LABELS } from "@/lib/prospection-demo";
+import { CRM_PRIMARY_BTN, CRM_SECONDARY_BTN, CrmSearchEmpty, CrmSearchField, FilterChip, matchesSearch } from "@/components/prospection/CrmUi";
+import { ACTIVITY_LABELS, managerName } from "@/lib/prospection-demo";
 import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
 
 export const Route = createFileRoute("/prospection/agenda")({
@@ -20,6 +20,7 @@ function AgendaPage() {
   const activities = useProspectionDemoStore((s) => s.activities);
   const setActivityStatus = useProspectionDemoStore((s) => s.setActivityStatus);
   const [view, setView] = useState<"jour" | "semaine" | "mois">("semaine");
+  const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
 
   const dated = useMemo(
@@ -40,13 +41,15 @@ function AgendaPage() {
 
   const today = new Date().toISOString().slice(0, 10);
   const filtered = dated.filter((a) => {
-    if (view === "jour") return a.at === today;
-    if (view === "semaine") {
-      const t = new Date(today).getTime();
-      const d = new Date(a.at).getTime();
-      return Math.abs(d - t) < 8 * 86400000;
-    }
-    return a.at.slice(0, 7) === today.slice(0, 7);
+    const inPeriod =
+      view === "jour"
+        ? a.at === today
+        : view === "semaine"
+          ? Math.abs(new Date(a.at).getTime() - new Date(today).getTime()) < 8 * 86400000
+          : a.at.slice(0, 7) === today.slice(0, 7);
+    if (!inPeriod) return false;
+    const co = companies.find((c) => c.id === a.companyId);
+    return matchesSearch(query, co?.name, a.title, a.summary, a.time, ACTIVITY_LABELS[a.kind], managerName(a.ownerId));
   });
 
   return (
@@ -61,6 +64,12 @@ function AgendaPage() {
           </button>
         }
       />
+      <CrmSearchField
+        value={query}
+        onChange={setQuery}
+        label="Rechercher dans l’agenda"
+        placeholder="Rechercher une entreprise, un rendez-vous, un manager…"
+      />
       <div className="mb-4 flex flex-wrap gap-2">
         {(["jour", "semaine", "mois"] as const).map((v) => (
           <FilterChip key={v} active={view === v} onClick={() => setView(v)}>
@@ -69,7 +78,15 @@ function AgendaPage() {
         ))}
       </div>
       {filtered.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Rien sur cette période.</p>
+        query ? (
+          <CrmSearchEmpty
+            title="Aucun rendez-vous"
+            description="Rien ne correspond à cette recherche sur la période affichée."
+            onClear={() => setQuery("")}
+          />
+        ) : (
+          <p className="text-sm text-muted-foreground">Rien sur cette période.</p>
+        )
       ) : (
         <CrmCardGrid dense>
           {filtered.map((a, i) => {

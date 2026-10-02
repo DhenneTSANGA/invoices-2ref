@@ -450,6 +450,18 @@
   display: none;
 }
 
+/* Une modale ouverte défile à l’intérieur : la page derrière ne garde pas sa barre. */
+html:has([role="dialog"][data-state="open"]),
+html:has([role="dialog"][data-state="open"]) body {
+  overflow: hidden;
+}
+
+/* Le menu déroulant désactive les clics autour de lui. Sans ceci, le clic tombe
+   sur le fond sombre et ferme aussi la modale. */
+[role="dialog"][data-state="open"] {
+  pointer-events: auto !important;
+}
+
 /* Surbrillance courte après un clic depuis une alerte du tableau de bord. */
 @keyframes crm-spotlight-pulse {
   0%,
@@ -479,5 +491,75 @@
 @media (prefers-reduced-motion: reduce) {
   .crm-spotlight {
     animation: none;
+  }
+}
+
+/* Tout contrôle cliquable se distingue au survol : curseur, léger soulèvement, ombre. */
+:where(
+  button,
+  [role="button"],
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  a.bg-gradient-primary,
+  a.shadow-glow
+):not(:disabled):not([aria-disabled="true"]) {
+  cursor: pointer;
+}
+
+:where(
+  button,
+  [role="button"],
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  a.bg-gradient-primary,
+  a.shadow-glow
+):not(:disabled):not([aria-disabled="true"]):hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 1px 2px oklch(0.2 0.05 260 / 0.08),
+    0 10px 22px oklch(0.28 0.1 262 / 0.18);
+}
+
+:where(
+  button,
+  [role="button"],
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  a.bg-gradient-primary,
+  a.shadow-glow
+):not(:disabled):not([aria-disabled="true"]):active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* Le bloc titre d’une affaire signale le clic par un fond, pas par un rectangle survolé. */
+button.crm-quiet-hit:not(:disabled):not([aria-disabled="true"]):hover,
+button.crm-quiet-hit:not(:disabled):not([aria-disabled="true"]):active {
+  transform: none;
+  box-shadow: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(
+    button,
+    [role="button"],
+    input[type="button"],
+    input[type="submit"],
+    input[type="reset"],
+    a.bg-gradient-primary,
+    a.shadow-glow
+  ):not(:disabled):hover,
+  :where(
+    button,
+    [role="button"],
+    input[type="button"],
+    input[type="submit"],
+    input[type="reset"],
+    a.bg-gradient-primary,
+    a.shadow-glow
+  ):not(:disabled):active {
+    transform: none;
   }
 }
