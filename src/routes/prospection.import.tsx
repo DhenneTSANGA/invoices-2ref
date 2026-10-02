@@ -2,20 +2,69 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
-import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
-import type { Company } from "@/lib/prospection-demo";
+import { CRM_PRIMARY_BTN, CRM_SECONDARY_BTN } from "@/components/prospection/CrmUi";
+import type { Company, CompanyKind, Site } from "@/lib/prospection-demo";
 import { currency } from "@/lib/format";
+import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
 
 export const Route = createFileRoute("/prospection/import")({
   head: () => ({ meta: [{ title: "Import / export — Prospection" }] }),
   component: ImportPage,
 });
 
+function parseKind(v: string | undefined): CompanyKind {
+  return v?.trim() === "client" ? "client" : "prospect";
+}
+
+function parseSite(v: string | undefined): Site {
+  const s = v?.trim();
+  if (s === "port_gentil" || s === "franceville" || s === "libreville") return s;
+  return "libreville";
+}
+
 function ImportPage() {
   const companies = useProspectionDemoStore((s) => s.companies);
   const opportunities = useProspectionDemoStore((s) => s.opportunities);
   const importCompanies = useProspectionDemoStore((s) => s.importCompanies);
-  const [preview, setPreview] = useState<string>("");
+  const [preview, setPreview] = useState("");
+  const [errors, setErrors] = useState<string[]>([]);
+
+  function rowsFromText(text: string) {
+    const lines = text
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
+    const start = lines[0]?.toLowerCase().startsWith("nom") ? 1 : 0;
+    const nextErrors: string[] = [];
+    const rows: Company[] = [];
+    lines.slice(start).forEach((line, i) => {
+      const parts = line.split(",").map((s) => s.trim());
+      if (!parts[0]) {
+        nextErrors.push(`Ligne ${i + 1 + start} : nom manquant`);
+        return;
+      }
+      rows.push({
+        id: `co-imp-${Date.now()}-${i}`,
+        name: parts[0],
+        kind: parseKind(parts[1]),
+        sector: "Import",
+        size: "—",
+        site: parseSite(parts[2]),
+        address: "",
+        phone: "",
+        email: "",
+        website: "",
+        managerId: "mgr-awa",
+        servicesBought: [],
+        targetLines: [],
+        source: "nouveau",
+        strategic: false,
+        caSigned: 0,
+        notes: "Import CSV démo",
+      });
+    });
+    return { rows, nextErrors };
+  }
 
   function exportCsv() {
     const header = "nom,type,site,manager,ca\n";
@@ -32,13 +81,52 @@ function ImportPage() {
     toast.success("Export CSV téléchargé");
   }
 
+  function runImport(text: string) {
+    const { rows, nextErrors } = rowsFromText(text);
+    setErrors(nextErrors);
+    if (rows.length === 0) {
+      toast.error("Aucune ligne valide");
+      return;
+    }
+    importCompanies(rows);
+    toast.success(`${rows.length} ligne(s) importée(s)${nextErrors.length ? ` · ${nextErrors.length} erreur(s)` : ""}`);
+  }
+
   return (
     <div>
-      <PageHeader title="Import / export" subtitle="CSV côté navigateur — mapping simple. Excel/PDF native viendra avec PostgreSQL." />
+      <PageHeader
+        title="Import / export"
+        subtitle="CSV navigateur — colonnes nom, type (prospect|client), site."
+        actions={
+          <>
+            <button type="button" onClick={exportCsv} className={CRM_PRIMARY_BTN}>
+              Exporter CSV
+            </button>
+            <label className={CRM_SECONDARY_BTN + " cursor-pointer"}>
+              Charger un fichier
+              <input
+                type="file"
+                accept=".csv,text/csv"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const text = await file.text();
+                  setPreview(text);
+                  runImport(text);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+          </>
+        }
+      />
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="glass-panel space-y-3 rounded-3xl p-5">
           <h3 className="font-display font-semibold">Import CSV</h3>
-          <p className="text-sm text-muted-foreground">Colonnes : nom, type (prospect|client), site (libreville|port_gentil|franceville)</p>
+          <p className="text-sm text-muted-foreground">
+            Colonnes : nom, type (prospect|client), site (libreville|port_gentil|franceville)
+          </p>
           <textarea
             value={preview}
             onChange={(e) => setPreview(e.target.value)}
@@ -46,55 +134,26 @@ function ImportPage() {
             placeholder={"Atlantic New,prospect,libreville"}
             className="w-full rounded-xl border border-border bg-background px-3 py-2 font-mono text-xs"
           />
-          <button
-            type="button"
-            className="rounded-2xl bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground"
-            onClick={() => {
-              const rows: Company[] = preview
-                .split("\n")
-                .map((l) => l.trim())
-                .filter(Boolean)
-                .map((line, i) => {
-                  const [name, kind, site] = line.split(",").map((s) => s.trim());
-                  return {
-                    id: `co-imp-${Date.now()}-${i}`,
-                    name: name || `Import ${i}`,
-                    kind: kind === "client" ? "client" : "prospect",
-                    sector: "Import",
-                    size: "—",
-                    site: site === "port_gentil" || site === "franceville" ? site : "libreville",
-                    address: "",
-                    phone: "",
-                    email: "",
-                    website: "",
-                    managerId: "mgr-awa",
-                    servicesBought: [],
-                    targetLines: [],
-                    source: "nouveau",
-                    strategic: false,
-                    caSigned: 0,
-                    notes: "Import CSV démo",
-                  } satisfies Company;
-                });
-              if (rows.length === 0) {
-                toast.error("Aucune ligne");
-                return;
-              }
-              importCompanies(rows);
-              toast.success(`${rows.length} ligne(s) importée(s)`);
-            }}
-          >
-            Importer
+          <button type="button" className={CRM_PRIMARY_BTN} onClick={() => runImport(preview)}>
+            Importer le texte
           </button>
+          {errors.length > 0 ? (
+            <ul className="text-xs text-danger">
+              {errors.map((err) => (
+                <li key={err}>{err}</li>
+              ))}
+            </ul>
+          ) : null}
         </section>
         <section className="glass-panel space-y-3 rounded-3xl p-5">
-          <h3 className="font-display font-semibold">Export</h3>
+          <h3 className="font-display font-semibold">Aperçu export</h3>
           <p className="text-sm text-muted-foreground">
-            {companies.length} entreprises · {opportunities.length} opportunités · pipeline {currency(opportunities.reduce((s, o) => s + o.amount, 0))}
+            {companies.length} entreprises · {opportunities.length} opportunités · pipeline{" "}
+            {currency(opportunities.reduce((s, o) => s + o.amount, 0))}
           </p>
-          <button type="button" onClick={exportCsv} className="rounded-2xl border border-border px-4 py-2 text-sm">
-            Télécharger CSV
-          </button>
+          <p className="text-xs text-muted-foreground">
+            Mapping : col. 1 = nom, col. 2 = type, col. 3 = site. Les lignes sans nom sont rejetées.
+          </p>
         </section>
       </div>
     </div>

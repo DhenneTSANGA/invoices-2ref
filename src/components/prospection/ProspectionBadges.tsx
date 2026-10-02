@@ -1,11 +1,17 @@
+"use client";
+
+import * as SelectPrimitive from "@radix-ui/react-select";
+import { Check, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   ACTIVITY_LABELS,
+  ACTIVITY_STATUS_LABELS,
   LEAD_STATUS_LABELS,
   SERVICE_LINE_LABELS,
   SOURCE_LABELS,
   STAGE_LABELS,
   type ActivityKind,
+  type ActivityStatus,
   type LeadStatus,
   type OpportunitySource,
   type PipelineStage,
@@ -32,9 +38,103 @@ export function StageBadge({ stage }: { stage: PipelineStage }) {
   );
 }
 
+const STAGE_DOT: Record<PipelineStage, string> = {
+  qualification: "bg-sky-500",
+  premier_contact: "bg-indigo-500",
+  rendez_vous: "bg-amber-500",
+  proposition: "bg-violet-500",
+  negotiation: "bg-fuchsia-500",
+  decision: "bg-orange-500",
+  gagne: "bg-emerald-500",
+  perdu: "bg-danger",
+  reporte: "bg-muted-foreground",
+};
+
+const PIPELINE_STAGES: PipelineStage[] = [
+  "qualification",
+  "premier_contact",
+  "rendez_vous",
+  "proposition",
+  "negotiation",
+  "decision",
+];
+const OUTCOME_STAGES: PipelineStage[] = ["gagne", "perdu", "reporte"];
+
+export function StageSelect({
+  value,
+  onChange,
+}: {
+  value: PipelineStage;
+  onChange: (stage: PipelineStage) => void;
+}) {
+  return (
+    <div
+      className="shrink-0"
+      onClick={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+    >
+      <SelectPrimitive.Root value={value} onValueChange={(next) => onChange(next as PipelineStage)}>
+        <SelectPrimitive.Trigger
+          aria-label="Étape de l’opportunité"
+          className={cn(
+            "group inline-flex cursor-pointer items-center gap-1 rounded-full px-2.5 py-1.5 text-xs font-semibold outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-primary/40 data-[state=open]:ring-2 data-[state=open]:ring-primary/30",
+            STAGE_CLASS[value],
+          )}
+        >
+          <span>{STAGE_LABELS[value]}</span>
+          <ChevronDown className="h-3.5 w-3.5 opacity-70 transition-transform group-data-[state=open]:rotate-180" />
+        </SelectPrimitive.Trigger>
+        <SelectPrimitive.Portal>
+          <SelectPrimitive.Content
+            position="popper"
+            sideOffset={8}
+            align="end"
+            className="z-[80] min-w-[240px] overflow-hidden rounded-2xl border border-border/70 bg-popover/95 p-1.5 text-popover-foreground shadow-float backdrop-blur-xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
+          >
+            <SelectPrimitive.Viewport className="flex flex-col gap-0.5">
+              {PIPELINE_STAGES.map((st) => (
+                <StageOption key={st} stage={st} />
+              ))}
+              <SelectPrimitive.Separator className="mx-1 my-1.5 h-px bg-border/70" />
+              {OUTCOME_STAGES.map((st) => (
+                <StageOption key={st} stage={st} />
+              ))}
+            </SelectPrimitive.Viewport>
+          </SelectPrimitive.Content>
+        </SelectPrimitive.Portal>
+      </SelectPrimitive.Root>
+    </div>
+  );
+}
+
+function StageOption({ stage }: { stage: PipelineStage }) {
+  return (
+    <SelectPrimitive.Item
+      value={stage}
+      className="flex cursor-pointer items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm outline-none data-[highlighted]:bg-muted/80 data-[state=checked]:bg-muted/55"
+    >
+      <span className={cn("h-2 w-2 shrink-0 rounded-full", STAGE_DOT[stage])} />
+      <SelectPrimitive.ItemText className="flex-1 font-medium">
+        {STAGE_LABELS[stage]}
+      </SelectPrimitive.ItemText>
+      <SelectPrimitive.ItemIndicator className="ml-auto text-primary">
+        <Check className="h-3.5 w-3.5" />
+      </SelectPrimitive.ItemIndicator>
+    </SelectPrimitive.Item>
+  );
+}
+
+const LINE_CLASS: Record<ServiceLine, string> = {
+  rh: "bg-sky-500/15 text-sky-800 dark:text-sky-300",
+  comptabilite: "bg-emerald-500/15 text-emerald-800 dark:text-emerald-300",
+  conseil: "bg-violet-500/15 text-violet-800 dark:text-violet-300",
+  fiscalite: "bg-amber-500/15 text-amber-800 dark:text-amber-300",
+  formation: "bg-fuchsia-500/15 text-fuchsia-800 dark:text-fuchsia-300",
+};
+
 export function LineBadge({ line }: { line: ServiceLine }) {
   return (
-    <span className="inline-flex rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">
+    <span className={cn("inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold", LINE_CLASS[line])}>
       {SERVICE_LINE_LABELS[line]}
     </span>
   );
@@ -44,10 +144,36 @@ export function SourceBadge({ source }: { source: OpportunitySource }) {
   return <span className="text-sm text-muted-foreground">{SOURCE_LABELS[source]}</span>;
 }
 
+const LEAD_CLASS: Record<LeadStatus, string> = {
+  nouvelle: "bg-sky-500/15 text-sky-800 dark:text-sky-300",
+  en_cours: "bg-indigo-500/15 text-indigo-700 dark:text-indigo-300",
+  qualifiee: "bg-amber-500/15 text-amber-800 dark:text-amber-300",
+  convertie: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+  rejetee: "bg-danger/10 text-danger",
+  reportee: "bg-muted text-muted-foreground",
+};
+
 export function LeadBadge({ status }: { status: LeadStatus }) {
   return (
-    <span className="inline-flex rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold">
+    <span className={cn("inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold", LEAD_CLASS[status])}>
       {LEAD_STATUS_LABELS[status]}
+    </span>
+  );
+}
+
+const ACTIVITY_STATUS_CLASS: Record<ActivityStatus, string> = {
+  a_faire: "bg-sky-500/15 text-sky-800 dark:text-sky-300",
+  planifiee: "bg-indigo-500/15 text-indigo-700 dark:text-indigo-300",
+  en_cours: "bg-amber-500/15 text-amber-800 dark:text-amber-300",
+  terminee: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+  annulee: "bg-muted text-muted-foreground",
+  en_retard: "bg-danger/10 text-danger",
+};
+
+export function ActivityStatusBadge({ status }: { status: ActivityStatus }) {
+  return (
+    <span className={cn("inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold", ACTIVITY_STATUS_CLASS[status])}>
+      {ACTIVITY_STATUS_LABELS[status]}
     </span>
   );
 }

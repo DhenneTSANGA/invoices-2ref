@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>2R Hub — Suivre la prospection du début à la fin</title>
+  <style>
+    :root {
+      --ink: #16132a;
+      --muted: #5b5674;
+      --line: #e4dff2;
+      --paper: #fbfaff;
+      --violet: #5b3fd6;
+      --navy: #1e1654;
+      --amber: #c47b12;
+      --green: #0f7a5a;
+      --red: #b42318;
+      --chip: #efeafd;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #fff;
+      color: var(--ink);
+      font: 11pt/1.55 "Segoe UI", "Calibri", system-ui, sans-serif;
+    }
+    @page {
+      size: A4;
+      margin: 16mm 15mm 18mm 15mm;
+    }
+    @page {
+      @bottom-left {
+        content: "2R Hub · Prospection";
+        font-size: 8pt;
+        color: #7a7494;
+      }
+      @bottom-right {
+        content: "p. " counter(page);
+        font-size: 8pt;
+        color: #7a7494;
+      }
+    }
+    .cover {
+      page-break-after: always;
+      min-height: 250mm;
+      padding: 18mm 8mm 10mm;
+      background:
+        linear-gradient(165deg, #1e1654 0%, #3d2bb0 48%, #6d4dff 100%);
+      color: #fff;
+      border-radius: 0;
+      margin: -16mm -15mm 0;
+      padding: 28mm 18mm 20mm;
+    }
+    .cover .kicker {
+      letter-spacing: .22em;
+      text-transform: uppercase;
+      font-size: 10pt;
+      opacity: .78;
+      font-weight: 600;
+    }
+    .cover h1 {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 34pt;
+      line-height: 1.12;
+      font-weight: 700;
+      margin: 18px 0 14px;
+    }
+    .cover .lede {
+      font-size: 13.5pt;
+      max-width: 145mm;
+      opacity: .92;
+      line-height: 1.45;
+    }
+    .cover .meta {
+      margin-top: 42mm;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px 24px;
+      font-size: 10pt;
+      opacity: .88;
+    }
+    .cover .meta strong { display: block; font-size: 8pt; letter-spacing: .12em; text-transform: uppercase; opacity: .7; margin-bottom: 2px; }
+    h2 {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 18pt;
+      color: var(--navy);
+      margin: 0 0 8px;
+      page-break-after: avoid;
+    }
+    h3 {
+      font-size: 12.5pt;
+      color: var(--violet);
+      margin: 18px 0 6px;
+      page-break-after: avoid;
+    }
+    h4 {
+      font-size: 11pt;
+      margin: 14px 0 4px;
+      color: var(--navy);
+      page-break-after: avoid;
+    }
+    p { margin: 0 0 8px; }
+    ul, ol { margin: 0 0 10px; padding-left: 18px; }
+    li { margin-bottom: 3px; }
+    .section { page-break-inside: avoid; margin: 0 0 16px; }
+    .section.allow-break { page-break-inside: auto; }
+    .chapter {
+      page-break-before: always;
+    }
+    .chapter:first-of-type { page-break-before: auto; }
+    .num {
+      display: inline-block;
+      min-width: 22px;
+      height: 22px;
+      line-height: 22px;
+      text-align: center;
+      border-radius: 999px;
+      background: var(--violet);
+      color: #fff;
+      font-size: 9pt;
+      font-weight: 700;
+      margin-right: 6px;
+    }
+    .box {
+      border: 1px solid var(--line);
+      background: var(--paper);
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin: 8px 0 12px;
+      page-break-inside: avoid;
+    }
+    .box.warn { border-color: #f0d3a0; background: #fff8ec; }
+    .box.ok { border-color: #b7e4d4; background: #f3fbf7; }
+    .box.bad { border-color: #f3c4c0; background: #fff5f4; }
+    .box .label {
+      font-size: 8pt;
+      font-weight: 700;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--violet);
+      margin-bottom: 4px;
+    }
+    .box.warn .label { color: var(--amber); }
+    .box.ok .label { color: var(--green); }
+    .box.bad .label { color: var(--red); }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 9.5pt;
+      margin: 8px 0 14px;
+      page-break-inside: avoid;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 6px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: #f3effc;
+      color: var(--navy);
+      font-weight: 650;
+    }
+    tr:nth-child(even) td { background: #fcfbff; }
+    .toc a { color: var(--navy); text-decoration: none; }
+    .toc ol { padding-left: 22px; }
+    .toc li { margin: 5px 0; }
+    .two {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 8px 0 12px;
+    }
+    .chip {
+      display: inline-block;
+      background: var(--chip);
+      color: var(--navy);
+      border-radius: 999px;
+      padding: 1px 8px;
+      font-size: 8.5pt;
+      font-weight: 650;
+      margin: 0 3px 3px 0;
+    }
+    .flow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      margin: 8px 0 12px;
+      font-size: 9.5pt;
+      font-weight: 650;
+    }
+    .flow span.step {
+      background: var(--navy);
+      color: #fff;
+      padding: 5px 9px;
+      border-radius: 8px;
+    }
+    .flow span.out {
+      background: #ece9f6;
+      color: var(--navy);
+      padding: 5px 9px;
+      border-radius: 8px;
+    }
+    .arrow { color: var(--violet); font-weight: 700; }
+    code {
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 9pt;
+      background: #f4f1fb;
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+    .small { font-size: 9.5pt; color: var(--muted); }
+    .footer-note { font-size: 9pt; color: var(--muted); margin-top: 16px; }
+    .kpi {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin: 8px 0 12px;
+    }
+    .kpi div {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 8px 10px;
+      page-break-inside: avoid;
+    }
+    .kpi strong { display: block; font-size: 13pt; color: var(--navy); }
+    .kpi span { font-size: 8.5pt; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+  </style>
+</head>
+<body>
+
+  <section class="cover">
+    <div class="kicker">Aide-mémoire · 2R Conseil</div>
+    <h1>Comment suivre<br>la plateforme,<br>du début à la fin</h1>
+    <p class="lede">
+      Guide opérationnel de l’espace <strong>Prospection</strong> (2R Hub).
+      À relire quand on revient sur le projet après d’autres dossiers.
+      Deux moteurs tournent en parallèle, comme dans le cahier :
+      conquête de nouveaux comptes, et développement des clients déjà au cabinet.
+    </p>
+    <div class="meta">
+      <div><strong>Espace</strong>Prospection CRM (démo, hors facturation)</div>
+      <div><strong>Parcours</strong>Celui d’un manager — Direction voit tout</div>
+      <div><strong>Cahier</strong>NewCDC — canvas commercial 2R</div>
+      <div><strong>État</strong>Octobre 2026 · données fictives en mémoire</div>
+    </div>
+  </section>
+
+  <h2>Pourquoi ce document</h2>
+  <p>
+    2R Hub a deux espaces après connexion : <strong>Facturation</strong> (FacturIA, devis / factures / lettres)
+    et <strong>Prospection</strong> (CRM commercial). Ce guide ne traite que la prospection.
+    Les données CRM sont encore une <strong>démo en mémoire</strong> : rien n’est écrit en PostgreSQL.
+    Un bouton « Réinitialiser » en haut de chaque page remet le jeu de données.
+  </p>
+  <p>
+    Le parcours ci-dessous est celui d’un <strong>manager</strong>.
+    La Direction voit tous les cabinets / portefeuilles.
+    Un collaborateur ou un chef de service s’arrête surtout aux <strong>pistes internes</strong>
+    (signaler un besoin en moins d’une minute).
+  </p>
+
+  <div class="box">
+    <div class="label">En une phrase</div>
+    Un manager suit le menu de haut en bas :
+    Dashboard → piste ou prospect → opportunité (6 étapes) → activités de la semaine
+    → si signé, portefeuille / Port-Gentil → objectifs et budget le vendredi.
+  </div>
+
+  <h3>Sommaire</h3>
+  <ol class="toc">
+    <li>Carte du système (2 espaces, 2 moteurs, rôles, menu)</li>
+    <li>0. Dashboard — cockpit du lundi</li>
+    <li>1. Captation — faire entrer un besoin</li>
+    <li>2. Pipeline — l’affaire avance</li>
+    <li>3. Actions — le travail de la semaine</li>
+    <li>4. Portefeuille — le 2<sup>e</sup> moteur</li>
+    <li>5. Pilotage — mesurer, pas vendre</li>
+    <li>Réglages, formulaires, alertes</li>
+    <li>Cohérence cahier / code et écarts</li>
+    <li>Parcours type lundi → vendredi</li>
+  </ol>
+
+  <section class="chapter">
+    <h2>Carte du système</h2>
+
+    <h3>Deux espaces, deux moteurs</h3>
+    <div class="two">
+      <div class="box">
+        <div class="label">Espace Facturation</div>
+        Devis, factures, lettres, clients facturés, GED.
+        Hors de ce guide. On y bascule via « Changer d’espace » (hub).
+      </div>
+      <div class="box">
+        <div class="label">Espace Prospection</div>
+        CRM commercial. Conquête + développement du portefeuille existant.
+        C’est ici que vivent pistes, opportunités, dépenses, Port-Gentil.
+      </div>
+    </div>
+    <div class="two">
+      <div class="box ok">
+        <div class="label">Moteur 1 — Conquête</div>
+        Nouveaux comptes : pistes internes, prospects, pipeline jusqu’à la signature.
+        Source typique : <code>nouveau</code> ou <code>piste_interne</code>.
+      </div>
+      <div class="box ok">
+        <div class="label">Moteur 2 — Développement</div>
+        Clients déjà au cabinet (surtout formation). Matrice « acheté / à proposer »,
+        plans de compte, RDV dirigeant. Source : <code>client_existant</code> ou <code>client_formation</code>.
+      </div>
+    </div>
+
+    <h3>Rôles (mapping actuel 2R Hub → CRM)</h3>
+    <p>Le cahier prévoit des rôles CRM dédiés. En attendant, le code mappe les rôles Hub :</p>
+    <table>
+      <thead>
+        <tr><th>Rôle Hub</th><th>Rôle CRM</th><th>Ce qu’il voit / fait</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Super-admin</td><td>Direction</td><td>Tout le CRM, tous les portefeuilles, validation dépenses, KPI, admin, Port-Gentil</td></tr>
+        <tr><td>Admin</td><td>Manager</td><td>Son cabinet : pipeline, pistes, budget, objectifs, portefeuille</td></tr>
+        <tr><td>Membre</td><td>Collaborateur</td><td>Surtout : signaler une piste (moins d’une minute). Pas le pilotage</td></tr>
+      </tbody>
+    </table>
+    <p class="small">Le cahier mentionne aussi chef de service. Dans le mapping actuel, un membre n’a pas ce rôle dédié.</p>
+
+    <h3>Menu, dans l’ordre du cycle</h3>
+    <p>Le menu n’est pas alphabétique. Il suit le cycle commercial du cahier.</p>
+    <table>
+      <thead>
+        <tr><th>Groupe</th><th>Pages</th><th>Pourquoi ici</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Aujourd’hui</td><td>Dashboard</td><td>Cockpit du lundi. Pas une étape de vente.</td></tr>
+        <tr><td>1. Captation</td><td>Pistes internes, Prospects</td><td>Faire entrer un besoin.</td></tr>
+        <tr><td>2. Pipeline</td><td>Opportunités</td><td>L’affaire avance (étapes + prochaine action).</td></tr>
+        <tr><td>3. Actions</td><td>Activités, Agenda, Bibliothèque</td><td>Gestes de la semaine, pas des étapes.</td></tr>
+        <tr><td>4. Portefeuille</td><td>Clients, Portefeuille, Clients stratégiques, Port-Gentil</td><td>2<sup>e</sup> moteur, après signature ou client déjà là.</td></tr>
+        <tr><td>5. Pilotage</td><td>Objectifs, Dépenses &amp; budget, Rapports &amp; KPI, Notifications</td><td>Mesurer. Vendredi surtout.</td></tr>
+        <tr><td>Réglages</td><td>Import / export, Administration</td><td>Hors du cycle quotidien (jours 6–8 du cahier).</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Quatre lignes de service</h3>
+    <p>
+      <span class="chip">Ressources humaines</span>
+      <span class="chip">Comptabilité</span>
+      <span class="chip">Conseil</span>
+      <span class="chip">Fiscalité</span>
+      <span class="chip">Formation</span>
+    </p>
+    <p class="small">
+      Le cahier parle souvent de « 4 lignes » (RH, compta, conseil/fiscalité, formation).
+      Dans le code, Conseil et Fiscalité sont séparés (5 clés). C’est le même métier, découpé plus fin.
+    </p>
+
+    <h3>Trois managers de la démo</h3>
+    <table>
+      <thead><tr><th>Manager</th><th>Lignes</th></tr></thead>
+      <tbody>
+        <tr><td>Awa Ndong</td><td>Formation, RH</td></tr>
+        <tr><td>Jean-Marc Ovono</td><td>Conseil, Fiscalité</td></tr>
+        <tr><td>Nadège Mba</td><td>Comptabilité</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="chapter">
+    <h2><span class="num">0</span> Dashboard — on commence toujours ici</h2>
+    <p>
+      C’est le <strong>cockpit du lundi</strong>, pas une étape de vente.
+      Le cahier impose une routine hebdomadaire. Elle est dans <code>weekChecks</code>
+      et affichée sur le dashboard, juste après les cartes de montants, avec les alertes.
+    </p>
+
+    <h3>Routine hebdomadaire (cases à cocher)</h3>
+    <table>
+      <thead><tr><th>Quand</th><th>Geste</th></tr></thead>
+      <tbody>
+        <tr><td>Lundi</td><td>Revue pipeline, 30 minutes</td></tr>
+        <tr><td>Semaine</td><td>5 contacts minimum + 2 rendez-vous</td></tr>
+        <tr><td>Après RDV</td><td>Compte rendu sous 48 h + prochaine action</td></tr>
+        <tr><td>RDV concluant</td><td>Proposition sous 5 jours ouvrés</td></tr>
+        <tr><td>Vendredi</td><td>Dépenses à jour</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Ce que vous y voyez</h3>
+    <ul>
+      <li><strong>KPI</strong> : pipeline brut, pipeline pondéré, CA signé, dépenses vs budget 500 000 FCFA.</li>
+      <li><strong>Objectifs 8 semaines</strong> par manager (qualifiés, contacts, RDV, propositions, signatures).</li>
+      <li><strong>Alertes</strong> : action en retard (prochaine action dont la date est dépassée),
+        client stratégique sans contact depuis plus de 30 jours, dépense en attente de validation Direction.</li>
+      <li><strong>Les 6 clients Port-Gentil</strong> stratégiques, avec un lien vers la page dédiée.</li>
+      <li>Raccourcis : nouvelle piste, nouvelle activité, nouvelle opportunité, nouvelle dépense.</li>
+    </ul>
+    <div class="box warn">
+      <div class="label">Règle d’alerte « prochaine action »</div>
+      Toute opportunité encore dans une étape active (Qualification → Décision)
+      <strong>doit</strong> avoir une prochaine action et une date. Si la date est passée → alerte dashboard.
+    </div>
+  </section>
+
+  <section class="chapter">
+    <h2><span class="num">1</span> Captation — faire entrer un besoin</h2>
+    <p>
+      Deux portes d’entrée. Les <strong>pistes internes</strong> d’abord (vrai point de départ
+      pour un collaborateur). Les <strong>prospects</strong> ensuite, pour la conquête froide.
+    </p>
+
+    <h3>Pistes internes</h3>
+    <p>
+      Le cahier : « chaque intervention peut remonter une piste en moins d’une minute ».
+      Formulaire court : entreprise, besoin, ligne visée, commentaire.
+      Si le nom matche un client / prospect déjà en portefeuille, la piste est
+      <strong>attribuée automatiquement au manager référent</strong>.
+    </p>
+    <p>Statuts d’une piste : nouvelle → en cours / qualifiée / rejetée / reportée → convertie.</p>
+
+    <h4>Flux dans le code (<code>convertLead</code>)</h4>
+    <ol>
+      <li>Quelqu’un signale un besoin (entreprise, ligne, commentaire).</li>
+      <li>Le manager passe la piste en en cours, qualifiée, rejetée ou reportée.</li>
+      <li><strong>Convertir</strong> crée (ou rattache) l’entreprise et une opportunité déjà à
+        <strong>Qualification</strong>, probabilité 20 %, source <code>piste_interne</code>.</li>
+    </ol>
+    <div class="box ok">
+      <div class="label">Cohérent avec le cahier</div>
+      Une opportunité née d’un client existant entre à Qualification, cycle raccourci
+      (on ne « chasse » pas un inconnu : le besoin est déjà dans la maison).
+    </div>
+
+    <h3>Prospects</h3>
+    <p>
+      Fiche entreprise <code>kind: prospect</code> : raison sociale, secteur, taille, implantation
+      (Libreville / Port-Gentil / Franceville), source (dont <strong>client formation</strong>),
+      ligne visée, manager référent, contact décideur + niveau d’influence (faible / moyen / fort),
+      site web. Tant que ce n’est pas signé, ce n’est pas un client.
+    </p>
+    <p>Sources possibles d’un prospect : nouveau, piste interne, client formation.</p>
+  </section>
+
+  <section class="chapter">
+    <h2><span class="num">2</span> Pipeline — l’affaire avance</h2>
+    <p>
+      Tout se joue dans <strong>Opportunités</strong> (pipeline fusionné + menu d’étape).
+      Il n’y a plus de page Pipeline séparée : on change de statut dans un menu déroulant
+      sur la liste / la fiche. Pas de glisser-déposer (choix produit, pas un oubli).
+    </p>
+    <div class="box warn">
+      <div class="label">Règle d’or du cahier</div>
+      Chaque affaire a une étape, une prochaine action et une date. Sinon, alerte.
+      Changer d’étape ouvre un mini-formulaire (<code>advanceStage</code>) :
+      type d’activité, résumé / CR, prochaine action + date.
+      <strong>Sans ça, l’étape ne passe pas.</strong>
+    </div>
+
+    <h3>Les 6 étapes actives</h3>
+    <table>
+      <thead>
+        <tr><th>#</th><th>Étape</th><th>Proba.</th><th>Ce que vous faites</th><th>Geste typique</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>1</td><td>Qualification</td><td>20 %</td><td>Confirmer le besoin, le décideur, la ligne</td><td>Appel</td></tr>
+        <tr><td>2</td><td>Premier contact</td><td>30 %</td><td>Appel / e-mail, prendre date</td><td>E-mail</td></tr>
+        <tr><td>3</td><td>Rendez-vous</td><td>45 %</td><td>Découverte ; CR sous 48 h</td><td>RDV</td></tr>
+        <tr><td>4</td><td>Proposition</td><td>60 %</td><td>Offre sous 5 jours ouvrés après un RDV concluant</td><td>E-mail</td></tr>
+        <tr><td>5</td><td>Négociation</td><td>75 %</td><td>Honoraires, périmètre</td><td>Relance</td></tr>
+        <tr><td>6</td><td>Décision</td><td>85 %</td><td>Obtenir le oui / non</td><td>Tâche</td></tr>
+      </tbody>
+    </table>
+    <p class="small">
+      Le cahier parlait d’un canevas en 6 temps jusqu’à la signature.
+      Le code est aligné et un peu plus fin : négociation et décision sont séparées avant Gagnée.
+      La colonne « geste typique » est une suggestion du mini-formulaire, pas une prison :
+      vous pouvez toujours choisir appel, e-mail, visite, RDV, relance, événement, tâche ou note.
+    </p>
+
+    <h3>Sorties (jamais une suppression)</h3>
+    <table>
+      <thead><tr><th>Sortie</th><th>Proba.</th><th>Effet</th></tr></thead>
+      <tbody>
+        <tr><td>Gagnée</td><td>100 %</td><td>Mission signée, CA. Le compte devient le terrain du portefeuille.</td></tr>
+        <tr><td>Perdue</td><td>0 %</td><td>Motif de perte obligatoire. L’affaire reste en historique.</td></tr>
+        <tr><td>Reportée</td><td>10 %</td><td>Relance à 3 mois (<code>reviveOn</code>). Jamais d’effacement.</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Pondération</h3>
+    <p>
+      Formule affichée : <strong>montant × probabilité / 100</strong>.
+      Uniquement sur les étapes actives (pas Gagnée / Perdue / Reportée dans le pipeline pondéré).
+      Exemple : 10 000 000 FCFA en Proposition (60 %) = 6 000 000 FCFA pondérés.
+    </p>
+
+    <h3>Créer une opportunité</h3>
+    <p>Champs du formulaire (placeholders, pas de préremplissage silencieux) :</p>
+    <ul>
+      <li>Entreprise (client ou prospect)</li>
+      <li>Intitulé, ligne de service, source, montant</li>
+      <li><strong>Date de décision prévue</strong></li>
+      <li><strong>Prochaine action + date</strong> (obligatoires dès la création)</li>
+      <li>Responsable (prérempli seulement si l’entreprise a un manager référent, ou via « À proposer »)</li>
+    </ul>
+    <p>
+      Une opportunité neuve naît toujours en Qualification (20 %).
+      Exception contexte : le bouton orange <strong>À proposer</strong> (portefeuille / fiche client)
+      ouvre le même formulaire avec entreprise + ligne déjà posées, source <code>client_existant</code>.
+    </p>
+  </section>
+
+  <section class="chapter">
+    <h2><span class="num">3</span> Actions — le travail de la semaine</h2>
+    <div class="box bad">
+      <div class="label">Ne pas confondre</div>
+      Les <strong>étapes</strong> sont Qualification → Premier contact → RDV → Proposition → Négociation → Décision.
+      Les <strong>activités</strong> sont ce que vous faites dans une étape : appel, e-mail, visite, RDV, relance, événement, tâche, note.
+      On n’avance pas le pipeline en changeant le type d’activité. On avance en changeant l’étape (mini-formulaire).
+    </div>
+
+    <h3>Activités</h3>
+    <p>Journal commercial. Chaque entrée : entreprise, éventuellement opportunité liée, date, type, résumé, prochaine action + date, statut.</p>
+    <p>Statuts : à faire, planifiée, en cours, terminée, annulée, en retard.</p>
+    <p>
+      Un RDV marqué <strong>terminé</strong> exige un compte rendu et une prochaine action
+      (règle des 48 h du cahier).
+    </p>
+
+    <h3>Agenda</h3>
+    <p>Le même travail, vu dans le temps (créneaux, relances à venir).</p>
+
+    <h3>Bibliothèque</h3>
+    <p>Fiches d’aide par ligne, comme le cahier le demande. Catégories :</p>
+    <p>
+      <span class="chip">Cibles prioritaires</span>
+      <span class="chip">Argumentaires</span>
+      <span class="chip">Questions de découverte</span>
+      <span class="chip">Offres types</span>
+      <span class="chip">E-mails</span>
+      <span class="chip">WhatsApp</span>
+    </p>
+    <p class="small">Copier-coller pour l’instant. Pas encore d’envoi Outlook / WhatsApp natif.</p>
+  </section>
+
+  <section class="chapter">
+    <h2><span class="num">4</span> Portefeuille — le 2<sup>e</sup> moteur</h2>
+    <p>Après une signature, ou pour un client formation déjà connu. Quatre pages, un seul métier : faire grandir le compte.</p>
+
+    <h3>Clients</h3>
+    <p>
+      Fiches plates (plus d’onglets) : identité, contacts, services achetés, historique, plan de compte.
+      Bouton orange <strong>À proposer</strong> sur chaque ligne non encore vendue.
+    </p>
+
+    <h3>Portefeuille</h3>
+    <p>
+      Matrice des lignes : <strong>acheté</strong> vs <strong>à proposer</strong>.
+      Un clic « À proposer » ouvre une opportunité (placeholders vides, sauf entreprise et ligne).
+    </p>
+
+    <h3>Clients stratégiques</h3>
+    <p>Plan de compte + rythme de RDV dirigeant (cahier : 1 / trimestre ; Port-Gentil au lancement : 1 / mois).</p>
+    <p>Le plan de compte contient : enjeux, objectifs, décideurs, influenceurs, besoins détectés, risques, prochaines actions, stratégie, potentiel honoraires.</p>
+
+    <h3>Port-Gentil — les 6 comptes à fort potentiel (démo)</h3>
+    <table>
+      <thead><tr><th>Compte</th><th>Manager</th><th>Lignes déjà là (indicatif)</th></tr></thead>
+      <tbody>
+        <tr><td>Atlantic Logistics PG</td><td>Nadège Mba</td><td>Comptabilité</td></tr>
+        <tr><td>Pharma Ogooué</td><td>Awa Ndong</td><td>Formation</td></tr>
+        <tr><td>Énergie Littoral</td><td>Jean-Marc Ovono</td><td>Formation, Comptabilité</td></tr>
+        <tr><td>Assurances du Cap Lopez</td><td>Jean-Marc Ovono</td><td>Fiscalité</td></tr>
+        <tr><td>Ciments du Port</td><td>Awa Ndong</td><td>RH</td></tr>
+        <tr><td>SOGARA Services</td><td>Nadège Mba</td><td>Comptabilité, RH</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Parcours cahier en 4 temps (repris tel quel)</h3>
+    <div class="flow">
+      <span class="step">1. Revue</span><span class="arrow">→</span>
+      <span class="step">2. Plan de compte</span><span class="arrow">→</span>
+      <span class="step">3. Piste interne</span><span class="arrow">→</span>
+      <span class="step">4. RDV de développement</span>
+    </div>
+    <p>Sur un client existant : on ne recrée pas un prospect. On ouvre une piste ou un « À proposer », puis un RDV, puis une proposition.</p>
+  </section>
+
+  <section class="chapter">
+    <h2><span class="num">5</span> Pilotage — mesurer, pas vendre</h2>
+
+    <h3>Objectifs — 8 semaines</h3>
+    <p>Tableau du cahier, par manager. Le réalisé est calculé automatiquement.</p>
+    <div class="kpi">
+      <div><span>Qualifiés</span><strong>60</strong></div>
+      <div><span>Premiers contacts</span><strong>40</strong></div>
+      <div><span>Rendez-vous</span><strong>15</strong></div>
+      <div><span>Propositions</span><strong>6</strong></div>
+      <div><span>Signatures</span><strong>2</strong></div>
+      <div><span>Horizon</span><strong>8 sem.</strong></div>
+    </div>
+
+    <h3>Dépenses &amp; budget</h3>
+    <ul>
+      <li>Enveloppe : <strong>500 000 FCFA / manager / mois</strong>.</li>
+      <li>Alerte à 80 % (400 000 FCFA).</li>
+      <li>Au-delà de <strong>100 000 FCFA</strong> : validation Direction (<code>pending</code>).</li>
+      <li>Chaque dépense : manager, catégorie, libellé, montant, date,
+        <strong>action commerciale obligatoire</strong>, prospect si possible, justificatif photo obligatoire.</li>
+      <li>Catégories : événements, relations d’affaires, communication, déplacements, réserve.</li>
+    </ul>
+
+    <h3>Rapports &amp; KPI</h3>
+    <p>Vue manager vs vue Direction. Pipeline brut vs pondéré, mix des lignes, conquête vs développement, Port-Gentil.</p>
+
+    <h3>Notifications</h3>
+    <p>Piste convertie, étape changée, budget à valider, retards. Elles alimentent aussi les toasts et le dashboard.</p>
+
+    <h3>Réglages (hors cycle quotidien)</h3>
+    <p>
+      <strong>Import / export</strong> : fichier clients (cahier jours 6–8).
+      Colonnes : nom, type (prospect|client), site (libreville|port_gentil|franceville).
+    </p>
+    <p>
+      <strong>Administration</strong> : référentiels démo — lignes, étapes, implantations, catégories de dépenses, <strong>secteurs</strong>.
+      Ajout possible, pas encore d’écriture PostgreSQL.
+    </p>
+  </section>
+
+  <section class="chapter">
+    <h2>Formulaires — ce qu’il faut remplir</h2>
+    <p>Règle UX : placeholders, pas de préremplissage silencieux, sauf clic contexte (« À proposer »).</p>
+    <table>
+      <thead><tr><th>Formulaire</th><th>Champs clés</th><th>Pièges</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Piste</td>
+          <td>Entreprise, besoin, ligne, commentaire</td>
+          <td>Manager auto si l’entreprise existe déjà</td>
+        </tr>
+        <tr>
+          <td>Prospect / client</td>
+          <td>Raison sociale, secteur, taille, site, source, lignes, manager, contact décideur + influence</td>
+          <td>Ne pas inventer l’adresse à partir du site</td>
+        </tr>
+        <tr>
+          <td>Opportunité</td>
+          <td>Entreprise, intitulé, ligne, source, montant, date de décision, prochaine action + date</td>
+          <td>Naît en Qualification. « À proposer » préremplit entreprise + ligne</td>
+        </tr>
+        <tr>
+          <td>Changement d’étape</td>
+          <td>Type d’action, CR, prochaine action + date ; motif si Perdue</td>
+          <td>Bloqué tant que l’action / la date manque. RDV et proposition : CR obligatoire</td>
+        </tr>
+        <tr>
+          <td>Activité</td>
+          <td>Entreprise, type, date, résumé, prochaine action</td>
+          <td>RDV terminé = CR + prochaine action</td>
+        </tr>
+        <tr>
+          <td>Dépense</td>
+          <td>Manager, catégorie, libellé, montant, date, action, justificatif</td>
+          <td>Photo obligatoire. &gt; 100 k → Direction</td>
+        </tr>
+        <tr>
+          <td>Contact</td>
+          <td>Nom, fonction, téléphone, e-mail, décideur, influence</td>
+          <td>Influence n’est pas déduite de la case Décideur</td>
+        </tr>
+        <tr>
+          <td>Plan de compte</td>
+          <td>Enjeux, objectifs, décideurs, influenceurs, besoins, risques, honoraires</td>
+          <td>Obligatoire sur les 6 Port-Gentil et les stratégiques</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="chapter">
+    <h2>Cohérence cahier / code</h2>
+    <div class="two">
+      <div class="box ok">
+        <div class="label">Aligné</div>
+        <ul>
+          <li>Deux espaces (facturation hors CRM)</li>
+          <li>Deux moteurs (conquête + développement)</li>
+          <li>Piste → Qualification</li>
+          <li>Jamais supprimer un refus</li>
+          <li>Routine lundi → vendredi</li>
+          <li>Lignes de service + 6 clients Port-Gentil</li>
+          <li>Budget 500 k + seuil 100 k + alerte 80 %</li>
+          <li>Objectifs 8 semaines</li>
+          <li>Prochaine action obligatoire à chaque étape</li>
+        </ul>
+      </div>
+      <div class="box warn">
+        <div class="label">Écarts assumés</div>
+        <ul>
+          <li>Pas de glisser-déposer (menu d’étape à la place)</li>
+          <li>Pas encore de base PostgreSQL pour le CRM</li>
+          <li>Pas de PWA, Outlook, WhatsApp natifs</li>
+          <li>Rôles CRM encore mappés depuis Super-admin / Admin / Member</li>
+          <li>Conseil et Fiscalité séparés (le cahier les groupe parfois)</li>
+          <li>Convertir une piste pose encore des dates par défaut dans le store</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="chapter">
+    <h2>Parcours type — lundi → vendredi</h2>
+    <p>Ce que fait un manager s’il suit le produit comme le cahier le décrit.</p>
+
+    <h3>Lundi — 30 min, dashboard puis opportunités</h3>
+    <ol>
+      <li>Ouvrir le Dashboard. Lire les KPI et les alertes (retards, stratégiques muets, dépenses à valider).</li>
+      <li>Cocher « Lundi — revue pipeline » après la revue.</li>
+      <li>Aller dans Opportunités. Pour chaque affaire active : étape encore juste ? prochaine action datée ?</li>
+      <li>Avancer une étape seulement si le mini-formulaire est honnête (CR + prochaine action).</li>
+    </ol>
+
+    <h3>Mardi–jeudi — captation et gestes</h3>
+    <ol>
+      <li>Pistes internes : qualifier, rejeter, reporter, ou convertir (→ opportunité à Qualification).</li>
+      <li>Prospects : créer une fiche seulement pour la conquête froide (pas un client formation déjà connu).</li>
+      <li>Activités / Agenda : 5 contacts min. et 2 RDV dans la semaine.</li>
+      <li>Après chaque RDV : CR sous 48 h. Si le RDV est concluant : proposition sous 5 jours ouvrés (étape Proposition).</li>
+      <li>Bibliothèque : copier un argumentaire ou un mail plutôt que réinventer.</li>
+    </ol>
+
+    <h3>Sur un client déjà là</h3>
+    <ol>
+      <li>Portefeuille : voir ce qui est acheté vs à proposer.</li>
+      <li>Clic orange « À proposer » → opportunité en Qualification, source client existant.</li>
+      <li>Stratégiques / Port-Gentil : tenir le plan de compte et le rythme de RDV dirigeant.</li>
+    </ol>
+
+    <h3>Vendredi — argent et objectifs</h3>
+    <ol>
+      <li>Dépenses : tout saisir, justificatif photo, rattacher à une action. Au-delà de 100 000 FCFA, laisser à la Direction.</li>
+      <li>Objectifs 8 semaines : le réalisé doit bouger tout seul si le journal (activités, étapes) est tenu.</li>
+      <li>Cocher « Vendredi — dépenses à jour ».</li>
+    </ol>
+
+    <div class="box">
+      <div class="label">Fil d’Ariane si vous êtes perdu</div>
+      <div class="flow" style="margin:6px 0 0">
+        <span class="step">Dashboard</span><span class="arrow">→</span>
+        <span class="step">Piste / Prospect</span><span class="arrow">→</span>
+        <span class="step">Opportunité 1→6</span><span class="arrow">→</span>
+        <span class="step">Activités</span><span class="arrow">→</span>
+        <span class="out">Gagnée</span><span class="arrow">→</span>
+        <span class="step">Portefeuille</span><span class="arrow">→</span>
+        <span class="step">Objectifs / Budget</span>
+      </div>
+    </div>
+
+    <h3>Où cliquer, concrètement</h3>
+    <table>
+      <thead><tr><th>Je veux…</th><th>Page</th></tr></thead>
+      <tbody>
+        <tr><td>Voir si la semaine est en retard</td><td>Dashboard</td></tr>
+        <tr><td>Remonter un besoin en 30 secondes</td><td>Pistes internes</td></tr>
+        <tr><td>Chasser un compte qui n’est pas client</td><td>Prospects</td></tr>
+        <tr><td>Faire avancer une affaire</td><td>Opportunités (menu d’étape)</td></tr>
+        <tr><td>Noter un appel ou un RDV</td><td>Activités (ou Agenda)</td></tr>
+        <tr><td>Retrouver un pitch / un mail type</td><td>Bibliothèque</td></tr>
+        <tr><td>Vendre une 2<sup>e</sup> ligne à un client</td><td>Portefeuille → À proposer</td></tr>
+        <tr><td>Préparer un RDV dirigeant</td><td>Clients stratégiques / Port-Gentil → plan de compte</td></tr>
+        <tr><td>Saisir un déjeuner client</td><td>Dépenses &amp; budget</td></tr>
+        <tr><td>Importer le fichier clients</td><td>Import / export</td></tr>
+      </tbody>
+    </table>
+
+    <p class="footer-note">
+      Document généré pour le projet 2R Hub / 2ref-auto. Cahier de référence : NewCDC (canvas commercial).
+      L’espace Facturation a son propre cahier (CAHIER-DES-CHARGES.md) — ne pas les mélanger.
+    </p>
+  </section>
+</body>
+</html>

@@ -1,17 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { Plus } from "lucide-react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
-import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
+import { NewActivityDialog } from "@/components/prospection/CrmForms";
+import { ActivityStatusBadge } from "@/components/prospection/ProspectionBadges";
+import { CrmCard, CrmCardGrid, KindMark } from "@/components/prospection/CrmCards";
+import { CRM_PRIMARY_BTN, CRM_SECONDARY_BTN, FilterChip } from "@/components/prospection/CrmUi";
 import {
   ACTIVITY_LABELS,
-  ACTIVITY_STATUS_LABELS,
-  MANAGERS,
   managerName,
   type ActivityKind,
-  type ActivityStatus,
 } from "@/lib/prospection-demo";
 import { shortDate } from "@/lib/format";
+import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
 
 export const Route = createFileRoute("/prospection/activites")({
   head: () => ({ meta: [{ title: "Activités — Prospection" }] }),
@@ -21,79 +23,121 @@ export const Route = createFileRoute("/prospection/activites")({
 function ActivitiesPage() {
   const companies = useProspectionDemoStore((s) => s.companies);
   const activities = useProspectionDemoStore((s) => s.activities);
-  const addActivity = useProspectionDemoStore((s) => s.addActivity);
-  const [companyId, setCompanyId] = useState(companies[0]?.id ?? "");
-  const [kind, setKind] = useState<ActivityKind>("appel");
-  const [title, setTitle] = useState("");
-  const [summary, setSummary] = useState("");
-  const [ownerId, setOwnerId] = useState(MANAGERS[0].id);
-  const [status, setStatus] = useState<ActivityStatus>("terminee");
-  const today = new Date().toISOString().slice(0, 10);
+  const setActivityStatus = useProspectionDemoStore((s) => s.setActivityStatus);
+  const [open, setOpen] = useState(false);
+  const [kindFilter, setKindFilter] = useState<"all" | ActivityKind>("all");
+  const [crFor, setCrFor] = useState<string | undefined>();
+
+  const list = useMemo(
+    () =>
+      [...activities]
+        .sort((a, b) => b.at.localeCompare(a.at) || (b.time ?? "").localeCompare(a.time ?? ""))
+        .filter((a) => kindFilter === "all" || a.kind === kindFilter)
+        .slice(0, 60),
+    [activities, kindFilter],
+  );
 
   return (
     <div>
-      <PageHeader title="Activités" subtitle="Appels, e-mails, visites, RDV, relances — journal + prochaine action." />
-      <div className="grid gap-5 xl:grid-cols-[1fr_340px]">
-        <ul className="space-y-2">
-          {activities.slice(0, 40).map((a) => {
-            const co = companies.find((c) => c.id === a.companyId);
-            return (
-              <li key={a.id} className="glass-panel rounded-2xl px-4 py-3 text-sm">
-                <div className="flex flex-wrap justify-between gap-2">
-                  <span className="font-medium">{ACTIVITY_LABELS[a.kind]} · {co?.name}</span>
-                  <span className="text-muted-foreground">{shortDate(a.at)} {a.time ?? ""}</span>
-                </div>
-                <p className="mt-1">{a.title} — {a.summary}</p>
-                <p className="text-xs text-muted-foreground">{managerName(a.ownerId)} · {ACTIVITY_STATUS_LABELS[a.status]}</p>
-              </li>
-            );
-          })}
-        </ul>
-        <form
-          className="glass-panel space-y-3 rounded-3xl p-5"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!title.trim()) return;
-            addActivity({
-              companyId,
-              at: today,
-              kind,
-              title: title.trim(),
-              summary: summary.trim() || title.trim(),
-              ownerId,
-              status,
-            });
-            setTitle("");
-            setSummary("");
-            toast.success("Activité enregistrée");
-          }}
-        >
-          <h3 className="font-display font-semibold">Saisie rapide</h3>
-          <select value={companyId} onChange={(e) => setCompanyId(e.target.value)} className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm">
-            {companies.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-          <select value={kind} onChange={(e) => setKind(e.target.value as ActivityKind)} className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm">
-            {(Object.keys(ACTIVITY_LABELS) as ActivityKind[]).map((k) => (
-              <option key={k} value={k}>{ACTIVITY_LABELS[k]}</option>
-            ))}
-          </select>
-          <select value={status} onChange={(e) => setStatus(e.target.value as ActivityStatus)} className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm">
-            {(Object.keys(ACTIVITY_STATUS_LABELS) as ActivityStatus[]).map((s) => (
-              <option key={s} value={s}>{ACTIVITY_STATUS_LABELS[s]}</option>
-            ))}
-          </select>
-          <select value={ownerId} onChange={(e) => setOwnerId(e.target.value)} className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm">
-            {MANAGERS.map((m) => (
-              <option key={m.id} value={m.id}>{m.name}</option>
-            ))}
-          </select>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Titre" className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm" />
-          <textarea value={summary} onChange={(e) => setSummary(e.target.value)} placeholder="Compte rendu" rows={3} className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm" />
-          <button type="submit" className="w-full rounded-2xl bg-gradient-primary py-2 text-sm font-medium text-primary-foreground">Enregistrer</button>
-        </form>
+      <PageHeader
+        title="Activités"
+        subtitle="Appels, e-mails, visites, RDV, relances — noter ce qui s’est passé + compte rendu."
+        actions={
+          <button type="button" onClick={() => setOpen(true)} className={CRM_PRIMARY_BTN}>
+            <Plus className="h-4 w-4" />
+            Nouvelle activité
+          </button>
+        }
+      />
+
+      <div className="mb-4 flex flex-wrap gap-2">
+        <FilterChip active={kindFilter === "all"} onClick={() => setKindFilter("all")}>
+          Toutes
+        </FilterChip>
+        {(Object.keys(ACTIVITY_LABELS) as ActivityKind[]).map((k) => (
+          <FilterChip key={k} active={kindFilter === k} onClick={() => setKindFilter(k)}>
+            {ACTIVITY_LABELS[k]}
+          </FilterChip>
+        ))}
       </div>
+
+      <CrmCardGrid dense>
+        {list.map((a, i) => {
+          const co = companies.find((c) => c.id === a.companyId);
+          const needsCr = a.kind === "rdv" && a.status !== "terminee" && a.status !== "annulee";
+          return (
+            <CrmCard key={a.id} index={i} className="h-full">
+              <div className="flex items-start gap-3">
+                <KindMark kind={a.kind} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        {ACTIVITY_LABELS[a.kind]}
+                      </p>
+                      <h2 className="mt-0.5 font-display text-base font-semibold leading-tight">
+                        {co?.name ?? "Entreprise"}
+                      </h2>
+                    </div>
+                    <ActivityStatusBadge status={a.status} />
+                  </div>
+                  <p className="mt-2 text-sm font-medium">{a.title}</p>
+                  {a.summary ? <p className="mt-1 text-sm text-muted-foreground">{a.summary}</p> : null}
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {managerName(a.ownerId)} · {shortDate(a.at)}
+                    {a.time ? ` · ${a.time}` : ""}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {needsCr ? (
+                  <button
+                    type="button"
+                    className={CRM_PRIMARY_BTN + " !px-3 !py-1.5 !text-xs"}
+                    onClick={() => setCrFor(a.companyId)}
+                  >
+                    Ajouter le CR
+                  </button>
+                ) : null}
+                {a.status !== "terminee" && a.status !== "annulee" ? (
+                  <button
+                    type="button"
+                    className={CRM_SECONDARY_BTN + " !px-3 !py-1.5 !text-xs"}
+                    onClick={() => {
+                      setActivityStatus(a.id, "terminee");
+                      toast.success("Marquée terminée");
+                    }}
+                  >
+                    Terminée
+                  </button>
+                ) : null}
+                {a.status !== "annulee" ? (
+                  <button
+                    type="button"
+                    className={CRM_SECONDARY_BTN + " !px-3 !py-1.5 !text-xs"}
+                    onClick={() => {
+                      setActivityStatus(a.id, "annulee");
+                      toast.success("Annulée");
+                    }}
+                  >
+                    Annuler
+                  </button>
+                ) : null}
+              </div>
+            </CrmCard>
+          );
+        })}
+      </CrmCardGrid>
+
+      <NewActivityDialog open={open} onOpenChange={setOpen} />
+      <NewActivityDialog
+        open={Boolean(crFor)}
+        onOpenChange={(v) => {
+          if (!v) setCrFor(undefined);
+        }}
+        defaultCompanyId={crFor}
+        defaultKind="note"
+      />
     </div>
   );
 }

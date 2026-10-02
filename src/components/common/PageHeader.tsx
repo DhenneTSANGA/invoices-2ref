@@ -13,7 +13,7 @@ export function PageHeader({
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="mb-5 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-4"
+      className="mb-5 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-4"
     >
       <div className="min-w-0 max-w-full shrink-0">
         {/* whitespace-nowrap : numéros de devis/facture (ex. DV1-25-08-2026) restent horizontaux. */}

@@ -1,32 +1,83 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
-import { PageHeader } from "@/components/common/PageHeader";
-import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
 import {
+  FileText,
+  Globe,
+  Mail,
+  MapPin,
+  Phone,
+  Star,
+  UserRound,
+} from "lucide-react";
+import { PageHeader } from "@/components/common/PageHeader";
+import {
+  ActivityStatusBadge,
+  LeadBadge,
+  LineBadge,
+  StageBadge,
+} from "@/components/prospection/ProspectionBadges";
+import {
+  AccountPlanDialog,
+  CompanyDialog,
+  NewActivityDialog,
+  NewContactDialog,
+  NewLeadDialog,
+  NewOpportunityDialog,
+} from "@/components/prospection/CrmForms";
+import {
+  CrmCard,
+  EntityMark,
+  IconMark,
+  KindMark,
+  MetricTile,
+  NextActionRow,
+} from "@/components/prospection/CrmCards";
+import { CRM_PRIMARY_BTN, CRM_SECONDARY_BTN, ProposeLineButton } from "@/components/prospection/CrmUi";
+import {
+  ACTIVITY_LABELS,
   SERVICE_LINE_LABELS,
+  SERVICE_LINES,
   SITE_LABELS,
+  SOURCE_LABELS,
   managerName,
-  missingServices,
+  type ServiceLine,
 } from "@/lib/prospection-demo";
 import { currency, shortDate } from "@/lib/format";
-import { LineBadge, StageBadge } from "@/components/prospection/ProspectionBadges";
+import { readFocusSearch, useSpotlight } from "@/hooks/use-spotlight";
+import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
 
 export const Route = createFileRoute("/prospection/clients/$id")({
+  validateSearch: readFocusSearch,
   component: CrmClientDetailPage,
 });
 
-const TABS = ["Informations", "Contacts", "Services", "Opportunités", "Activités", "Plan de compte"] as const;
-
 function CrmClientDetailPage() {
+  const navigate = useNavigate();
   const { id } = Route.useParams();
+  const { focus } = Route.useSearch();
+  useSpotlight(focus, () => {
+    void navigate({
+      to: "/prospection/clients/$id",
+      params: { id },
+      search: { focus: undefined },
+      replace: true,
+      resetScroll: false,
+    });
+  });
   const companies = useProspectionDemoStore((s) => s.companies);
   const contacts = useProspectionDemoStore((s) => s.contacts);
   const opportunities = useProspectionDemoStore((s) => s.opportunities);
   const activities = useProspectionDemoStore((s) => s.activities);
   const leads = useProspectionDemoStore((s) => s.leads);
-  const addOpportunity = useProspectionDemoStore((s) => s.addOpportunity);
-  const [tab, setTab] = useState<(typeof TABS)[number]>("Informations");
+  const updateCompany = useProspectionDemoStore((s) => s.updateCompany);
+  const [editOpen, setEditOpen] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
+  const [oppOpen, setOppOpen] = useState(false);
+  const [oppLine, setOppLine] = useState<ServiceLine | undefined>();
+  const [activityOpen, setActivityOpen] = useState(false);
+  const [planOpen, setPlanOpen] = useState(false);
+  const [leadOpen, setLeadOpen] = useState(false);
   const company = companies.find((c) => c.id === id);
 
   if (!company) {
@@ -37,7 +88,20 @@ function CrmClientDetailPage() {
     );
   }
 
-  const missing = missingServices(company);
+  const people = contacts.filter((c) => c.companyId === id);
+  const deals = opportunities.filter((o) => o.companyId === id);
+  const journal = activities
+    .filter((a) => a.companyId === id)
+    .slice()
+    .sort((a, b) => b.at.localeCompare(a.at));
+  const companyLeads = leads.filter((l) => l.companyId === id || l.companyName === company.name);
+  const nextDeal = deals
+    .filter((o) => o.nextAction)
+    .sort((a, b) => a.nextActionOn.localeCompare(b.nextActionOn))[0];
+  const openDeal = (line: ServiceLine) => {
+    setOppLine(line);
+    setOppOpen(true);
+  };
 
   return (
     <div>
@@ -47,114 +111,297 @@ function CrmClientDetailPage() {
       <PageHeader
         title={company.name}
         subtitle={`${SITE_LABELS[company.site]} · ${managerName(company.managerId)} · CA ${currency(company.caSigned)}`}
+        actions={
+          <>
+            <button type="button" className={CRM_PRIMARY_BTN} onClick={() => setOppOpen(true)}>
+              Nouvelle opportunité
+            </button>
+            <button type="button" className={CRM_SECONDARY_BTN} onClick={() => setActivityOpen(true)}>
+              Activité
+            </button>
+            <button type="button" className={CRM_SECONDARY_BTN} onClick={() => setContactOpen(true)}>
+              Contact
+            </button>
+            <button type="button" className={CRM_SECONDARY_BTN} onClick={() => setPlanOpen(true)}>
+              Plan de compte
+            </button>
+            <button type="button" className={CRM_SECONDARY_BTN} onClick={() => setLeadOpen(true)}>
+              Piste
+            </button>
+            <button type="button" className={CRM_SECONDARY_BTN} onClick={() => setEditOpen(true)}>
+              Modifier
+            </button>
+            <button
+              type="button"
+              className={CRM_SECONDARY_BTN}
+              onClick={() => {
+                updateCompany(id, { strategic: !company.strategic });
+                toast.success(company.strategic ? "Retiré des stratégiques" : "Marqué stratégique");
+              }}
+            >
+              {company.strategic ? "Retirer stratégique" : "Marquer stratégique"}
+            </button>
+          </>
+        }
       />
-      <div className="mb-4 flex flex-wrap gap-2">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            type="button"
-            onClick={() => setTab(t)}
-            className={`rounded-2xl px-3 py-1.5 text-sm ${tab === t ? "bg-gradient-primary text-primary-foreground" : "border border-border"}`}
-          >
-            {t}
-          </button>
-        ))}
+
+      <div className="mb-5 grid gap-4 lg:grid-cols-2">
+        <CrmCard spotId={company.id} spotlight={focus === company.id}>
+          <div className="flex items-start gap-3">
+            <EntityMark name={company.name} />
+            <div className="min-w-0 flex-1">
+              <h2 className="font-display text-base font-semibold">Informations</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {company.sector} · {company.size}
+              </p>
+              {company.strategic ? (
+                <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
+                  <Star className="h-3 w-3" />
+                  Client stratégique
+                </span>
+              ) : null}
+            </div>
+          </div>
+          <ul className="mt-4 space-y-2 text-sm">
+            <li className="flex items-center gap-2 text-muted-foreground">
+              <MapPin className="h-4 w-4 shrink-0" />
+              {company.address || SITE_LABELS[company.site]}
+            </li>
+            {company.phone ? (
+              <li className="flex items-center gap-2 text-muted-foreground">
+                <Phone className="h-4 w-4 shrink-0" />
+                {company.phone}
+              </li>
+            ) : null}
+            {company.email ? (
+              <li className="flex items-center gap-2 text-muted-foreground">
+                <Mail className="h-4 w-4 shrink-0" />
+                {company.email}
+              </li>
+            ) : null}
+            {company.website ? (
+              <li className="flex items-center gap-2 text-muted-foreground">
+                <Globe className="h-4 w-4 shrink-0" />
+                {company.website}
+              </li>
+            ) : null}
+            <li className="flex items-center gap-2 text-muted-foreground">
+              <UserRound className="h-4 w-4 shrink-0" />
+              Manager {managerName(company.managerId)}
+            </li>
+          </ul>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <MetricTile label="Source" value={SOURCE_LABELS[company.source]} />
+            <MetricTile label="CA signé" value={currency(company.caSigned)} accent />
+          </div>
+          {nextDeal ? <NextActionRow action={nextDeal.nextAction} date={nextDeal.nextActionOn} /> : null}
+        </CrmCard>
+
+        <CrmCard>
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-start gap-3">
+              <IconMark icon={UserRound} tone="bg-sky-500/15 text-sky-800 dark:text-sky-300" />
+              <div>
+                <h2 className="font-display text-base font-semibold">Contacts</h2>
+                <p className="mt-0.5 text-xs text-muted-foreground">{people.length} personne(s)</p>
+              </div>
+            </div>
+            <button type="button" className="text-xs font-semibold text-primary hover:underline" onClick={() => setContactOpen(true)}>
+              Ajouter
+            </button>
+          </div>
+          {people.length === 0 ? (
+            <p className="mt-4 text-sm text-muted-foreground">Aucun contact — ajoutez un décideur.</p>
+          ) : (
+            <ul className="mt-4 space-y-2">
+              {people.map((c) => (
+                <li key={c.id} className="flex items-start gap-3 rounded-2xl bg-muted/45 px-3 py-2.5">
+                  <EntityMark name={`${c.firstName} ${c.lastName}`} size="sm" />
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-semibold">
+                        {c.firstName} {c.lastName}
+                      </span>
+                      {c.decisionMaker ? (
+                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary">
+                          Décideur
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {c.role} · influence {c.influence}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {c.email}
+                      {c.phone ? ` · ${c.phone}` : ""}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CrmCard>
       </div>
 
-      {tab === "Informations" && (
-        <section className="glass-panel rounded-3xl p-5 text-sm">
-          <p>{company.sector} · {company.size}</p>
-          <p className="mt-2 text-muted-foreground">{company.address} · {company.email}</p>
-          {company.strategic ? <p className="mt-2 font-medium">Client stratégique</p> : null}
-        </section>
-      )}
-      {tab === "Contacts" && (
-        <ul className="glass-panel space-y-2 rounded-3xl p-5 text-sm">
-          {contacts.filter((c) => c.companyId === id).map((c) => (
-            <li key={c.id}>
-              {c.firstName} {c.lastName} — {c.role} {c.decisionMaker ? "(décideur)" : ""} · {c.email}
-            </li>
-          ))}
+      <CrmCard className="mb-5">
+          <h2 className="font-display text-base font-semibold">Lignes de service</h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Acheté = déjà au contrat. <strong>À proposer</strong> ouvre une opportunité de vente croisée.
+        </p>
+        <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+          {SERVICE_LINES.map((l) => {
+            const bought = company.servicesBought.includes(l);
+            return (
+              <li
+                key={l}
+                className="flex items-center justify-between gap-3 rounded-2xl bg-muted/45 px-3 py-2.5"
+              >
+                <LineBadge line={l} />
+                {bought ? (
+                  <span className="inline-flex rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                    Acheté
+                  </span>
+                ) : (
+                  <ProposeLineButton lineLabel={SERVICE_LINE_LABELS[l]} onClick={() => openDeal(l)} />
+                )}
+              </li>
+            );
+          })}
         </ul>
-      )}
-      {tab === "Services" && (
-        <section className="glass-panel rounded-3xl p-5">
-          <p className="text-sm font-medium">Acheté</p>
-          <div className="mt-2 flex flex-wrap gap-1">
-            {company.servicesBought.map((l) => (
-              <LineBadge key={l} line={l} />
-            ))}
+      </CrmCard>
+
+      <CrmCard className="mb-5">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-start gap-3">
+            <IconMark icon={FileText} tone="bg-violet-500/15 text-violet-700 dark:text-violet-300" />
+            <div>
+              <h2 className="font-display text-base font-semibold">Plan de compte</h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Enjeux, décideurs, potentiel d’honoraires (cahier : clients à fort potentiel)
+              </p>
+            </div>
           </div>
-          <p className="mt-4 text-sm font-medium">À proposer (vente croisée)</p>
-          <div className="mt-2 space-y-2">
-            {missing.map((l) => (
-              <div key={l} className="flex items-center justify-between gap-2 text-sm">
-                <span>{SERVICE_LINE_LABELS[l]}</span>
-                <button
-                  type="button"
-                  className="rounded-xl border border-border px-3 py-1"
-                  onClick={() => {
-                    addOpportunity({
-                      companyId: id,
-                      title: `Cross-sell ${SERVICE_LINE_LABELS[l]}`,
-                      line: l,
-                      source: "client_existant",
-                      stage: "qualification",
-                      amount: 0,
-                      probability: 20,
-                      decisionOn: new Date(Date.now() + 40 * 86400000).toISOString().slice(0, 10),
-                      nextAction: "Qualifier le besoin",
-                      nextActionOn: new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10),
-                      ownerId: company.managerId,
-                      notes: "Créé depuis la matrice client × services.",
-                    });
-                    toast.success("Opportunité créée à Qualification");
-                  }}
-                >
-                  Créer une opportunité
-                </button>
-              </div>
-            ))}
+          <button type="button" className="text-xs font-semibold text-primary hover:underline" onClick={() => setPlanOpen(true)}>
+            {company.plan ? "Modifier" : "Rédiger"}
+          </button>
+        </div>
+        {company.plan ? (
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            <PlanField label="Enjeux" value={company.plan.stakes} />
+            <PlanField label="Objectifs" value={company.plan.objectives} />
+            <PlanField label="Décideurs" value={company.plan.decisionMakers} />
+            <PlanField label="Influenceurs" value={company.plan.influencers} />
+            <PlanField label="Besoins détectés" value={company.plan.detectedNeeds} />
+            <PlanField label="Risques" value={company.plan.risks} />
+            <PlanField label="Potentiel" value={currency(company.plan.feePotential)} />
+            <PlanField label="Suite" value={company.plan.nextMoves} />
+            <div className="sm:col-span-2">
+              <PlanField label="Stratégie" value={company.plan.strategy} />
+            </div>
           </div>
-        </section>
-      )}
-      {tab === "Opportunités" && (
-        <ul className="space-y-2">
-          {opportunities.filter((o) => o.companyId === id).map((o) => (
-            <li key={o.id} className="glass-panel flex items-center justify-between rounded-2xl px-4 py-3 text-sm">
-              <span>{o.title} · {currency(o.amount)}</span>
-              <StageBadge stage={o.stage} />
-            </li>
-          ))}
-        </ul>
-      )}
-      {tab === "Activités" && (
-        <ul className="glass-panel space-y-2 rounded-3xl p-5 text-sm text-muted-foreground">
-          {activities.filter((a) => a.companyId === id).map((a) => (
-            <li key={a.id}>{shortDate(a.at)} — {a.title} · {a.summary}</li>
-          ))}
-          <li className="pt-2 text-foreground">Pistes : {leads.filter((l) => l.companyId === id).length}</li>
-        </ul>
-      )}
-      {tab === "Plan de compte" && (
-        <section className="glass-panel rounded-3xl p-5 text-sm leading-relaxed">
-          {company.plan ? (
-            <>
-              <p><strong>Enjeux.</strong> {company.plan.stakes}</p>
-              <p className="mt-2"><strong>Objectifs.</strong> {company.plan.objectives}</p>
-              <p className="mt-2"><strong>Décideurs.</strong> {company.plan.decisionMakers}</p>
-              <p className="mt-2"><strong>Influenceurs.</strong> {company.plan.influencers}</p>
-              <p className="mt-2"><strong>Besoins.</strong> {company.plan.detectedNeeds}</p>
-              <p className="mt-2"><strong>Risques.</strong> {company.plan.risks}</p>
-              <p className="mt-2"><strong>Potentiel.</strong> {currency(company.plan.feePotential)}</p>
-              <p className="mt-2"><strong>Suite.</strong> {company.plan.nextMoves}</p>
-              <p className="mt-2"><strong>Stratégie.</strong> {company.plan.strategy}</p>
-            </>
+        ) : (
+          <p className="mt-4 text-sm text-muted-foreground">Pas encore de plan — utilisez Rédiger.</p>
+        )}
+      </CrmCard>
+
+      <div className="mb-5 grid gap-4 lg:grid-cols-2">
+        <CrmCard>
+          <div className="flex items-start justify-between gap-2">
+            <h2 className="font-display text-base font-semibold">Opportunités</h2>
+            <button type="button" className="text-xs font-semibold text-primary hover:underline" onClick={() => setOppOpen(true)}>
+              Nouvelle
+            </button>
+          </div>
+          {deals.length === 0 ? (
+            <p className="mt-4 text-sm text-muted-foreground">Aucune affaire ouverte.</p>
           ) : (
-            <p className="text-muted-foreground">Pas de plan de compte — réservé aux clients stratégiques.</p>
+            <ul className="mt-4 space-y-2">
+              {deals.map((o) => (
+                <li key={o.id} className="rounded-2xl bg-muted/45 px-3 py-2.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-sm font-semibold">{o.title}</span>
+                    <StageBadge stage={o.stage} />
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <LineBadge line={o.line} />
+                    <span className="text-xs font-medium text-primary">{currency(o.amount)}</span>
+                  </div>
+                  <NextActionRow action={o.nextAction} date={o.nextActionOn} />
+                </li>
+              ))}
+            </ul>
           )}
-        </section>
-      )}
+        </CrmCard>
+
+        <CrmCard>
+          <div className="flex items-start justify-between gap-2">
+            <h2 className="font-display text-base font-semibold">Activités</h2>
+            <button type="button" className="text-xs font-semibold text-primary hover:underline" onClick={() => setActivityOpen(true)}>
+              Noter
+            </button>
+          </div>
+          {journal.length === 0 ? (
+            <p className="mt-4 text-sm text-muted-foreground">Aucun échange tracé.</p>
+          ) : (
+            <ul className="mt-4 space-y-2">
+              {journal.map((a) => (
+                <li key={a.id} className="flex items-start gap-3 rounded-2xl bg-muted/45 px-3 py-2.5">
+                  <KindMark kind={a.kind} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-sm font-semibold">{a.title}</span>
+                      <ActivityStatusBadge status={a.status} />
+                    </div>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {ACTIVITY_LABELS[a.kind]} · {shortDate(a.at)}
+                      {a.time ? ` · ${a.time}` : ""}
+                    </p>
+                    {a.summary ? <p className="mt-1 text-sm">{a.summary}</p> : null}
+                    {a.nextAction ? <NextActionRow action={a.nextAction} date={a.nextActionOn} /> : null}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          {companyLeads.length > 0 ? (
+            <div className="mt-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Pistes internes</p>
+              <ul className="mt-2 space-y-2">
+                {companyLeads.map((l) => (
+                  <li key={l.id} className="flex items-center justify-between gap-2 rounded-2xl bg-muted/45 px-3 py-2 text-sm">
+                    <span>{l.need}</span>
+                    <LeadBadge status={l.status} />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </CrmCard>
+      </div>
+
+      <CompanyDialog open={editOpen} onOpenChange={setEditOpen} kind="client" editing={company} />
+      <NewContactDialog open={contactOpen} onOpenChange={setContactOpen} companyId={id} />
+      <NewOpportunityDialog
+        open={oppOpen}
+        onOpenChange={(v) => {
+          setOppOpen(v);
+          if (!v) setOppLine(undefined);
+        }}
+        defaultCompanyId={id}
+        defaultLine={oppLine}
+      />
+      <NewActivityDialog open={activityOpen} onOpenChange={setActivityOpen} defaultCompanyId={id} />
+      <AccountPlanDialog open={planOpen} onOpenChange={setPlanOpen} company={company} />
+      <NewLeadDialog open={leadOpen} onOpenChange={setLeadOpen} defaultCompanyName={company.name} />
+    </div>
+  );
+}
+
+function PlanField({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl bg-muted/45 px-3 py-2.5">
+      <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</div>
+      <p className="mt-1 text-sm leading-relaxed">{value}</p>
     </div>
   );
 }

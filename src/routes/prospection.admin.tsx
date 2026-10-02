@@ -1,11 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Briefcase, Columns3, Factory, MapPin, Plus, Wallet } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { useState } from "react";
 import { PageHeader } from "@/components/common/PageHeader";
+import { AddReferentialDialog } from "@/components/prospection/CrmForms";
+import { CrmCard, CrmCardGrid, IconMark } from "@/components/prospection/CrmCards";
+import { CRM_PRIMARY_BTN } from "@/components/prospection/CrmUi";
 import {
   EXPENSE_LABELS,
+  SECTORS,
   SERVICE_LINE_LABELS,
   SITE_LABELS,
   STAGE_LABELS,
+  type ReferentialKind,
 } from "@/lib/prospection-demo";
+import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
 
 export const Route = createFileRoute("/prospection/admin")({
   head: () => ({ meta: [{ title: "Administration — Prospection" }] }),
@@ -13,31 +22,94 @@ export const Route = createFileRoute("/prospection/admin")({
 });
 
 function AdminPage() {
+  const extras = useProspectionDemoStore((s) => s.referentials);
+  const [open, setOpen] = useState(false);
+
+  const extraOf = (kind: ReferentialKind) => extras.filter((r) => r.kind === kind).map((r) => r.label);
+
   return (
     <div>
-      <PageHeader title="Administration" subtitle="Référentiels configurables — listes de la démo, prêtes à brancher en base." />
-      <div className="grid gap-4 md:grid-cols-2">
-        <Block title="Lignes de service" items={Object.values(SERVICE_LINE_LABELS)} />
-        <Block title="Étapes pipeline" items={Object.values(STAGE_LABELS)} />
-        <Block title="Implantations" items={Object.values(SITE_LABELS)} />
-        <Block title="Catégories de dépenses" items={Object.values(EXPENSE_LABELS)} />
-      </div>
+      <PageHeader
+        title="Administration"
+        subtitle="Référentiels de la démo — ajout possible, pas encore d’édition PostgreSQL."
+        actions={
+          <button type="button" onClick={() => setOpen(true)} className={CRM_PRIMARY_BTN}>
+            <Plus className="h-4 w-4" />
+            Ajouter au référentiel
+          </button>
+        }
+      />
+      <CrmCardGrid dense>
+        <Block
+          title="Lignes de service"
+          icon={Briefcase}
+          tone="bg-violet-500/15 text-violet-700 dark:text-violet-300"
+          items={[...Object.values(SERVICE_LINE_LABELS), ...extraOf("line")]}
+        />
+        <Block
+          title="Étapes pipeline"
+          icon={Columns3}
+          tone="bg-sky-500/15 text-sky-800 dark:text-sky-300"
+          items={[...Object.values(STAGE_LABELS), ...extraOf("stage")]}
+        />
+        <Block
+          title="Implantations"
+          icon={MapPin}
+          tone="bg-emerald-500/15 text-emerald-800 dark:text-emerald-300"
+          items={[...Object.values(SITE_LABELS), ...extraOf("site")]}
+        />
+        <Block
+          title="Catégories de dépenses"
+          icon={Wallet}
+          tone="bg-amber-500/15 text-amber-800 dark:text-amber-300"
+          items={[...Object.values(EXPENSE_LABELS), ...extraOf("expense")]}
+        />
+        <Block
+          title="Secteurs"
+          icon={Factory}
+          tone="bg-indigo-500/15 text-indigo-700 dark:text-indigo-300"
+          items={[...SECTORS, ...extraOf("sector")]}
+        />
+      </CrmCardGrid>
       <p className="mt-4 text-sm text-muted-foreground">
-        Rôles CRM : manager, direction, chef de service, collaborateur, administrateur. Mapping actuel 2R Hub : super-admin → direction, admin → manager, membre → collaborateur.
+        Rôles CRM : manager, direction, chef de service, collaborateur, administrateur. Mapping actuel 2R Hub
+        : super-admin → direction, admin → manager, membre → collaborateur.
       </p>
+      <AddReferentialDialog open={open} onOpenChange={setOpen} />
     </div>
   );
 }
 
-function Block({ title, items }: { title: string; items: string[] }) {
+function Block({
+  title,
+  items,
+  icon,
+  tone,
+}: {
+  title: string;
+  items: string[];
+  icon: LucideIcon;
+  tone: string;
+}) {
   return (
-    <section className="glass-panel rounded-3xl p-5">
-      <h3 className="font-display font-semibold">{title}</h3>
-      <ul className="mt-2 list-disc pl-5 text-sm text-muted-foreground">
+    <CrmCard className="h-full">
+      <div className="flex items-start gap-3">
+        <IconMark icon={icon} tone={tone} />
+        <div>
+          <h2 className="font-display text-base font-semibold">{title}</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">{items.length} valeur(s)</p>
+        </div>
+      </div>
+      <ul className="mt-4 flex flex-wrap gap-1.5">
         {items.map((i) => (
-          <li key={i}>{i}</li>
+          <li
+            key={i}
+            className="inline-flex rounded-full bg-muted/70 px-2.5 py-1 text-xs font-semibold text-foreground"
+          >
+            {i}
+          </li>
         ))}
       </ul>
-    </section>
+    </CrmCard>
   );
 }

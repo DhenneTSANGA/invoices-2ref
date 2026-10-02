@@ -1,9 +1,18 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
-import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
-import { SITE_LABELS, managerName } from "@/lib/prospection-demo";
 import { LineBadge, StageBadge } from "@/components/prospection/ProspectionBadges";
+import {
+  CompanyDialog,
+  NewActivityDialog,
+  NewContactDialog,
+  NewOpportunityDialog,
+} from "@/components/prospection/CrmForms";
+import { CRM_PRIMARY_BTN, CRM_SECONDARY_BTN } from "@/components/prospection/CrmUi";
+import { SITE_LABELS, managerName } from "@/lib/prospection-demo";
 import { shortDate } from "@/lib/format";
+import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
 
 export const Route = createFileRoute("/prospection/prospects/$id")({
   component: ProspectDetailPage,
@@ -11,11 +20,17 @@ export const Route = createFileRoute("/prospection/prospects/$id")({
 
 function ProspectDetailPage() {
   const { id } = Route.useParams();
+  const navigate = useNavigate();
   const companies = useProspectionDemoStore((s) => s.companies);
   const contacts = useProspectionDemoStore((s) => s.contacts);
   const opportunities = useProspectionDemoStore((s) => s.opportunities);
   const activities = useProspectionDemoStore((s) => s.activities);
+  const convertProspect = useProspectionDemoStore((s) => s.convertProspect);
   const company = companies.find((c) => c.id === id);
+  const [editOpen, setEditOpen] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
+  const [oppOpen, setOppOpen] = useState(false);
+  const [activityOpen, setActivityOpen] = useState(false);
 
   if (!company) {
     return (
@@ -33,6 +48,33 @@ function ProspectDetailPage() {
       <PageHeader
         title={company.name}
         subtitle={`${SITE_LABELS[company.site]} · ${managerName(company.managerId)}`}
+        actions={
+          <>
+            <button
+              type="button"
+              className={CRM_PRIMARY_BTN}
+              onClick={() => {
+                convertProspect(id);
+                toast.success("Converti en client");
+                void navigate({ to: "/prospection/clients/$id", params: { id } });
+              }}
+            >
+              Convertir en client
+            </button>
+            <button type="button" className={CRM_SECONDARY_BTN} onClick={() => setOppOpen(true)}>
+              Créer une opportunité
+            </button>
+            <button type="button" className={CRM_SECONDARY_BTN} onClick={() => setActivityOpen(true)}>
+              Enregistrer un appel
+            </button>
+            <button type="button" className={CRM_SECONDARY_BTN} onClick={() => setContactOpen(true)}>
+              Ajouter un contact
+            </button>
+            <button type="button" className={CRM_SECONDARY_BTN} onClick={() => setEditOpen(true)}>
+              Modifier
+            </button>
+          </>
+        }
       />
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="glass-panel rounded-3xl p-5">
@@ -80,6 +122,15 @@ function ProspectDetailPage() {
           ))}
         </div>
       </section>
+      <CompanyDialog open={editOpen} onOpenChange={setEditOpen} kind="prospect" editing={company} />
+      <NewContactDialog open={contactOpen} onOpenChange={setContactOpen} companyId={id} />
+      <NewOpportunityDialog open={oppOpen} onOpenChange={setOppOpen} defaultCompanyId={id} />
+      <NewActivityDialog
+        open={activityOpen}
+        onOpenChange={setActivityOpen}
+        defaultCompanyId={id}
+        defaultKind="appel"
+      />
     </div>
   );
 }

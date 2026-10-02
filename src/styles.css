@@ -449,3 +449,35 @@
 [data-sonner-toast][data-type="loading"].toast-with-timer::after {
   display: none;
 }
+
+/* Surbrillance courte après un clic depuis une alerte du tableau de bord. */
+@keyframes crm-spotlight-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 3px #eab308,
+      0 0 0 8px rgba(234, 179, 8, 0.28);
+  }
+  50% {
+    box-shadow:
+      0 0 0 4px #facc15,
+      0 0 0 16px rgba(250, 204, 21, 0.5);
+  }
+}
+
+.crm-spotlight {
+  position: relative;
+  z-index: 5;
+  scroll-margin: 6.5rem;
+  background: color-mix(in oklab, #fde047 48%, var(--surface));
+  box-shadow:
+    0 0 0 3px #eab308,
+    0 0 0 10px rgba(234, 179, 8, 0.32);
+  animation: crm-spotlight-pulse 1.05s ease-in-out 2;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crm-spotlight {
+    animation: none;
+  }
+}

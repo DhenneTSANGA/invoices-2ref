@@ -1,8 +1,33 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { AlertTriangle, Compass, Target, Users, Wallet } from "lucide-react";
+import { createFileRoute, Link, useRouteContext } from "@tanstack/react-router";
+import { useState } from "react";
+import {
+  AlertTriangle,
+  CalendarDays,
+  Check,
+  Compass,
+  Plus,
+  Target,
+  Users,
+  Wallet,
+} from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { StatCard } from "@/components/common/StatCard";
-import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
+import { LineBadge, StageBadge } from "@/components/prospection/ProspectionBadges";
+import {
+  CompanyDialog,
+  NewActivityDialog,
+  NewExpenseDialog,
+  NewLeadDialog,
+} from "@/components/prospection/CrmForms";
+import {
+  CrmCard,
+  CrmCardGrid,
+  EntityMark,
+  IconMark,
+  MetricTile,
+  ProgressMeter,
+} from "@/components/prospection/CrmCards";
+import { CRM_PRIMARY_BTN, CRM_SECONDARY_BTN } from "@/components/prospection/CrmUi";
 import {
   MANAGERS,
   MONTHLY_BUDGET,
@@ -12,19 +37,25 @@ import {
   realizedForMetric,
 } from "@/lib/prospection-demo";
 import { currency, shortDate } from "@/lib/format";
-import { LineBadge, StageBadge } from "@/components/prospection/ProspectionBadges";
-import { useRouteContext } from "@tanstack/react-router";
 import { crmRoleFromStaff } from "@/lib/prospection-access";
+import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/prospection/")({
   head: () => ({ meta: [{ title: "Dashboard — Prospection" }] }),
   component: ProspectionHomePage,
 });
 
+function managerIdForName(firstName: string) {
+  const match = MANAGERS.find((m) => m.name.toLowerCase().startsWith(firstName.toLowerCase()));
+  return match?.id ?? "mgr-awa";
+}
+
 function ProspectionHomePage() {
   const { session } = useRouteContext({ from: "/prospection" });
   const crm = crmRoleFromStaff(session.staff.role);
   const data = useProspectionDemoStore((s) => s);
+  const toggleWeekCheck = useProspectionDemoStore((s) => s.toggleWeekCheck);
   const kpis = computeKpis(data);
   const first = session.staff.firstName || "Collaborateur";
   const pg = data.companies.filter((c) => c.site === "port_gentil" && c.strategic);
@@ -32,6 +63,16 @@ function ProspectionHomePage() {
   const weekTodo = data.activities.filter(
     (a) => a.status === "a_faire" || a.status === "planifiee",
   ).length;
+  const weekChecksDone = data.weekChecks.filter((w) => w.done).length;
+  const budgetPct = Math.round((kpis.spent / kpis.budgetCap) * 100);
+  const focusManagerId = managerIdForName(first);
+  const objectiveManagers = crm === "direction" ? MANAGERS : MANAGERS.filter((m) => m.id === focusManagerId);
+  const [leadOpen, setLeadOpen] = useState(false);
+  const [activityOpen, setActivityOpen] = useState(false);
+  const [expenseOpen, setExpenseOpen] = useState(false);
+  const [prospectOpen, setProspectOpen] = useState(false);
+  const hasAlerts =
+    kpis.overdueActions.length > 0 || kpis.staleStrategic.length > 0 || kpis.pendingApprovals.length > 0;
 
   return (
     <div>
@@ -45,155 +86,336 @@ function ProspectionHomePage() {
               : "Votre semaine commerciale et votre pipeline."
         }
         actions={
-          <Link
-            to="/prospection/pistes"
-            className="inline-flex items-center rounded-2xl bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow"
-          >
-            + Nouvelle piste
-          </Link>
+          <>
+            <button type="button" onClick={() => setLeadOpen(true)} className={CRM_PRIMARY_BTN}>
+              <Plus className="h-4 w-4" />
+              Nouvelle piste
+            </button>
+            {crm !== "collaborateur" ? (
+              <>
+                <button type="button" onClick={() => setActivityOpen(true)} className={CRM_SECONDARY_BTN}>
+                  <Plus className="h-4 w-4" />
+                  Activité
+                </button>
+                <button type="button" onClick={() => setExpenseOpen(true)} className={CRM_SECONDARY_BTN}>
+                  <Plus className="h-4 w-4" />
+                  Dépense
+                </button>
+                <button type="button" onClick={() => setProspectOpen(true)} className={CRM_SECONDARY_BTN}>
+                  <Plus className="h-4 w-4" />
+                  Prospect
+                </button>
+              </>
+            ) : null}
+          </>
         }
       />
 
       <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Prospects" value={kpis.prospects} icon={Users} />
-        <StatCard label="Pipeline pondéré" value={kpis.weighted} icon={Target} format={currency} />
-        <StatCard label="CA signé" value={kpis.signedCa} icon={Compass} variant="success" format={currency} />
-        <StatCard
-          label="Budget cabinet"
-          value={kpis.spent}
-          icon={Wallet}
-          variant={kpis.spent / kpis.budgetCap >= 0.8 ? "danger" : "accent"}
-          format={currency}
-        />
+        <Link to="/prospection/prospects" className="block h-full">
+          <StatCard
+            label="Prospects"
+            value={kpis.prospects}
+            icon={Users}
+            hint={`${kpis.clients} clients en portefeuille`}
+            index={0}
+          />
+        </Link>
+        <Link to="/prospection/opportunites" className="block h-full">
+          <StatCard
+            label="Pipeline pondéré"
+            value={kpis.weighted}
+            icon={Target}
+            format={currency}
+            hint={`${kpis.opportunities} affaire(s) ouverte(s)`}
+            index={1}
+          />
+        </Link>
+        <Link to="/prospection/opportunites" className="block h-full">
+          <StatCard
+            label="CA signé"
+            value={kpis.signedCa}
+            icon={Compass}
+            variant="success"
+            format={currency}
+            hint={`${kpis.signatures} mission(s)`}
+            index={2}
+          />
+        </Link>
+        <Link to="/prospection/budget" className="block h-full">
+          <StatCard
+            label="Budget cabinet"
+            value={kpis.spent}
+            icon={Wallet}
+            variant={kpis.spent / kpis.budgetCap >= 0.8 ? "danger" : "accent"}
+            format={currency}
+            hint={`${budgetPct} % de ${currency(kpis.budgetCap)}`}
+            index={3}
+          />
+        </Link>
       </div>
 
-      <div className="mb-5 grid gap-4 lg:grid-cols-2">
-        <section className="glass-panel rounded-3xl p-5">
-          <h3 className="font-display font-semibold">Ma semaine commerciale</h3>
-          <ul className="mt-3 space-y-2 text-sm">
-            <li>Lundi — revue pipeline (30 min)</li>
-            <li>Semaine — 5 contacts min. · 2 RDV</li>
-            <li>Après RDV — CR sous 48 h + prochaine action</li>
-            <li>RDV concluant — proposition sous 5 jours</li>
-            <li>Vendredi — dépenses à jour</li>
-          </ul>
-          <p className="mt-4 text-sm text-muted-foreground">
-            {weekDone} actions terminées · {weekTodo} restantes · {kpis.overdueActions.length} en retard
-          </p>
-        </section>
-        <section className="glass-panel rounded-3xl p-5">
-          <h3 className="font-display font-semibold">Objectifs 8 semaines</h3>
-          <ul className="mt-3 space-y-2 text-sm">
-            {data.objectives
-              .filter((o) => o.managerId === "mgr-awa")
-              .map((o) => {
-                const done = realizedForMetric(data, o.metric, "mgr-awa");
-                const pct = Math.round((done / o.target) * 100);
-                return (
-                  <li key={o.id}>
-                    <div className="flex justify-between">
-                      <span>{OBJECTIVE_LABELS[o.metric]}</span>
-                      <span className="font-medium">
-                        {done}/{o.target} ({pct}%)
-                      </span>
+      {hasAlerts ? (
+        <CrmCard className="mb-5" accent="bg-danger" index={2}>
+          <div className="flex items-start gap-3">
+            <IconMark icon={AlertTriangle} tone="bg-danger/10 text-danger" />
+            <div>
+              <h2 className="font-display text-base font-semibold">Alertes</h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {kpis.overdueActions.length + kpis.staleStrategic.length + kpis.pendingApprovals.length} point(s)
+                à traiter
+              </p>
+            </div>
+          </div>
+          <ul className="mt-4 space-y-2">
+            {kpis.overdueActions.slice(0, 4).map((o) => {
+              const co = data.companies.find((c) => c.id === o.companyId);
+              return (
+                <li key={o.id}>
+                  <Link
+                    to="/prospection/opportunites"
+                    search={{ focus: o.id }}
+                    className="block rounded-2xl border border-danger/15 bg-danger/5 px-3 py-2.5 text-sm hover:bg-danger/10"
+                  >
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-danger">
+                      Action en retard
+                    </span>
+                    <div className="mt-0.5 font-medium">
+                      {co?.name} · {o.nextAction}
                     </div>
-                    <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
-                      <div className="h-full bg-gradient-primary" style={{ width: `${Math.min(100, pct)}%` }} />
-                    </div>
-                  </li>
-                );
-              })}
-          </ul>
-        </section>
-      </div>
-
-      {kpis.overdueActions.length > 0 || kpis.staleStrategic.length > 0 || kpis.pendingApprovals.length > 0 ? (
-        <section className="mb-5 rounded-2xl border border-danger/30 bg-danger/5 p-4">
-          <h3 className="mb-2 flex items-center gap-2 font-display font-semibold">
-            <AlertTriangle className="h-4 w-4" /> Alertes
-          </h3>
-          <ul className="space-y-1 text-sm">
-            {kpis.overdueActions.slice(0, 4).map((o) => (
-              <li key={o.id}>
-                Action en retard — {o.nextAction} ({shortDate(o.nextActionOn)})
+                    <div className="text-xs text-muted-foreground">{shortDate(o.nextActionOn)}</div>
+                  </Link>
+                </li>
+              );
+            })}
+            {kpis.staleStrategic.map((c) => (
+              <li key={c.id}>
+                <Link
+                  to="/prospection/clients/$id"
+                  params={{ id: c.id }}
+                  search={{ focus: c.id }}
+                  className="block rounded-2xl border border-amber-500/20 bg-amber-500/8 px-3 py-2.5 text-sm hover:bg-amber-500/12"
+                >
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-800 dark:text-amber-300">
+                    Client stratégique
+                  </span>
+                  <div className="mt-0.5 font-medium">{c.name}</div>
+                  <div className="text-xs text-muted-foreground">Sans contact depuis 30 jours</div>
+                </Link>
               </li>
             ))}
-            {kpis.staleStrategic.map((c) => (
-              <li key={c.id}>Client stratégique sans contact 30 j. — {c.name}</li>
-            ))}
             {kpis.pendingApprovals.map((e) => (
-              <li key={e.id}>Dépense à valider — {currency(e.amount)}</li>
+              <li key={e.id}>
+                <Link
+                  to="/prospection/budget"
+                  search={{ focus: e.id }}
+                  className="block rounded-2xl border border-primary/15 bg-primary/5 px-3 py-2.5 text-sm hover:bg-primary/10"
+                >
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">
+                    Dépense à valider
+                  </span>
+                  <div className="mt-0.5 font-medium">{e.label}</div>
+                  <div className="text-xs text-muted-foreground">{currency(e.amount)}</div>
+                </Link>
+              </li>
             ))}
           </ul>
-        </section>
+        </CrmCard>
       ) : null}
 
+      <div className="mb-5 grid gap-4 lg:grid-cols-2">
+        <CrmCard className="h-full">
+          <div className="flex items-start gap-3">
+            <IconMark icon={CalendarDays} tone="bg-primary/15 text-primary" />
+            <div className="min-w-0 flex-1">
+              <h2 className="font-display text-base font-semibold">Ma semaine commerciale</h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {weekChecksDone}/{data.weekChecks.length} points de routine
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            <MetricTile label="Terminées" value={weekDone} accent />
+            <MetricTile label="Restantes" value={weekTodo} />
+            <MetricTile label="En retard" value={kpis.overdueActions.length} />
+          </div>
+          <ul className="mt-4 space-y-2">
+            {data.weekChecks.map((item) => (
+              <li key={item.id}>
+                <label
+                  className={cn(
+                    "flex cursor-pointer items-start gap-3 rounded-2xl border px-3 py-2.5 text-sm transition-colors",
+                    item.done
+                      ? "border-emerald-500/20 bg-emerald-500/8 text-muted-foreground"
+                      : "border-border/50 bg-muted/30 hover:bg-muted/50",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border",
+                      item.done
+                        ? "border-emerald-500 bg-emerald-500 text-white"
+                        : "border-border bg-background",
+                    )}
+                  >
+                    {item.done ? <Check className="h-3 w-3" /> : null}
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={item.done}
+                    onChange={() => toggleWeekCheck(item.id)}
+                    className="sr-only"
+                  />
+                  <span className={cn("leading-snug", item.done && "line-through")}>{item.label}</span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        </CrmCard>
+
+        <CrmCard className="h-full">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-start gap-3">
+              <IconMark icon={Target} tone="bg-violet-500/15 text-violet-700 dark:text-violet-300" />
+              <div>
+                <h2 className="font-display text-base font-semibold">Objectifs 8 semaines</h2>
+                <p className="mt-0.5 text-xs text-muted-foreground">Réalisé calculé automatiquement</p>
+              </div>
+            </div>
+            <Link to="/prospection/objectifs" className="text-xs font-semibold text-primary hover:underline">
+              Voir tout
+            </Link>
+          </div>
+          <div className={cn("mt-4 space-y-4", objectiveManagers.length > 1 && "space-y-5")}>
+            {objectiveManagers.map((m) => (
+              <div key={m.id}>
+                {objectiveManagers.length > 1 ? (
+                  <div className="mb-2 flex items-center gap-2">
+                    <EntityMark name={m.name} size="sm" />
+                    <span className="text-sm font-semibold">{m.name}</span>
+                  </div>
+                ) : null}
+                <ul className="space-y-2">
+                  {data.objectives
+                    .filter((o) => o.managerId === m.id)
+                    .map((o) => {
+                      const done = realizedForMetric(data, o.metric, m.id);
+                      const pct = o.target === 0 ? 0 : Math.round((done / o.target) * 100);
+                      return (
+                        <li key={o.id} className="rounded-2xl bg-muted/45 px-3 py-2.5">
+                          <ProgressMeter
+                            value={pct}
+                            label={OBJECTIVE_LABELS[o.metric]}
+                            hint={`${done}/${o.target} · ${pct} %`}
+                          />
+                        </li>
+                      );
+                    })}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </CrmCard>
+      </div>
+
       {crm !== "collaborateur" ? (
-        <section className="glass-panel mb-5 overflow-hidden rounded-3xl">
-          <div className="flex items-center justify-between border-b border-border/50 px-5 py-4">
+        <section className="mb-5">
+          <div className="mb-3 flex items-center justify-between gap-2">
             <h3 className="font-display font-semibold">Port-Gentil — 6 clients</h3>
-            <Link to="/prospection/port-gentil" className="text-sm text-primary hover:underline">
+            <Link to="/prospection/port-gentil" className="text-xs font-semibold text-primary hover:underline">
               Ouvrir
             </Link>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Client</th>
-                  <th className="px-4 py-3 font-medium">Manager</th>
-                  <th className="px-4 py-3 font-medium">Lignes</th>
-                  <th className="px-4 py-3 font-medium">Plan</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pg.map((a) => (
-                  <tr key={a.id} className="border-t border-border/40">
-                    <td className="px-4 py-3 font-medium">{a.name}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{managerName(a.managerId)}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-1">
+          <CrmCardGrid>
+            {pg.map((a, i) => (
+              <Link key={a.id} to="/prospection/clients/$id" params={{ id: a.id }} className="block h-full">
+                <CrmCard index={i} className="h-full">
+                  <div className="flex items-start gap-3">
+                    <EntityMark name={a.name} />
+                    <div className="min-w-0 flex-1">
+                      <h2 className="font-display text-base font-semibold leading-tight group-hover:text-primary">
+                        {a.name}
+                      </h2>
+                      <p className="mt-1 text-xs text-muted-foreground">{managerName(a.managerId)}</p>
+                      <div className="mt-2 flex flex-wrap gap-1">
                         {a.servicesBought.map((l) => (
                           <LineBadge key={l} line={l} />
                         ))}
                       </div>
-                    </td>
-                    <td className="px-4 py-3">{a.plan ? "Rédigé" : "À faire"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    </div>
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <MetricTile label="CA signé" value={currency(a.caSigned)} accent />
+                    <MetricTile
+                      label="Plan de compte"
+                      value={a.plan ? "Rédigé" : "À faire"}
+                      hint={a.plan ? currency(a.plan.feePotential) : "Potentiel à estimer"}
+                    />
+                  </div>
+                </CrmCard>
+              </Link>
+            ))}
+          </CrmCardGrid>
         </section>
       ) : null}
 
       {crm === "direction" ? (
-        <section className="glass-panel overflow-hidden rounded-3xl">
-          <div className="border-b border-border/50 px-5 py-4">
-            <h3 className="font-display font-semibold">Performance managers</h3>
-          </div>
-          <ul className="divide-y divide-border/40">
-            {MANAGERS.map((m) => {
+        <section>
+          <h3 className="mb-3 font-display font-semibold">Performance managers</h3>
+          <CrmCardGrid>
+            {MANAGERS.map((m, i) => {
               const ops = data.opportunities.filter((o) => o.ownerId === m.id);
               const signed = ops.filter((o) => o.stage === "gagne");
+              const signedCa = signed.reduce((s, o) => s + o.amount, 0);
               const spent = data.expenses.filter((e) => e.managerId === m.id).reduce((s, e) => s + e.amount, 0);
+              const ratio = spent / MONTHLY_BUDGET;
               return (
-                <li key={m.id} className="flex flex-wrap justify-between gap-2 px-5 py-3 text-sm">
-                  <div>
-                    <div className="font-medium">{m.name}</div>
-                    <div className="text-muted-foreground">{signed.length} signée(s) · {currency(spent)} / {currency(MONTHLY_BUDGET)}</div>
+                <CrmCard key={m.id} index={i} className="h-full" accent={ratio >= 0.8 ? "bg-danger" : undefined}>
+                  <div className="flex items-start gap-3">
+                    <EntityMark name={m.name} />
+                    <div className="min-w-0 flex-1">
+                      <h2 className="font-display text-base font-semibold">{m.name}</h2>
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {m.lines.map((l) => (
+                          <LineBadge key={l} line={l} />
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex flex-wrap gap-1">
-                    {ops.slice(0, 3).map((o) => (
-                      <StageBadge key={o.id} stage={o.stage} />
-                    ))}
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <MetricTile
+                      label="Signé"
+                      value={currency(signedCa)}
+                      hint={`${signed.length} mission(s)`}
+                      accent
+                    />
+                    <MetricTile label="Budget" value={currency(spent)} hint={`/ ${currency(MONTHLY_BUDGET)}`} />
                   </div>
-                </li>
+                  <div className="mt-4">
+                    <ProgressMeter
+                      value={Math.round(ratio * 100)}
+                      label="Consommation"
+                      hint={`${Math.round(ratio * 100)} %`}
+                    />
+                  </div>
+                  {ops.length > 0 ? (
+                    <div className="mt-3 flex flex-wrap gap-1">
+                      {ops.slice(0, 4).map((o) => (
+                        <StageBadge key={o.id} stage={o.stage} />
+                      ))}
+                    </div>
+                  ) : null}
+                </CrmCard>
               );
             })}
-          </ul>
+          </CrmCardGrid>
         </section>
       ) : null}
+
+      <NewLeadDialog open={leadOpen} onOpenChange={setLeadOpen} />
+      <NewActivityDialog open={activityOpen} onOpenChange={setActivityOpen} />
+      <NewExpenseDialog open={expenseOpen} onOpenChange={setExpenseOpen} />
+      <CompanyDialog open={prospectOpen} onOpenChange={setProspectOpen} kind="prospect" />
     </div>
   );
 }

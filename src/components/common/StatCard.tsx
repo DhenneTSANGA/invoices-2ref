@@ -45,7 +45,7 @@ export function StatCard({
       transition={{ duration: 0.5, delay: index * 0.08, ease: [0.22, 1, 0.36, 1] }}
       whileHover={{ y: -4, scale: 1.015 }}
       className={cn(
-        "relative overflow-hidden rounded-3xl p-4 shadow-float sm:p-6",
+        "relative h-full overflow-hidden rounded-3xl p-4 shadow-float sm:p-6",
         variant === "default" ? "glass-panel" : v.tile,
       )}
     >

@@ -1,9 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Plus } from "lucide-react";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
-import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
+import { NewActivityDialog } from "@/components/prospection/CrmForms";
+import { ActivityStatusBadge } from "@/components/prospection/ProspectionBadges";
+import { CrmCard, CrmCardGrid, DateTile, KindMark } from "@/components/prospection/CrmCards";
+import { CRM_PRIMARY_BTN, CRM_SECONDARY_BTN, FilterChip } from "@/components/prospection/CrmUi";
 import { ACTIVITY_LABELS } from "@/lib/prospection-demo";
-import { shortDate } from "@/lib/format";
+import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
 
 export const Route = createFileRoute("/prospection/agenda")({
   head: () => ({ meta: [{ title: "Agenda — Prospection" }] }),
@@ -13,12 +18,22 @@ export const Route = createFileRoute("/prospection/agenda")({
 function AgendaPage() {
   const companies = useProspectionDemoStore((s) => s.companies);
   const activities = useProspectionDemoStore((s) => s.activities);
+  const setActivityStatus = useProspectionDemoStore((s) => s.setActivityStatus);
   const [view, setView] = useState<"jour" | "semaine" | "mois">("semaine");
+  const [open, setOpen] = useState(false);
 
   const dated = useMemo(
     () =>
       [...activities]
-        .filter((a) => a.kind === "rdv" || a.kind === "visite" || a.kind === "evenement" || a.status === "planifiee" || a.status === "a_faire")
+        .filter(
+          (a) =>
+            a.kind === "rdv" ||
+            a.kind === "visite" ||
+            a.kind === "evenement" ||
+            a.kind === "tache" ||
+            a.status === "planifiee" ||
+            a.status === "a_faire",
+        )
         .sort((a, b) => a.at.localeCompare(b.at)),
     [activities],
   );
@@ -36,34 +51,80 @@ function AgendaPage() {
 
   return (
     <div>
-      <PageHeader title="Agenda" subtitle="Jour, semaine, mois — RDV, visites, relances, événements." />
-      <div className="mb-4 flex gap-2">
-        {(["jour", "semaine", "mois"] as const).map((v) => (
-          <button
-            key={v}
-            type="button"
-            onClick={() => setView(v)}
-            className={`rounded-2xl px-3 py-1.5 text-sm capitalize ${view === v ? "bg-gradient-primary text-primary-foreground" : "border border-border"}`}
-          >
-            {v}
+      <PageHeader
+        title="Agenda"
+        subtitle="Jour, semaine, mois — RDV, visites, événements, tâches planifiées."
+        actions={
+          <button type="button" onClick={() => setOpen(true)} className={CRM_PRIMARY_BTN}>
+            <Plus className="h-4 w-4" />
+            Nouveau RDV
           </button>
+        }
+      />
+      <div className="mb-4 flex flex-wrap gap-2">
+        {(["jour", "semaine", "mois"] as const).map((v) => (
+          <FilterChip key={v} active={view === v} onClick={() => setView(v)}>
+            {v}
+          </FilterChip>
         ))}
       </div>
-      <ul className="space-y-2">
-        {filtered.length === 0 ? (
-          <li className="text-sm text-muted-foreground">Rien sur cette période.</li>
-        ) : (
-          filtered.map((a) => {
+      {filtered.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Rien sur cette période.</p>
+      ) : (
+        <CrmCardGrid dense>
+          {filtered.map((a, i) => {
             const co = companies.find((c) => c.id === a.companyId);
             return (
-              <li key={a.id} className="glass-panel rounded-2xl px-4 py-3 text-sm">
-                <div className="font-medium">{shortDate(a.at)} {a.time ?? ""} · {ACTIVITY_LABELS[a.kind]}</div>
-                <div className="text-muted-foreground">{co?.name} — {a.title}</div>
-              </li>
+              <CrmCard key={a.id} index={i} className="h-full">
+                <div className="flex items-start gap-3">
+                  <DateTile iso={a.at} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          {a.time ?? "Toute la journée"} · {ACTIVITY_LABELS[a.kind]}
+                        </p>
+                        <h2 className="mt-0.5 font-display text-base font-semibold leading-tight">
+                          {co?.name ?? "Entreprise"}
+                        </h2>
+                      </div>
+                      <ActivityStatusBadge status={a.status} />
+                    </div>
+                    <p className="mt-2 text-sm">{a.title}</p>
+                    {a.summary ? <p className="mt-1 text-sm text-muted-foreground">{a.summary}</p> : null}
+                  </div>
+                  <KindMark kind={a.kind} />
+                </div>
+                {a.status !== "terminee" && a.status !== "annulee" ? (
+                  <div className="mt-4 flex gap-2">
+                    <button
+                      type="button"
+                      className={CRM_SECONDARY_BTN + " !px-3 !py-1.5 !text-xs"}
+                      onClick={() => {
+                        setActivityStatus(a.id, "terminee");
+                        toast.success("Marqué fait");
+                      }}
+                    >
+                      Fait
+                    </button>
+                    <button
+                      type="button"
+                      className={CRM_SECONDARY_BTN + " !px-3 !py-1.5 !text-xs"}
+                      onClick={() => {
+                        setActivityStatus(a.id, "annulee");
+                        toast.success("Annulé");
+                      }}
+                    >
+                      Annuler
+                    </button>
+                  </div>
+                ) : null}
+              </CrmCard>
             );
-          })
-        )}
-      </ul>
+          })}
+        </CrmCardGrid>
+      )}
+      <NewActivityDialog open={open} onOpenChange={setOpen} defaultKind="rdv" />
     </div>
   );
 }

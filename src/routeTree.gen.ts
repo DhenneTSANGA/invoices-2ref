@@ -64,6 +64,8 @@ import { Route as AppDocumentationRouteImport } from './routes/_app.documentatio
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppBilanRouteImport } from './routes/_app.bilan'
 import { Route as AppArchiveRouteImport } from './routes/_app.archive'
+import { Route as ProspectionProspectsIndexRouteImport } from './routes/prospection.prospects.index'
+import { Route as ProspectionClientsIndexRouteImport } from './routes/prospection.clients.index'
 import { Route as AppQuotationsIndexRouteImport } from './routes/_app.quotations.index'
 import { Route as AppLettreIndexRouteImport } from './routes/_app.lettre.index'
 import { Route as AppLettersIndexRouteImport } from './routes/_app.letters.index'
@@ -364,6 +366,17 @@ const AppArchiveRoute = AppArchiveRouteImport.update({
   path: '/archive',
   getParentRoute: () => AppRoute,
 } as any)
+const ProspectionProspectsIndexRoute =
+  ProspectionProspectsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => ProspectionProspectsRoute,
+  } as any)
+const ProspectionClientsIndexRoute = ProspectionClientsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ProspectionClientsRoute,
+} as any)
 const AppQuotationsIndexRoute = AppQuotationsIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -562,6 +575,8 @@ export interface FileRoutesByFullPath {
   '/letters/': typeof AppLettersIndexRoute
   '/lettre/': typeof AppLettreIndexRoute
   '/quotations/': typeof AppQuotationsIndexRoute
+  '/prospection/clients/': typeof ProspectionClientsIndexRoute
+  '/prospection/prospects/': typeof ProspectionProspectsIndexRoute
   '/invoices/$id/edit': typeof AppInvoicesIdEditRoute
   '/quotations/$id/edit': typeof AppQuotationsIdEditRoute
 }
@@ -601,7 +616,6 @@ export interface FileRoutesByTo {
   '/prospection/agenda': typeof ProspectionAgendaRoute
   '/prospection/bibliotheque': typeof ProspectionBibliothequeRoute
   '/prospection/budget': typeof ProspectionBudgetRoute
-  '/prospection/clients': typeof ProspectionClientsRouteWithChildren
   '/prospection/import': typeof ProspectionImportRoute
   '/prospection/kpi': typeof ProspectionKpiRoute
   '/prospection/notifications': typeof ProspectionNotificationsRoute
@@ -612,7 +626,6 @@ export interface FileRoutesByTo {
   '/prospection/pistes': typeof ProspectionPistesRoute
   '/prospection/port-gentil': typeof ProspectionPortGentilRoute
   '/prospection/portefeuille': typeof ProspectionPortefeuilleRoute
-  '/prospection/prospects': typeof ProspectionProspectsRouteWithChildren
   '/prospection/strategiques': typeof ProspectionStrategiquesRoute
   '/prospection': typeof ProspectionIndexRoute
   '/clients/$id': typeof AppClientsIdRoute
@@ -637,6 +650,8 @@ export interface FileRoutesByTo {
   '/letters': typeof AppLettersIndexRoute
   '/lettre': typeof AppLettreIndexRoute
   '/quotations': typeof AppQuotationsIndexRoute
+  '/prospection/clients': typeof ProspectionClientsIndexRoute
+  '/prospection/prospects': typeof ProspectionProspectsIndexRoute
   '/invoices/$id/edit': typeof AppInvoicesIdEditRoute
   '/quotations/$id/edit': typeof AppQuotationsIdEditRoute
 }
@@ -719,6 +734,8 @@ export interface FileRoutesById {
   '/_app/letters/': typeof AppLettersIndexRoute
   '/_app/lettre/': typeof AppLettreIndexRoute
   '/_app/quotations/': typeof AppQuotationsIndexRoute
+  '/prospection/clients/': typeof ProspectionClientsIndexRoute
+  '/prospection/prospects/': typeof ProspectionProspectsIndexRoute
   '/_app/invoices/$id/edit': typeof AppInvoicesIdEditRoute
   '/_app/quotations/$id/edit': typeof AppQuotationsIdEditRoute
 }
@@ -801,6 +818,8 @@ export interface FileRouteTypes {
     | '/letters/'
     | '/lettre/'
     | '/quotations/'
+    | '/prospection/clients/'
+    | '/prospection/prospects/'
     | '/invoices/$id/edit'
     | '/quotations/$id/edit'
   fileRoutesByTo: FileRoutesByTo
@@ -840,7 +859,6 @@ export interface FileRouteTypes {
     | '/prospection/agenda'
     | '/prospection/bibliotheque'
     | '/prospection/budget'
-    | '/prospection/clients'
     | '/prospection/import'
     | '/prospection/kpi'
     | '/prospection/notifications'
@@ -851,7 +869,6 @@ export interface FileRouteTypes {
     | '/prospection/pistes'
     | '/prospection/port-gentil'
     | '/prospection/portefeuille'
-    | '/prospection/prospects'
     | '/prospection/strategiques'
     | '/prospection'
     | '/clients/$id'
@@ -876,6 +893,8 @@ export interface FileRouteTypes {
     | '/letters'
     | '/lettre'
     | '/quotations'
+    | '/prospection/clients'
+    | '/prospection/prospects'
     | '/invoices/$id/edit'
     | '/quotations/$id/edit'
   id:
@@ -957,6 +976,8 @@ export interface FileRouteTypes {
     | '/_app/letters/'
     | '/_app/lettre/'
     | '/_app/quotations/'
+    | '/prospection/clients/'
+    | '/prospection/prospects/'
     | '/_app/invoices/$id/edit'
     | '/_app/quotations/$id/edit'
   fileRoutesById: FileRoutesById
@@ -1367,6 +1388,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppArchiveRouteImport
       parentRoute: typeof AppRoute
     }
+    '/prospection/prospects/': {
+      id: '/prospection/prospects/'
+      path: '/'
+      fullPath: '/prospection/prospects/'
+      preLoaderRoute: typeof ProspectionProspectsIndexRouteImport
+      parentRoute: typeof ProspectionProspectsRoute
+    }
+    '/prospection/clients/': {
+      id: '/prospection/clients/'
+      path: '/'
+      fullPath: '/prospection/clients/'
+      preLoaderRoute: typeof ProspectionClientsIndexRouteImport
+      parentRoute: typeof ProspectionClientsRoute
+    }
     '/_app/quotations/': {
       id: '/_app/quotations/'
       path: '/'
@@ -1690,10 +1725,12 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 interface ProspectionClientsRouteChildren {
   ProspectionClientsIdRoute: typeof ProspectionClientsIdRoute
+  ProspectionClientsIndexRoute: typeof ProspectionClientsIndexRoute
 }
 
 const ProspectionClientsRouteChildren: ProspectionClientsRouteChildren = {
   ProspectionClientsIdRoute: ProspectionClientsIdRoute,
+  ProspectionClientsIndexRoute: ProspectionClientsIndexRoute,
 }
 
 const ProspectionClientsRouteWithChildren =
@@ -1701,10 +1738,12 @@ const ProspectionClientsRouteWithChildren =
 
 interface ProspectionProspectsRouteChildren {
   ProspectionProspectsIdRoute: typeof ProspectionProspectsIdRoute
+  ProspectionProspectsIndexRoute: typeof ProspectionProspectsIndexRoute
 }
 
 const ProspectionProspectsRouteChildren: ProspectionProspectsRouteChildren = {
   ProspectionProspectsIdRoute: ProspectionProspectsIdRoute,
+  ProspectionProspectsIndexRoute: ProspectionProspectsIndexRoute,
 }
 
 const ProspectionProspectsRouteWithChildren =

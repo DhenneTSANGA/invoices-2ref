@@ -139,6 +139,8 @@ export type Activity = {
   kind: ActivityKind;
   title: string;
   summary: string;
+  nextAction?: string;
+  nextActionOn?: string;
   ownerId: string;
   status: ActivityStatus;
 };
@@ -185,6 +187,89 @@ export type CrmNotification = {
   href: string;
   read: boolean;
 };
+
+export type LibraryItem = {
+  id: string;
+  line: ServiceLine;
+  category: string;
+  title: string;
+  body: string;
+};
+
+export type ReferentialKind = "line" | "stage" | "site" | "expense" | "sector";
+
+export type ReferentialExtra = {
+  id: string;
+  kind: ReferentialKind;
+  label: string;
+};
+
+export type WeekCheck = {
+  id: string;
+  label: string;
+  done: boolean;
+};
+
+export function isoDate(offsetDays = 0) {
+  return new Date(Date.now() + offsetDays * 86400000).toISOString().slice(0, 10);
+}
+
+/** Jours ouvrés (lun–ven), à partir d’aujourd’hui ou d’une date ISO. */
+export function addBusinessDays(from = isoDate(), days = 1) {
+  const d = new Date(`${from}T12:00:00`);
+  let left = days;
+  while (left > 0) {
+    d.setDate(d.getDate() + 1);
+    const w = d.getDay();
+    if (w !== 0 && w !== 6) left -= 1;
+  }
+  return d.toISOString().slice(0, 10);
+}
+
+export const SECTORS = [
+  "Banque",
+  "Énergie",
+  "Santé",
+  "Industrie",
+  "Éducation",
+  "Logistique",
+  "Tourisme",
+  "Assurance",
+  "Agro",
+  "Services",
+  "Finance",
+  "Holding",
+  "Distribution",
+  "Utilities",
+  "Aviation",
+  "Transport",
+  "Prospect",
+  "Import",
+  "Autre",
+];
+
+export const COMPANY_SIZES = [
+  "1–10 salariés",
+  "11–50 salariés",
+  "51–200 salariés",
+  "200+ salariés",
+];
+
+export const EXPENSE_APPROVAL_LABELS: Record<ExpenseApproval, string> = {
+  none: "Enregistrée",
+  pending: "En attente Direction",
+  approved: "Validée",
+  rejected: "Refusée",
+};
+
+export const LIBRARY_CATEGORIES = [
+  "Cibles prioritaires",
+  "Argumentaires",
+  "Questions de découverte",
+  "Offres types",
+  "Emails",
+  "WhatsApp",
+] as const;
 
 export const MONTHLY_BUDGET = 500_000;
 export const BUDGET_ALERT_RATIO = 0.8;
@@ -237,6 +322,30 @@ export const STAGE_PROBABILITY: Partial<Record<PipelineStage, number>> = {
   gagne: 100,
   perdu: 0,
   reporte: 10,
+};
+
+export const STAGE_ACTIVITY_KIND: Record<PipelineStage, ActivityKind> = {
+  qualification: "appel",
+  premier_contact: "email",
+  rendez_vous: "rdv",
+  proposition: "email",
+  negotiation: "relance",
+  decision: "tache",
+  gagne: "tache",
+  perdu: "note",
+  reporte: "relance",
+};
+
+export const STAGE_NEXT_PLACEHOLDER: Record<PipelineStage, string> = {
+  qualification: "Qualifier le besoin",
+  premier_contact: "Relancer le contact",
+  rendez_vous: "Envoyer la proposition",
+  proposition: "Relancer après envoi",
+  negotiation: "Arbitrer les honoraires",
+  decision: "Obtenir la décision",
+  gagne: "Planifier le kick-off",
+  perdu: "Conserver en historique",
+  reporte: "Relancer dans 3 mois",
 };
 
 export const SOURCE_LABELS: Record<OpportunitySource, string> = {
@@ -318,6 +427,9 @@ export type ProspectionData = {
   expenses: Expense[];
   objectives: Objective[];
   notifications: CrmNotification[];
+  libraryItems: LibraryItem[];
+  referentials: ReferentialExtra[];
+  weekChecks: WeekCheck[];
 };
 
 export function computeKpis(data: ProspectionData) {
@@ -894,6 +1006,15 @@ export function createProspectionDemoSeed(): ProspectionData {
     expenses,
     objectives,
     notifications,
+    libraryItems: [],
+    referentials: [],
+    weekChecks: [
+      { id: "wk-1", label: "Lundi — revue pipeline (30 min)", done: false },
+      { id: "wk-2", label: "Semaine — 5 contacts min. · 2 RDV", done: false },
+      { id: "wk-3", label: "Après RDV — CR sous 48 h + prochaine action", done: false },
+      { id: "wk-4", label: "RDV concluant — proposition sous 5 jours", done: false },
+      { id: "wk-5", label: "Vendredi — dépenses à jour", done: false },
+    ],
   };
 }
 

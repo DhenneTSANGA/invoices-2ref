@@ -1,122 +1,105 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useRouteContext } from "@tanstack/react-router";
+import { Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
-import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
-import {
-  LEAD_STATUS_LABELS,
-  MANAGERS,
-  SERVICE_LINE_LABELS,
-  SERVICE_LINES,
-  managerName,
-  type LeadStatus,
-  type ServiceLine,
-} from "@/lib/prospection-demo";
 import { LeadBadge, LineBadge } from "@/components/prospection/ProspectionBadges";
+import { NewLeadDialog } from "@/components/prospection/CrmForms";
+import { CrmCard, CrmCardGrid, EntityMark, MetricTile } from "@/components/prospection/CrmCards";
+import { CRM_PRIMARY_BTN, CRM_SECONDARY_BTN } from "@/components/prospection/CrmUi";
+import { LEAD_STATUS_LABELS, managerName, type LeadStatus } from "@/lib/prospection-demo";
+import { canManagePipeline, crmRoleFromStaff } from "@/lib/prospection-access";
 import { shortDate } from "@/lib/format";
+import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
 
 export const Route = createFileRoute("/prospection/pistes")({
   head: () => ({ meta: [{ title: "Pistes internes — Prospection" }] }),
   component: LeadsPage,
 });
 
+const MANAGER_STATUSES: LeadStatus[] = ["en_cours", "qualifiee", "rejetee", "reportee"];
+
 function LeadsPage() {
+  const { session } = useRouteContext({ from: "/prospection" });
+  const crm = crmRoleFromStaff(session.staff.role);
+  const canQualify = canManagePipeline(crm);
   const leads = useProspectionDemoStore((s) => s.leads);
-  const addLead = useProspectionDemoStore((s) => s.addLead);
   const setLeadStatus = useProspectionDemoStore((s) => s.setLeadStatus);
   const convertLead = useProspectionDemoStore((s) => s.convertLead);
   const navigate = useNavigate();
-  const [companyName, setCompanyName] = useState("");
-  const [need, setNeed] = useState("");
-  const [comment, setComment] = useState("");
-  const [line, setLine] = useState<ServiceLine>("conseil");
-  const [ownerId, setOwnerId] = useState(MANAGERS[0].id);
+  const [open, setOpen] = useState(false);
 
   return (
     <div>
-      <PageHeader title="Pistes internes" subtitle="Tout collaborateur : Client → Besoin → Ligne → Envoyer. Conversion à Qualification." />
-      <div className="grid gap-5 xl:grid-cols-[1fr_340px]">
-        <ul className="space-y-2">
-          {leads.map((l) => (
-            <li key={l.id} className="glass-panel rounded-2xl p-4 text-sm">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <div className="font-display font-semibold">{l.companyName}</div>
-                  <p className="text-muted-foreground">{l.need} — {l.comment}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {shortDate(l.at)} · {l.author} → {managerName(l.ownerId)}
-                  </p>
-                  <div className="mt-2"><LineBadge line={l.line} /></div>
+      <PageHeader
+        title="Pistes internes"
+        subtitle={
+          canQualify
+            ? "Collaborateur : signaler. Manager : qualifier puis convertir en Qualification."
+            : "Signalez un besoin client en moins d’une minute. Le manager qualifiera."
+        }
+        actions={
+          <button type="button" onClick={() => setOpen(true)} className={CRM_PRIMARY_BTN}>
+            <Plus className="h-4 w-4" />
+            Signaler une piste
+          </button>
+        }
+      />
+
+      <CrmCardGrid dense>
+        {leads.map((l, i) => (
+          <CrmCard key={l.id} index={i} className="h-full">
+            <div className="flex items-start gap-3">
+              <EntityMark name={l.companyName} />
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <h2 className="font-display text-base font-semibold leading-tight">{l.companyName}</h2>
+                  <LeadBadge status={l.status} />
                 </div>
-                <LeadBadge status={l.status} />
+                <p className="mt-1 text-sm font-medium">{l.need}</p>
+                {l.comment ? <p className="mt-1 text-sm text-muted-foreground">{l.comment}</p> : null}
+                <div className="mt-2">
+                  <LineBadge line={l.line} />
+                </div>
               </div>
-              <div className="mt-3 flex flex-wrap gap-1">
-                {(Object.keys(LEAD_STATUS_LABELS) as LeadStatus[]).map((st) => (
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <MetricTile label="Signalée le" value={shortDate(l.at)} hint={l.author} />
+              <MetricTile label="Manager" value={managerName(l.ownerId)} />
+            </div>
+            {canQualify && l.status !== "convertie" ? (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {MANAGER_STATUSES.map((st) => (
                   <button
                     key={st}
                     type="button"
-                    onClick={() => setLeadStatus(l.id, st)}
-                    className="rounded-xl border border-border px-2 py-1 text-xs"
+                    onClick={() => {
+                      setLeadStatus(l.id, st);
+                      toast.success(`Statut : ${LEAD_STATUS_LABELS[st]}`);
+                    }}
+                    className={CRM_SECONDARY_BTN + " !px-3 !py-1.5 !text-xs"}
                   >
                     {LEAD_STATUS_LABELS[st]}
                   </button>
                 ))}
-                {l.status !== "convertie" ? (
-                  <button
-                    type="button"
-                    className="rounded-xl bg-gradient-primary px-2 py-1 text-xs text-primary-foreground"
-                    onClick={() => {
-                      convertLead(l.id);
-                      toast.success("Convertie en opportunité (Qualification)");
-                      void navigate({ to: "/prospection/pipeline" });
-                    }}
-                  >
-                    Convertir
-                  </button>
-                ) : null}
+                <button
+                  type="button"
+                  className={CRM_PRIMARY_BTN + " !px-3 !py-1.5 !text-xs"}
+                  onClick={() => {
+                    convertLead(l.id);
+                    toast.success("Convertie en opportunité (Qualification)");
+                    void navigate({ to: "/prospection/opportunites" });
+                  }}
+                >
+                  Convertir
+                </button>
               </div>
-            </li>
-          ))}
-        </ul>
-        <form
-          className="glass-panel space-y-3 rounded-3xl p-5"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!companyName.trim() || !need.trim()) {
-              toast.error("Client et besoin requis");
-              return;
-            }
-            addLead({
-              companyName: companyName.trim(),
-              line,
-              need: need.trim(),
-              comment: comment.trim(),
-              ownerId,
-              author: "Vous",
-            });
-            setCompanyName("");
-            setNeed("");
-            setComment("");
-            toast.success("Piste envoyée au manager");
-          }}
-        >
-          <h3 className="font-display font-semibold">Signaler (moins d’1 min)</h3>
-          <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Client" className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm" />
-          <input value={need} onChange={(e) => setNeed(e.target.value)} placeholder="Besoin" className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm" />
-          <select value={line} onChange={(e) => setLine(e.target.value as ServiceLine)} className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm">
-            {SERVICE_LINES.map((l) => (
-              <option key={l} value={l}>{SERVICE_LINE_LABELS[l]}</option>
-            ))}
-          </select>
-          <select value={ownerId} onChange={(e) => setOwnerId(e.target.value)} className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm">
-            {MANAGERS.map((m) => (
-              <option key={m.id} value={m.id}>{m.name}</option>
-            ))}
-          </select>
-          <textarea value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Commentaire" rows={3} className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm" />
-          <button type="submit" className="w-full rounded-2xl bg-gradient-primary py-2 text-sm font-medium text-primary-foreground">Envoyer</button>
-        </form>
-      </div>
+            ) : null}
+          </CrmCard>
+        ))}
+      </CrmCardGrid>
+
+      <NewLeadDialog open={open} onOpenChange={setOpen} />
     </div>
   );
 }

@@ -1,17 +1,27 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { MapPin, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/common/PageHeader";
-import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
+import { NewOpportunityDialog } from "@/components/prospection/CrmForms";
+import {
+  CrmCard,
+  CrmCardGrid,
+  EntityMark,
+  MetricTile,
+} from "@/components/prospection/CrmCards";
+import { CRM_PRIMARY_BTN, FilterChip, ProposeLineButton } from "@/components/prospection/CrmUi";
+import { LineBadge } from "@/components/prospection/ProspectionBadges";
 import {
   SERVICE_LINE_LABELS,
   SERVICE_LINES,
   SITE_LABELS,
   managerName,
   missingServices,
+  type ServiceLine,
   type Site,
 } from "@/lib/prospection-demo";
 import { currency } from "@/lib/format";
-import { cn } from "@/lib/utils";
+import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
 
 export const Route = createFileRoute("/prospection/portefeuille")({
   head: () => ({ meta: [{ title: "Portefeuille — Prospection" }] }),
@@ -21,80 +31,106 @@ export const Route = createFileRoute("/prospection/portefeuille")({
 function PortefeuillePage() {
   const companies = useProspectionDemoStore((s) => s.companies);
   const [site, setSite] = useState<"all" | Site>("all");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [cross, setCross] = useState<{ companyId: string; line: ServiceLine } | null>(null);
 
   const filtered = useMemo(
-    () =>
-      companies.filter(
-        (a) => a.kind === "client" && (site === "all" || a.site === site),
-      ),
+    () => companies.filter((a) => a.kind === "client" && (site === "all" || a.site === site)),
     [companies, site],
   );
+
+  const potential = filtered.reduce((s, c) => s + (c.plan?.feePotential ?? 0), 0);
 
   return (
     <div>
       <PageHeader
         title="Portefeuille"
-        subtitle="Matrice client × 5 lignes. Un ❌ = opportunité de vente croisée."
+        subtitle={`Bouton orange « À proposer » = créer une opportunité de vente croisée · potentiel ${currency(potential)}`}
+        actions={
+          <button type="button" className={CRM_PRIMARY_BTN} onClick={() => setCreateOpen(true)}>
+            <Plus className="h-4 w-4" />
+            Nouvelle opportunité
+          </button>
+        }
       />
       <div className="mb-4 flex flex-wrap gap-2">
-        <Chip active={site === "all"} onClick={() => setSite("all")} label="Toutes implantations" />
+        <FilterChip active={site === "all"} onClick={() => setSite("all")}>
+          Toutes implantations
+        </FilterChip>
         {(Object.keys(SITE_LABELS) as Site[]).map((s) => (
-          <Chip key={s} active={site === s} onClick={() => setSite(s)} label={SITE_LABELS[s]} />
+          <FilterChip key={s} active={site === s} onClick={() => setSite(s)}>
+            {SITE_LABELS[s]}
+          </FilterChip>
         ))}
       </div>
-      <div className="overflow-hidden rounded-3xl border border-border/60">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[800px] text-sm">
-            <thead className="border-b border-border/60 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3">Client</th>
-                {SERVICE_LINES.map((l) => (
-                  <th key={l} className="px-3 py-3">{SERVICE_LINE_LABELS[l]}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((a) => {
-                const miss = missingServices(a);
-                return (
-                  <tr key={a.id} className="border-b border-border/40">
-                    <td className="px-4 py-3">
-                      <Link to="/prospection/clients/$id" params={{ id: a.id }} className="font-semibold hover:text-primary">
-                        {a.name}
-                      </Link>
-                      <div className="text-xs text-muted-foreground">
-                        {managerName(a.managerId)} · {SITE_LABELS[a.site]}
-                        {miss.length ? ` · ${miss.length} à proposer` : ""}
-                      </div>
-                    </td>
-                    {SERVICE_LINES.map((l) => {
-                      const bought = a.servicesBought.includes(l);
-                      return (
-                        <td key={l} className="px-3 py-3">
-                          <span className={cn("inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold", bought ? "bg-emerald-500/15 text-emerald-700" : "bg-amber-500/15 text-amber-800")}>
-                            {bought ? "Acheté" : "À proposer"}
-                          </span>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <p className="mt-3 text-sm text-muted-foreground">
-        Potentiel agrégé plans de compte : {currency(filtered.reduce((s, c) => s + (c.plan?.feePotential ?? 0), 0))}
-      </p>
+      <CrmCardGrid>
+        {filtered.map((a, i) => {
+          const miss = missingServices(a);
+          return (
+            <CrmCard key={a.id} index={i} className="h-full">
+              <div className="flex items-start gap-3">
+                <EntityMark name={a.name} />
+                <div className="min-w-0 flex-1">
+                  <Link
+                    to="/prospection/clients/$id"
+                    params={{ id: a.id }}
+                    className="font-display text-base font-semibold hover:text-primary"
+                  >
+                    {a.name}
+                  </Link>
+                  <p className="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-1">
+                      <MapPin className="h-3 w-3" />
+                      {SITE_LABELS[a.site]}
+                    </span>
+                    <span>· {managerName(a.managerId)}</span>
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <MetricTile label="CA signé" value={currency(a.caSigned)} accent />
+                <MetricTile
+                  label="À proposer"
+                  value={`${miss.length} ligne${miss.length > 1 ? "s" : ""}`}
+                  hint={a.plan ? `Potentiel ${currency(a.plan.feePotential)}` : "Sans plan de compte"}
+                />
+              </div>
+              <ul className="mt-4 space-y-2">
+                {SERVICE_LINES.map((l) => {
+                  const bought = a.servicesBought.includes(l);
+                  return (
+                    <li
+                      key={l}
+                      className="flex items-center justify-between gap-2 rounded-2xl bg-muted/40 px-3 py-2"
+                    >
+                      <LineBadge line={l} />
+                      {bought ? (
+                        <span className="inline-flex rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                          Acheté
+                        </span>
+                      ) : (
+                        <ProposeLineButton
+                          lineLabel={SERVICE_LINE_LABELS[l]}
+                          onClick={() => setCross({ companyId: a.id, line: l })}
+                        />
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </CrmCard>
+          );
+        })}
+      </CrmCardGrid>
+      <NewOpportunityDialog open={createOpen} onOpenChange={setCreateOpen} />
+      <NewOpportunityDialog
+        open={Boolean(cross)}
+        onOpenChange={(v) => {
+          if (!v) setCross(null);
+        }}
+        defaultCompanyId={cross?.companyId}
+        defaultLine={cross?.line}
+      />
     </div>
-  );
-}
-
-function Chip({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
-  return (
-    <button type="button" onClick={onClick} className={cn("rounded-2xl px-3 py-1.5 text-xs font-medium", active ? "bg-gradient-primary text-primary-foreground shadow-glow" : "border border-border bg-surface hover:bg-muted")}>
-      {label}
-    </button>
   );
 }

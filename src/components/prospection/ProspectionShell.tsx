@@ -33,7 +33,7 @@ import { NavIcon } from "@/components/layout/NavIcon";
 import { PageTransition } from "@/components/common/PageTransition";
 import { isAdmin, isSuperAdmin, roleLabel } from "@/lib/roles";
 import { crmRoleFromStaff } from "@/lib/prospection-access";
-import { crmNavFor } from "@/components/prospection/prospection-nav";
+import { crmNavSections, type CrmNavItem } from "@/components/prospection/prospection-nav";
 
 function selectPathname(s: { location: { pathname: string } }) {
   return s.location.pathname;
@@ -84,7 +84,7 @@ function ProspectionSidebar() {
   const { session } = useRouteContext({ from: "/prospection" });
   const isSa = isSuperAdmin(session.staff.role);
   const adminLike = isAdmin(session.staff.role) && !isSa;
-  const nav = crmNavFor(crmRoleFromStaff(session.staff.role));
+  const sections = crmNavSections(crmRoleFromStaff(session.staff.role));
 
   return (
     <motion.aside
@@ -177,46 +177,25 @@ function ProspectionSidebar() {
           <LayoutGrid className="h-4 w-4 shrink-0" />
           {!collapsed && <span className="truncate">Changer d’espace</span>}
         </Link>
-        {!collapsed && (
-          <div className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Canevas
+        {sections.map((section, i) => (
+          <div key={section.id} className={cn(i > 0 && "mt-4")}>
+            {!collapsed ? (
+              <div className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {section.label}
+              </div>
+            ) : null}
+            <ul className="space-y-1">
+              {section.items.map((item) => (
+                <ProspectionNavLink
+                  key={item.to}
+                  item={item}
+                  pathname={pathname}
+                  collapsed={collapsed}
+                />
+              ))}
+            </ul>
           </div>
-        )}
-        <ul className="space-y-1">
-          {nav.map((item) => {
-            const active =
-              item.to === "/prospection"
-                ? pathname === "/prospection"
-                : pathname === item.to || pathname.startsWith(`${item.to}/`);
-            return (
-              <li key={item.to}>
-                <Link
-                  to={item.to}
-                  className={cn(
-                    "group relative flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition-all",
-                    active
-                      ? "text-primary-foreground"
-                      : "text-foreground/80 hover:bg-muted/70 hover:text-foreground",
-                  )}
-                >
-                  {active && (
-                    <motion.span
-                      layoutId="prospection-nav-active"
-                      className="absolute inset-0 rounded-2xl bg-gradient-primary shadow-glow"
-                      transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                    />
-                  )}
-                  <NavIcon
-                    icon={item.icon}
-                    motion={item.iconMotion}
-                    className={cn("relative z-[1]", active && "drop-shadow")}
-                  />
-                  {!collapsed && <span className="relative z-[1] truncate">{item.label}</span>}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+        ))}
       </div>
     </motion.aside>
   );
@@ -303,11 +282,60 @@ function ProspectionTopbar() {
   );
 }
 
+function isNavActive(pathname: string, to: string) {
+  return to === "/prospection"
+    ? pathname === "/prospection"
+    : pathname === to || pathname.startsWith(`${to}/`);
+}
+
+function ProspectionNavLink({
+  item,
+  pathname,
+  collapsed,
+  onNavigate,
+}: {
+  item: CrmNavItem;
+  pathname: string;
+  collapsed?: boolean;
+  onNavigate?: () => void;
+}) {
+  const active = isNavActive(pathname, item.to);
+  return (
+    <li>
+      <Link
+        to={item.to}
+        onClick={onNavigate}
+        className={cn(
+          "group relative flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition-all",
+          active
+            ? "text-primary-foreground"
+            : "text-foreground/80 hover:bg-muted/70 hover:text-foreground",
+          collapsed && "justify-center px-0",
+        )}
+      >
+        {active ? (
+          <motion.span
+            layoutId="prospection-nav-active"
+            className="absolute inset-0 rounded-2xl bg-gradient-primary shadow-glow"
+            transition={{ type: "spring", stiffness: 350, damping: 30 }}
+          />
+        ) : null}
+        <NavIcon
+          icon={item.icon}
+          motion={item.iconMotion}
+          className={cn("relative z-[1]", active && "drop-shadow")}
+        />
+        {!collapsed ? <span className="relative z-[1] truncate">{item.label}</span> : null}
+      </Link>
+    </li>
+  );
+}
+
 function MobileProspectionNav() {
   const [open, setOpen] = useState(false);
   const pathname = useRouterState({ select: selectPathname });
   const { session } = useRouteContext({ from: "/prospection" });
-  const nav = crmNavFor(crmRoleFromStaff(session.staff.role));
+  const sections = crmNavSections(crmRoleFromStaff(session.staff.role));
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -327,31 +355,23 @@ function MobileProspectionNav() {
           <SheetTitle className="font-display text-lg font-bold">Prospection</SheetTitle>
         </SheetHeader>
         <nav className="flex-1 overflow-y-auto px-3 py-4">
-          <ul className="space-y-1">
-            {nav.map((item) => {
-              const active =
-                item.to === "/prospection"
-                  ? pathname === "/prospection"
-                  : pathname === item.to || pathname.startsWith(`${item.to}/`);
-              return (
-                <li key={item.to}>
-                  <Link
-                    to={item.to}
-                    onClick={() => setOpen(false)}
-                    className={cn(
-                      "flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-medium",
-                      active
-                        ? "bg-gradient-primary text-primary-foreground shadow-glow"
-                        : "hover:bg-muted",
-                    )}
-                  >
-                    <NavIcon icon={item.icon} motion={item.iconMotion} />
-                    {item.label}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+          {sections.map((section, i) => (
+            <div key={section.id} className={cn(i > 0 && "mt-4")}>
+              <div className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {section.label}
+              </div>
+              <ul className="space-y-1">
+                {section.items.map((item) => (
+                  <ProspectionNavLink
+                    key={item.to}
+                    item={item}
+                    pathname={pathname}
+                    onNavigate={() => setOpen(false)}
+                  />
+                ))}
+              </ul>
+            </div>
+          ))}
         </nav>
       </SheetContent>
     </Sheet>
