@@ -242,6 +242,7 @@ export const lineItemSchema = z.object({
     .optional()
     .default("quantity"),
   hideZeroFigures: z.boolean().optional().default(true),
+  billingKind: z.enum(["service", "funds"]).optional().default("service"),
   unitPrice: z.coerce.number(),
   vatRate: z.coerce.number(),
   discount: z.coerce.number().optional().default(0),
@@ -284,6 +285,8 @@ export const documentInputSchema = z.object({
   hideZeroLineFigures: z.boolean().optional().default(true),
   totalRounding: z.coerce.number().int().optional().default(0),
   deposit: z.coerce.number().min(0).optional().default(0),
+  discountMode: z.enum(["percent", "amount"]).optional().default("percent"),
+  discountFixed: z.coerce.number().min(0).optional().default(0),
   validityDays: z.number().optional().nullable(),
   executionTerms: z.string().optional().nullable(),
   subject: z.string().optional().nullable(),

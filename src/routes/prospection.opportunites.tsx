@@ -135,7 +135,7 @@ function OpportunitiesPage() {
               spotId={o.id}
               spotlight={focus === o.id}
             >
-              <div className="flex items-start gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
                 <button
                   type="button"
                   className="crm-quiet-hit group/hit flex min-w-0 flex-1 items-start gap-3 text-left"
@@ -153,7 +153,9 @@ function OpportunitiesPage() {
                     </div>
                   </div>
                 </button>
-                <StageSelect value={o.stage} onChange={(next) => applyStage(o.id, next)} />
+                <div className="self-start sm:self-auto">
+                  <StageSelect value={o.stage} onChange={(next) => applyStage(o.id, next)} />
+                </div>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-2">
                 <MetricTile label="Montant" value={currency(o.amount)} />

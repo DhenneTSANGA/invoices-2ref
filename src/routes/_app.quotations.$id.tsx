@@ -25,7 +25,7 @@ import { DocumentCreatorCard } from "@/components/documents/DocumentCreatorCard"
 import { DocumentPdfTracesPanel } from "@/components/documents/DocumentPdfTracesPanel";
 import { documentDetailRoute } from "@/lib/document-nav";
 import { currency, longDate } from "@/lib/format";
-import { remainingDue, normalizedDeposit } from "@/lib/document-math";
+import { remainingDue, normalizedDeposit, isFundsLine } from "@/lib/document-math";
 import { isAdmin } from "@/lib/roles";
 import { isAccountantSignatory } from "@/lib/signatory";
 
@@ -78,6 +78,7 @@ function QuotationDetailPage() {
     );
   }
   if (!doc) return <div className="glass-panel rounded-3xl p-8 text-center">Devis introuvable.</div>;
+  const hasFunds = doc.items.some(isFundsLine);
   if (doc.type !== "quotation") return null;
 
   const canSend = documentCanSendEmail(doc);
@@ -212,7 +213,7 @@ function QuotationDetailPage() {
               <Row label="Échéance" value={doc.dueDate ? longDate(doc.dueDate) : "—"} />
             </div>
             <div className="mt-4 rounded-2xl bg-gradient-mesh p-4">
-              <div className="text-xs uppercase tracking-wider text-muted-foreground">Total TTC</div>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">{hasFunds ? "Net à payer" : "Total TTC"}</div>
               <div className="font-display text-3xl font-bold text-gradient-primary">{currency(doc.total)}</div>
               {normalizedDeposit(doc.deposit) > 0 ? (
                 <div className="mt-3 grid grid-cols-2 gap-2 text-xs">

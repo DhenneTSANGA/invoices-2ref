@@ -19,6 +19,12 @@ import {
   persistDeposit,
 } from "@/lib/document-deposit-db";
 import {
+  loadDiscountChoices,
+  loadLineBillingKinds,
+  persistDiscountChoice,
+  persistLineBillingKindsForDocument,
+} from "@/lib/document-funds-db";
+import {
   loadLineQuantityUnits,
   persistLineQuantityUnitsForDocument,
 } from "@/lib/document-line-quantity-db";
@@ -286,6 +292,19 @@ async function generateSubscriptionInvoice(
   );
   const templateDeposits = await loadDeposits([template.id]);
   await persistDeposit(created.id, templateDeposits.get(template.id) ?? 0);
+  const templateDiscount = await loadDiscountChoices([template.id]);
+  const discountChoice = templateDiscount.get(template.id);
+  await persistDiscountChoice(created.id, {
+    mode: discountChoice?.mode ?? "percent",
+    fixed: discountChoice?.fixed ?? 0,
+  });
+  const templateKinds = await loadLineBillingKinds(
+    template.lines.map((l) => l.id),
+  );
+  await persistLineBillingKindsForDocument(
+    created.id,
+    template.lines.map((l) => templateKinds.get(l.id) ?? "service"),
+  );
   const templateUnits = await loadLineQuantityUnits(
     template.lines.map((l) => l.id),
   );

@@ -1,4 +1,4 @@
-import type { LineItem } from "@/store/types";
+import type { DiscountMode, LineItem } from "@/store/types";
 import { lineQuantityForTotal } from "@/lib/line-quantity";
 
 export const DEFAULT_VAT_RATE = 18;
@@ -8,6 +8,11 @@ export const DEFAULT_TPS_RATE = 9.5;
 
 function lineGross(item: LineItem) {
   return lineQuantityForTotal(item) * item.unitPrice;
+}
+
+/** Argent confié par le client pour des procédures : hors remise et hors taxes. */
+export function isFundsLine(item: { billingKind?: string | null }) {
+  return item.billingKind === "funds";
 }
 
 /** Base ligne avec remise ligne (courriers / legacy). */
@@ -34,8 +39,12 @@ export function computeTotals(items: LineItem[]) {
 }
 
 export type DocumentTotalsOptions = {
-  /** Remise globale % sur le sous-total HT brut. */
+  /** Remise globale % sur la base taxable (honoraires). */
   discount?: number;
+  /** percent = `discount` ; amount = `discountFixed` en XAF. */
+  discountMode?: DiscountMode;
+  /** Remise forfaitaire en XAF, plafonnée à la base taxable. */
+  discountFixed?: number;
   vatRate?: number;
   cssRate?: number;
   /** 0 = TPS non appliquée (ne pas afficher). */
@@ -45,17 +54,24 @@ export type DocumentTotalsOptions = {
 };
 
 export type DocumentTotals = {
-  /** Somme des lignes HT avant remise document. */
+  /** Somme de toutes les lignes (sous-total 1). */
   grossSubtotal: number;
+  /** Honoraires avant remise (base TVA/CSS). */
+  serviceBase: number;
+  /** Fonds de procédures, ajoutés après les taxes. */
+  fundsAmount: number;
+  /** Au moins une ligne « procédures ». */
+  hasFunds: boolean;
   /** Montant de la remise document. */
   discountAmount: number;
-  /** HT net (base taxable CSS / TVA). */
+  /** HT taxable après remise (sous-total 2). */
   subtotal: number;
   tps: number;
   css: number;
   vat: number;
   /** Arrondi TTC appliqué (peut être négatif). */
   rounding: number;
+  /** Net à payer : taxable après taxes + fonds de procédures. */
   total: number;
 };
 
@@ -68,8 +84,9 @@ export function effectiveCommercialVatRate(
 }
 
 /**
- * Factures & devis : HT brut → remise → TPS (opt., déduite) + CSS + TVA sur le HT net.
- * Si TPS > 0, la TVA est exclue. Total = HT − TPS + CSS (+ TVA).
+ * Factures & devis : honoraires → remise → TPS (opt., déduite) + CSS + TVA.
+ * Les lignes « fonds de procédures » sont dans le sous-total 1, hors remise et hors taxes,
+ * puis ajoutées au net à payer. Si TPS > 0, la TVA est exclue.
  */
 export function computeDocumentTotals(
   items: LineItem[],
@@ -81,19 +98,46 @@ export function computeDocumentTotals(
   const tpsRate = opts.tpsRate ?? rates.tpsRate;
   const effectiveVat = effectiveCommercialVatRate(vatRate, tpsRate);
   const discountPct = Math.min(100, Math.max(0, opts.discount ?? 0));
+  const discountMode: DiscountMode =
+    opts.discountMode === "amount" ? "amount" : "percent";
 
-  const grossSubtotal = items.reduce((a, b) => a + lineGross(b), 0);
-  const discountAmount = Math.round(grossSubtotal * (discountPct / 100));
-  const subtotal = Math.max(0, Math.round(grossSubtotal) - discountAmount);
+  let serviceGross = 0;
+  let fundsGross = 0;
+  let hasFunds = false;
+  for (const item of items) {
+    const gross = lineGross(item);
+    if (isFundsLine(item)) {
+      hasFunds = true;
+      fundsGross += gross;
+    } else {
+      serviceGross += gross;
+    }
+  }
+  const fundsAmount = Math.round(fundsGross);
+  // Sans fonds et en pourcentage : même arrondi qu’avant (remise sur la somme brute).
+  const legacyPercent = !hasFunds && discountMode === "percent";
+  const serviceBase = Math.round(serviceGross);
+  const discountAmount = legacyPercent
+    ? Math.round(serviceGross * (discountPct / 100))
+    : discountMode === "amount"
+      ? Math.min(serviceBase, Math.max(0, Math.round(opts.discountFixed ?? 0)))
+      : Math.round(serviceBase * (discountPct / 100));
+  const subtotal = Math.max(
+    0,
+    (legacyPercent ? Math.round(serviceGross) : serviceBase) - discountAmount,
+  );
   const tps = Math.round(subtotal * (Math.max(0, tpsRate) / 100));
   const css = Math.round(subtotal * (Math.max(0, cssRate) / 100));
   const vat = Math.round(subtotal * (effectiveVat / 100));
-  const rawTotal = commercialTotal(subtotal, tps, css, vat);
+  const rawTotal = commercialTotal(subtotal, tps, css, vat) + fundsAmount;
   const rounding = Number.isFinite(opts.rounding) ? Math.round(opts.rounding!) : 0;
   const total = Math.max(0, rawTotal + rounding);
 
   return {
-    grossSubtotal: Math.round(grossSubtotal),
+    grossSubtotal: serviceBase + fundsAmount,
+    serviceBase,
+    fundsAmount,
+    hasFunds,
     discountAmount,
     subtotal,
     tps,

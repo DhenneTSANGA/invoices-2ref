@@ -66,7 +66,12 @@ import {
 import { loadLineHideZeroFigures } from "@/lib/document-line-hide-zero-db";
 import { loadTotalRounding } from "@/lib/document-total-rounding-db";
 import { loadDeposits } from "@/lib/document-deposit-db";
-import { remainingDue, normalizedDeposit } from "@/lib/document-math";
+import { remainingDue, normalizedDeposit, computeDocumentTotals } from "@/lib/document-math";
+import {
+  loadDiscountChoices,
+  loadLineBillingKinds,
+} from "@/lib/document-funds-db";
+import type { LineItem } from "@/store/types";
 
 async function requireSession() {
   const session = await getCurrentSession();
@@ -211,6 +216,14 @@ function buildCommercialEmailHtml(params: {
     total: number;
   }[];
   dueMonthLine?: string | null;
+  /** Présent quand une ligne de fonds de procédures existe. */
+  fundsBreakdown?: {
+    grossSubtotal: number;
+    serviceBase: number;
+    discountAmount: number;
+    discountLabel: string;
+    taxable: number;
+  } | null;
   subtotal: number;
   tps: number;
   css: number;
@@ -424,13 +437,36 @@ function buildCommercialEmailHtml(params: {
         <td></td>
         <td width="280" valign="top">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E2E8F0;border-radius:10px;overflow:hidden;">
+            ${
+              params.fundsBreakdown
+                ? `<tr>
+              <td style="padding:8px 12px;color:#64748B;font-size:13px;background:#FFFFFF;">Sous-total 1</td>
+              <td style="padding:8px 12px;text-align:right;font-size:13px;background:#FFFFFF;${isConseil ? timesFace : ""}">${escapeHtml(money(params.fundsBreakdown.grossSubtotal))}</td>
+            </tr>
             <tr>
+              <td style="padding:8px 12px;color:#64748B;font-size:13px;background:#FFFFFF;">Base TVA/CSS</td>
+              <td style="padding:8px 12px;text-align:right;font-size:13px;background:#FFFFFF;${isConseil ? timesFace : ""}">${escapeHtml(money(params.fundsBreakdown.serviceBase))}</td>
+            </tr>
+            ${
+              params.fundsBreakdown.discountAmount > 0
+                ? `<tr>
+              <td style="padding:8px 12px;color:#64748B;font-size:13px;background:#FFFFFF;">${escapeHtml(params.fundsBreakdown.discountLabel)}</td>
+              <td style="padding:8px 12px;text-align:right;font-size:13px;background:#FFFFFF;${isConseil ? timesFace : ""}">${escapeHtml(money(-params.fundsBreakdown.discountAmount))}</td>
+            </tr>`
+                : ""
+            }
+            <tr>
+              <td style="padding:8px 12px;color:#64748B;font-size:13px;background:#FFFFFF;">Sous-total 2</td>
+              <td style="padding:8px 12px;text-align:right;font-size:13px;background:#FFFFFF;${isConseil ? timesFace : ""}">${escapeHtml(money(params.fundsBreakdown.taxable))}</td>
+            </tr>`
+                : `<tr>
               <td style="padding:8px 12px;color:#64748B;font-size:13px;background:#FFFFFF;">Sous-total</td>
               <td style="padding:8px 12px;text-align:right;font-size:13px;background:#FFFFFF;${isConseil ? timesFace : ""}">${escapeHtml(money(params.subtotal))}</td>
-            </tr>
+            </tr>`
+            }
             ${taxRows}
             <tr>
-              <td style="padding:${depositRows ? "8px" : "12px"} 12px;font-size:13px;${depositRows ? "color:#64748B;background:#FFFFFF;" : `font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#FFFFFF;background:${barFill};`}">Total TTC</td>
+              <td style="padding:${depositRows ? "8px" : "12px"} 12px;font-size:13px;${depositRows ? "color:#64748B;background:#FFFFFF;" : `font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#FFFFFF;background:${barFill};`}">${params.fundsBreakdown ? "Net à payer" : "Total TTC"}</td>
               <td style="padding:${depositRows ? "8px" : "12px"} 12px;text-align:right;font-size:${depositRows ? "13px" : "14px"};${depositRows ? `color:#0F172A;background:#FFFFFF;${isConseil ? timesFace : ""}` : `font-weight:700;color:#FFFFFF;background:${barFill};${isConseil ? timesFace : ""}`}">${escapeHtml(money(params.total))}</td>
             </tr>
             ${depositRows}
@@ -711,6 +747,9 @@ export async function sendDocumentEmailInternal(params: {
       const deposit = depositFlags.get(doc.id) ?? 0;
       const quantityUnits = await loadLineQuantityUnits(doc.lines.map((l) => l.id));
       const hideZeroFlags = await loadLineHideZeroFigures(doc.lines.map((l) => l.id));
+      const billingKinds = await loadLineBillingKinds(doc.lines.map((l) => l.id));
+      const discountChoices = await loadDiscountChoices([doc.id]);
+      const discountChoice = discountChoices.get(doc.id);
       const showDueMonth = shouldAppendDueMonthToLines({
         type: doc.type,
         showDueMonthOnLines: dueMonthFlags.get(doc.id) ?? false,
@@ -733,6 +772,37 @@ export async function sendDocumentEmailInternal(params: {
           ),
         };
       });
+      const mathItems: LineItem[] = doc.lines.map((l) => ({
+        id: l.id,
+        description: l.description,
+        quantity: Number(l.quantity),
+        quantityUnit: parseLineQuantityUnit(quantityUnits.get(l.id)),
+        billingKind: billingKinds.get(l.id) ?? "service",
+        unitPrice: Number(l.unitPrice),
+        vatRate: Number(l.vatRate),
+        discount: 0,
+        tpsRate: Number(l.tpsRate),
+        cssRate: Number(l.cssRate),
+      }));
+      const totals = computeDocumentTotals(mathItems, {
+        discount: Number(doc.discount),
+        discountMode: discountChoice?.mode ?? "percent",
+        discountFixed: discountChoice?.fixed ?? 0,
+        rounding,
+      });
+      const useComputed = totals.hasFunds || discountChoice?.mode === "amount";
+      const fundsBreakdown = totals.hasFunds
+        ? {
+            grossSubtotal: totals.grossSubtotal,
+            serviceBase: totals.serviceBase,
+            discountAmount: totals.discountAmount,
+            discountLabel:
+              discountChoice?.mode === "amount"
+                ? "Réduction"
+                : `Réduction (${Number(doc.discount)} %)`,
+            taxable: totals.subtotal,
+          }
+        : null;
       subject = `${typeLabel} ${doc.number} — ${company.name}`;
       html = buildCommercialEmailHtml({
         company,
@@ -755,12 +825,13 @@ export async function sendDocumentEmailInternal(params: {
         currency,
         lines,
         dueMonthLine: showDueMonth ? dueMonthMention(doc.issueDate) : null,
-        subtotal: Number(doc.subtotal),
-        tps: Number(doc.tps),
-        css: Number(doc.css),
-        vat: Number(doc.vat),
+        fundsBreakdown,
+        subtotal: useComputed ? totals.subtotal : Number(doc.subtotal),
+        tps: useComputed ? totals.tps : Number(doc.tps),
+        css: useComputed ? totals.css : Number(doc.css),
+        vat: useComputed ? totals.vat : Number(doc.vat),
         rounding,
-        total: Math.max(0, Number(doc.total)),
+        total: useComputed ? totals.total : Math.max(0, Number(doc.total)),
         deposit,
         paymentTerms: doc.paymentTerms,
         showRib: doc.cabinet === "conseil" ? true : Boolean(doc.showRib),

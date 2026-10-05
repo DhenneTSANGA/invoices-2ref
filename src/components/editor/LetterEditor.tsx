@@ -202,6 +202,8 @@ export function LetterEditor({ initial }: Props) {
       hideZeroLineFigures: true,
       totalRounding: 0,
       deposit: 0,
+      discountMode: "percent",
+      discountFixed: 0,
       sections: [],
       discount: 0,
       subtotal: 0,

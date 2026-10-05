@@ -962,6 +962,8 @@ function TotalsBlock({
 
   const computed = computeDocumentTotals(doc.items, {
     discount: discountPct,
+    discountMode: doc.discountMode ?? "percent",
+    discountFixed: doc.discountFixed ?? 0,
     vatRate,
     cssRate,
     tpsRate: tpsActive ? (tpsRate > 0 ? tpsRate : rates.tpsRate) : 0,
@@ -994,17 +996,17 @@ function TotalsBlock({
         }
       >
         <AmountRow
-          label="Sous-total HT"
+          label={computed.hasFunds ? "Sous-total 1" : "Sous-total HT"}
           value={number(grossSubtotal)}
           accent={accent}
           compact={compact}
           variant={amountVariant}
           tint={tint}
         />
-        {discountAmount > 0 ? (
+        {computed.hasFunds ? (
           <AmountRow
-            label={`Remise (${discountPct} %)`}
-            value={number(-discountAmount)}
+            label="Base TVA/CSS"
+            value={number(computed.serviceBase)}
             accent={accent}
             compact={compact}
             variant={amountVariant}
@@ -1013,7 +1015,25 @@ function TotalsBlock({
         ) : null}
         {discountAmount > 0 ? (
           <AmountRow
-            label="HT net"
+            label={
+              computed.hasFunds
+                ? doc.discountMode === "amount"
+                  ? "Réduction"
+                  : `Réduction (${discountPct} %)`
+                : doc.discountMode === "amount"
+                  ? "Remise"
+                  : `Remise (${discountPct} %)`
+            }
+            value={number(-discountAmount)}
+            accent={accent}
+            compact={compact}
+            variant={amountVariant}
+            tint={tint}
+          />
+        ) : null}
+        {computed.hasFunds || discountAmount > 0 ? (
+          <AmountRow
+            label={computed.hasFunds ? "Sous-total 2" : "HT net"}
             value={number(subtotal)}
             accent={accent}
             compact={compact}
@@ -1052,7 +1072,7 @@ function TotalsBlock({
           />
         ) : null}
         <AmountRow
-          label="Total TTC"
+          label={computed.hasFunds ? "Net à payer" : "Total TTC"}
           value={number(total)}
           strong={!showDeposits}
           accent={accent}
