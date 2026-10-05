@@ -217,13 +217,13 @@ function ProspectionTopbar() {
   };
 
   return (
-    <header className="glass-topbar sticky top-0 z-30 flex h-16 min-w-0 items-center gap-2 overflow-x-clip px-3 sm:h-[4.5rem] sm:gap-3 sm:px-4 md:px-6">
+    <header className="glass-topbar sticky top-0 z-30 flex h-14 min-w-0 items-center gap-1.5 overflow-x-clip px-2 sm:h-[4.5rem] sm:gap-3 sm:px-4 md:px-6">
       <MobileProspectionNav />
       <Logo size="nav" className="hidden shrink-0 rounded-md sm:block lg:hidden" />
       <SpaceSwitcher current="prospection" />
       <Link
         to="/prospection/notifications"
-        className="flex h-10 w-10 items-center justify-center rounded-2xl border border-border/60 bg-surface/70 hover:bg-muted"
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-border/60 bg-surface/70 hover:bg-muted sm:h-10 sm:w-10"
         aria-label="Notifications"
       >
         <Bell className="h-4 w-4" />
@@ -232,7 +232,7 @@ function ProspectionTopbar() {
         <button
           type="button"
           onClick={toggle}
-          className="flex h-10 w-10 items-center justify-center rounded-2xl border border-border/60 bg-surface/70 text-foreground transition-colors hover:bg-muted"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-border/60 bg-surface/70 text-foreground transition-colors hover:bg-muted sm:h-10 sm:w-10"
           aria-label="Basculer le thème"
         >
           {!ready || theme === "light" ? (
@@ -245,7 +245,7 @@ function ProspectionTopbar() {
           <button
             type="button"
             onClick={() => setOpen((o) => !o)}
-            className="flex items-center gap-2 rounded-2xl border border-border/60 bg-surface/70 py-1 pl-1 pr-2 transition-colors hover:bg-muted"
+            className="flex shrink-0 items-center gap-2 rounded-2xl border border-border/60 bg-surface/70 py-1 pl-1 pr-1.5 transition-colors hover:bg-muted sm:pr-2"
           >
             <StaffAvatar person={staff} size="sm" className="!h-8 !w-8 !rounded-xl !text-sm" />
             <span className="hidden max-w-[140px] truncate text-sm font-medium md:inline">
@@ -342,7 +342,7 @@ function MobileProspectionNav() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-border/60 bg-surface/70 text-foreground transition-colors hover:bg-muted lg:hidden"
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-border/60 bg-surface/70 text-foreground transition-colors hover:bg-muted sm:h-10 sm:w-10 lg:hidden"
         aria-label="Ouvrir le menu"
       >
         <Menu className="h-5 w-5" />

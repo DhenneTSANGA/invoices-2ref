@@ -81,6 +81,16 @@ import {
   persistLineHideZeroFiguresForDocument,
 } from "@/lib/document-line-hide-zero-db";
 import { parseLineQuantityUnit } from "@/lib/line-quantity";
+import { computeDocumentTotals } from "@/lib/document-math";
+import type { LineItem } from "@/store/types";
+import {
+  loadDiscountChoices,
+  loadLineBillingKinds,
+  persistDiscountChoice,
+  persistLineBillingKindsForDocument,
+  parseBillingKind,
+  parseDiscountMode,
+} from "@/lib/document-funds-db";
 import {
   buildLetterRef,
   isLetterLanguage,
@@ -557,9 +567,23 @@ async function mappedDocuments(rows: Parameters<typeof mapDocument>[0][]) {
   const units = await loadLineQuantityUnits(
     mapped.flatMap((d) => d.items.map((it) => it.id)),
   );
-  const hideZeros = await loadLineHideZeroFigures(
-    mapped.flatMap((d) => d.items.map((it) => it.id)),
-  );
+  const lineIds = mapped.flatMap((d) => d.items.map((it) => it.id));
+  const hideZeros = await loadLineHideZeroFigures(lineIds);
+  const billingKinds = await loadLineBillingKinds(lineIds).catch((err) => {
+    if (isPrismaColumnMissing(err, "billingKind")) {
+      return new Map<string, ReturnType<typeof parseBillingKind>>();
+    }
+    throw err;
+  });
+  const discountChoices = await loadDiscountChoices(ids).catch((err) => {
+    if (
+      isPrismaColumnMissing(err, "discountMode") ||
+      isPrismaColumnMissing(err, "discountFixed")
+    ) {
+      return new Map<string, { mode: "percent" | "amount"; fixed: number }>();
+    }
+    throw err;
+  });
   return mapped.map((d) => {
     const withFlags = withClientPole(
       withDeposit(
@@ -572,15 +596,42 @@ async function mappedDocuments(rows: Parameters<typeof mapDocument>[0][]) {
       poles,
     );
     const fromClient = clientPoles.get(d.clientId);
-    return {
+    const choice = discountChoices.get(d.id);
+    const items = d.items.map((it) => ({
+      ...it,
+      quantityUnit: units.get(it.id) ?? it.quantityUnit ?? "quantity",
+      hideZeroFigures: hideZeros.get(it.id) ?? it.hideZeroFigures ?? true,
+      billingKind: billingKinds.get(it.id) ?? it.billingKind ?? "service",
+    }));
+    const discountMode = choice?.mode ?? d.discountMode ?? "percent";
+    const discountFixed = choice?.fixed ?? d.discountFixed ?? 0;
+    const next = {
       ...withFlags,
       pole: fromClient ?? withFlags.pole,
-      items: d.items.map((it) => ({
-        ...it,
-        quantityUnit: units.get(it.id) ?? it.quantityUnit ?? "quantity",
-        hideZeroFigures: hideZeros.get(it.id) ?? it.hideZeroFigures ?? true,
-      })),
+      discountMode,
+      discountFixed,
+      items,
     };
+    if (
+      (next.type === "invoice" || next.type === "quotation") &&
+      (items.some((it) => it.billingKind === "funds") || discountMode === "amount")
+    ) {
+      const totals = computeDocumentTotals(items, {
+        discount: next.discount ?? 0,
+        discountMode,
+        discountFixed,
+        rounding: next.totalRounding ?? 0,
+      });
+      return {
+        ...next,
+        subtotal: totals.subtotal,
+        tps: totals.tps,
+        css: totals.css,
+        vat: totals.vat,
+        total: totals.total,
+      };
+    }
+    return next;
   });
 }
 
@@ -701,6 +752,30 @@ export const upsertDocument = createServerFn({ method: "POST" })
       throw new Error(formatPrismaError(err, "Création / enregistrement du document impossible"));
     }
   });
+
+function commercialFigures(
+  data: z.infer<typeof documentInputSchema>,
+  discountPercent: number,
+) {
+  const items: LineItem[] = data.items.map((item, index) => ({
+    id: item.id ?? `line-${index}`,
+    description: item.description,
+    quantity: Number.isFinite(item.quantity) ? item.quantity : 0,
+    quantityUnit: parseLineQuantityUnit(item.quantityUnit),
+    billingKind: parseBillingKind(item.billingKind),
+    unitPrice: Number.isFinite(item.unitPrice) ? item.unitPrice : 0,
+    vatRate: Number.isFinite(item.vatRate) ? item.vatRate : 0,
+    discount: 0,
+    tpsRate: Number.isFinite(item.tpsRate) ? Math.max(0, item.tpsRate ?? 0) : 0,
+    cssRate: Number.isFinite(item.cssRate) ? (item.cssRate ?? 0) : 0,
+  }));
+  return computeDocumentTotals(items, {
+    discount: discountPercent,
+    discountMode: parseDiscountMode(data.discountMode),
+    discountFixed: data.discountFixed ?? 0,
+    rounding: data.totalRounding ?? 0,
+  });
+}
 
 async function upsertDocumentHandler(
   data: z.infer<typeof documentInputSchema>,
@@ -832,19 +907,33 @@ async function upsertDocumentHandler(
       );
     }
 
+    const discountMode = parseDiscountMode(data.discountMode);
     const docDiscount = commercial
       ? Math.min(100, Math.max(0, Number(data.discount) || 0))
       : 0;
+    const figures = commercial
+      ? commercialFigures(data, discountMode === "amount" ? 0 : docDiscount)
+      : null;
 
-    const subtotal = Number.isFinite(data.subtotal) ? data.subtotal : 0;
-    const tps = Math.max(0, data.tps ?? 0);
-    const css = data.css ?? 0;
-    const vat =
-      tps > 0
+    const subtotal = figures
+      ? figures.subtotal
+      : Number.isFinite(data.subtotal)
+        ? data.subtotal
+        : 0;
+    const tps = figures ? figures.tps : Math.max(0, data.tps ?? 0);
+    const css = figures ? figures.css : (data.css ?? 0);
+    const vat = figures
+      ? figures.vat
+      : tps > 0
         ? 0
         : Number.isFinite(data.vat)
           ? data.vat
           : 0;
+    const storedTotal = figures
+      ? figures.total
+      : Number.isFinite(data.total)
+        ? data.total
+        : 0;
 
     const issueDateValue = new Date(data.issueDate);
     const dueDateValue = (() => {
@@ -919,9 +1008,7 @@ async function upsertDocumentHandler(
         tps,
         css,
         vat,
-        total: commercial
-          ? Math.max(0, subtotal - tps + css + vat)
-          : data.total,
+        total: storedTotal,
         currency: data.currency,
         notes: data.notes ?? null,
         paymentTerms: data.paymentTerms ?? null,
@@ -998,6 +1085,14 @@ async function upsertDocumentHandler(
       }
       if (existing.type === "invoice" || existing.type === "quotation") {
         await persistDeposit(updated.id, data.deposit ?? 0);
+        await persistDiscountChoice(updated.id, {
+          mode: discountMode,
+          fixed: data.discountFixed ?? 0,
+        });
+        await persistLineBillingKindsForDocument(
+          updated.id,
+          data.items.map((item) => parseBillingKind(item.billingKind)),
+        );
       }
       await persistDocumentPole(
         updated.id,
@@ -1025,9 +1120,7 @@ async function upsertDocumentHandler(
       tps,
       css,
       vat,
-      total: commercial
-        ? Math.max(0, subtotal - tps + css + vat)
-        : data.total,
+      total: storedTotal,
       currency: data.currency,
       notes: data.notes ?? null,
       paymentTerms: data.paymentTerms ?? null,
@@ -1091,6 +1184,14 @@ async function upsertDocumentHandler(
     }
     if (data.type === "invoice" || data.type === "quotation") {
       await persistDeposit(created.id, data.deposit ?? 0);
+      await persistDiscountChoice(created.id, {
+        mode: discountMode,
+        fixed: data.discountFixed ?? 0,
+      });
+      await persistLineBillingKindsForDocument(
+        created.id,
+        data.items.map((item) => parseBillingKind(item.billingKind)),
+      );
     }
     await persistDocumentPole(
       created.id,

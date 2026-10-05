@@ -109,11 +109,19 @@ export type Service = {
   createdById?: string | null;
 };
 
+/** Honoraires du cabinet, ou somme confiée pour des procédures administratives. */
+export type LineBillingKind = "service" | "funds";
+
+/** Remise globale : pourcentage du HT taxable, ou montant fixe en XAF. */
+export type DiscountMode = "percent" | "amount";
+
 export type LineItem = {
   id: string;
   serviceId?: string;
   /** Section / tâche parente (optionnel). */
   sectionId?: string | null;
+  /** 2R Conseil : `funds` = argent du client pour des procédures, hors taxe et hors remise. */
+  billingKind?: LineBillingKind;
   description: string;
   quantity: number;
   /** quantity | month | year | none — mois/année se calculent comme une quantité. */
@@ -157,8 +165,12 @@ export type Document = {
   /** Sections optionnelles (vides = facture / devis classique). */
   sections?: DocumentSection[];
   subtotal: number;
-  /** Remise globale % (factures / devis). */
+  /** Remise globale % (factures / devis). Ignorée si `discountMode` vaut `amount`. */
   discount?: number;
+  /** 2R Conseil : pourcentage ou forfait. */
+  discountMode?: DiscountMode;
+  /** Remise forfaitaire en XAF, plafonnée à la base taxable. */
+  discountFixed?: number;
   tps: number;
   css: number;
   vat: number;

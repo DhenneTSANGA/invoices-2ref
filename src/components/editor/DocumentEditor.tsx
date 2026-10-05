@@ -407,12 +407,23 @@ export function DocumentEditor({ initial, type }: Props) {
     () =>
       computeDocumentTotals(doc.items, {
         discount: docDiscount,
+        discountMode: doc.discountMode ?? "percent",
+        discountFixed: doc.discountFixed ?? 0,
         vatRate,
         cssRate,
         tpsRate,
         rounding: doc.totalRounding ?? 0,
       }),
-    [doc.items, docDiscount, vatRate, cssRate, tpsRate, doc.totalRounding],
+    [
+      doc.items,
+      docDiscount,
+      doc.discountMode,
+      doc.discountFixed,
+      vatRate,
+      cssRate,
+      tpsRate,
+      doc.totalRounding,
+    ],
   );
   const legacyTotals = useMemo(() => computeTotals(doc.items), [doc.items]);
   const totals = commercial ? commercialTotals : legacyTotals;
@@ -444,7 +455,10 @@ export function DocumentEditor({ initial, type }: Props) {
       items: d.items.map((i) => (i.id === id ? { ...i, ...patch } : i)),
     }));
 
-  const addEmpty = (sectionId?: string | null) => {
+  const addEmpty = (
+    sectionId?: string | null,
+    billingKind: "service" | "funds" = "service",
+  ) => {
     const id = newId();
     setDoc((d) => {
       const secs = d.sections ?? [];
@@ -461,6 +475,7 @@ export function DocumentEditor({ initial, type }: Props) {
           {
             id,
             description: "",
+            billingKind,
             quantity: 1,
             quantityUnit: commercial ? "none" : "quantity",
             hideZeroFigures: true,
@@ -599,6 +614,11 @@ export function DocumentEditor({ initial, type }: Props) {
         ? Math.round(merged.totalRounding ?? 0)
         : 0,
     deposit: commercial ? Math.max(0, Math.round(merged.deposit ?? 0)) : 0,
+    discountMode:
+      commercial && merged.discountMode === "amount" ? "amount" : "percent",
+    discountFixed: commercial
+      ? Math.max(0, Math.round(merged.discountFixed ?? 0))
+      : 0,
     validityDays: merged.validityDays ?? null,
     executionTerms: merged.executionTerms ?? null,
     subject: merged.subject ?? null,
@@ -616,6 +636,7 @@ export function DocumentEditor({ initial, type }: Props) {
       quantity: finiteNumber(it.quantity, 0),
       quantityUnit: parseLineQuantityUnit(it.quantityUnit),
       hideZeroFigures: it.hideZeroFigures !== false,
+      billingKind: it.billingKind === "funds" ? "funds" : "service",
       unitPrice: finiteNumber(it.unitPrice, 0),
       vatRate: finiteNumber(it.vatRate, 0),
       discount: commercial ? 0 : finiteNumber(it.discount, 0),
@@ -1235,6 +1256,17 @@ export function DocumentEditor({ initial, type }: Props) {
                 <Plus className="h-4 w-4" /> Ligne libre
               </Button>
             )}
+            {commercial && doc.cabinet === "conseil" && !sectionsEnabled ? (
+              <Button
+                type="button"
+                onClick={() => addEmpty(undefined, "funds")}
+                variant="outline"
+                size="sm"
+                className="rounded-xl"
+              >
+                <Plus className="h-4 w-4" /> Fonds procédures
+              </Button>
+            ) : null}
           </div>
         </div>
 
@@ -1334,12 +1366,36 @@ export function DocumentEditor({ initial, type }: Props) {
                       >
                         <Plus className="h-4 w-4" /> Désignation
                       </Button>
+                      {doc.cabinet === "conseil" ? (
+                        <Button
+                          type="button"
+                          onClick={() => addEmpty(sec.id, "funds")}
+                          variant="outline"
+                          size="sm"
+                          className="rounded-xl"
+                        >
+                          <Plus className="h-4 w-4" /> Fonds procédures
+                        </Button>
+                      ) : null}
                     </div>
                   ) : (
-                    <p className="border-t border-border/50 px-3 py-2 text-[11px] text-muted-foreground">
-                      En mode TTC, utilisez « Appliquer » ci-dessus — la ligne
-                      sera ajoutée à la dernière tâche.
-                    </p>
+                    <div className="border-t border-border/50 px-3 py-2">
+                      <p className="text-[11px] text-muted-foreground">
+                        En mode TTC, utilisez « Appliquer » ci-dessus — la ligne
+                        sera ajoutée à la dernière tâche.
+                      </p>
+                      {doc.cabinet === "conseil" ? (
+                        <Button
+                          type="button"
+                          onClick={() => addEmpty(sec.id, "funds")}
+                          variant="outline"
+                          size="sm"
+                          className="mt-2 rounded-xl"
+                        >
+                          <Plus className="h-4 w-4" /> Fonds procédures
+                        </Button>
+                      ) : null}
+                    </div>
                   )}
                 </div>
               );
@@ -1396,26 +1452,90 @@ export function DocumentEditor({ initial, type }: Props) {
         <div className="mt-5 ml-auto w-full max-w-sm space-y-2 rounded-2xl bg-surface-2 p-4">
           {commercial ? (
             <>
-              <Total label="Sous-total HT" value={commercialTotals.grossSubtotal} />
-              <div className="flex items-center justify-between gap-3 text-sm">
-                <span className="text-muted-foreground">Remise %</span>
-                <NumInput
-                  value={docDiscount}
-                  step={0.01}
-                  min={0}
-                  onChange={(v) =>
-                    setDoc((d) => ({
-                      ...d,
-                      discount: Math.min(100, Math.max(0, v)),
-                    }))
-                  }
-                  className="w-24 rounded-lg border border-border/60 bg-transparent px-2 py-1.5 text-right font-numeric focus:border-primary focus:outline-none"
-                />
-              </div>
-              {commercialTotals.discountAmount > 0 ? (
-                <Total label="Montant remise" value={-commercialTotals.discountAmount} />
+              <Total
+                label={commercialTotals.hasFunds ? "Sous-total 1" : "Sous-total HT"}
+                value={commercialTotals.grossSubtotal}
+              />
+              {commercialTotals.hasFunds ? (
+                <Total label="Base TVA/CSS" value={commercialTotals.serviceBase} />
               ) : null}
-              <Total label="HT net" value={commercialTotals.subtotal} />
+              {doc.cabinet === "conseil" ? (
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <span className="text-muted-foreground">Remise</span>
+                  <div className="flex items-center gap-2">
+                    <select
+                      className="rounded-lg border border-border/60 bg-transparent px-2 py-1.5 text-xs focus:border-primary focus:outline-none"
+                      value={doc.discountMode === "amount" ? "amount" : "percent"}
+                      onChange={(e) =>
+                        setDoc((d) => ({
+                          ...d,
+                          discountMode:
+                            e.target.value === "amount" ? "amount" : "percent",
+                        }))
+                      }
+                    >
+                      <option value="percent">%</option>
+                      <option value="amount">Forfait</option>
+                    </select>
+                    {doc.discountMode === "amount" ? (
+                      <NumInput
+                        value={doc.discountFixed ?? 0}
+                        min={0}
+                        onChange={(v) =>
+                          setDoc((d) => ({
+                            ...d,
+                            discountFixed: Math.max(0, Math.round(v)),
+                          }))
+                        }
+                        className="w-28 rounded-lg border border-border/60 bg-transparent px-2 py-1.5 text-right font-numeric focus:border-primary focus:outline-none"
+                      />
+                    ) : (
+                      <NumInput
+                        value={docDiscount}
+                        step={0.01}
+                        min={0}
+                        onChange={(v) =>
+                          setDoc((d) => ({
+                            ...d,
+                            discount: Math.min(100, Math.max(0, v)),
+                          }))
+                        }
+                        className="w-24 rounded-lg border border-border/60 bg-transparent px-2 py-1.5 text-right font-numeric focus:border-primary focus:outline-none"
+                      />
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <span className="text-muted-foreground">Remise %</span>
+                  <NumInput
+                    value={docDiscount}
+                    step={0.01}
+                    min={0}
+                    onChange={(v) =>
+                      setDoc((d) => ({
+                        ...d,
+                        discount: Math.min(100, Math.max(0, v)),
+                      }))
+                    }
+                    className="w-24 rounded-lg border border-border/60 bg-transparent px-2 py-1.5 text-right font-numeric focus:border-primary focus:outline-none"
+                  />
+                </div>
+              )}
+              {commercialTotals.discountAmount > 0 ? (
+                <Total
+                  label={commercialTotals.hasFunds ? "Réduction" : "Montant remise"}
+                  value={-commercialTotals.discountAmount}
+                />
+              ) : null}
+              {commercialTotals.hasFunds || commercialTotals.discountAmount > 0 ? (
+                <Total
+                  label={commercialTotals.hasFunds ? "Sous-total 2" : "HT net"}
+                  value={commercialTotals.subtotal}
+                />
+              ) : (
+                <Total label="HT net" value={commercialTotals.subtotal} />
+              )}
               {amountMode === "ttc" ? (
                 <>
                   {tpsEnabled ? (
@@ -1501,7 +1621,7 @@ export function DocumentEditor({ initial, type }: Props) {
               <div className="my-2 h-px bg-border" />
               <div className="flex items-center justify-between gap-2">
                 <span className="text-sm font-bold uppercase tracking-wide">
-                  Total TTC
+                  {commercialTotals.hasFunds ? "Net à payer" : "Total TTC"}
                 </span>
                 <div className="flex items-center gap-1">
                   <button
@@ -1795,6 +1915,11 @@ function LineRow({
           placeholder="Titre / description de la désignation"
           onChange={(e) => updateItem(it.id, { description: e.target.value })}
         />
+        {it.billingKind === "funds" ? (
+          <p className="mt-1 px-1 text-[11px] font-medium text-muted-foreground">
+            Fonds procédures
+          </p>
+        ) : null}
       </td>
       <td className="px-1 py-2">
         {unit === "none" ? (
@@ -2033,6 +2158,8 @@ function defaultDoc(
     sections: [] as DocumentSection[],
     subtotal: 0,
     discount: 0,
+    discountMode: "percent" as const,
+    discountFixed: 0,
     tps: 0,
     css: 0,
     vat: 0,

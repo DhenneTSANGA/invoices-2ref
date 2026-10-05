@@ -37,7 +37,7 @@ import { DocumentCreatorCard } from "@/components/documents/DocumentCreatorCard"
 import { DocumentPdfTracesPanel } from "@/components/documents/DocumentPdfTracesPanel";
 import { documentDetailRoute } from "@/lib/document-nav";
 import { currency, longDate, shortDate } from "@/lib/format";
-import { remainingDue, normalizedDeposit } from "@/lib/document-math";
+import { remainingDue, normalizedDeposit, isFundsLine, computeDocumentTotals } from "@/lib/document-math";
 import { dueMonthMention } from "@/lib/subscription";
 import { paymentMethodLabel } from "@/lib/payment-method";
 import { isAdmin } from "@/lib/roles";
@@ -103,6 +103,15 @@ function InvoiceDetailPage() {
     );
   }
   if (!doc) return <div className="glass-panel rounded-3xl p-8 text-center">Document introuvable.</div>;
+  const hasFunds = doc.items.some(isFundsLine);
+  const fundsTotals = hasFunds
+    ? computeDocumentTotals(doc.items, {
+        discount: doc.discount ?? 0,
+        discountMode: doc.discountMode ?? "percent",
+        discountFixed: doc.discountFixed ?? 0,
+        rounding: doc.totalRounding ?? 0,
+      })
+    : null;
   if (doc.type !== "invoice") return null;
 
   const canSend = documentCanSendEmail(doc);
@@ -291,8 +300,13 @@ function InvoiceDetailPage() {
               )}
             </div>
             <div className="mt-5 rounded-2xl bg-gradient-mesh p-4">
-              <div className="text-xs uppercase tracking-wider text-muted-foreground">Total TTC</div>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">{hasFunds ? "Net à payer" : "Total TTC"}</div>
               <div className="font-display text-3xl font-bold text-gradient-primary">{currency(doc.total)}</div>
+              {fundsTotals && fundsTotals.fundsAmount > 0 ? (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  dont {currency(fundsTotals.fundsAmount)} pour les procédures administratives
+                </p>
+              ) : null}
               {normalizedDeposit(doc.deposit) > 0 ? (
                 <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
                   <div>
@@ -307,7 +321,7 @@ function InvoiceDetailPage() {
               ) : null}
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-              <div className="rounded-xl bg-surface-2 p-2"><div className="text-muted-foreground">Sous-total HT</div><div className="font-numeric font-semibold">{currency(doc.subtotal)}</div></div>
+              <div className="rounded-xl bg-surface-2 p-2"><div className="text-muted-foreground">{hasFunds ? "Base taxable" : "Sous-total HT"}</div><div className="font-numeric font-semibold">{currency(doc.subtotal)}</div></div>
               {doc.tps > 0 ? (
                 <div className="rounded-xl bg-surface-2 p-2"><div className="text-muted-foreground">TPS (déduite)</div><div className="font-numeric font-semibold">{currency(-doc.tps)}</div></div>
               ) : (

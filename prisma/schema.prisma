@@ -318,8 +318,12 @@ model Document {
   /** Optionnel — si null, aucune échéance affichée sur facture / devis. */
   dueDate           DateTime?      @db.Date
   subtotal          Decimal        @db.Decimal(18, 2)
-  /** Remise globale % sur le sous-total HT (factures / devis). */
+  /** Remise globale % sur le HT taxable (factures / devis). */
   discount          Decimal        @default(0) @db.Decimal(5, 2)
+  /** percent | amount — remise en % ou forfait XAF (2R Conseil). */
+  discountMode      String         @default("percent")
+  /** Montant forfaitaire de la remise (XAF) quand discountMode = amount. */
+  discountFixed     Decimal        @default(0) @db.Decimal(18, 2)
   tps               Decimal        @default(0) @db.Decimal(18, 2)
   css               Decimal        @default(0) @db.Decimal(18, 2)
   vat               Decimal        @db.Decimal(18, 2)
@@ -412,6 +416,8 @@ model DocumentLine {
   sectionId   String?
   serviceId   String?
   description String
+  /** service = honoraires ; funds = fonds de procédures hors taxe (2R Conseil). */
+  billingKind String  @default("service")
   quantity    Decimal @db.Decimal(18, 3)
   /** quantity | month | year | none — mois/année = même calcul que quantité. */
   quantityUnit String @default("quantity")
