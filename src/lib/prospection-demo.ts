@@ -188,12 +188,21 @@ export type CrmNotification = {
   read: boolean;
 };
 
+/** Lignes commerciales du CRM, plus les pôles Audit et Juridique. */
+export type LibraryDomain = ServiceLine | "audit" | "juridique";
+
+export type LibraryTerm = {
+  term: string;
+  def: string;
+};
+
 export type LibraryItem = {
   id: string;
-  line: ServiceLine;
+  line: LibraryDomain;
   category: string;
   title: string;
   body: string;
+  terms?: LibraryTerm[];
 };
 
 export type ReferentialKind = "line" | "stage" | "site" | "expense" | "sector";
@@ -263,6 +272,7 @@ export const EXPENSE_APPROVAL_LABELS: Record<ExpenseApproval, string> = {
 };
 
 export const LIBRARY_CATEGORIES = [
+  "Lexique",
   "Cibles prioritaires",
   "Argumentaires",
   "Questions de découverte",
@@ -270,6 +280,26 @@ export const LIBRARY_CATEGORIES = [
   "Emails",
   "WhatsApp",
 ] as const;
+
+export const LIBRARY_DOMAIN_LABELS: Record<LibraryDomain, string> = {
+  comptabilite: "Comptabilité",
+  fiscalite: "Fiscalité",
+  audit: "Audit",
+  juridique: "Juridique",
+  rh: "Ressources humaines",
+  formation: "Formation",
+  conseil: "Conseil",
+};
+
+export const LIBRARY_DOMAINS: LibraryDomain[] = [
+  "comptabilite",
+  "fiscalite",
+  "audit",
+  "juridique",
+  "rh",
+  "formation",
+  "conseil",
+];
 
 export const MONTHLY_BUDGET = 500_000;
 export const BUDGET_ALERT_RATIO = 0.8;
@@ -1018,15 +1048,3 @@ export function createProspectionDemoSeed(): ProspectionData {
   };
 }
 
-export const HELP_LIBRARY: {
-  line: ServiceLine;
-  category: string;
-  title: string;
-  body: string;
-}[] = SERVICE_LINES.flatMap((line) => [
-  { line, category: "Argumentaires", title: `Pitch ${SERVICE_LINE_LABELS[line]}`, body: "Cabinet de conseil : la formation est une vitrine, pas le positionnement." },
-  { line, category: "Questions de découverte", title: "Questions dirigeant", body: "Qui décide ? Quel contrôle récent ? Quelle ligne n’est pas couverte ?" },
-  { line, category: "Offres types", title: "Offre type", body: "Diagnostic 15 jours, puis mission cadrée en FCFA." },
-  { line, category: "Emails", title: "Mail de prise de RDV", body: "Objet : 20 min sur votre {sujet} — proposition de créneau." },
-  { line, category: "WhatsApp", title: "Message court", body: "Bonjour, suite à notre échange, je propose un créneau jeudi 10h." },
-]);

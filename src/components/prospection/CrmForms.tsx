@@ -25,6 +25,8 @@ import {
   EXPENSE_APPROVAL_THRESHOLD,
   EXPENSE_LABELS,
   LIBRARY_CATEGORIES,
+  LIBRARY_DOMAIN_LABELS,
+  LIBRARY_DOMAINS,
   MANAGERS,
   OBJECTIVE_LABELS,
   SECTORS,
@@ -47,6 +49,7 @@ import {
   type Opportunity,
   type OpportunitySource,
   type PipelineStage,
+  type LibraryDomain,
   type ReferentialKind,
   type ServiceLine,
   type Site,
@@ -95,6 +98,10 @@ export function CompanyDialog({
 }) {
   const upsertCompany = useProspectionDemoStore((s) => s.upsertCompany);
   const addContact = useProspectionDemoStore((s) => s.addContact);
+  const extraSectors = useProspectionDemoStore((s) => s.referentials)
+    .filter((r) => r.kind === "sector")
+    .map((r) => r.label);
+  const sectorOptions = [...SECTORS, ...extraSectors.filter((label) => !SECTORS.includes(label))];
   const isProspect = kind === "prospect";
   const [name, setName] = useState("");
   const [sector, setSector] = useState("");
@@ -279,7 +286,7 @@ export function CompanyDialog({
                 value={sector}
                 onChange={setSector}
                 placeholder="Choisir le secteur"
-                options={SECTORS}
+                options={sectorOptions}
               />
             </CrmLabeledField>
             <CrmLabeledField label="Taille" required>
@@ -878,16 +885,23 @@ export function NewActivityDialog({
   defaultCompanyId,
   defaultKind,
   defaultOpportunityId,
+  completeActivityId,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultCompanyId?: string;
   defaultKind?: ActivityKind;
   defaultOpportunityId?: string;
+  /** Complète une activité déjà planifiée (compte rendu) au lieu d’en créer une autre. */
+  completeActivityId?: string;
 }) {
   const companies = useProspectionDemoStore((s) => s.companies);
   const opportunities = useProspectionDemoStore((s) => s.opportunities);
+  const activities = useProspectionDemoStore((s) => s.activities);
   const addActivity = useProspectionDemoStore((s) => s.addActivity);
+  const updateActivity = useProspectionDemoStore((s) => s.updateActivity);
+  const updateOpportunity = useProspectionDemoStore((s) => s.updateOpportunity);
+  const completing = activities.find((a) => a.id === completeActivityId);
   const [companyId, setCompanyId] = useState(defaultCompanyId ?? "");
   const [opportunityId, setOpportunityId] = useState(defaultOpportunityId ?? "");
   const [kind, setKind] = useState<ActivityKind | "">(defaultKind ?? "");
@@ -901,6 +915,19 @@ export function NewActivityDialog({
 
   useEffect(() => {
     if (!open) return;
+    if (completing) {
+      setCompanyId(completing.companyId);
+      setOpportunityId(completing.opportunityId ?? "");
+      setKind(completing.kind);
+      setSummary(completing.summary);
+      setNextAction(completing.nextAction ?? "");
+      setNextActionOn(completing.nextActionOn ?? "");
+      setOwnerId(completing.ownerId);
+      setStatus("terminee");
+      setAt(completing.at);
+      setTime(completing.time ?? "");
+      return;
+    }
     const planned = defaultKind === "rdv" || defaultKind === "evenement";
     setCompanyId(defaultCompanyId ?? "");
     setOpportunityId(defaultOpportunityId ?? "");
@@ -912,7 +939,7 @@ export function NewActivityDialog({
     setStatus(planned ? "planifiee" : "");
     setAt(isoDate());
     setTime("");
-  }, [open, defaultCompanyId, defaultKind, defaultOpportunityId]);
+  }, [open, defaultCompanyId, defaultKind, defaultOpportunityId, completing]);
 
   const linkedOps = opportunities.filter((o) => o.companyId === companyId);
   const isRdv = kind === "rdv";
@@ -923,7 +950,7 @@ export function NewActivityDialog({
       open={open}
       onOpenChange={onOpenChange}
       icon={CalendarDays}
-      title={isRdv ? "Nouveau rendez-vous" : "Nouvelle activité"}
+      title={completing ? "Compte rendu" : isRdv ? "Nouveau rendez-vous" : "Nouvelle activité"}
       description="Cahier : saisie en moins d’une minute — type, compte rendu, prochaine étape. Après un RDV, le CR sous 48 h."
     >
       <form
@@ -944,6 +971,24 @@ export function NewActivityDialog({
           }
           const company = companies.find((c) => c.id === companyId);
           const title = `${ACTIVITY_LABELS[kind]}${company ? ` — ${company.name}` : ""}`;
+          if (completing) {
+            updateActivity(completing.id, {
+              summary: summary.trim(),
+              status: "terminee",
+              nextAction: nextAction.trim() || undefined,
+              nextActionOn: nextActionOn || undefined,
+              time: time || undefined,
+            });
+            if (completing.opportunityId && nextAction.trim()) {
+              updateOpportunity(completing.opportunityId, {
+                nextAction: nextAction.trim(),
+                ...(nextActionOn ? { nextActionOn } : {}),
+              });
+            }
+            toast.success("Compte rendu enregistré");
+            onOpenChange(false);
+            return;
+          }
           addActivity({
             companyId,
             opportunityId: opportunityId || undefined,
@@ -1071,11 +1116,13 @@ export function NewOpportunityDialog({
   editing,
   defaultCompanyId,
   defaultLine,
+  defaultSource,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultCompanyId?: string;
   defaultLine?: ServiceLine;
+  defaultSource?: OpportunitySource;
   editing?: Opportunity | null;
 }) {
   const companies = useProspectionDemoStore((s) => s.companies);
@@ -1109,7 +1156,7 @@ export function NewOpportunityDialog({
       setCompanyId(defaultCompanyId ?? "");
       setTitle("");
       setLine(defaultLine ?? "");
-      setSource(defaultLine ? "client_existant" : "");
+      setSource(defaultSource ?? (defaultLine ? "client_existant" : ""));
       setAmount("");
       setDecisionOn("");
       setNextAction("");
@@ -1118,7 +1165,7 @@ export function NewOpportunityDialog({
       setOwnerId(co?.managerId ?? "");
       setNotes("");
     }
-  }, [open, editing, defaultCompanyId, defaultLine, companies]);
+  }, [open, editing, defaultCompanyId, defaultLine, defaultSource, companies]);
 
   return (
     <CrmDialog
@@ -1576,7 +1623,7 @@ export function NewLibraryDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const addLibraryItem = useProspectionDemoStore((s) => s.addLibraryItem);
-  const [line, setLine] = useState<ServiceLine | "">("");
+  const [line, setLine] = useState<LibraryDomain | "">("");
   const [category, setCategory] = useState("");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -1596,14 +1643,14 @@ export function NewLibraryDialog({
       onOpenChange={onOpenChange}
       icon={BookOpen}
       title="Ajouter une ressource"
-      description="Cibles, argumentaires, questions de découverte, offres types, e-mails, WhatsApp."
+      description="Lexique, cibles, argumentaires, questions, offres, e-mails, WhatsApp — par pôle."
     >
       <form
         className="space-y-3 p-5 sm:p-6"
         onSubmit={(e) => {
           e.preventDefault();
           if (!line || !category || !title.trim() || !body.trim()) {
-            toast.error("Ligne, catégorie, titre et contenu sont requis");
+            toast.error("Pôle, catégorie, titre et contenu sont requis");
             return;
           }
           addLibraryItem({ line, category, title: title.trim(), body: body.trim() });
@@ -1611,12 +1658,12 @@ export function NewLibraryDialog({
           onOpenChange(false);
         }}
       >
-        <CrmLabeledField label="Ligne de service">
+        <CrmLabeledField label="Pôle">
           <CrmSelect
             value={line}
-            onChange={(value) => setLine(value as ServiceLine)}
-            placeholder="Ligne"
-            options={SERVICE_LINES.map((l) => ({ value: l, label: SERVICE_LINE_LABELS[l] }))}
+            onChange={(value) => setLine(value as LibraryDomain)}
+            placeholder="Pôle"
+            options={LIBRARY_DOMAINS.map((l) => ({ value: l, label: LIBRARY_DOMAIN_LABELS[l] }))}
           />
         </CrmLabeledField>
         <CrmLabeledField label="Catégorie">
