@@ -9,126 +9,95 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
-import { Route as SignupRouteImport } from './routes/signup'
-import { Route as QuotasRouteImport } from './routes/quotas'
-import { Route as ProspectionRouteImport } from './routes/prospection'
-import { Route as OnboardingRouteImport } from './routes/onboarding'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as HubRouteImport } from './routes/hub'
-import { Route as EquipeRouteImport } from './routes/equipe'
-import { Route as CompteSupprimeRouteImport } from './routes/compte-supprime'
-import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ProspectionIndexRouteImport } from './routes/prospection.index'
-import { Route as ProspectionStrategiquesRouteImport } from './routes/prospection.strategiques'
-import { Route as ProspectionProspectsRouteImport } from './routes/prospection.prospects'
-import { Route as ProspectionPortefeuilleRouteImport } from './routes/prospection.portefeuille'
-import { Route as ProspectionPortGentilRouteImport } from './routes/prospection.port-gentil'
-import { Route as ProspectionPistesRouteImport } from './routes/prospection.pistes'
-import { Route as ProspectionPisteRouteImport } from './routes/prospection.piste'
-import { Route as ProspectionPipelineRouteImport } from './routes/prospection.pipeline'
-import { Route as ProspectionOpportunitesRouteImport } from './routes/prospection.opportunites'
-import { Route as ProspectionObjectifsRouteImport } from './routes/prospection.objectifs'
-import { Route as ProspectionNotificationsRouteImport } from './routes/prospection.notifications'
-import { Route as ProspectionKpiRouteImport } from './routes/prospection.kpi'
-import { Route as ProspectionImportRouteImport } from './routes/prospection.import'
-import { Route as ProspectionClientsRouteImport } from './routes/prospection.clients'
-import { Route as ProspectionBudgetRouteImport } from './routes/prospection.budget'
-import { Route as ProspectionBibliothequeRouteImport } from './routes/prospection.bibliotheque'
-import { Route as ProspectionAgendaRouteImport } from './routes/prospection.agenda'
-import { Route as ProspectionAdminRouteImport } from './routes/prospection.admin'
-import { Route as ProspectionActivitesRouteImport } from './routes/prospection.activites'
-import { Route as ProspectionActionsRouteImport } from './routes/prospection.actions'
-import { Route as AuthSetPasswordRouteImport } from './routes/auth.set-password'
-import { Route as AuthResetPasswordRouteImport } from './routes/auth.reset-password'
-import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
-import { Route as AppUsersRouteImport } from './routes/_app.users'
-import { Route as AppTemplatesRouteImport } from './routes/_app.templates'
-import { Route as AppSettingsRouteImport } from './routes/_app.settings'
-import { Route as AppServicesRouteImport } from './routes/_app.services'
-import { Route as AppSearchRouteImport } from './routes/_app.search'
-import { Route as AppQuotationsRouteImport } from './routes/_app.quotations'
-import { Route as AppProfileRouteImport } from './routes/_app.profile'
-import { Route as AppPolesRouteImport } from './routes/_app.poles'
-import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
-import { Route as AppMissionsRouteImport } from './routes/_app.missions'
-import { Route as AppMailsRouteImport } from './routes/_app.mails'
-import { Route as AppLettreRouteImport } from './routes/_app.lettre'
-import { Route as AppInvoicesRouteImport } from './routes/_app.invoices'
-import { Route as AppHomeRouteImport } from './routes/_app.home'
-import { Route as AppGedRouteImport } from './routes/_app.ged'
-import { Route as AppDossiersRouteImport } from './routes/_app.dossiers'
-import { Route as AppDocumentsRouteImport } from './routes/_app.documents'
-import { Route as AppDocumentationRouteImport } from './routes/_app.documentation'
-import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
-import { Route as AppBilanRouteImport } from './routes/_app.bilan'
+import { Route as AppRouteImport } from './routes/_app'
+import { Route as CompteSupprimeRouteImport } from './routes/compte-supprime'
+import { Route as EquipeRouteImport } from './routes/equipe'
+import { Route as HubRouteImport } from './routes/hub'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as ProspectionRouteImport } from './routes/prospection'
+import { Route as QuotasRouteImport } from './routes/quotas'
+import { Route as SignupRouteImport } from './routes/signup'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as AppArchiveRouteImport } from './routes/_app.archive'
-import { Route as ProspectionProspectsIndexRouteImport } from './routes/prospection.prospects.index'
-import { Route as ProspectionClientsIndexRouteImport } from './routes/prospection.clients.index'
-import { Route as AppQuotationsIndexRouteImport } from './routes/_app.quotations.index'
-import { Route as AppLettreIndexRouteImport } from './routes/_app.lettre.index'
-import { Route as AppLettersIndexRouteImport } from './routes/_app.letters.index'
-import { Route as AppInvoicesIndexRouteImport } from './routes/_app.invoices.index'
-import { Route as AppDossiersIndexRouteImport } from './routes/_app.dossiers.index'
+import { Route as AppBilanRouteImport } from './routes/_app.bilan'
+import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
+import { Route as AppDocumentationRouteImport } from './routes/_app.documentation'
+import { Route as AppDocumentsRouteImport } from './routes/_app.documents'
+import { Route as AppDossiersRouteImport } from './routes/_app.dossiers'
+import { Route as AppGedRouteImport } from './routes/_app.ged'
+import { Route as AppHomeRouteImport } from './routes/_app.home'
+import { Route as AppInvoicesRouteImport } from './routes/_app.invoices'
+import { Route as AppLettreRouteImport } from './routes/_app.lettre'
+import { Route as AppMailsRouteImport } from './routes/_app.mails'
+import { Route as AppMissionsRouteImport } from './routes/_app.missions'
+import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
+import { Route as AppPolesRouteImport } from './routes/_app.poles'
+import { Route as AppProfileRouteImport } from './routes/_app.profile'
+import { Route as AppQuotationsRouteImport } from './routes/_app.quotations'
+import { Route as AppSearchRouteImport } from './routes/_app.search'
+import { Route as AppServicesRouteImport } from './routes/_app.services'
+import { Route as AppSettingsRouteImport } from './routes/_app.settings'
+import { Route as AppTemplatesRouteImport } from './routes/_app.templates'
+import { Route as AppUsersRouteImport } from './routes/_app.users'
+import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
+import { Route as AuthResetPasswordRouteImport } from './routes/auth.reset-password'
+import { Route as AuthSetPasswordRouteImport } from './routes/auth.set-password'
+import { Route as ProspectionIndexRouteImport } from './routes/prospection.index'
+import { Route as ProspectionActionsRouteImport } from './routes/prospection.actions'
+import { Route as ProspectionActivitesRouteImport } from './routes/prospection.activites'
+import { Route as ProspectionAdminRouteImport } from './routes/prospection.admin'
+import { Route as ProspectionAgendaRouteImport } from './routes/prospection.agenda'
+import { Route as ProspectionBibliothequeRouteImport } from './routes/prospection.bibliotheque'
+import { Route as ProspectionBudgetRouteImport } from './routes/prospection.budget'
+import { Route as ProspectionClientsRouteImport } from './routes/prospection.clients'
+import { Route as ProspectionImportRouteImport } from './routes/prospection.import'
+import { Route as ProspectionKpiRouteImport } from './routes/prospection.kpi'
+import { Route as ProspectionNotificationsRouteImport } from './routes/prospection.notifications'
+import { Route as ProspectionObjectifsRouteImport } from './routes/prospection.objectifs'
+import { Route as ProspectionOpportunitesRouteImport } from './routes/prospection.opportunites'
+import { Route as ProspectionPipelineRouteImport } from './routes/prospection.pipeline'
+import { Route as ProspectionPisteRouteImport } from './routes/prospection.piste'
+import { Route as ProspectionPistesRouteImport } from './routes/prospection.pistes'
+import { Route as ProspectionPortGentilRouteImport } from './routes/prospection.port-gentil'
+import { Route as ProspectionPortefeuilleRouteImport } from './routes/prospection.portefeuille'
+import { Route as ProspectionProspectsRouteImport } from './routes/prospection.prospects'
+import { Route as ProspectionStrategiquesRouteImport } from './routes/prospection.strategiques'
 import { Route as AppClientsIndexRouteImport } from './routes/_app.clients.index'
-import { Route as ProspectionProspectsIdRouteImport } from './routes/prospection.prospects.$id'
-import { Route as ProspectionClientsIdRouteImport } from './routes/prospection.clients.$id'
-import { Route as ApiStaffSyncRouteImport } from './routes/api/staff.sync'
-import { Route as ApiCronBillingRouteImport } from './routes/api/cron.billing'
-import { Route as AppQuotationsNewRouteImport } from './routes/_app.quotations.new'
-import { Route as AppQuotationsIdRouteImport } from './routes/_app.quotations.$id'
-import { Route as AppLettrePublipostageRouteImport } from './routes/_app.lettre.publipostage'
-import { Route as AppLettreNewRouteImport } from './routes/_app.lettre.new'
-import { Route as AppLettreIdRouteImport } from './routes/_app.lettre.$id'
-import { Route as AppLettersNewRouteImport } from './routes/_app.letters.new'
-import { Route as AppLettersIdRouteImport } from './routes/_app.letters.$id'
-import { Route as AppInvoicesNewRouteImport } from './routes/_app.invoices.new'
-import { Route as AppInvoicesIdRouteImport } from './routes/_app.invoices.$id'
-import { Route as AppDossiersIdRouteImport } from './routes/_app.dossiers.$id'
-import { Route as AppClientsNewRouteImport } from './routes/_app.clients.new'
 import { Route as AppClientsIdRouteImport } from './routes/_app.clients.$id'
-import { Route as AppQuotationsIdEditRouteImport } from './routes/_app.quotations.$id.edit'
+import { Route as AppClientsNewRouteImport } from './routes/_app.clients.new'
+import { Route as AppDossiersIndexRouteImport } from './routes/_app.dossiers.index'
+import { Route as AppDossiersIdRouteImport } from './routes/_app.dossiers.$id'
+import { Route as AppInvoicesIndexRouteImport } from './routes/_app.invoices.index'
+import { Route as AppInvoicesIdRouteImport } from './routes/_app.invoices.$id'
+import { Route as AppInvoicesNewRouteImport } from './routes/_app.invoices.new'
+import { Route as AppLettersIndexRouteImport } from './routes/_app.letters.index'
+import { Route as AppLettersIdRouteImport } from './routes/_app.letters.$id'
+import { Route as AppLettersNewRouteImport } from './routes/_app.letters.new'
+import { Route as AppLettreIndexRouteImport } from './routes/_app.lettre.index'
+import { Route as AppLettreIdRouteImport } from './routes/_app.lettre.$id'
+import { Route as AppLettreNewRouteImport } from './routes/_app.lettre.new'
+import { Route as AppLettrePublipostageRouteImport } from './routes/_app.lettre.publipostage'
+import { Route as AppQuotationsIndexRouteImport } from './routes/_app.quotations.index'
+import { Route as AppQuotationsIdRouteImport } from './routes/_app.quotations.$id'
+import { Route as AppQuotationsNewRouteImport } from './routes/_app.quotations.new'
+import { Route as ApiCronBillingRouteImport } from './routes/api/cron.billing'
+import { Route as ApiStaffSyncRouteImport } from './routes/api/staff.sync'
+import { Route as ProspectionClientsIndexRouteImport } from './routes/prospection.clients.index'
+import { Route as ProspectionClientsIdRouteImport } from './routes/prospection.clients.$id'
+import { Route as ProspectionProspectsIndexRouteImport } from './routes/prospection.prospects.index'
+import { Route as ProspectionProspectsIdRouteImport } from './routes/prospection.prospects.$id'
 import { Route as AppInvoicesIdEditRouteImport } from './routes/_app.invoices.$id.edit'
+import { Route as AppQuotationsIdEditRouteImport } from './routes/_app.quotations.$id.edit'
 
-const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
-  id: '/sitemap.xml',
-  path: '/sitemap.xml',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SignupRoute = SignupRouteImport.update({
-  id: '/signup',
-  path: '/signup',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const QuotasRoute = QuotasRouteImport.update({
-  id: '/quotas',
-  path: '/quotas',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ProspectionRoute = ProspectionRouteImport.update({
-  id: '/prospection',
-  path: '/prospection',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OnboardingRoute = OnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const HubRoute = HubRouteImport.update({
-  id: '/hub',
-  path: '/hub',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const EquipeRoute = EquipeRouteImport.update({
-  id: '/equipe',
-  path: '/equipe',
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CompteSupprimeRoute = CompteSupprimeRouteImport.update({
@@ -136,13 +105,164 @@ const CompteSupprimeRoute = CompteSupprimeRouteImport.update({
   path: '/compte-supprime',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AppRoute = AppRouteImport.update({
-  id: '/_app',
+const EquipeRoute = EquipeRouteImport.update({
+  id: '/equipe',
+  path: '/equipe',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const HubRoute = HubRouteImport.update({
+  id: '/hub',
+  path: '/hub',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProspectionRoute = ProspectionRouteImport.update({
+  id: '/prospection',
+  path: '/prospection',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QuotasRoute = QuotasRouteImport.update({
+  id: '/quotas',
+  path: '/quotas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignupRoute = SignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppArchiveRoute = AppArchiveRouteImport.update({
+  id: '/archive',
+  path: '/archive',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppBilanRoute = AppBilanRouteImport.update({
+  id: '/bilan',
+  path: '/bilan',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDashboardRoute = AppDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDocumentationRoute = AppDocumentationRouteImport.update({
+  id: '/documentation',
+  path: '/documentation',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDocumentsRoute = AppDocumentsRouteImport.update({
+  id: '/documents',
+  path: '/documents',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDossiersRoute = AppDossiersRouteImport.update({
+  id: '/dossiers',
+  path: '/dossiers',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppGedRoute = AppGedRouteImport.update({
+  id: '/ged',
+  path: '/ged',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppHomeRoute = AppHomeRouteImport.update({
+  id: '/home',
+  path: '/home',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppInvoicesRoute = AppInvoicesRouteImport.update({
+  id: '/invoices',
+  path: '/invoices',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppLettreRoute = AppLettreRouteImport.update({
+  id: '/lettre',
+  path: '/lettre',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMailsRoute = AppMailsRouteImport.update({
+  id: '/mails',
+  path: '/mails',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMissionsRoute = AppMissionsRouteImport.update({
+  id: '/missions',
+  path: '/missions',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppNotificationsRoute = AppNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPolesRoute = AppPolesRouteImport.update({
+  id: '/poles',
+  path: '/poles',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProfileRoute = AppProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppQuotationsRoute = AppQuotationsRouteImport.update({
+  id: '/quotations',
+  path: '/quotations',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSearchRoute = AppSearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppServicesRoute = AppServicesRouteImport.update({
+  id: '/services',
+  path: '/services',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTemplatesRoute = AppTemplatesRouteImport.update({
+  id: '/templates',
+  path: '/templates',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppUsersRoute = AppUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AppRoute,
+} as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/auth/callback',
+  path: '/auth/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
+  id: '/auth/reset-password',
+  path: '/auth/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthSetPasswordRoute = AuthSetPasswordRouteImport.update({
+  id: '/auth/set-password',
+  path: '/auth/set-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProspectionIndexRoute = ProspectionIndexRouteImport.update({
@@ -150,49 +270,49 @@ const ProspectionIndexRoute = ProspectionIndexRouteImport.update({
   path: '/',
   getParentRoute: () => ProspectionRoute,
 } as any)
-const ProspectionStrategiquesRoute = ProspectionStrategiquesRouteImport.update({
-  id: '/strategiques',
-  path: '/strategiques',
+const ProspectionActionsRoute = ProspectionActionsRouteImport.update({
+  id: '/actions',
+  path: '/actions',
   getParentRoute: () => ProspectionRoute,
 } as any)
-const ProspectionProspectsRoute = ProspectionProspectsRouteImport.update({
-  id: '/prospects',
-  path: '/prospects',
+const ProspectionActivitesRoute = ProspectionActivitesRouteImport.update({
+  id: '/activites',
+  path: '/activites',
   getParentRoute: () => ProspectionRoute,
 } as any)
-const ProspectionPortefeuilleRoute = ProspectionPortefeuilleRouteImport.update({
-  id: '/portefeuille',
-  path: '/portefeuille',
+const ProspectionAdminRoute = ProspectionAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => ProspectionRoute,
 } as any)
-const ProspectionPortGentilRoute = ProspectionPortGentilRouteImport.update({
-  id: '/port-gentil',
-  path: '/port-gentil',
+const ProspectionAgendaRoute = ProspectionAgendaRouteImport.update({
+  id: '/agenda',
+  path: '/agenda',
   getParentRoute: () => ProspectionRoute,
 } as any)
-const ProspectionPistesRoute = ProspectionPistesRouteImport.update({
-  id: '/pistes',
-  path: '/pistes',
+const ProspectionBibliothequeRoute = ProspectionBibliothequeRouteImport.update({
+  id: '/bibliotheque',
+  path: '/bibliotheque',
   getParentRoute: () => ProspectionRoute,
 } as any)
-const ProspectionPisteRoute = ProspectionPisteRouteImport.update({
-  id: '/piste',
-  path: '/piste',
+const ProspectionBudgetRoute = ProspectionBudgetRouteImport.update({
+  id: '/budget',
+  path: '/budget',
   getParentRoute: () => ProspectionRoute,
 } as any)
-const ProspectionPipelineRoute = ProspectionPipelineRouteImport.update({
-  id: '/pipeline',
-  path: '/pipeline',
+const ProspectionClientsRoute = ProspectionClientsRouteImport.update({
+  id: '/clients',
+  path: '/clients',
   getParentRoute: () => ProspectionRoute,
 } as any)
-const ProspectionOpportunitesRoute = ProspectionOpportunitesRouteImport.update({
-  id: '/opportunites',
-  path: '/opportunites',
+const ProspectionImportRoute = ProspectionImportRouteImport.update({
+  id: '/import',
+  path: '/import',
   getParentRoute: () => ProspectionRoute,
 } as any)
-const ProspectionObjectifsRoute = ProspectionObjectifsRouteImport.update({
-  id: '/objectifs',
-  path: '/objectifs',
+const ProspectionKpiRoute = ProspectionKpiRouteImport.update({
+  id: '/kpi',
+  path: '/kpi',
   getParentRoute: () => ProspectionRoute,
 } as any)
 const ProspectionNotificationsRoute =
@@ -201,285 +321,54 @@ const ProspectionNotificationsRoute =
     path: '/notifications',
     getParentRoute: () => ProspectionRoute,
   } as any)
-const ProspectionKpiRoute = ProspectionKpiRouteImport.update({
-  id: '/kpi',
-  path: '/kpi',
+const ProspectionObjectifsRoute = ProspectionObjectifsRouteImport.update({
+  id: '/objectifs',
+  path: '/objectifs',
   getParentRoute: () => ProspectionRoute,
 } as any)
-const ProspectionImportRoute = ProspectionImportRouteImport.update({
-  id: '/import',
-  path: '/import',
+const ProspectionOpportunitesRoute = ProspectionOpportunitesRouteImport.update({
+  id: '/opportunites',
+  path: '/opportunites',
   getParentRoute: () => ProspectionRoute,
 } as any)
-const ProspectionClientsRoute = ProspectionClientsRouteImport.update({
-  id: '/clients',
-  path: '/clients',
+const ProspectionPipelineRoute = ProspectionPipelineRouteImport.update({
+  id: '/pipeline',
+  path: '/pipeline',
   getParentRoute: () => ProspectionRoute,
 } as any)
-const ProspectionBudgetRoute = ProspectionBudgetRouteImport.update({
-  id: '/budget',
-  path: '/budget',
+const ProspectionPisteRoute = ProspectionPisteRouteImport.update({
+  id: '/piste',
+  path: '/piste',
   getParentRoute: () => ProspectionRoute,
 } as any)
-const ProspectionBibliothequeRoute = ProspectionBibliothequeRouteImport.update({
-  id: '/bibliotheque',
-  path: '/bibliotheque',
+const ProspectionPistesRoute = ProspectionPistesRouteImport.update({
+  id: '/pistes',
+  path: '/pistes',
   getParentRoute: () => ProspectionRoute,
 } as any)
-const ProspectionAgendaRoute = ProspectionAgendaRouteImport.update({
-  id: '/agenda',
-  path: '/agenda',
+const ProspectionPortGentilRoute = ProspectionPortGentilRouteImport.update({
+  id: '/port-gentil',
+  path: '/port-gentil',
   getParentRoute: () => ProspectionRoute,
 } as any)
-const ProspectionAdminRoute = ProspectionAdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
+const ProspectionPortefeuilleRoute = ProspectionPortefeuilleRouteImport.update({
+  id: '/portefeuille',
+  path: '/portefeuille',
   getParentRoute: () => ProspectionRoute,
 } as any)
-const ProspectionActivitesRoute = ProspectionActivitesRouteImport.update({
-  id: '/activites',
-  path: '/activites',
+const ProspectionProspectsRoute = ProspectionProspectsRouteImport.update({
+  id: '/prospects',
+  path: '/prospects',
   getParentRoute: () => ProspectionRoute,
 } as any)
-const ProspectionActionsRoute = ProspectionActionsRouteImport.update({
-  id: '/actions',
-  path: '/actions',
+const ProspectionStrategiquesRoute = ProspectionStrategiquesRouteImport.update({
+  id: '/strategiques',
+  path: '/strategiques',
   getParentRoute: () => ProspectionRoute,
-} as any)
-const AuthSetPasswordRoute = AuthSetPasswordRouteImport.update({
-  id: '/auth/set-password',
-  path: '/auth/set-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
-  id: '/auth/reset-password',
-  path: '/auth/reset-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthCallbackRoute = AuthCallbackRouteImport.update({
-  id: '/auth/callback',
-  path: '/auth/callback',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AppUsersRoute = AppUsersRouteImport.update({
-  id: '/users',
-  path: '/users',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppTemplatesRoute = AppTemplatesRouteImport.update({
-  id: '/templates',
-  path: '/templates',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppSettingsRoute = AppSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppServicesRoute = AppServicesRouteImport.update({
-  id: '/services',
-  path: '/services',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppSearchRoute = AppSearchRouteImport.update({
-  id: '/search',
-  path: '/search',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppQuotationsRoute = AppQuotationsRouteImport.update({
-  id: '/quotations',
-  path: '/quotations',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppProfileRoute = AppProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppPolesRoute = AppPolesRouteImport.update({
-  id: '/poles',
-  path: '/poles',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppNotificationsRoute = AppNotificationsRouteImport.update({
-  id: '/notifications',
-  path: '/notifications',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppMissionsRoute = AppMissionsRouteImport.update({
-  id: '/missions',
-  path: '/missions',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppMailsRoute = AppMailsRouteImport.update({
-  id: '/mails',
-  path: '/mails',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppLettreRoute = AppLettreRouteImport.update({
-  id: '/lettre',
-  path: '/lettre',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppInvoicesRoute = AppInvoicesRouteImport.update({
-  id: '/invoices',
-  path: '/invoices',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppHomeRoute = AppHomeRouteImport.update({
-  id: '/home',
-  path: '/home',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppGedRoute = AppGedRouteImport.update({
-  id: '/ged',
-  path: '/ged',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppDossiersRoute = AppDossiersRouteImport.update({
-  id: '/dossiers',
-  path: '/dossiers',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppDocumentsRoute = AppDocumentsRouteImport.update({
-  id: '/documents',
-  path: '/documents',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppDocumentationRoute = AppDocumentationRouteImport.update({
-  id: '/documentation',
-  path: '/documentation',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppDashboardRoute = AppDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppBilanRoute = AppBilanRouteImport.update({
-  id: '/bilan',
-  path: '/bilan',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppArchiveRoute = AppArchiveRouteImport.update({
-  id: '/archive',
-  path: '/archive',
-  getParentRoute: () => AppRoute,
-} as any)
-const ProspectionProspectsIndexRoute =
-  ProspectionProspectsIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => ProspectionProspectsRoute,
-  } as any)
-const ProspectionClientsIndexRoute = ProspectionClientsIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => ProspectionClientsRoute,
-} as any)
-const AppQuotationsIndexRoute = AppQuotationsIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AppQuotationsRoute,
-} as any)
-const AppLettreIndexRoute = AppLettreIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AppLettreRoute,
-} as any)
-const AppLettersIndexRoute = AppLettersIndexRouteImport.update({
-  id: '/letters/',
-  path: '/letters/',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppInvoicesIndexRoute = AppInvoicesIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AppInvoicesRoute,
-} as any)
-const AppDossiersIndexRoute = AppDossiersIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AppDossiersRoute,
 } as any)
 const AppClientsIndexRoute = AppClientsIndexRouteImport.update({
   id: '/clients/',
   path: '/clients/',
-  getParentRoute: () => AppRoute,
-} as any)
-const ProspectionProspectsIdRoute = ProspectionProspectsIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => ProspectionProspectsRoute,
-} as any)
-const ProspectionClientsIdRoute = ProspectionClientsIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => ProspectionClientsRoute,
-} as any)
-const ApiStaffSyncRoute = ApiStaffSyncRouteImport.update({
-  id: '/api/staff/sync',
-  path: '/api/staff/sync',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiCronBillingRoute = ApiCronBillingRouteImport.update({
-  id: '/api/cron/billing',
-  path: '/api/cron/billing',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AppQuotationsNewRoute = AppQuotationsNewRouteImport.update({
-  id: '/new',
-  path: '/new',
-  getParentRoute: () => AppQuotationsRoute,
-} as any)
-const AppQuotationsIdRoute = AppQuotationsIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => AppQuotationsRoute,
-} as any)
-const AppLettrePublipostageRoute = AppLettrePublipostageRouteImport.update({
-  id: '/publipostage',
-  path: '/publipostage',
-  getParentRoute: () => AppLettreRoute,
-} as any)
-const AppLettreNewRoute = AppLettreNewRouteImport.update({
-  id: '/new',
-  path: '/new',
-  getParentRoute: () => AppLettreRoute,
-} as any)
-const AppLettreIdRoute = AppLettreIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => AppLettreRoute,
-} as any)
-const AppLettersNewRoute = AppLettersNewRouteImport.update({
-  id: '/letters/new',
-  path: '/letters/new',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppLettersIdRoute = AppLettersIdRouteImport.update({
-  id: '/letters/$id',
-  path: '/letters/$id',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppInvoicesNewRoute = AppInvoicesNewRouteImport.update({
-  id: '/new',
-  path: '/new',
-  getParentRoute: () => AppInvoicesRoute,
-} as any)
-const AppInvoicesIdRoute = AppInvoicesIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => AppInvoicesRoute,
-} as any)
-const AppDossiersIdRoute = AppDossiersIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => AppDossiersRoute,
-} as any)
-const AppClientsNewRoute = AppClientsNewRouteImport.update({
-  id: '/clients/new',
-  path: '/clients/new',
   getParentRoute: () => AppRoute,
 } as any)
 const AppClientsIdRoute = AppClientsIdRouteImport.update({
@@ -487,15 +376,126 @@ const AppClientsIdRoute = AppClientsIdRouteImport.update({
   path: '/clients/$id',
   getParentRoute: () => AppRoute,
 } as any)
-const AppQuotationsIdEditRoute = AppQuotationsIdEditRouteImport.update({
-  id: '/edit',
-  path: '/edit',
-  getParentRoute: () => AppQuotationsIdRoute,
+const AppClientsNewRoute = AppClientsNewRouteImport.update({
+  id: '/clients/new',
+  path: '/clients/new',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDossiersIndexRoute = AppDossiersIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppDossiersRoute,
+} as any)
+const AppDossiersIdRoute = AppDossiersIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppDossiersRoute,
+} as any)
+const AppInvoicesIndexRoute = AppInvoicesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppInvoicesRoute,
+} as any)
+const AppInvoicesIdRoute = AppInvoicesIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppInvoicesRoute,
+} as any)
+const AppInvoicesNewRoute = AppInvoicesNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => AppInvoicesRoute,
+} as any)
+const AppLettersIndexRoute = AppLettersIndexRouteImport.update({
+  id: '/letters/',
+  path: '/letters/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppLettersIdRoute = AppLettersIdRouteImport.update({
+  id: '/letters/$id',
+  path: '/letters/$id',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppLettersNewRoute = AppLettersNewRouteImport.update({
+  id: '/letters/new',
+  path: '/letters/new',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppLettreIndexRoute = AppLettreIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppLettreRoute,
+} as any)
+const AppLettreIdRoute = AppLettreIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppLettreRoute,
+} as any)
+const AppLettreNewRoute = AppLettreNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => AppLettreRoute,
+} as any)
+const AppLettrePublipostageRoute = AppLettrePublipostageRouteImport.update({
+  id: '/publipostage',
+  path: '/publipostage',
+  getParentRoute: () => AppLettreRoute,
+} as any)
+const AppQuotationsIndexRoute = AppQuotationsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppQuotationsRoute,
+} as any)
+const AppQuotationsIdRoute = AppQuotationsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppQuotationsRoute,
+} as any)
+const AppQuotationsNewRoute = AppQuotationsNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => AppQuotationsRoute,
+} as any)
+const ApiCronBillingRoute = ApiCronBillingRouteImport.update({
+  id: '/api/cron/billing',
+  path: '/api/cron/billing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiStaffSyncRoute = ApiStaffSyncRouteImport.update({
+  id: '/api/staff/sync',
+  path: '/api/staff/sync',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProspectionClientsIndexRoute = ProspectionClientsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ProspectionClientsRoute,
+} as any)
+const ProspectionClientsIdRoute = ProspectionClientsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ProspectionClientsRoute,
+} as any)
+const ProspectionProspectsIndexRoute =
+  ProspectionProspectsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => ProspectionProspectsRoute,
+  } as any)
+const ProspectionProspectsIdRoute = ProspectionProspectsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ProspectionProspectsRoute,
 } as any)
 const AppInvoicesIdEditRoute = AppInvoicesIdEditRouteImport.update({
   id: '/edit',
   path: '/edit',
   getParentRoute: () => AppInvoicesIdRoute,
+} as any)
+const AppQuotationsIdEditRoute = AppQuotationsIdEditRouteImport.update({
+  id: '/edit',
+  path: '/edit',
+  getParentRoute: () => AppQuotationsIdRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -1003,67 +1003,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/sitemap.xml': {
-      id: '/sitemap.xml'
-      path: '/sitemap.xml'
-      fullPath: '/sitemap.xml'
-      preLoaderRoute: typeof SitemapDotxmlRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/signup': {
-      id: '/signup'
-      path: '/signup'
-      fullPath: '/signup'
-      preLoaderRoute: typeof SignupRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/quotas': {
-      id: '/quotas'
-      path: '/quotas'
-      fullPath: '/quotas'
-      preLoaderRoute: typeof QuotasRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/prospection': {
-      id: '/prospection'
-      path: '/prospection'
-      fullPath: '/prospection'
-      preLoaderRoute: typeof ProspectionRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/onboarding': {
-      id: '/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof OnboardingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/hub': {
-      id: '/hub'
-      path: '/hub'
-      fullPath: '/hub'
-      preLoaderRoute: typeof HubRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/equipe': {
-      id: '/equipe'
-      path: '/equipe'
-      fullPath: '/equipe'
-      preLoaderRoute: typeof EquipeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/compte-supprime': {
-      id: '/compte-supprime'
-      path: '/compte-supprime'
-      fullPath: '/compte-supprime'
-      preLoaderRoute: typeof CompteSupprimeRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app': {
@@ -1073,305 +1017,74 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/compte-supprime': {
+      id: '/compte-supprime'
+      path: '/compte-supprime'
+      fullPath: '/compte-supprime'
+      preLoaderRoute: typeof CompteSupprimeRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/prospection/': {
-      id: '/prospection/'
-      path: '/'
-      fullPath: '/prospection/'
-      preLoaderRoute: typeof ProspectionIndexRouteImport
-      parentRoute: typeof ProspectionRoute
-    }
-    '/prospection/strategiques': {
-      id: '/prospection/strategiques'
-      path: '/strategiques'
-      fullPath: '/prospection/strategiques'
-      preLoaderRoute: typeof ProspectionStrategiquesRouteImport
-      parentRoute: typeof ProspectionRoute
-    }
-    '/prospection/prospects': {
-      id: '/prospection/prospects'
-      path: '/prospects'
-      fullPath: '/prospection/prospects'
-      preLoaderRoute: typeof ProspectionProspectsRouteImport
-      parentRoute: typeof ProspectionRoute
-    }
-    '/prospection/portefeuille': {
-      id: '/prospection/portefeuille'
-      path: '/portefeuille'
-      fullPath: '/prospection/portefeuille'
-      preLoaderRoute: typeof ProspectionPortefeuilleRouteImport
-      parentRoute: typeof ProspectionRoute
-    }
-    '/prospection/port-gentil': {
-      id: '/prospection/port-gentil'
-      path: '/port-gentil'
-      fullPath: '/prospection/port-gentil'
-      preLoaderRoute: typeof ProspectionPortGentilRouteImport
-      parentRoute: typeof ProspectionRoute
-    }
-    '/prospection/pistes': {
-      id: '/prospection/pistes'
-      path: '/pistes'
-      fullPath: '/prospection/pistes'
-      preLoaderRoute: typeof ProspectionPistesRouteImport
-      parentRoute: typeof ProspectionRoute
-    }
-    '/prospection/piste': {
-      id: '/prospection/piste'
-      path: '/piste'
-      fullPath: '/prospection/piste'
-      preLoaderRoute: typeof ProspectionPisteRouteImport
-      parentRoute: typeof ProspectionRoute
-    }
-    '/prospection/pipeline': {
-      id: '/prospection/pipeline'
-      path: '/pipeline'
-      fullPath: '/prospection/pipeline'
-      preLoaderRoute: typeof ProspectionPipelineRouteImport
-      parentRoute: typeof ProspectionRoute
-    }
-    '/prospection/opportunites': {
-      id: '/prospection/opportunites'
-      path: '/opportunites'
-      fullPath: '/prospection/opportunites'
-      preLoaderRoute: typeof ProspectionOpportunitesRouteImport
-      parentRoute: typeof ProspectionRoute
-    }
-    '/prospection/objectifs': {
-      id: '/prospection/objectifs'
-      path: '/objectifs'
-      fullPath: '/prospection/objectifs'
-      preLoaderRoute: typeof ProspectionObjectifsRouteImport
-      parentRoute: typeof ProspectionRoute
-    }
-    '/prospection/notifications': {
-      id: '/prospection/notifications'
-      path: '/notifications'
-      fullPath: '/prospection/notifications'
-      preLoaderRoute: typeof ProspectionNotificationsRouteImport
-      parentRoute: typeof ProspectionRoute
-    }
-    '/prospection/kpi': {
-      id: '/prospection/kpi'
-      path: '/kpi'
-      fullPath: '/prospection/kpi'
-      preLoaderRoute: typeof ProspectionKpiRouteImport
-      parentRoute: typeof ProspectionRoute
-    }
-    '/prospection/import': {
-      id: '/prospection/import'
-      path: '/import'
-      fullPath: '/prospection/import'
-      preLoaderRoute: typeof ProspectionImportRouteImport
-      parentRoute: typeof ProspectionRoute
-    }
-    '/prospection/clients': {
-      id: '/prospection/clients'
-      path: '/clients'
-      fullPath: '/prospection/clients'
-      preLoaderRoute: typeof ProspectionClientsRouteImport
-      parentRoute: typeof ProspectionRoute
-    }
-    '/prospection/budget': {
-      id: '/prospection/budget'
-      path: '/budget'
-      fullPath: '/prospection/budget'
-      preLoaderRoute: typeof ProspectionBudgetRouteImport
-      parentRoute: typeof ProspectionRoute
-    }
-    '/prospection/bibliotheque': {
-      id: '/prospection/bibliotheque'
-      path: '/bibliotheque'
-      fullPath: '/prospection/bibliotheque'
-      preLoaderRoute: typeof ProspectionBibliothequeRouteImport
-      parentRoute: typeof ProspectionRoute
-    }
-    '/prospection/agenda': {
-      id: '/prospection/agenda'
-      path: '/agenda'
-      fullPath: '/prospection/agenda'
-      preLoaderRoute: typeof ProspectionAgendaRouteImport
-      parentRoute: typeof ProspectionRoute
-    }
-    '/prospection/admin': {
-      id: '/prospection/admin'
-      path: '/admin'
-      fullPath: '/prospection/admin'
-      preLoaderRoute: typeof ProspectionAdminRouteImport
-      parentRoute: typeof ProspectionRoute
-    }
-    '/prospection/activites': {
-      id: '/prospection/activites'
-      path: '/activites'
-      fullPath: '/prospection/activites'
-      preLoaderRoute: typeof ProspectionActivitesRouteImport
-      parentRoute: typeof ProspectionRoute
-    }
-    '/prospection/actions': {
-      id: '/prospection/actions'
-      path: '/actions'
-      fullPath: '/prospection/actions'
-      preLoaderRoute: typeof ProspectionActionsRouteImport
-      parentRoute: typeof ProspectionRoute
-    }
-    '/auth/set-password': {
-      id: '/auth/set-password'
-      path: '/auth/set-password'
-      fullPath: '/auth/set-password'
-      preLoaderRoute: typeof AuthSetPasswordRouteImport
+    '/equipe': {
+      id: '/equipe'
+      path: '/equipe'
+      fullPath: '/equipe'
+      preLoaderRoute: typeof EquipeRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/auth/reset-password': {
-      id: '/auth/reset-password'
-      path: '/auth/reset-password'
-      fullPath: '/auth/reset-password'
-      preLoaderRoute: typeof AuthResetPasswordRouteImport
+    '/hub': {
+      id: '/hub'
+      path: '/hub'
+      fullPath: '/hub'
+      preLoaderRoute: typeof HubRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/auth/callback': {
-      id: '/auth/callback'
-      path: '/auth/callback'
-      fullPath: '/auth/callback'
-      preLoaderRoute: typeof AuthCallbackRouteImport
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_app/users': {
-      id: '/_app/users'
-      path: '/users'
-      fullPath: '/users'
-      preLoaderRoute: typeof AppUsersRouteImport
-      parentRoute: typeof AppRoute
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_app/templates': {
-      id: '/_app/templates'
-      path: '/templates'
-      fullPath: '/templates'
-      preLoaderRoute: typeof AppTemplatesRouteImport
-      parentRoute: typeof AppRoute
+    '/prospection': {
+      id: '/prospection'
+      path: '/prospection'
+      fullPath: '/prospection'
+      preLoaderRoute: typeof ProspectionRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_app/settings': {
-      id: '/_app/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof AppSettingsRouteImport
-      parentRoute: typeof AppRoute
+    '/quotas': {
+      id: '/quotas'
+      path: '/quotas'
+      fullPath: '/quotas'
+      preLoaderRoute: typeof QuotasRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_app/services': {
-      id: '/_app/services'
-      path: '/services'
-      fullPath: '/services'
-      preLoaderRoute: typeof AppServicesRouteImport
-      parentRoute: typeof AppRoute
+    '/signup': {
+      id: '/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_app/search': {
-      id: '/_app/search'
-      path: '/search'
-      fullPath: '/search'
-      preLoaderRoute: typeof AppSearchRouteImport
-      parentRoute: typeof AppRoute
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_app/quotations': {
-      id: '/_app/quotations'
-      path: '/quotations'
-      fullPath: '/quotations'
-      preLoaderRoute: typeof AppQuotationsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/profile': {
-      id: '/_app/profile'
-      path: '/profile'
-      fullPath: '/profile'
-      preLoaderRoute: typeof AppProfileRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/poles': {
-      id: '/_app/poles'
-      path: '/poles'
-      fullPath: '/poles'
-      preLoaderRoute: typeof AppPolesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/notifications': {
-      id: '/_app/notifications'
-      path: '/notifications'
-      fullPath: '/notifications'
-      preLoaderRoute: typeof AppNotificationsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/missions': {
-      id: '/_app/missions'
-      path: '/missions'
-      fullPath: '/missions'
-      preLoaderRoute: typeof AppMissionsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/mails': {
-      id: '/_app/mails'
-      path: '/mails'
-      fullPath: '/mails'
-      preLoaderRoute: typeof AppMailsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/lettre': {
-      id: '/_app/lettre'
-      path: '/lettre'
-      fullPath: '/lettre'
-      preLoaderRoute: typeof AppLettreRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/invoices': {
-      id: '/_app/invoices'
-      path: '/invoices'
-      fullPath: '/invoices'
-      preLoaderRoute: typeof AppInvoicesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/home': {
-      id: '/_app/home'
-      path: '/home'
-      fullPath: '/home'
-      preLoaderRoute: typeof AppHomeRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/ged': {
-      id: '/_app/ged'
-      path: '/ged'
-      fullPath: '/ged'
-      preLoaderRoute: typeof AppGedRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/dossiers': {
-      id: '/_app/dossiers'
-      path: '/dossiers'
-      fullPath: '/dossiers'
-      preLoaderRoute: typeof AppDossiersRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/documents': {
-      id: '/_app/documents'
-      path: '/documents'
-      fullPath: '/documents'
-      preLoaderRoute: typeof AppDocumentsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/documentation': {
-      id: '/_app/documentation'
-      path: '/documentation'
-      fullPath: '/documentation'
-      preLoaderRoute: typeof AppDocumentationRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/dashboard': {
-      id: '/_app/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof AppDashboardRouteImport
+    '/_app/archive': {
+      id: '/_app/archive'
+      path: '/archive'
+      fullPath: '/archive'
+      preLoaderRoute: typeof AppArchiveRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/bilan': {
@@ -1381,172 +1094,305 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppBilanRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/archive': {
-      id: '/_app/archive'
-      path: '/archive'
-      fullPath: '/archive'
-      preLoaderRoute: typeof AppArchiveRouteImport
+    '/_app/dashboard': {
+      id: '/_app/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AppDashboardRouteImport
       parentRoute: typeof AppRoute
     }
-    '/prospection/prospects/': {
-      id: '/prospection/prospects/'
-      path: '/'
-      fullPath: '/prospection/prospects/'
-      preLoaderRoute: typeof ProspectionProspectsIndexRouteImport
-      parentRoute: typeof ProspectionProspectsRoute
-    }
-    '/prospection/clients/': {
-      id: '/prospection/clients/'
-      path: '/'
-      fullPath: '/prospection/clients/'
-      preLoaderRoute: typeof ProspectionClientsIndexRouteImport
-      parentRoute: typeof ProspectionClientsRoute
-    }
-    '/_app/quotations/': {
-      id: '/_app/quotations/'
-      path: '/'
-      fullPath: '/quotations/'
-      preLoaderRoute: typeof AppQuotationsIndexRouteImport
-      parentRoute: typeof AppQuotationsRoute
-    }
-    '/_app/lettre/': {
-      id: '/_app/lettre/'
-      path: '/'
-      fullPath: '/lettre/'
-      preLoaderRoute: typeof AppLettreIndexRouteImport
-      parentRoute: typeof AppLettreRoute
-    }
-    '/_app/letters/': {
-      id: '/_app/letters/'
-      path: '/letters'
-      fullPath: '/letters/'
-      preLoaderRoute: typeof AppLettersIndexRouteImport
+    '/_app/documentation': {
+      id: '/_app/documentation'
+      path: '/documentation'
+      fullPath: '/documentation'
+      preLoaderRoute: typeof AppDocumentationRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/invoices/': {
-      id: '/_app/invoices/'
-      path: '/'
-      fullPath: '/invoices/'
-      preLoaderRoute: typeof AppInvoicesIndexRouteImport
-      parentRoute: typeof AppInvoicesRoute
+    '/_app/documents': {
+      id: '/_app/documents'
+      path: '/documents'
+      fullPath: '/documents'
+      preLoaderRoute: typeof AppDocumentsRouteImport
+      parentRoute: typeof AppRoute
     }
-    '/_app/dossiers/': {
-      id: '/_app/dossiers/'
+    '/_app/dossiers': {
+      id: '/_app/dossiers'
+      path: '/dossiers'
+      fullPath: '/dossiers'
+      preLoaderRoute: typeof AppDossiersRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/ged': {
+      id: '/_app/ged'
+      path: '/ged'
+      fullPath: '/ged'
+      preLoaderRoute: typeof AppGedRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/home': {
+      id: '/_app/home'
+      path: '/home'
+      fullPath: '/home'
+      preLoaderRoute: typeof AppHomeRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/invoices': {
+      id: '/_app/invoices'
+      path: '/invoices'
+      fullPath: '/invoices'
+      preLoaderRoute: typeof AppInvoicesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/lettre': {
+      id: '/_app/lettre'
+      path: '/lettre'
+      fullPath: '/lettre'
+      preLoaderRoute: typeof AppLettreRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/mails': {
+      id: '/_app/mails'
+      path: '/mails'
+      fullPath: '/mails'
+      preLoaderRoute: typeof AppMailsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/missions': {
+      id: '/_app/missions'
+      path: '/missions'
+      fullPath: '/missions'
+      preLoaderRoute: typeof AppMissionsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/notifications': {
+      id: '/_app/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof AppNotificationsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/poles': {
+      id: '/_app/poles'
+      path: '/poles'
+      fullPath: '/poles'
+      preLoaderRoute: typeof AppPolesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/profile': {
+      id: '/_app/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof AppProfileRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/quotations': {
+      id: '/_app/quotations'
+      path: '/quotations'
+      fullPath: '/quotations'
+      preLoaderRoute: typeof AppQuotationsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/search': {
+      id: '/_app/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof AppSearchRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/services': {
+      id: '/_app/services'
+      path: '/services'
+      fullPath: '/services'
+      preLoaderRoute: typeof AppServicesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/templates': {
+      id: '/_app/templates'
+      path: '/templates'
+      fullPath: '/templates'
+      preLoaderRoute: typeof AppTemplatesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/users': {
+      id: '/_app/users'
+      path: '/users'
+      fullPath: '/users'
+      preLoaderRoute: typeof AppUsersRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/auth/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/reset-password': {
+      id: '/auth/reset-password'
+      path: '/auth/reset-password'
+      fullPath: '/auth/reset-password'
+      preLoaderRoute: typeof AuthResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/set-password': {
+      id: '/auth/set-password'
+      path: '/auth/set-password'
+      fullPath: '/auth/set-password'
+      preLoaderRoute: typeof AuthSetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/prospection/': {
+      id: '/prospection/'
       path: '/'
-      fullPath: '/dossiers/'
-      preLoaderRoute: typeof AppDossiersIndexRouteImport
-      parentRoute: typeof AppDossiersRoute
+      fullPath: '/prospection/'
+      preLoaderRoute: typeof ProspectionIndexRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
+    '/prospection/actions': {
+      id: '/prospection/actions'
+      path: '/actions'
+      fullPath: '/prospection/actions'
+      preLoaderRoute: typeof ProspectionActionsRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
+    '/prospection/activites': {
+      id: '/prospection/activites'
+      path: '/activites'
+      fullPath: '/prospection/activites'
+      preLoaderRoute: typeof ProspectionActivitesRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
+    '/prospection/admin': {
+      id: '/prospection/admin'
+      path: '/admin'
+      fullPath: '/prospection/admin'
+      preLoaderRoute: typeof ProspectionAdminRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
+    '/prospection/agenda': {
+      id: '/prospection/agenda'
+      path: '/agenda'
+      fullPath: '/prospection/agenda'
+      preLoaderRoute: typeof ProspectionAgendaRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
+    '/prospection/bibliotheque': {
+      id: '/prospection/bibliotheque'
+      path: '/bibliotheque'
+      fullPath: '/prospection/bibliotheque'
+      preLoaderRoute: typeof ProspectionBibliothequeRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
+    '/prospection/budget': {
+      id: '/prospection/budget'
+      path: '/budget'
+      fullPath: '/prospection/budget'
+      preLoaderRoute: typeof ProspectionBudgetRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
+    '/prospection/clients': {
+      id: '/prospection/clients'
+      path: '/clients'
+      fullPath: '/prospection/clients'
+      preLoaderRoute: typeof ProspectionClientsRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
+    '/prospection/import': {
+      id: '/prospection/import'
+      path: '/import'
+      fullPath: '/prospection/import'
+      preLoaderRoute: typeof ProspectionImportRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
+    '/prospection/kpi': {
+      id: '/prospection/kpi'
+      path: '/kpi'
+      fullPath: '/prospection/kpi'
+      preLoaderRoute: typeof ProspectionKpiRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
+    '/prospection/notifications': {
+      id: '/prospection/notifications'
+      path: '/notifications'
+      fullPath: '/prospection/notifications'
+      preLoaderRoute: typeof ProspectionNotificationsRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
+    '/prospection/objectifs': {
+      id: '/prospection/objectifs'
+      path: '/objectifs'
+      fullPath: '/prospection/objectifs'
+      preLoaderRoute: typeof ProspectionObjectifsRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
+    '/prospection/opportunites': {
+      id: '/prospection/opportunites'
+      path: '/opportunites'
+      fullPath: '/prospection/opportunites'
+      preLoaderRoute: typeof ProspectionOpportunitesRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
+    '/prospection/pipeline': {
+      id: '/prospection/pipeline'
+      path: '/pipeline'
+      fullPath: '/prospection/pipeline'
+      preLoaderRoute: typeof ProspectionPipelineRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
+    '/prospection/piste': {
+      id: '/prospection/piste'
+      path: '/piste'
+      fullPath: '/prospection/piste'
+      preLoaderRoute: typeof ProspectionPisteRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
+    '/prospection/pistes': {
+      id: '/prospection/pistes'
+      path: '/pistes'
+      fullPath: '/prospection/pistes'
+      preLoaderRoute: typeof ProspectionPistesRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
+    '/prospection/port-gentil': {
+      id: '/prospection/port-gentil'
+      path: '/port-gentil'
+      fullPath: '/prospection/port-gentil'
+      preLoaderRoute: typeof ProspectionPortGentilRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
+    '/prospection/portefeuille': {
+      id: '/prospection/portefeuille'
+      path: '/portefeuille'
+      fullPath: '/prospection/portefeuille'
+      preLoaderRoute: typeof ProspectionPortefeuilleRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
+    '/prospection/prospects': {
+      id: '/prospection/prospects'
+      path: '/prospects'
+      fullPath: '/prospection/prospects'
+      preLoaderRoute: typeof ProspectionProspectsRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
+    '/prospection/strategiques': {
+      id: '/prospection/strategiques'
+      path: '/strategiques'
+      fullPath: '/prospection/strategiques'
+      preLoaderRoute: typeof ProspectionStrategiquesRouteImport
+      parentRoute: typeof ProspectionRoute
     }
     '/_app/clients/': {
       id: '/_app/clients/'
       path: '/clients'
       fullPath: '/clients/'
       preLoaderRoute: typeof AppClientsIndexRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/prospection/prospects/$id': {
-      id: '/prospection/prospects/$id'
-      path: '/$id'
-      fullPath: '/prospection/prospects/$id'
-      preLoaderRoute: typeof ProspectionProspectsIdRouteImport
-      parentRoute: typeof ProspectionProspectsRoute
-    }
-    '/prospection/clients/$id': {
-      id: '/prospection/clients/$id'
-      path: '/$id'
-      fullPath: '/prospection/clients/$id'
-      preLoaderRoute: typeof ProspectionClientsIdRouteImport
-      parentRoute: typeof ProspectionClientsRoute
-    }
-    '/api/staff/sync': {
-      id: '/api/staff/sync'
-      path: '/api/staff/sync'
-      fullPath: '/api/staff/sync'
-      preLoaderRoute: typeof ApiStaffSyncRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/cron/billing': {
-      id: '/api/cron/billing'
-      path: '/api/cron/billing'
-      fullPath: '/api/cron/billing'
-      preLoaderRoute: typeof ApiCronBillingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_app/quotations/new': {
-      id: '/_app/quotations/new'
-      path: '/new'
-      fullPath: '/quotations/new'
-      preLoaderRoute: typeof AppQuotationsNewRouteImport
-      parentRoute: typeof AppQuotationsRoute
-    }
-    '/_app/quotations/$id': {
-      id: '/_app/quotations/$id'
-      path: '/$id'
-      fullPath: '/quotations/$id'
-      preLoaderRoute: typeof AppQuotationsIdRouteImport
-      parentRoute: typeof AppQuotationsRoute
-    }
-    '/_app/lettre/publipostage': {
-      id: '/_app/lettre/publipostage'
-      path: '/publipostage'
-      fullPath: '/lettre/publipostage'
-      preLoaderRoute: typeof AppLettrePublipostageRouteImport
-      parentRoute: typeof AppLettreRoute
-    }
-    '/_app/lettre/new': {
-      id: '/_app/lettre/new'
-      path: '/new'
-      fullPath: '/lettre/new'
-      preLoaderRoute: typeof AppLettreNewRouteImport
-      parentRoute: typeof AppLettreRoute
-    }
-    '/_app/lettre/$id': {
-      id: '/_app/lettre/$id'
-      path: '/$id'
-      fullPath: '/lettre/$id'
-      preLoaderRoute: typeof AppLettreIdRouteImport
-      parentRoute: typeof AppLettreRoute
-    }
-    '/_app/letters/new': {
-      id: '/_app/letters/new'
-      path: '/letters/new'
-      fullPath: '/letters/new'
-      preLoaderRoute: typeof AppLettersNewRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/letters/$id': {
-      id: '/_app/letters/$id'
-      path: '/letters/$id'
-      fullPath: '/letters/$id'
-      preLoaderRoute: typeof AppLettersIdRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/invoices/new': {
-      id: '/_app/invoices/new'
-      path: '/new'
-      fullPath: '/invoices/new'
-      preLoaderRoute: typeof AppInvoicesNewRouteImport
-      parentRoute: typeof AppInvoicesRoute
-    }
-    '/_app/invoices/$id': {
-      id: '/_app/invoices/$id'
-      path: '/$id'
-      fullPath: '/invoices/$id'
-      preLoaderRoute: typeof AppInvoicesIdRouteImport
-      parentRoute: typeof AppInvoicesRoute
-    }
-    '/_app/dossiers/$id': {
-      id: '/_app/dossiers/$id'
-      path: '/$id'
-      fullPath: '/dossiers/$id'
-      preLoaderRoute: typeof AppDossiersIdRouteImport
-      parentRoute: typeof AppDossiersRoute
-    }
-    '/_app/clients/new': {
-      id: '/_app/clients/new'
-      path: '/clients/new'
-      fullPath: '/clients/new'
-      preLoaderRoute: typeof AppClientsNewRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/clients/$id': {
@@ -1556,12 +1402,159 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppClientsIdRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/quotations/$id/edit': {
-      id: '/_app/quotations/$id/edit'
-      path: '/edit'
-      fullPath: '/quotations/$id/edit'
-      preLoaderRoute: typeof AppQuotationsIdEditRouteImport
-      parentRoute: typeof AppQuotationsIdRoute
+    '/_app/clients/new': {
+      id: '/_app/clients/new'
+      path: '/clients/new'
+      fullPath: '/clients/new'
+      preLoaderRoute: typeof AppClientsNewRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/dossiers/': {
+      id: '/_app/dossiers/'
+      path: '/'
+      fullPath: '/dossiers/'
+      preLoaderRoute: typeof AppDossiersIndexRouteImport
+      parentRoute: typeof AppDossiersRoute
+    }
+    '/_app/dossiers/$id': {
+      id: '/_app/dossiers/$id'
+      path: '/$id'
+      fullPath: '/dossiers/$id'
+      preLoaderRoute: typeof AppDossiersIdRouteImport
+      parentRoute: typeof AppDossiersRoute
+    }
+    '/_app/invoices/': {
+      id: '/_app/invoices/'
+      path: '/'
+      fullPath: '/invoices/'
+      preLoaderRoute: typeof AppInvoicesIndexRouteImport
+      parentRoute: typeof AppInvoicesRoute
+    }
+    '/_app/invoices/$id': {
+      id: '/_app/invoices/$id'
+      path: '/$id'
+      fullPath: '/invoices/$id'
+      preLoaderRoute: typeof AppInvoicesIdRouteImport
+      parentRoute: typeof AppInvoicesRoute
+    }
+    '/_app/invoices/new': {
+      id: '/_app/invoices/new'
+      path: '/new'
+      fullPath: '/invoices/new'
+      preLoaderRoute: typeof AppInvoicesNewRouteImport
+      parentRoute: typeof AppInvoicesRoute
+    }
+    '/_app/letters/': {
+      id: '/_app/letters/'
+      path: '/letters'
+      fullPath: '/letters/'
+      preLoaderRoute: typeof AppLettersIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/letters/$id': {
+      id: '/_app/letters/$id'
+      path: '/letters/$id'
+      fullPath: '/letters/$id'
+      preLoaderRoute: typeof AppLettersIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/letters/new': {
+      id: '/_app/letters/new'
+      path: '/letters/new'
+      fullPath: '/letters/new'
+      preLoaderRoute: typeof AppLettersNewRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/lettre/': {
+      id: '/_app/lettre/'
+      path: '/'
+      fullPath: '/lettre/'
+      preLoaderRoute: typeof AppLettreIndexRouteImport
+      parentRoute: typeof AppLettreRoute
+    }
+    '/_app/lettre/$id': {
+      id: '/_app/lettre/$id'
+      path: '/$id'
+      fullPath: '/lettre/$id'
+      preLoaderRoute: typeof AppLettreIdRouteImport
+      parentRoute: typeof AppLettreRoute
+    }
+    '/_app/lettre/new': {
+      id: '/_app/lettre/new'
+      path: '/new'
+      fullPath: '/lettre/new'
+      preLoaderRoute: typeof AppLettreNewRouteImport
+      parentRoute: typeof AppLettreRoute
+    }
+    '/_app/lettre/publipostage': {
+      id: '/_app/lettre/publipostage'
+      path: '/publipostage'
+      fullPath: '/lettre/publipostage'
+      preLoaderRoute: typeof AppLettrePublipostageRouteImport
+      parentRoute: typeof AppLettreRoute
+    }
+    '/_app/quotations/': {
+      id: '/_app/quotations/'
+      path: '/'
+      fullPath: '/quotations/'
+      preLoaderRoute: typeof AppQuotationsIndexRouteImport
+      parentRoute: typeof AppQuotationsRoute
+    }
+    '/_app/quotations/$id': {
+      id: '/_app/quotations/$id'
+      path: '/$id'
+      fullPath: '/quotations/$id'
+      preLoaderRoute: typeof AppQuotationsIdRouteImport
+      parentRoute: typeof AppQuotationsRoute
+    }
+    '/_app/quotations/new': {
+      id: '/_app/quotations/new'
+      path: '/new'
+      fullPath: '/quotations/new'
+      preLoaderRoute: typeof AppQuotationsNewRouteImport
+      parentRoute: typeof AppQuotationsRoute
+    }
+    '/api/cron/billing': {
+      id: '/api/cron/billing'
+      path: '/api/cron/billing'
+      fullPath: '/api/cron/billing'
+      preLoaderRoute: typeof ApiCronBillingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/staff/sync': {
+      id: '/api/staff/sync'
+      path: '/api/staff/sync'
+      fullPath: '/api/staff/sync'
+      preLoaderRoute: typeof ApiStaffSyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/prospection/clients/': {
+      id: '/prospection/clients/'
+      path: '/'
+      fullPath: '/prospection/clients/'
+      preLoaderRoute: typeof ProspectionClientsIndexRouteImport
+      parentRoute: typeof ProspectionClientsRoute
+    }
+    '/prospection/clients/$id': {
+      id: '/prospection/clients/$id'
+      path: '/$id'
+      fullPath: '/prospection/clients/$id'
+      preLoaderRoute: typeof ProspectionClientsIdRouteImport
+      parentRoute: typeof ProspectionClientsRoute
+    }
+    '/prospection/prospects/': {
+      id: '/prospection/prospects/'
+      path: '/'
+      fullPath: '/prospection/prospects/'
+      preLoaderRoute: typeof ProspectionProspectsIndexRouteImport
+      parentRoute: typeof ProspectionProspectsRoute
+    }
+    '/prospection/prospects/$id': {
+      id: '/prospection/prospects/$id'
+      path: '/$id'
+      fullPath: '/prospection/prospects/$id'
+      preLoaderRoute: typeof ProspectionProspectsIdRouteImport
+      parentRoute: typeof ProspectionProspectsRoute
     }
     '/_app/invoices/$id/edit': {
       id: '/_app/invoices/$id/edit'
@@ -1569,6 +1562,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/invoices/$id/edit'
       preLoaderRoute: typeof AppInvoicesIdEditRouteImport
       parentRoute: typeof AppInvoicesIdRoute
+    }
+    '/_app/quotations/$id/edit': {
+      id: '/_app/quotations/$id/edit'
+      path: '/edit'
+      fullPath: '/quotations/$id/edit'
+      preLoaderRoute: typeof AppQuotationsIdEditRouteImport
+      parentRoute: typeof AppQuotationsIdRoute
     }
   }
 }
