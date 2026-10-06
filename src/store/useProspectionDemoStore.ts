@@ -87,6 +87,21 @@ function nid(prefix: string) {
   return `${prefix}-${seq++}`;
 }
 
+function withWonContract(companies: Company[], opportunity: Opportunity, nextStage: PipelineStage) {
+  if (nextStage !== "gagne" || opportunity.stage === "gagne") return companies;
+  return companies.map((c) => {
+    if (c.id !== opportunity.companyId) return c;
+    const servicesBought = c.servicesBought.includes(opportunity.line)
+      ? c.servicesBought
+      : [...c.servicesBought, opportunity.line];
+    return {
+      ...c,
+      caSigned: c.caSigned + opportunity.amount,
+      servicesBought,
+    };
+  });
+}
+
 function notify(title: string, body: string, href: string) {
   return {
     id: nid("nt"),
@@ -178,19 +193,19 @@ const actions: Actions = {
     const company = data.companies.find((c) => c.id === current.companyId);
     data = {
       ...data,
-      opportunities: data.opportunities.map((o) =>
-        o.id === id
-          ? {
-              ...o,
-              stage,
-              probability: STAGE_PROBABILITY[stage] ?? o.probability,
-              nextAction: payload.nextAction,
-              nextActionOn: payload.nextActionOn,
-              lostReason: payload.lostReason ?? o.lostReason,
-              reviveOn: payload.reviveOn ?? o.reviveOn,
-            }
-          : o,
-      ),
+      companies: withWonContract(data.companies, current, stage),
+      opportunities: data.opportunities.map((o) => {
+        if (o.id !== id) return o;
+        return {
+          ...o,
+          stage,
+          probability: STAGE_PROBABILITY[stage] ?? o.probability,
+          nextAction: payload.nextAction,
+          nextActionOn: payload.nextActionOn,
+          lostReason: payload.lostReason ?? o.lostReason,
+          reviveOn: payload.reviveOn ?? o.reviveOn,
+        };
+      }),
       activities: [
         {
           id: nid("ac"),

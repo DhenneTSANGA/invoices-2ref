@@ -456,6 +456,22 @@ html:has([role="dialog"][data-state="open"]) body {
   overflow: hidden;
 }
 
+/* Un menu Radix pose overflow:hidden et position:relative sur le body.
+   La barre latérale, collée à l’écran, se décroche alors et disparaît
+   au-dessus de la zone déjà défilée. Le menu bloque déjà la molette. */
+html body[data-scroll-locked] {
+  overflow: visible !important;
+  position: static !important;
+  margin-right: 0 !important;
+  padding-top: 0 !important;
+  padding-right: 0 !important;
+  padding-left: 0 !important;
+}
+
+html:has([role="dialog"][data-state="open"]) body[data-scroll-locked] {
+  overflow: hidden !important;
+}
+
 /* Le menu déroulant désactive les clics autour de lui. Sans ceci, le clic tombe
    sur le fond sombre et ferme aussi la modale. */
 [role="dialog"][data-state="open"] {

@@ -120,7 +120,7 @@ function ActivitiesPage() {
                   <button
                     type="button"
                     className={CRM_PRIMARY_BTN + " !px-3 !py-1.5 !text-xs"}
-                    onClick={() => setCrFor(a.companyId)}
+                    onClick={() => setCrFor(a.id)}
                   >
                     Ajouter le CR
                   </button>
@@ -162,8 +162,7 @@ function ActivitiesPage() {
         onOpenChange={(v) => {
           if (!v) setCrFor(undefined);
         }}
-        defaultCompanyId={crFor}
-        defaultKind="note"
+        completeActivityId={crFor}
       />
     </div>
   );
