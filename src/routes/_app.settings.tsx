@@ -1,7 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Save, Building2, Receipt, Palette, ShieldCheck, Upload, Check, Mail } from "lucide-react";
+import { Save, Building2, Receipt, Palette, ShieldCheck, Upload, Check, Mail, Maximize2 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { LoadingState } from "@/components/common/LoadingState";
 import {
@@ -25,6 +25,18 @@ import { canEditCompanySettings } from "@/lib/roles";
 import type { AppSession } from "@/lib/session.functions";
 import { SignaturePad } from "@/components/signature/SignaturePad";
 import { ManagerSignature } from "@/components/signature/ManagerSignature";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  buildReminderEmailHtml,
+  REMINDER_PREVIEW_ROWS,
+  REMINDER_PREVIEW_TOTAL,
+} from "@/lib/reminder-email";
 import {
   applyReminderPlaceholders,
   DEFAULT_REMINDER_TEMPLATES,
@@ -404,6 +416,10 @@ function ReminderTemplatesPanel({
     clientName: "Société exemple",
     companyName: companyName.trim() || "Cabinet",
   };
+  const [enlarged, setEnlarged] = useState<keyof ReminderTemplates | null>(null);
+  const previewKeyRef = useRef<keyof ReminderTemplates>("15");
+  if (enlarged) previewKeyRef.current = enlarged;
+  const previewKey = enlarged ?? previewKeyRef.current;
 
   const patch = (
     day: keyof ReminderTemplates,
@@ -415,6 +431,16 @@ function ReminderTemplatesPanel({
       [day]: { ...templates[day], [field]: value },
     });
   };
+
+  const enlargedFields = templates[previewKey];
+  const enlargedSubject = applyReminderPlaceholders(enlargedFields.subject, previewVars);
+  const enlargedHtml = buildReminderEmailHtml({
+    companyName: previewVars.companyName,
+    clientName: previewVars.clientName,
+    intro: applyReminderPlaceholders(enlargedFields.intro, previewVars),
+    rows: REMINDER_PREVIEW_ROWS,
+    totalDue: REMINDER_PREVIEW_TOTAL,
+  });
 
   return (
     <div className="space-y-5">
@@ -496,25 +522,60 @@ function ReminderTemplatesPanel({
                 className={REMINDER_FIELD_CLASS}
               />
             </label>
-            <div className="rounded-xl bg-surface-2 p-4">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                Aperçu
-              </p>
-              <p className="mt-2 text-sm font-semibold">{previewSubject}</p>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                Madame, Monsieur,
-                <br />
-                <br />
-                {previewIntro}
-              </p>
-              <p className="mt-3 text-xs text-muted-foreground">
-                Suit le tableau des factures (n° / émission / échéance / montant)
-                puis le total dû.
-              </p>
+            <div className="overflow-hidden rounded-xl border border-border/60 bg-[#F1F5F9]">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 bg-surface px-3 py-2">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                    Aperçu
+                  </p>
+                  <p className="truncate text-sm font-semibold">{previewSubject}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEnlarged(key)}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs font-medium hover:bg-muted"
+                >
+                  <Maximize2 className="h-3.5 w-3.5" />
+                  Agrandir l’aperçu
+                </button>
+              </div>
+              <iframe
+                title={`Aperçu ${labels.title}`}
+                sandbox=""
+                srcDoc={buildReminderEmailHtml({
+                  companyName: previewVars.companyName,
+                  clientName: previewVars.clientName,
+                  intro: previewIntro,
+                  rows: REMINDER_PREVIEW_ROWS,
+                  totalDue: REMINDER_PREVIEW_TOTAL,
+                })}
+                className="h-64 w-full bg-[#F1F5F9]"
+              />
             </div>
           </div>
         );
       })}
+
+      <Dialog open={enlarged !== null} onOpenChange={(open) => !open && setEnlarged(null)}>
+        <DialogContent className="max-h-[90vh] max-w-3xl gap-0 overflow-hidden p-0 sm:max-w-3xl">
+          <DialogHeader className="space-y-1 border-b border-border/60 px-5 py-4 pr-12 text-left">
+            <DialogTitle>{REMINDER_TEMPLATE_LABELS[previewKey].title}</DialogTitle>
+            <DialogDescription className="text-sm text-foreground">
+              <span className="text-muted-foreground">Objet · </span>
+              {enlargedSubject}
+            </DialogDescription>
+            <p className="text-xs text-muted-foreground">
+              De {previewVars.companyName} · à contact@societe-exemple.ga · données d’exemple
+            </p>
+          </DialogHeader>
+          <iframe
+            title="Aperçu agrandi du mail de relance"
+            sandbox=""
+            srcDoc={enlargedHtml}
+            className="h-[min(72vh,760px)] w-full bg-[#F1F5F9]"
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
