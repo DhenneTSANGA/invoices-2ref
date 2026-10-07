@@ -257,8 +257,8 @@ function InvoiceDetailPage() {
         </p>
       ) : doc.status === "draft" ? (
         <p className="mb-4 text-xs text-muted-foreground">
-          {session?.staff.role === "super_admin"
-            ? "Super administrateur : vous pouvez signer et envoyer cette facture, quel que soit le pôle. Envoyer applique la signature du cabinet puis transmet l’e-mail."
+          {session && isAdmin(session.staff.role)
+            ? "Administrateur : vous pouvez signer et envoyer cette facture, quel que soit le pôle. Envoyer applique la signature du cabinet puis transmet l’e-mail."
             : "L’envoi e-mail nécessite le statut « Signé »."}
         </p>
       ) : null}

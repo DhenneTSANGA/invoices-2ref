@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { Eye, FileText, Plus, Search, Send, Banknote, XCircle, CheckCircle2, Ban, Mails, Repeat, Trash2 } from "lucide-react";
+import { Eye, FileText, Plus, Search, Send, Banknote, XCircle, CheckCircle2, Ban, Mails, Repeat, Trash2, HandCoins } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -9,6 +9,8 @@ import { LoadingState } from "@/components/common/LoadingState";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { StatusBadge, statusLabel } from "@/components/common/StatusBadge";
 import { MarkAsPaidDialog } from "@/components/documents/MarkAsPaidDialog";
+import { InvoiceDepositDialog } from "@/components/documents/InvoiceDepositDialog";
+import { normalizedDeposit, remainingDue } from "@/lib/document-math";
 import { documentRowClass, getDocumentRowStyles } from "@/lib/document-row-styles";
 import { documentTypeLabel } from "@/lib/document-status-labels";
 import { currency, shortDate } from "@/lib/format";
@@ -32,6 +34,7 @@ import {
   useDocuments,
   useSession,
   useSetDocumentStatus,
+  useSetInvoiceDeposit,
   useSendDocumentEmail,
   useProcessDueSubscriptions,
   useDeleteDocument,
@@ -47,6 +50,30 @@ const invoiceStatuses: DocumentStatus[] = ["draft", "sent", "paid", "overdue", "
 const quotationStatuses: DocumentStatus[] = ["draft", "sent", "accepted", "rejected", "cancelled"];
 const letterStatuses: DocumentStatus[] = ["draft", "signed", "sent", "cancelled"];
 
+type PaymentFilter = "all" | "partial" | "none" | "paid";
+
+const PAYMENT_FILTERS: { value: PaymentFilter; label: string }[] = [
+  { value: "all", label: "Tous" },
+  { value: "partial", label: "Avance reçue" },
+  { value: "none", label: "Sans avance" },
+  { value: "paid", label: "Payées" },
+];
+
+/** Facture émise (hors brouillon) avec un reste à encaisser. */
+function outstandingAmount(d: Document): number {
+  if (d.status === "draft" || d.status === "paid" || d.status === "cancelled") return 0;
+  return remainingDue(d.total, d.deposit);
+}
+
+function hasPartialPayment(d: Document): boolean {
+  return (
+    d.status !== "paid" &&
+    d.status !== "cancelled" &&
+    normalizedDeposit(d.deposit) > 0 &&
+    remainingDue(d.total, d.deposit) > 0
+  );
+}
+
 function statusesFor(type: DocumentType): DocumentStatus[] {
   if (type === "invoice") return invoiceStatuses;
   if (type === "quotation") return quotationStatuses;
@@ -58,6 +85,7 @@ export function DocumentsList({ type }: { type: DocumentType }) {
   const { data: documents = [], isPending: isLoading } = useDocuments(type);
   const { data: clients = [] } = useClients();
   const setStatusMutation = useSetDocumentStatus();
+  const setDepositMutation = useSetInvoiceDeposit();
   const sendEmailMutation = useSendDocumentEmail();
   const deleteDocument = useDeleteDocument();
   const processSubs = useProcessDueSubscriptions();
@@ -67,6 +95,8 @@ export function DocumentsList({ type }: { type: DocumentType }) {
   const [poleFilter, setPoleFilter] = useState<"all" | ClientPole>("all");
   const [paidPrompt, setPaidPrompt] = useState<{ id: string; number: string } | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Document | null>(null);
+  const [depositTarget, setDepositTarget] = useState<Document | null>(null);
+  const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>("all");
   const poleLocked = session ? isMember(session.staff.role) : false;
   const L = labels[type];
   const statusOptions = statusesFor(type);
@@ -103,10 +133,24 @@ export function DocumentsList({ type }: { type: DocumentType }) {
       (client?.billingProfile ?? "mixed") === billingFilter;
     const matchPole =
       poleFilter === "all" || parseClientPole(d.pole) === poleFilter;
-    return matchQ && matchS && matchBilling && matchPole;
-  }), [documents, clients, q, status, billingFilter, poleFilter]);
+    const matchPayment =
+      type !== "invoice" ||
+      paymentFilter === "all" ||
+      (paymentFilter === "partial" && hasPartialPayment(d)) ||
+      (paymentFilter === "none" &&
+        d.status !== "paid" &&
+        d.status !== "cancelled" &&
+        normalizedDeposit(d.deposit) === 0) ||
+      (paymentFilter === "paid" && d.status === "paid");
+    return matchQ && matchS && matchBilling && matchPole && matchPayment;
+  }), [documents, clients, q, status, billingFilter, poleFilter, paymentFilter, type]);
 
   const total = filtered.reduce((a, b) => a + b.total, 0);
+  const outstanding = filtered.reduce((a, b) => a + outstandingAmount(b), 0);
+  const advancesReceived = filtered.reduce(
+    (a, b) => (b.status === "cancelled" || b.status === "paid" ? a : a + normalizedDeposit(b.deposit)),
+    0,
+  );
 
   const applyStatus = (
     id: string,
@@ -202,10 +246,21 @@ export function DocumentsList({ type }: { type: DocumentType }) {
         }
       />
 
-      <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+      <div
+        className={cn(
+          "mb-4 grid grid-cols-1 gap-3",
+          type === "invoice" ? "sm:grid-cols-2 xl:grid-cols-5" : "md:grid-cols-3",
+        )}
+      >
         <Kpi label="Total documents" value={String(filtered.length)} />
         <Kpi label="Montant cumulé" value={currency(total)} />
         <Kpi label="En attente" value={String(filtered.filter((d) => d.status === "sent" || d.status === "draft" || d.status === "signed").length)} />
+        {type === "invoice" ? (
+          <>
+            <Kpi label="Avances reçues" value={currency(advancesReceived)} />
+            <Kpi label="Reste à encaisser" value={currency(outstanding)} accent />
+          </>
+        ) : null}
       </div>
 
       <div className="glass-panel mb-4 flex flex-col gap-3 rounded-2xl p-3 sm:flex-row sm:flex-wrap sm:items-center">
@@ -247,6 +302,24 @@ export function DocumentsList({ type }: { type: DocumentType }) {
             ))}
           </div>
         </div>
+        {type === "invoice" ? (
+          <div className="space-y-1.5">
+            <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              Paiement
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {PAYMENT_FILTERS.map((f) => (
+                <FilterChip
+                  key={f.value}
+                  active={paymentFilter === f.value}
+                  onClick={() => setPaymentFilter(f.value)}
+                >
+                  {f.label}
+                </FilterChip>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <div className="mb-4 flex flex-wrap gap-2">
@@ -350,12 +423,22 @@ export function DocumentsList({ type }: { type: DocumentType }) {
                         </select>
                       </div>
                     </td>
-                    <td className="px-5 py-3 text-right font-numeric font-semibold">{currency(d.total)}</td>
+                    <td className="px-5 py-3 text-right font-numeric font-semibold">
+                      {currency(d.total)}
+                      {type === "invoice" && hasPartialPayment(d) ? (
+                        <PaymentProgress total={d.total} deposit={normalizedDeposit(d.deposit)} muted={row.muted} />
+                      ) : null}
+                    </td>
                     <td className="px-5 py-3">
                       <div className="flex items-center justify-end gap-1">
                         {type === "invoice" && d.status !== "sent" && d.status !== "paid" && d.status !== "cancelled" && (
                           <ActionBtn title="Marquer envoyée" onClick={() => setStatusWithToast(d.id, "sent", d.number)} className={row.actionBtn}>
                             <Send className="h-4 w-4" />
+                          </ActionBtn>
+                        )}
+                        {type === "invoice" && d.status !== "paid" && d.status !== "cancelled" && (
+                          <ActionBtn title="Enregistrer une avance" onClick={() => setDepositTarget(d)} className={row.actionBtn}>
+                            <HandCoins className="h-4 w-4" />
                           </ActionBtn>
                         )}
                         {type === "invoice" && d.status !== "paid" && d.status !== "cancelled" && (
@@ -427,6 +510,37 @@ export function DocumentsList({ type }: { type: DocumentType }) {
         }}
       />
 
+      <InvoiceDepositDialog
+        open={!!depositTarget}
+        onOpenChange={(open) => {
+          if (!open) setDepositTarget(null);
+        }}
+        documentNumber={depositTarget?.number}
+        total={depositTarget?.total ?? 0}
+        currentDeposit={depositTarget?.deposit}
+        pending={setDepositMutation.isPending}
+        onConfirm={(deposit) => {
+          if (!depositTarget) return;
+          const target = depositTarget;
+          setDepositMutation.mutate(
+            { id: target.id, deposit },
+            {
+              onSuccess: () => {
+                const due = remainingDue(target.total, deposit);
+                toast.success(`Avance enregistrée — ${target.number}`, {
+                  description:
+                    due === 0
+                      ? "Montant entièrement couvert : pensez à marquer la facture payée."
+                      : `Reste à payer : ${currency(due)}`,
+                });
+                setDepositTarget(null);
+              },
+              onError: (e) => toast.error(e.message),
+            },
+          );
+        }}
+      />
+
       <ConfirmDeleteDialog
         open={!!pendingDelete}
         onOpenChange={(open) => {
@@ -479,11 +593,38 @@ function ActionBtn({
   );
 }
 
-function Kpi({ label, value }: { label: string; value: string }) {
+function Kpi({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
     <div className="glass-panel rounded-2xl px-4 py-3">
       <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className="mt-1 font-display text-xl font-bold">{value}</div>
+      <div className={cn("mt-1 font-display text-xl font-bold", accent && "text-amber-600 dark:text-amber-400")}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function PaymentProgress({
+  total,
+  deposit,
+  muted,
+}: {
+  total: number;
+  deposit: number;
+  muted?: string;
+}) {
+  const pct = total > 0 ? Math.min(100, Math.round((deposit / total) * 100)) : 0;
+  return (
+    <div className="ml-auto mt-1.5 w-36 text-[11px] font-normal">
+      <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+        <div className="h-full rounded-full bg-emerald-500" style={{ width: `${pct}%` }} />
+      </div>
+      <div className={cn("mt-1 flex justify-between gap-2", muted)}>
+        <span>Avance {currency(deposit)}</span>
+      </div>
+      <div className="font-semibold text-amber-600 dark:text-amber-400">
+        Reste {currency(remainingDue(total, deposit))}
+      </div>
     </div>
   );
 }

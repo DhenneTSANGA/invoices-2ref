@@ -17,6 +17,7 @@ import {
   upsertDocument,
   convertQuotationToInvoice,
   setDocumentStatus,
+  setInvoiceDeposit,
   deleteDocument,
   getCompany,
   getCompanyForCabinet,
@@ -387,6 +388,19 @@ export function useSetDocumentStatus() {
   });
 }
 
+export function useSetInvoiceDeposit() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { id: string; deposit: number }) =>
+      setInvoiceDeposit({ data: payload }),
+    onSuccess: (doc) => {
+      qc.invalidateQueries({ queryKey: documentsKey() });
+      qc.invalidateQueries({ queryKey: documentsKey(doc.type) });
+      qc.invalidateQueries({ queryKey: ["document", doc.id] });
+    },
+  });
+}
+
 export function useSetInvoiceSubscription() {
   const qc = useQueryClient();
   return useMutation({
@@ -478,7 +492,11 @@ export function useSendDocumentEmail() {
       if (typeof input === "string") {
         return sendDocumentEmail({ data: { id: input } });
       }
-      const built = await buildDocumentPdfFromDoc(input, { omitSignature: false });
+      // Un brouillon n’est accepté à l’envoi que par un admin, et le serveur le signe avant
+      // de l’expédier : le PDF joint doit donc déjà porter la signature.
+      const pdfDoc: Document =
+        input.status === "draft" ? { ...input, status: "signed" } : input;
+      const built = await buildDocumentPdfFromDoc(pdfDoc, { omitSignature: false });
       return sendDocumentEmail({
         data: {
           id: input.id,

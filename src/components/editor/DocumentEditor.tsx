@@ -18,7 +18,7 @@ import {
   normalizedDeposit,
 } from "@/lib/document-math";
 import type { Document, DocumentSection, DocumentType, LineItem } from "@/store/types";
-import { parseClientPole, type ClientPole } from "@/lib/client-pole";
+import { clientPoleLabel, parseClientPole, type ClientPole } from "@/lib/client-pole";
 import { ClientPolePicker } from "@/components/clients/ClientPolePicker";
 import { memberVisibilityPole } from "@/lib/staff-pole";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
@@ -44,7 +44,7 @@ import {
   lineQuantityForTotal,
   parseLineQuantityUnit,
 } from "@/lib/line-quantity";
-import { canEditInvoiceContent, isAdmin, isMember, isSuperAdmin } from "@/lib/roles";
+import { canEditInvoiceContent, isAdmin, isMember } from "@/lib/roles";
 import {
   DEFAULT_SIGNATORY_TITLE,
   resolveSignatoryRole,
@@ -247,19 +247,30 @@ export function DocumentEditor({ initial, type }: Props) {
   }, [focusDescriptionLineId, doc.items]);
 
   const effectiveClientId = doc.clientId || clients[0]?.id || "";
+  /** Le pôle client ne pré-remplit qu’au changement de client, pour ne pas écraser le choix manuel. */
+  const polePrefilledForClientRef = useRef<string | null>(
+    isNew ? null : (initial?.clientId ?? null),
+  );
   useEffect(() => {
+    if (memberPole) {
+      setDoc((d) => (d.pole === memberPole ? d : { ...d, pole: memberPole }));
+      return;
+    }
+    if (polePrefilledForClientRef.current === effectiveClientId) return;
     const client =
       clients.find((c) => c.id === effectiveClientId) ??
       (docClient?.id === effectiveClientId ? docClient : undefined);
     if (!client) return;
+    polePrefilledForClientRef.current = effectiveClientId;
     const nextPole = parseClientPole(client.pole);
-    setDoc((d) => {
-      if (memberPole) {
-        return d.pole === memberPole ? d : { ...d, pole: memberPole };
-      }
-      return d.pole === nextPole ? d : { ...d, pole: nextPole };
-    });
+    setDoc((d) => (d.pole === nextPole ? d : { ...d, pole: nextPole }));
   }, [effectiveClientId, clients, docClient, memberPole]);
+  const currentClient =
+    clients.find((c) => c.id === effectiveClientId) ??
+    (docClient?.id === effectiveClientId ? docClient : undefined);
+  const clientPole = currentClient ? parseClientPole(currentClient.pole) : null;
+  const docPole = parseClientPole(memberPole ?? doc.pole);
+  const poleMismatch = Boolean(clientPole && clientPole !== docPole);
   const executionDays = parseExecutionDays(doc.executionTerms);
   const vatRate = commercial ? docVatRate : documentTaxRates(doc.items).vatRate;
   const cssRate = commercial ? docCssRate : documentTaxRates(doc.items).cssRate;
@@ -717,12 +728,11 @@ export function DocumentEditor({ initial, type }: Props) {
       const saved = await upsertMutation.mutateAsync(buildPayload(status));
       setDoc((d) => ({ ...d, ...saved, id: saved.id }));
       if (status === "sent") {
-        const superAdmin = session ? isSuperAdmin(session.staff.role) : false;
         const ready =
           saved.status === "signed" ||
           saved.status === "sent" ||
           saved.status === "paid" ||
-          (superAdmin && saved.status === "draft");
+          (adminLike && saved.status === "draft");
         if (!ready) {
           toast.success("Document enregistré", {
             description:
@@ -839,14 +849,21 @@ export function DocumentEditor({ initial, type }: Props) {
             <ClientPolePicker
               compact
               locked={Boolean(memberPole)}
-              value={parseClientPole(memberPole ?? doc.pole)}
+              value={docPole}
               onChange={(pole) => setDoc({ ...doc, pole })}
             />
-            <p className="mt-1.5 text-[11px] text-muted-foreground">
-              {memberPole
-                ? "Pôle attribué à votre compte."
-                : "Prérempli depuis la fiche client — modifiable pour ce document."}
-            </p>
+            {poleMismatch && clientPole ? (
+              <p className="mt-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-700 dark:text-amber-400">
+                Ce client est rattaché au pôle {clientPoleLabel(clientPole)} — ce document sera
+                compté dans le pôle {clientPoleLabel(docPole)}.
+              </p>
+            ) : (
+              <p className="mt-1.5 text-[11px] text-muted-foreground">
+                {memberPole
+                  ? "Pôle attribué à votre compte."
+                  : "Prérempli depuis la fiche client — modifiable pour ce document."}
+              </p>
+            )}
           </div>
           <Field
             label="Date d'émission"
@@ -1815,11 +1832,9 @@ export function DocumentEditor({ initial, type }: Props) {
             ? "Facture figée après création — demandez la signature ou téléchargez le PDF."
             : type === "invoice" && session && isMember(session.staff.role)
               ? "Après enregistrement, cette facture ne sera plus modifiable. Relisez bien avant de valider."
-              : session && isSuperAdmin(session.staff.role)
-                ? "Super administrateur : vous pouvez signer et envoyer, quel que soit le pôle. Envoyer applique la signature du cabinet puis transmet l’e-mail."
-                : adminLike
-                  ? "En tant qu’administrateur, vous pouvez signer directement. L’envoi e-mail reste possible après signature (ou PDF physique)."
-                  : "Option : demandez la signature de la Direction (notification). Le PDF reste disponible pour une signature physique."}
+              : adminLike
+                ? "Administrateur : vous pouvez signer et envoyer, quel que soit le pôle. Envoyer applique la signature du cabinet puis transmet l’e-mail."
+                : "Option : demandez la signature de la Direction (notification). Le PDF reste disponible pour une signature physique."}
         </p>
       ) : null}
 

@@ -2,7 +2,7 @@ import {
   parseClientPole,
   type ClientPole,
 } from "@/lib/client-pole";
-import { isMember, isSuperAdmin } from "@/lib/roles";
+import { isAdmin, isMember } from "@/lib/roles";
 import type { StaffMember } from "@/store/types";
 
 /** Pôle attribué (admin et membre). Null pour le super admin. */
@@ -28,7 +28,7 @@ export function memberCanSeePole(
   staff: Pick<StaffMember, "role" | "pole"> | null | undefined,
   pole: unknown,
 ): boolean {
-  if (staff && isSuperAdmin(staff.role)) return true;
+  if (staff && isAdmin(staff.role)) return true;
   const scoped = memberVisibilityPole(staff);
   return !scoped || scoped === parseClientPole(pole);
 }

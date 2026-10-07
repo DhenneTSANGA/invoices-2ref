@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import {
   Save,
@@ -26,7 +26,7 @@ import {
   usePeekNextLetterNumber,
 } from "@/hooks/use-data";
 import type { Cabinet } from "@/lib/cabinets";
-import { isAdmin, isSuperAdmin } from "@/lib/roles";
+import { isAdmin } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 import { clientLetterPostalLine, clientRepresentativeLine, clientDisplayName } from "@/lib/client-address";
 import {
@@ -47,7 +47,7 @@ import {
   DEFAULT_LETTER_PLACE_CITY,
   LETTER_PLACE_CITIES,
 } from "@/lib/letter-place-city";
-import { parseClientPole } from "@/lib/client-pole";
+import { clientPoleLabel, parseClientPole } from "@/lib/client-pole";
 import { ClientPolePicker } from "@/components/clients/ClientPolePicker";
 import { memberVisibilityPole } from "@/lib/staff-pole";
 
@@ -139,17 +139,22 @@ export function LetterEditor({ initial }: Props) {
     setDoc((d) => (d.clientId ? d : { ...d, clientId: firstId }));
   }, [clients, initial?.clientId]);
 
+  /** Le pôle client ne pré-remplit qu’au changement de client, pour ne pas écraser le choix manuel. */
+  const polePrefilledForClientRef = useRef<string | null>(
+    isNew ? null : (initial?.clientId ?? null),
+  );
   useEffect(() => {
+    if (memberPole) {
+      setDoc((d) => (d.pole === memberPole ? d : { ...d, pole: memberPole }));
+      return;
+    }
     const clientId = doc.clientId || clients[0]?.id || "";
+    if (polePrefilledForClientRef.current === clientId) return;
     const client = clients.find((c) => c.id === clientId);
     if (!client) return;
+    polePrefilledForClientRef.current = clientId;
     const nextPole = parseClientPole(client.pole);
-    setDoc((d) => {
-      if (memberPole) {
-        return d.pole === memberPole ? d : { ...d, pole: memberPole };
-      }
-      return d.pole === nextPole ? d : { ...d, pole: nextPole };
-    });
+    setDoc((d) => (d.pole === nextPole ? d : { ...d, pole: nextPole }));
   }, [doc.clientId, clients, memberPole]);
 
   if (loadingClients) {
@@ -165,12 +170,13 @@ export function LetterEditor({ initial }: Props) {
   const effectiveClientId = doc.clientId || clients[0]?.id || "";
   const previewDoc = { ...doc, clientId: effectiveClientId };
   const selectedClient = clients.find((c) => c.id === effectiveClientId);
+  const clientPole = selectedClient ? parseClientPole(selectedClient.pole) : null;
+  const docPole = parseClientPole(memberPole ?? doc.pole);
   const alreadySigned = doc.status === "signed" || doc.status === "sent";
-  const superAdmin = session ? isSuperAdmin(session.staff.role) : false;
   const canOnlineSign = !alreadySigned;
   const canEmail =
     doc.status !== "cancelled" &&
-    (alreadySigned || (superAdmin && doc.status === "draft"));
+    (alreadySigned || (adminLike && doc.status === "draft"));
 
   const persistDraft = async () => {
     if (!effectiveClientId) {
@@ -268,7 +274,7 @@ export function LetterEditor({ initial }: Props) {
       const ready =
         target.status === "signed" ||
         target.status === "sent" ||
-        (superAdmin && target.status === "draft");
+        (adminLike && target.status === "draft");
       if (!ready) {
         toast.error("Le courriel doit être signé avant l'envoi");
         void navigate({ to: "/lettre/$id", params: { id: target.id } });
@@ -318,14 +324,21 @@ export function LetterEditor({ initial }: Props) {
             <ClientPolePicker
               compact
               locked={Boolean(memberPole)}
-              value={parseClientPole(memberPole ?? doc.pole)}
+              value={docPole}
               onChange={(pole) => setDoc({ ...doc, pole })}
             />
-            <p className="-mt-2 text-[11px] text-muted-foreground">
-              {memberPole
-                ? "Pôle attribué à votre compte."
-                : "Prérempli depuis la fiche client — modifiable pour ce courriel."}
-            </p>
+            {clientPole && clientPole !== docPole ? (
+              <p className="-mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-700 dark:text-amber-400">
+                Ce client est rattaché au pôle {clientPoleLabel(clientPole)} — ce courriel sera
+                compté dans le pôle {clientPoleLabel(docPole)}.
+              </p>
+            ) : (
+              <p className="-mt-2 text-[11px] text-muted-foreground">
+                {memberPole
+                  ? "Pôle attribué à votre compte."
+                  : "Prérempli depuis la fiche client — modifiable pour ce courriel."}
+              </p>
+            )}
 
             {selectedClient && !doc.recipientOverride && (
               <div className="flex gap-3 rounded-2xl border border-amber-200/70 bg-amber-50/60 px-4 py-3 text-sm text-amber-950">
@@ -444,11 +457,9 @@ export function LetterEditor({ initial }: Props) {
           icon={<Stamp className="h-4 w-4" />}
           title="Signature"
           hint={
-            superAdmin
-              ? "Super administrateur : vous pouvez signer et envoyer ce courriel, quel que soit le pôle. Envoyer applique la signature du cabinet puis transmet l’e-mail."
-              : adminLike
-                ? "En tant qu’administrateur, vous pouvez signer directement ce courriel. L’envoi e-mail n’est possible qu’après signature."
-                : "Après enregistrement, demandez la signature de la Direction. L’envoi e-mail n’est possible qu’une fois le courriel signé."
+            adminLike
+              ? "Administrateur : vous pouvez signer et envoyer ce courriel, quel que soit le pôle. Envoyer applique la signature du cabinet puis transmet l’e-mail."
+              : "Après enregistrement, demandez la signature de la Direction. L’envoi e-mail n’est possible qu’une fois le courriel signé."
           }
         >
           <label className="block">

@@ -654,6 +654,7 @@ export async function sendDocumentEmailInternal(params: {
   pdfBase64?: string;
   fileName?: string;
   skipAccessCheck?: boolean;
+  activeCabinet?: "conseil" | "expertise_fiscale";
 }) {
   requireResendApiKey();
 
@@ -666,7 +667,14 @@ export async function sendDocumentEmailInternal(params: {
   });
   if (!doc) throw new Error("Document introuvable");
   const superAdmin = isSuperAdmin(params.staff.role);
+  const cabinetAdmin =
+    !superAdmin &&
+    isAdmin(params.staff.role) &&
+    (!params.activeCabinet || doc.cabinet === params.activeCabinet);
   if (!params.skipAccessCheck && !superAdmin) {
+    if (params.activeCabinet && doc.cabinet !== params.activeCabinet) {
+      throw new Error("Ce document appartient à un autre cabinet");
+    }
     const mailPoles = await loadDocumentPoles([doc.id]);
     assertMemberCanAccessPole(
       params.staff,
@@ -688,7 +696,7 @@ export async function sendDocumentEmailInternal(params: {
         doc.status === "signed" ||
         doc.status === "sent" ||
         doc.status === "paid";
-      if (!sendable && superAdmin && doc.status === "draft") {
+      if (!sendable && (superAdmin || cabinetAdmin) && doc.status === "draft") {
         const companyRow = await prisma.company.findUnique({
           where: { cabinet: doc.cabinet },
         });
@@ -702,7 +710,9 @@ export async function sendDocumentEmailInternal(params: {
           documentId: doc.id,
           cabinet: doc.cabinet,
           staffId: params.staff.id,
-          note: "Signature du super administrateur à l’envoi",
+          note: superAdmin
+            ? "Signature du super administrateur à l’envoi"
+            : "Signature de l’administrateur à l’envoi",
         });
         doc.status = "signed";
       } else if (!sendable) {
@@ -989,5 +999,6 @@ export const sendDocumentEmail = createServerFn({ method: "POST" })
       staff: session.staff,
       pdfBase64: data.pdfBase64,
       fileName: data.fileName,
+      activeCabinet: session.activeCabinet,
     });
   });

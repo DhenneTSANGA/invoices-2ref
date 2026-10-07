@@ -34,7 +34,7 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { documentDetailRoute } from "@/lib/document-nav";
 import { longDate } from "@/lib/format";
 import { LetterEditor } from "@/components/editor/LetterEditor";
-import { isAdmin, isSuperAdmin, canWriteDocument } from "@/lib/roles";
+import { isAdmin, canWriteDocument } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/lettre/$id")({
@@ -124,7 +124,7 @@ function LetterDetail() {
     adminLike && doc.status === "draft" && previewSeen;
   const canSend =
     doc.status !== "cancelled" &&
-    (isSuperAdmin(role ?? "member")
+    (adminLike
       ? doc.status === "draft" ||
         doc.status === "signed" ||
         doc.status === "sent"

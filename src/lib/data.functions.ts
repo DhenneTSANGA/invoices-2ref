@@ -216,8 +216,9 @@ async function assertClientInCabinet(
 }
 
 async function resolveDocumentPole(clientId: string, raw: unknown) {
+  if (isClientPole(raw)) return raw;
   const poles = await loadClientPoles([clientId]);
-  return poles.get(clientId) ?? (isClientPole(raw) ? raw : parseClientPole(raw));
+  return poles.get(clientId) ?? parseClientPole(raw);
 }
 
 // ─── Clients ───────────────────────────────────────────────────────────────
@@ -608,7 +609,7 @@ async function mappedDocuments(rows: Parameters<typeof mapDocument>[0][]) {
     const discountFixed = choice?.fixed ?? d.discountFixed ?? 0;
     const next = {
       ...withFlags,
-      pole: fromClient ?? withFlags.pole,
+      pole: poles.has(d.id) ? withFlags.pole : (fromClient ?? withFlags.pole),
       discountMode,
       discountFixed,
       items,
@@ -1349,6 +1350,44 @@ export const setDocumentStatus = createServerFn({ method: "POST" })
       });
     }
     return { ...(await mappedDocument(updated)), ...emailNotice };
+  });
+
+/** Avance client sur une facture existante : ne touche qu’au montant de l’acompte, jamais aux lignes. */
+export const setInvoiceDeposit = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      id: z.string(),
+      deposit: z.number().min(0),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const session = await requireSession();
+    const { staff } = session;
+    const existing = await prisma.document.findFirst({
+      where: isSuperAdmin(staff.role)
+        ? { id: data.id, type: "invoice" }
+        : { id: data.id, type: "invoice", cabinet: session.activeCabinet },
+      include: docInclude,
+    });
+    if (!existing) throw new Error("Facture introuvable");
+    const poles = await loadDocumentPoles([existing.id]);
+    assertMemberCanAccessPole(
+      staff,
+      poles.get(existing.id) ?? parseClientPole(undefined),
+    );
+    if (existing.status === "cancelled") {
+      throw new Error("Facture annulée — avance impossible");
+    }
+    if (existing.status === "paid") {
+      throw new Error("Facture déjà payée");
+    }
+    const total = Math.round(Number(existing.total) || 0);
+    const deposit = Math.round(data.deposit);
+    if (deposit > total) {
+      throw new Error("L’avance ne peut pas dépasser le montant de la facture");
+    }
+    await persistDeposit(existing.id, deposit);
+    return mappedDocument(existing);
   });
 
 export const setInvoiceSubscription = createServerFn({ method: "POST" })

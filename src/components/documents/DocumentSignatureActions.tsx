@@ -168,7 +168,7 @@ export function documentCanSendEmail(
   role?: "member" | "admin" | "super_admin",
 ): boolean {
   if (doc.status === "cancelled") return false;
-  if (role === "super_admin") {
+  if (role === "super_admin" || role === "admin") {
     return (
       doc.status === "draft" ||
       doc.status === "signed" ||
