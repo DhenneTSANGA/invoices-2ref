@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { Logo } from "@/components/common/Logo";
 import { CABINET_LABELS } from "@/lib/cabinets";
 import { canSwitchCabinet, isAdmin, isSuperAdmin, roleLabel } from "@/lib/roles";
-import { primaryNav, secondaryNav, dossierNav, navForRole, type NavItem } from "./nav-items";
+import { primaryNav, secondaryNav, navForRole, type NavItem } from "./nav-items";
 import { NavIcon } from "./NavIcon";
 import { CabinetSwitcher } from "./CabinetSwitcher";
 import { prefetchForNavPath } from "@/lib/prefetch-app-data";
@@ -21,7 +21,6 @@ export function AppSidebar() {
   const { session } = useRouteContext({ from: "/_app" });
   const role = session.staff.role;
   const items = navForRole(primaryNav, role);
-  const dossierItems = navForRole(dossierNav, role);
   const secondary = navForRole(secondaryNav, role);
   const cabinetLabel = CABINET_LABELS[session.activeCabinet];
   const isSa = isSuperAdmin(session.staff.role);
@@ -126,8 +125,6 @@ export function AppSidebar() {
           {!collapsed && <span className="truncate">Changer d’espace</span>}
         </Link>
         <NavSection title="Principal" items={items} pathname={pathname} collapsed={collapsed} />
-        <div className="mx-3 my-3 h-px bg-border" />
-        <NavSection title="Dossier client" items={dossierItems} pathname={pathname} collapsed={collapsed} />
         <div className="mx-3 my-3 h-px bg-border" />
         <NavSection title="Espace" items={secondary} pathname={pathname} collapsed={collapsed} />
       </div>

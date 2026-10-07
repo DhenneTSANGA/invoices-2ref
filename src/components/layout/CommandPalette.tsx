@@ -26,9 +26,6 @@ import {
   ArrowRight,
   Command,
   Layers,
-  FolderKanban,
-  Library,
-  CalendarClock,
   LayoutGrid,
   Compass,
 } from "lucide-react";
@@ -111,9 +108,6 @@ const NAV_ACTIONS: NavAction[] = [
   { label: "Pôles", path: "/poles", icon: Layers },
   { label: "Tous les documents", path: "/documents", icon: Files },
   { label: "Clients", path: "/clients", icon: Users },
-  { label: "Dossiers fiscaux", path: "/dossiers", icon: FolderKanban },
-  { label: "GED", path: "/ged", icon: Library },
-  { label: "Missions", path: "/missions", icon: CalendarClock },
   { label: "Archives", path: "/archive", icon: Archive },
 ];
 

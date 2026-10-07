@@ -1,7 +1,6 @@
 import {
   LayoutDashboard, Users, FileText, ReceiptText,
   Files, Archive, Settings, Bell, Search, UserCircle2, FolderOpen, Mail, Shield, Globe, Inbox, BarChart3, Layers,
-  FolderKanban, Library, CalendarClock,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { AppRole } from "@/lib/roles";
@@ -30,13 +29,6 @@ export const primaryNav: NavDef[] = [
   { to: "/archive", label: "Archives", icon: Archive, iconMotion: "lift" },
   { to: "/bilan", label: "Bilan", icon: BarChart3, iconMotion: "bounce", roles: ["admin", "super_admin"] },
   { to: "/users", label: "Équipe", icon: Shield, iconMotion: "pulse", roles: ["admin", "super_admin"] },
-];
-
-/** Métier fiscal / GED / missions — séparé de la facturation. */
-export const dossierNav: NavDef[] = [
-  { to: "/dossiers", label: "Dossiers fiscaux", icon: FolderKanban, iconMotion: "tilt" },
-  { to: "/ged", label: "GED", icon: Library, iconMotion: "lift" },
-  { to: "/missions", label: "Missions", icon: CalendarClock, iconMotion: "bounce" },
 ];
 
 export const secondaryNav: NavDef[] = [

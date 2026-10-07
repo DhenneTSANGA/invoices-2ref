@@ -10,7 +10,7 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { Logo } from "@/components/common/Logo";
-import { primaryNav, secondaryNav, dossierNav, navForRole, type NavItem } from "./nav-items";
+import { primaryNav, secondaryNav, navForRole, type NavItem } from "./nav-items";
 import { NavIcon } from "./NavIcon";
 import { CabinetSwitcher } from "./CabinetSwitcher";
 import { canSwitchCabinet, isAdmin, isSuperAdmin, roleLabel } from "@/lib/roles";
@@ -27,7 +27,6 @@ export function MobileNav() {
   const { session } = useRouteContext({ from: "/_app" });
   const role = session.staff.role;
   const main = navForRole(primaryNav, role);
-  const dossierItems = navForRole(dossierNav, role);
   const secondary = navForRole(secondaryNav, role);
   const isSa = isSuperAdmin(session.staff.role);
   const adminLike = isAdmin(session.staff.role) && !isSa;
@@ -134,13 +133,6 @@ export function MobileNav() {
           <MobileSection
             title="Principal"
             items={main}
-            pathname={pathname}
-            onNavigate={() => setOpen(false)}
-          />
-          <div className="mx-2 my-4 h-px bg-border" />
-          <MobileSection
-            title="Dossier client"
-            items={dossierItems}
             pathname={pathname}
             onNavigate={() => setOpen(false)}
           />

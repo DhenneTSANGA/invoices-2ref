@@ -25,13 +25,10 @@ import { Route as AppBilanRouteImport } from './routes/_app.bilan'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppDocumentationRouteImport } from './routes/_app.documentation'
 import { Route as AppDocumentsRouteImport } from './routes/_app.documents'
-import { Route as AppDossiersRouteImport } from './routes/_app.dossiers'
-import { Route as AppGedRouteImport } from './routes/_app.ged'
 import { Route as AppHomeRouteImport } from './routes/_app.home'
 import { Route as AppInvoicesRouteImport } from './routes/_app.invoices'
 import { Route as AppLettreRouteImport } from './routes/_app.lettre'
 import { Route as AppMailsRouteImport } from './routes/_app.mails'
-import { Route as AppMissionsRouteImport } from './routes/_app.missions'
 import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
 import { Route as AppPolesRouteImport } from './routes/_app.poles'
 import { Route as AppProfileRouteImport } from './routes/_app.profile'
@@ -67,8 +64,6 @@ import { Route as ProspectionStrategiquesRouteImport } from './routes/prospectio
 import { Route as AppClientsIndexRouteImport } from './routes/_app.clients.index'
 import { Route as AppClientsIdRouteImport } from './routes/_app.clients.$id'
 import { Route as AppClientsNewRouteImport } from './routes/_app.clients.new'
-import { Route as AppDossiersIndexRouteImport } from './routes/_app.dossiers.index'
-import { Route as AppDossiersIdRouteImport } from './routes/_app.dossiers.$id'
 import { Route as AppInvoicesIndexRouteImport } from './routes/_app.invoices.index'
 import { Route as AppInvoicesIdRouteImport } from './routes/_app.invoices.$id'
 import { Route as AppInvoicesNewRouteImport } from './routes/_app.invoices.new'
@@ -170,16 +165,6 @@ const AppDocumentsRoute = AppDocumentsRouteImport.update({
   path: '/documents',
   getParentRoute: () => AppRoute,
 } as any)
-const AppDossiersRoute = AppDossiersRouteImport.update({
-  id: '/dossiers',
-  path: '/dossiers',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppGedRoute = AppGedRouteImport.update({
-  id: '/ged',
-  path: '/ged',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppHomeRoute = AppHomeRouteImport.update({
   id: '/home',
   path: '/home',
@@ -198,11 +183,6 @@ const AppLettreRoute = AppLettreRouteImport.update({
 const AppMailsRoute = AppMailsRouteImport.update({
   id: '/mails',
   path: '/mails',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppMissionsRoute = AppMissionsRouteImport.update({
-  id: '/missions',
-  path: '/missions',
   getParentRoute: () => AppRoute,
 } as any)
 const AppNotificationsRoute = AppNotificationsRouteImport.update({
@@ -381,16 +361,6 @@ const AppClientsNewRoute = AppClientsNewRouteImport.update({
   path: '/clients/new',
   getParentRoute: () => AppRoute,
 } as any)
-const AppDossiersIndexRoute = AppDossiersIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AppDossiersRoute,
-} as any)
-const AppDossiersIdRoute = AppDossiersIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => AppDossiersRoute,
-} as any)
 const AppInvoicesIndexRoute = AppInvoicesIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -514,13 +484,10 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AppDashboardRoute
   '/documentation': typeof AppDocumentationRoute
   '/documents': typeof AppDocumentsRoute
-  '/dossiers': typeof AppDossiersRouteWithChildren
-  '/ged': typeof AppGedRoute
   '/home': typeof AppHomeRoute
   '/invoices': typeof AppInvoicesRouteWithChildren
   '/lettre': typeof AppLettreRouteWithChildren
   '/mails': typeof AppMailsRoute
-  '/missions': typeof AppMissionsRoute
   '/notifications': typeof AppNotificationsRoute
   '/poles': typeof AppPolesRoute
   '/profile': typeof AppProfileRoute
@@ -555,7 +522,6 @@ export interface FileRoutesByFullPath {
   '/prospection/': typeof ProspectionIndexRoute
   '/clients/$id': typeof AppClientsIdRoute
   '/clients/new': typeof AppClientsNewRoute
-  '/dossiers/$id': typeof AppDossiersIdRoute
   '/invoices/$id': typeof AppInvoicesIdRouteWithChildren
   '/invoices/new': typeof AppInvoicesNewRoute
   '/letters/$id': typeof AppLettersIdRoute
@@ -570,7 +536,6 @@ export interface FileRoutesByFullPath {
   '/prospection/clients/$id': typeof ProspectionClientsIdRoute
   '/prospection/prospects/$id': typeof ProspectionProspectsIdRoute
   '/clients/': typeof AppClientsIndexRoute
-  '/dossiers/': typeof AppDossiersIndexRoute
   '/invoices/': typeof AppInvoicesIndexRoute
   '/letters/': typeof AppLettersIndexRoute
   '/lettre/': typeof AppLettreIndexRoute
@@ -595,10 +560,8 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AppDashboardRoute
   '/documentation': typeof AppDocumentationRoute
   '/documents': typeof AppDocumentsRoute
-  '/ged': typeof AppGedRoute
   '/home': typeof AppHomeRoute
   '/mails': typeof AppMailsRoute
-  '/missions': typeof AppMissionsRoute
   '/notifications': typeof AppNotificationsRoute
   '/poles': typeof AppPolesRoute
   '/profile': typeof AppProfileRoute
@@ -630,7 +593,6 @@ export interface FileRoutesByTo {
   '/prospection': typeof ProspectionIndexRoute
   '/clients/$id': typeof AppClientsIdRoute
   '/clients/new': typeof AppClientsNewRoute
-  '/dossiers/$id': typeof AppDossiersIdRoute
   '/invoices/$id': typeof AppInvoicesIdRouteWithChildren
   '/invoices/new': typeof AppInvoicesNewRoute
   '/letters/$id': typeof AppLettersIdRoute
@@ -645,7 +607,6 @@ export interface FileRoutesByTo {
   '/prospection/clients/$id': typeof ProspectionClientsIdRoute
   '/prospection/prospects/$id': typeof ProspectionProspectsIdRoute
   '/clients': typeof AppClientsIndexRoute
-  '/dossiers': typeof AppDossiersIndexRoute
   '/invoices': typeof AppInvoicesIndexRoute
   '/letters': typeof AppLettersIndexRoute
   '/lettre': typeof AppLettreIndexRoute
@@ -673,13 +634,10 @@ export interface FileRoutesById {
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/documentation': typeof AppDocumentationRoute
   '/_app/documents': typeof AppDocumentsRoute
-  '/_app/dossiers': typeof AppDossiersRouteWithChildren
-  '/_app/ged': typeof AppGedRoute
   '/_app/home': typeof AppHomeRoute
   '/_app/invoices': typeof AppInvoicesRouteWithChildren
   '/_app/lettre': typeof AppLettreRouteWithChildren
   '/_app/mails': typeof AppMailsRoute
-  '/_app/missions': typeof AppMissionsRoute
   '/_app/notifications': typeof AppNotificationsRoute
   '/_app/poles': typeof AppPolesRoute
   '/_app/profile': typeof AppProfileRoute
@@ -714,7 +672,6 @@ export interface FileRoutesById {
   '/prospection/': typeof ProspectionIndexRoute
   '/_app/clients/$id': typeof AppClientsIdRoute
   '/_app/clients/new': typeof AppClientsNewRoute
-  '/_app/dossiers/$id': typeof AppDossiersIdRoute
   '/_app/invoices/$id': typeof AppInvoicesIdRouteWithChildren
   '/_app/invoices/new': typeof AppInvoicesNewRoute
   '/_app/letters/$id': typeof AppLettersIdRoute
@@ -729,7 +686,6 @@ export interface FileRoutesById {
   '/prospection/clients/$id': typeof ProspectionClientsIdRoute
   '/prospection/prospects/$id': typeof ProspectionProspectsIdRoute
   '/_app/clients/': typeof AppClientsIndexRoute
-  '/_app/dossiers/': typeof AppDossiersIndexRoute
   '/_app/invoices/': typeof AppInvoicesIndexRoute
   '/_app/letters/': typeof AppLettersIndexRoute
   '/_app/lettre/': typeof AppLettreIndexRoute
@@ -757,13 +713,10 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/documentation'
     | '/documents'
-    | '/dossiers'
-    | '/ged'
     | '/home'
     | '/invoices'
     | '/lettre'
     | '/mails'
-    | '/missions'
     | '/notifications'
     | '/poles'
     | '/profile'
@@ -798,7 +751,6 @@ export interface FileRouteTypes {
     | '/prospection/'
     | '/clients/$id'
     | '/clients/new'
-    | '/dossiers/$id'
     | '/invoices/$id'
     | '/invoices/new'
     | '/letters/$id'
@@ -813,7 +765,6 @@ export interface FileRouteTypes {
     | '/prospection/clients/$id'
     | '/prospection/prospects/$id'
     | '/clients/'
-    | '/dossiers/'
     | '/invoices/'
     | '/letters/'
     | '/lettre/'
@@ -838,10 +789,8 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/documentation'
     | '/documents'
-    | '/ged'
     | '/home'
     | '/mails'
-    | '/missions'
     | '/notifications'
     | '/poles'
     | '/profile'
@@ -873,7 +822,6 @@ export interface FileRouteTypes {
     | '/prospection'
     | '/clients/$id'
     | '/clients/new'
-    | '/dossiers/$id'
     | '/invoices/$id'
     | '/invoices/new'
     | '/letters/$id'
@@ -888,7 +836,6 @@ export interface FileRouteTypes {
     | '/prospection/clients/$id'
     | '/prospection/prospects/$id'
     | '/clients'
-    | '/dossiers'
     | '/invoices'
     | '/letters'
     | '/lettre'
@@ -915,13 +862,10 @@ export interface FileRouteTypes {
     | '/_app/dashboard'
     | '/_app/documentation'
     | '/_app/documents'
-    | '/_app/dossiers'
-    | '/_app/ged'
     | '/_app/home'
     | '/_app/invoices'
     | '/_app/lettre'
     | '/_app/mails'
-    | '/_app/missions'
     | '/_app/notifications'
     | '/_app/poles'
     | '/_app/profile'
@@ -956,7 +900,6 @@ export interface FileRouteTypes {
     | '/prospection/'
     | '/_app/clients/$id'
     | '/_app/clients/new'
-    | '/_app/dossiers/$id'
     | '/_app/invoices/$id'
     | '/_app/invoices/new'
     | '/_app/letters/$id'
@@ -971,7 +914,6 @@ export interface FileRouteTypes {
     | '/prospection/clients/$id'
     | '/prospection/prospects/$id'
     | '/_app/clients/'
-    | '/_app/dossiers/'
     | '/_app/invoices/'
     | '/_app/letters/'
     | '/_app/lettre/'
@@ -1115,20 +1057,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDocumentsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/dossiers': {
-      id: '/_app/dossiers'
-      path: '/dossiers'
-      fullPath: '/dossiers'
-      preLoaderRoute: typeof AppDossiersRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/ged': {
-      id: '/_app/ged'
-      path: '/ged'
-      fullPath: '/ged'
-      preLoaderRoute: typeof AppGedRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/home': {
       id: '/_app/home'
       path: '/home'
@@ -1155,13 +1083,6 @@ declare module '@tanstack/react-router' {
       path: '/mails'
       fullPath: '/mails'
       preLoaderRoute: typeof AppMailsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/missions': {
-      id: '/_app/missions'
-      path: '/missions'
-      fullPath: '/missions'
-      preLoaderRoute: typeof AppMissionsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/notifications': {
@@ -1409,20 +1330,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppClientsNewRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/dossiers/': {
-      id: '/_app/dossiers/'
-      path: '/'
-      fullPath: '/dossiers/'
-      preLoaderRoute: typeof AppDossiersIndexRouteImport
-      parentRoute: typeof AppDossiersRoute
-    }
-    '/_app/dossiers/$id': {
-      id: '/_app/dossiers/$id'
-      path: '/$id'
-      fullPath: '/dossiers/$id'
-      preLoaderRoute: typeof AppDossiersIdRouteImport
-      parentRoute: typeof AppDossiersRoute
-    }
     '/_app/invoices/': {
       id: '/_app/invoices/'
       path: '/'
@@ -1573,20 +1480,6 @@ declare module '@tanstack/react-router' {
   }
 }
 
-interface AppDossiersRouteChildren {
-  AppDossiersIdRoute: typeof AppDossiersIdRoute
-  AppDossiersIndexRoute: typeof AppDossiersIndexRoute
-}
-
-const AppDossiersRouteChildren: AppDossiersRouteChildren = {
-  AppDossiersIdRoute: AppDossiersIdRoute,
-  AppDossiersIndexRoute: AppDossiersIndexRoute,
-}
-
-const AppDossiersRouteWithChildren = AppDossiersRoute._addFileChildren(
-  AppDossiersRouteChildren,
-)
-
 interface AppInvoicesIdRouteChildren {
   AppInvoicesIdEditRoute: typeof AppInvoicesIdEditRoute
 }
@@ -1667,13 +1560,10 @@ interface AppRouteChildren {
   AppDashboardRoute: typeof AppDashboardRoute
   AppDocumentationRoute: typeof AppDocumentationRoute
   AppDocumentsRoute: typeof AppDocumentsRoute
-  AppDossiersRoute: typeof AppDossiersRouteWithChildren
-  AppGedRoute: typeof AppGedRoute
   AppHomeRoute: typeof AppHomeRoute
   AppInvoicesRoute: typeof AppInvoicesRouteWithChildren
   AppLettreRoute: typeof AppLettreRouteWithChildren
   AppMailsRoute: typeof AppMailsRoute
-  AppMissionsRoute: typeof AppMissionsRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
   AppPolesRoute: typeof AppPolesRoute
   AppProfileRoute: typeof AppProfileRoute
@@ -1697,13 +1587,10 @@ const AppRouteChildren: AppRouteChildren = {
   AppDashboardRoute: AppDashboardRoute,
   AppDocumentationRoute: AppDocumentationRoute,
   AppDocumentsRoute: AppDocumentsRoute,
-  AppDossiersRoute: AppDossiersRouteWithChildren,
-  AppGedRoute: AppGedRoute,
   AppHomeRoute: AppHomeRoute,
   AppInvoicesRoute: AppInvoicesRouteWithChildren,
   AppLettreRoute: AppLettreRouteWithChildren,
   AppMailsRoute: AppMailsRoute,
-  AppMissionsRoute: AppMissionsRoute,
   AppNotificationsRoute: AppNotificationsRoute,
   AppPolesRoute: AppPolesRoute,
   AppProfileRoute: AppProfileRoute,
