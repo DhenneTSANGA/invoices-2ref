@@ -2,7 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { MapPin, Plus, Search, Star } from "lucide-react";
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/common/PageHeader";
-import { CompanyDialog } from "@/components/prospection/CrmForms";
 import {
   CrmCard,
   CrmCardGrid,
@@ -15,6 +14,7 @@ import { SITE_LABELS, managerName } from "@/lib/prospection-demo";
 import { currency, shortDate } from "@/lib/format";
 import { LineBadge } from "@/components/prospection/ProspectionBadges";
 import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
+import { useProspectionCompanies } from "@/hooks/use-prospection-companies";
 
 export const Route = createFileRoute("/prospection/clients/")({
   head: () => ({ meta: [{ title: "Clients — Prospection" }] }),
@@ -22,13 +22,12 @@ export const Route = createFileRoute("/prospection/clients/")({
 });
 
 function CrmClientsPage() {
-  const companies = useProspectionDemoStore((s) => s.companies);
+  const { companies, isLoading } = useProspectionCompanies();
   const contacts = useProspectionDemoStore((s) => s.contacts);
   const opportunities = useProspectionDemoStore((s) => s.opportunities);
   const activities = useProspectionDemoStore((s) => s.activities);
   const [q, setQ] = useState("");
   const [strategic, setStrategic] = useState(false);
-  const [open, setOpen] = useState(false);
 
   const list = useMemo(
     () =>
@@ -45,12 +44,16 @@ function CrmClientsPage() {
     <div>
       <PageHeader
         title="Clients"
-        subtitle="Portefeuille déjà en relation — hors factures."
+        subtitle={
+          isLoading
+            ? "Chargement des clients Facturation…"
+            : `${list.length} client(s) Facturation (Conseil + Expertise) — lecture live.`
+        }
         actions={
-          <button type="button" onClick={() => setOpen(true)} className={CRM_PRIMARY_BTN}>
+          <Link to="/clients/new" className={CRM_PRIMARY_BTN}>
             <Plus className="h-4 w-4" />
-            Nouveau client
-          </button>
+            Créer dans Facturation
+          </Link>
         }
       />
       <div className="glass-panel mb-4 flex flex-wrap items-center gap-2 rounded-2xl p-3">
@@ -135,7 +138,6 @@ function CrmClientsPage() {
           );
         })}
       </CrmCardGrid>
-      <CompanyDialog open={open} onOpenChange={setOpen} kind="client" />
     </div>
   );
 }

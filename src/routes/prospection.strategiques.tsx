@@ -9,6 +9,7 @@ import { LineBadge } from "@/components/prospection/ProspectionBadges";
 import { SERVICE_LINE_LABELS, managerName, type Company } from "@/lib/prospection-demo";
 import { currency } from "@/lib/format";
 import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
+import { useProspectionCompanies } from "@/hooks/use-prospection-companies";
 
 export const Route = createFileRoute("/prospection/strategiques")({
   head: () => ({ meta: [{ title: "Clients stratégiques — Prospection" }] }),
@@ -16,7 +17,7 @@ export const Route = createFileRoute("/prospection/strategiques")({
 });
 
 function StrategicPage() {
-  const companies = useProspectionDemoStore((s) => s.companies);
+  const { companies } = useProspectionCompanies();
   const [query, setQuery] = useState("");
   const list = useMemo(
     () =>

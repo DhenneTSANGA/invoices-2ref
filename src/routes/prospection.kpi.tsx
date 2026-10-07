@@ -14,6 +14,7 @@ import {
 } from "@/lib/prospection-demo";
 import { currency } from "@/lib/format";
 import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
+import { useProspectionCompanies } from "@/hooks/use-prospection-companies";
 
 export const Route = createFileRoute("/prospection/kpi")({
   head: () => ({ meta: [{ title: "KPI — Prospection" }] }),
@@ -22,6 +23,7 @@ export const Route = createFileRoute("/prospection/kpi")({
 
 function KpiPage() {
   const data = useProspectionDemoStore((s) => s);
+  const { companies } = useProspectionCompanies();
   const [managerId, setManagerId] = useState<"all" | string>("all");
   const [line, setLine] = useState<"all" | ServiceLine>("all");
 
@@ -36,8 +38,8 @@ function KpiPage() {
     const expenses = data.expenses.filter(
       (e) => managerId === "all" || e.managerId === managerId,
     );
-    return { ...data, opportunities, activities, expenses };
-  }, [data, managerId, line]);
+    return { ...data, companies, opportunities, activities, expenses };
+  }, [data, companies, managerId, line]);
 
   const k = computeKpis(filtered);
 
@@ -71,7 +73,7 @@ function KpiPage() {
     <div>
       <PageHeader
         title="Rapports & KPI"
-        subtitle="Piloter, pas opérer. Chiffres calculés depuis la démo."
+        subtitle="Piloter, pas opérer. Clients = Facturation ; pipeline & actions = saisie locale."
         actions={
           <button type="button" onClick={exportCsv} className={CRM_PRIMARY_BTN}>
             Exporter CSV

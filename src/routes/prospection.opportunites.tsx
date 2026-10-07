@@ -1,8 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Plus } from "lucide-react";
+import { CheckCircle2, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/common/PageHeader";
-import { LineBadge, StageSelect } from "@/components/prospection/ProspectionBadges";
+import { LineBadge, StageSelect, nextPipelineStage } from "@/components/prospection/ProspectionBadges";
 import { NewOpportunityDialog, StageChangeDialog } from "@/components/prospection/CrmForms";
 import {
   CrmCard,
@@ -13,7 +13,14 @@ import {
   ProbabilityMeter,
   STAGE_ACCENT,
 } from "@/components/prospection/CrmCards";
-import { CRM_PRIMARY_BTN, CrmSearchEmpty, CrmSearchField, FilterChip, matchesSearch } from "@/components/prospection/CrmUi";
+import {
+  CRM_PRIMARY_BTN,
+  CRM_SECONDARY_BTN,
+  CrmSearchEmpty,
+  CrmSearchField,
+  FilterChip,
+  matchesSearch,
+} from "@/components/prospection/CrmUi";
 import {
   SERVICE_LINE_LABELS,
   SOURCE_LABELS,
@@ -26,6 +33,7 @@ import {
 import { currency, shortDate } from "@/lib/format";
 import { readFocusSearch, useSpotlight } from "@/hooks/use-spotlight";
 import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
+import { useProspectionCompanies } from "@/hooks/use-prospection-companies";
 
 export const Route = createFileRoute("/prospection/opportunites")({
   validateSearch: readFocusSearch,
@@ -46,7 +54,7 @@ function OpportunitiesPage() {
       resetScroll: false,
     });
   });
-  const companies = useProspectionDemoStore((s) => s.companies);
+  const { companies } = useProspectionCompanies();
   const opportunities = useProspectionDemoStore((s) => s.opportunities);
   const [stage, setFilter] = useState<"all" | PipelineStage>("all");
   const [query, setQuery] = useState("");
@@ -92,7 +100,7 @@ function OpportunitiesPage() {
     <div>
       <PageHeader
         title="Opportunités"
-        subtitle={`${list.length} affaire(s) · pipeline pondéré ${currency(weighted)} · chaque étape enregistre une activité`}
+        subtitle={`${list.length} affaire(s) · pipeline pondéré ${currency(weighted)} · validez chaque étape avec un commentaire pour avancer`}
         actions={
           <button type="button" onClick={() => setOpen(true)} className={CRM_PRIMARY_BTN}>
             <Plus className="h-4 w-4" />
@@ -126,6 +134,7 @@ function OpportunitiesPage() {
       <CrmCardGrid dense>
         {list.map((o, i) => {
           const co = companies.find((c) => c.id === o.companyId);
+          const next = nextPipelineStage(o.stage);
           return (
             <CrmCard
               key={o.id}
@@ -153,8 +162,35 @@ function OpportunitiesPage() {
                     </div>
                   </div>
                 </button>
-                <div className="self-start sm:self-auto">
-                  <StageSelect value={o.stage} onChange={(next) => applyStage(o.id, next)} />
+                <div className="flex flex-col items-stretch gap-2 self-start sm:items-end sm:self-auto">
+                  <StageSelect value={o.stage} onChange={(n) => applyStage(o.id, n)} />
+                  {next ? (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        applyStage(o.id, next);
+                      }}
+                      className={`${CRM_SECONDARY_BTN} !h-8 !px-3 !text-xs`}
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      {o.stage === "qualification"
+                        ? `Passer en ${STAGE_LABELS[next]}`
+                        : `Valider ${STAGE_LABELS[o.stage]}`}
+                    </button>
+                  ) : o.stage === "decision" ? (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        applyStage(o.id, "gagne");
+                      }}
+                      className={`${CRM_SECONDARY_BTN} !h-8 !px-3 !text-xs`}
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      Valider et gagner
+                    </button>
+                  ) : null}
                 </div>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-2">

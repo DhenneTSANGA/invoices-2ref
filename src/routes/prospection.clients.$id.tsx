@@ -46,6 +46,7 @@ import {
 import { currency, shortDate } from "@/lib/format";
 import { readFocusSearch, useSpotlight } from "@/hooks/use-spotlight";
 import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
+import { useProspectionCompanies } from "@/hooks/use-prospection-companies";
 
 export const Route = createFileRoute("/prospection/clients/$id")({
   validateSearch: readFocusSearch,
@@ -65,7 +66,7 @@ function CrmClientDetailPage() {
       resetScroll: false,
     });
   });
-  const companies = useProspectionDemoStore((s) => s.companies);
+  const { companies } = useProspectionCompanies();
   const contacts = useProspectionDemoStore((s) => s.contacts);
   const opportunities = useProspectionDemoStore((s) => s.opportunities);
   const activities = useProspectionDemoStore((s) => s.activities);
@@ -108,6 +109,19 @@ function CrmClientDetailPage() {
       <Link to="/prospection/clients" className="mb-4 inline-block text-sm text-primary hover:underline">
         Tous les clients
       </Link>
+      {company.fromFacturation ? (
+        <p className="mb-3 rounded-2xl border border-sky-200/80 bg-sky-50 px-3 py-2 text-xs text-sky-950 dark:border-sky-900/40 dark:bg-sky-950/40 dark:text-sky-100">
+          Fiche client Facturation
+          {company.cabinet === "conseil"
+            ? " (2R Conseil)"
+            : company.cabinet === "expertise_fiscale"
+              ? " (2R Expertise)"
+              : ""}
+          {" "}
+          — lecture seule. Les notes CRM / plan de compte / statut stratégique restent dans
+          Prospection et ne modifient pas Facturation.
+        </p>
+      ) : null}
       <PageHeader
         title={company.name}
         subtitle={`${SITE_LABELS[company.site]} · ${managerName(company.managerId)} · CA ${currency(company.caSigned)}`}
@@ -135,8 +149,14 @@ function CrmClientDetailPage() {
               type="button"
               className={CRM_SECONDARY_BTN}
               onClick={() => {
-                updateCompany(id, { strategic: !company.strategic });
-                toast.success(company.strategic ? "Retiré des stratégiques" : "Marqué stratégique");
+                void (async () => {
+                  try {
+                    await updateCompany(id, { strategic: !company.strategic });
+                    toast.success(company.strategic ? "Retiré des stratégiques" : "Marqué stratégique");
+                  } catch (err) {
+                    toast.error(err instanceof Error ? err.message : "Mise à jour impossible");
+                  }
+                })();
               }}
             >
               {company.strategic ? "Retirer stratégique" : "Marquer stratégique"}

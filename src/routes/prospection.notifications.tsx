@@ -31,8 +31,10 @@ function NotificationsPage() {
             type="button"
             className={CRM_PRIMARY_BTN}
             onClick={() => {
-              markAll();
-              toast.success("Tout marqué comme lu");
+              void markAll().then(
+                () => toast.success("Tout marqué comme lu"),
+                (err) => toast.error(err instanceof Error ? err.message : "Mise à jour impossible"),
+              );
             }}
           >
             Tout marquer lu
@@ -49,7 +51,14 @@ function NotificationsPage() {
       </div>
       <CrmCardGrid dense>
         {list.map((n, i) => (
-          <Link key={n.id} to={n.href as "/prospection"} onClick={() => mark(n.id)} className="block h-full">
+          <Link
+            key={n.id}
+            to={n.href as "/prospection"}
+            onClick={() => {
+              void mark(n.id);
+            }}
+            className="block h-full"
+          >
             <CrmCard
               index={i}
               className={cn("h-full", n.read && "opacity-70")}

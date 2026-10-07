@@ -11,7 +11,7 @@ import {
   Shield,
   Sun,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/common/Logo";
@@ -22,6 +22,7 @@ import { signOut } from "@/lib/auth";
 import { sessionKey } from "@/hooks/use-data";
 import { useQueryClient } from "@tanstack/react-query";
 import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
+import { listCrmPipeline } from "@/lib/prospection.functions";
 import {
   Sheet,
   SheetContent,
@@ -33,21 +34,33 @@ import { NavIcon } from "@/components/layout/NavIcon";
 import { PageTransition } from "@/components/common/PageTransition";
 import { isAdmin, isSuperAdmin, roleLabel } from "@/lib/roles";
 import { crmRoleFromStaff } from "@/lib/prospection-access";
-import { crmNavSections, type CrmNavItem } from "@/components/prospection/prospection-nav";
+import {
+  crmNavSections,
+  findCrmHub,
+  isCrmNavActive,
+  type CrmNavItem,
+} from "@/components/prospection/prospection-nav";
+import { CrmHubTabs } from "@/components/prospection/CrmHubTabs";
 
 function selectPathname(s: { location: { pathname: string } }) {
   return s.location.pathname;
 }
 
 export function ProspectionShell({ children }: { children: React.ReactNode }) {
+  const pathname = useRouterState({ select: selectPathname });
+  const { session } = useRouteContext({ from: "/prospection" });
+  const hub = findCrmHub(pathname, crmRoleFromStaff(session.staff.role));
+
   return (
     <div className="flex min-h-screen w-full max-w-[100vw] overflow-x-clip">
       <BrandTheme />
+      <ProspectionPipelineSync />
       <ProspectionSidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <ProspectionTopbar />
         <main className="min-w-0 flex-1 overflow-x-clip px-3 py-5 sm:px-4 sm:py-6 md:px-8">
           <DemoBanner />
+          {hub ? <CrmHubTabs hub={hub} pathname={pathname} /> : null}
           <PageTransition>{children}</PageTransition>
         </main>
       </div>
@@ -55,24 +68,46 @@ export function ProspectionShell({ children }: { children: React.ReactNode }) {
   );
 }
 
+function ProspectionPipelineSync() {
+  const hydratePipeline = useProspectionDemoStore((s) => s.hydratePipeline);
+  useEffect(() => {
+    let cancelled = false;
+    void listCrmPipeline()
+      .then((snapshot) => {
+        if (!cancelled) hydratePipeline(snapshot);
+      })
+      .catch((err) => {
+        console.error(err);
+        toast.error("Impossible de charger le pipeline CRM");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [hydratePipeline]);
+  return null;
+}
+
 function DemoBanner() {
   const reset = useProspectionDemoStore((s) => s.reset);
   return (
-    <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-amber-200/80 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-900/40 dark:bg-amber-950/40 dark:text-amber-100 sm:flex-row sm:items-center sm:justify-between">
+    <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-sky-200/80 bg-sky-50 px-4 py-3 text-sm text-sky-950 dark:border-sky-900/40 dark:bg-sky-950/40 dark:text-sky-100 sm:flex-row sm:items-center sm:justify-between">
       <p>
-        <strong>Espace prospection</strong> — données fictives, hors facturation.
-        Rien n’est enregistré en base.
+        <strong>Espace prospection</strong> — clients lus depuis Facturation (les
+        deux cabinets). Pipeline, budget, objectifs, biblio et notifications sont
+        en base. La Facturation n’est jamais modifiée depuis ici.
       </p>
       <button
         type="button"
         onClick={() => {
-          reset();
-          toast.success("Démo réinitialisée");
+          void reset().then(
+            () => toast.success("Données rechargées depuis la base"),
+            (err) => toast.error(err instanceof Error ? err.message : "Rechargement impossible"),
+          );
         }}
-        className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-amber-300/70 bg-white/70 px-3 py-1.5 text-xs font-medium hover:bg-white dark:border-amber-800 dark:bg-amber-900/50"
+        className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-sky-300/70 bg-white/70 px-3 py-1.5 text-xs font-medium hover:bg-white dark:border-sky-800 dark:bg-sky-950/60"
       >
         <RotateCcw className="h-3.5 w-3.5" />
-        Réinitialiser
+        Recharger
       </button>
     </div>
   );
@@ -282,12 +317,6 @@ function ProspectionTopbar() {
   );
 }
 
-function isNavActive(pathname: string, to: string) {
-  return to === "/prospection"
-    ? pathname === "/prospection"
-    : pathname === to || pathname.startsWith(`${to}/`);
-}
-
 function ProspectionNavLink({
   item,
   pathname,
@@ -299,7 +328,7 @@ function ProspectionNavLink({
   collapsed?: boolean;
   onNavigate?: () => void;
 }) {
-  const active = isNavActive(pathname, item.to);
+  const active = isCrmNavActive(pathname, item);
   return (
     <li>
       <Link

@@ -15,6 +15,7 @@ import {
 } from "@/lib/prospection-demo";
 import { shortDate } from "@/lib/format";
 import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
+import { useProspectionCompanies } from "@/hooks/use-prospection-companies";
 
 export const Route = createFileRoute("/prospection/activites")({
   head: () => ({ meta: [{ title: "Activités — Prospection" }] }),
@@ -22,7 +23,7 @@ export const Route = createFileRoute("/prospection/activites")({
 });
 
 function ActivitiesPage() {
-  const companies = useProspectionDemoStore((s) => s.companies);
+  const { companies } = useProspectionCompanies();
   const activities = useProspectionDemoStore((s) => s.activities);
   const setActivityStatus = useProspectionDemoStore((s) => s.setActivityStatus);
   const [open, setOpen] = useState(false);
@@ -130,8 +131,10 @@ function ActivitiesPage() {
                     type="button"
                     className={CRM_SECONDARY_BTN + " !px-3 !py-1.5 !text-xs"}
                     onClick={() => {
-                      setActivityStatus(a.id, "terminee");
-                      toast.success("Marquée terminée");
+                      void setActivityStatus(a.id, "terminee").then(
+                        () => toast.success("Marquée terminée"),
+                        (err) => toast.error(err instanceof Error ? err.message : "Mise à jour impossible"),
+                      );
                     }}
                   >
                     Terminée
@@ -142,8 +145,10 @@ function ActivitiesPage() {
                     type="button"
                     className={CRM_SECONDARY_BTN + " !px-3 !py-1.5 !text-xs"}
                     onClick={() => {
-                      setActivityStatus(a.id, "annulee");
-                      toast.success("Annulée");
+                      void setActivityStatus(a.id, "annulee").then(
+                        () => toast.success("Annulée"),
+                        (err) => toast.error(err instanceof Error ? err.message : "Mise à jour impossible"),
+                      );
                     }}
                   >
                     Annuler

@@ -3,13 +3,10 @@ import type { LucideIcon } from "lucide-react";
 import {
   CalendarClock,
   CalendarDays,
-  CheckSquare,
   Mail,
   MapPin,
   Phone,
-  RotateCw,
   Sparkles,
-  StickyNote,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
@@ -43,10 +40,7 @@ const KIND_ICON: Record<ActivityKind, LucideIcon> = {
   email: Mail,
   visite: MapPin,
   rdv: CalendarDays,
-  relance: RotateCw,
   evenement: Sparkles,
-  tache: CheckSquare,
-  note: StickyNote,
 };
 
 const KIND_TONE: Record<ActivityKind, string> = {
@@ -54,10 +48,7 @@ const KIND_TONE: Record<ActivityKind, string> = {
   email: "bg-indigo-500/15 text-indigo-700 dark:text-indigo-300",
   visite: "bg-emerald-500/15 text-emerald-800 dark:text-emerald-300",
   rdv: "bg-amber-500/15 text-amber-800 dark:text-amber-300",
-  relance: "bg-orange-500/15 text-orange-800 dark:text-orange-300",
   evenement: "bg-fuchsia-500/15 text-fuchsia-700 dark:text-fuchsia-300",
-  tache: "bg-violet-500/15 text-violet-700 dark:text-violet-300",
-  note: "bg-muted text-muted-foreground",
 };
 
 export function isoToday() {

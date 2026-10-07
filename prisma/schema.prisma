@@ -175,6 +175,7 @@ model StaffMember {
   letterSignatureRequests LetterSignatureRequest[] @relation("LetterSignatureRequester")
   letterSignatureReviews  LetterSignatureRequest[] @relation("LetterSignatureReviewer")
   documentExportJobs      DocumentExportJob[]
+  crmCompanies  CrmCompany[]
 
   @@index([lastName])
   @@index([role])
@@ -268,6 +269,7 @@ model Client {
   exportJobs DocumentExportJob[]
   paymentReminderLogs PaymentReminderLog[]
   createdBy StaffMember? @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  crmCompany CrmCompany?
 
   @@index([cabinet])
   @@index([name])
@@ -628,4 +630,359 @@ model DocumentExportJob {
   @@index([createdById, createdAt])
   @@index([status])
   @@map("document_export_jobs")
+}
+
+// ─── Prospection / CRM (espace séparé de la Facturation) ───────────────────
+
+enum CrmCompanyKind {
+  prospect
+  client
+}
+
+enum CrmSite {
+  libreville
+  port_gentil
+  franceville
+}
+
+enum CrmServiceLine {
+  rh
+  comptabilite
+  conseil
+  fiscalite
+  formation
+}
+
+enum CrmOpportunitySource {
+  nouveau
+  client_existant
+  client_formation
+  piste_interne
+}
+
+enum CrmPipelineStage {
+  qualification
+  premier_contact
+  rendez_vous
+  proposition
+  negotiation
+  decision
+  gagne
+  perdu
+  reporte
+}
+
+enum CrmActivityKind {
+  appel
+  email
+  visite
+  rdv
+  evenement
+}
+
+enum CrmActivityStatus {
+  a_faire
+  planifiee
+  en_cours
+  terminee
+  annulee
+  en_retard
+}
+
+enum CrmLeadStatus {
+  nouvelle
+  en_cours
+  qualifiee
+  convertie
+  rejetee
+  reportee
+}
+
+enum CrmContactInfluence {
+  faible
+  moyen
+  fort
+}
+
+/** Fiche entreprise CRM (prospect local, ou enrichissement d’un client Facturation). */
+model CrmCompany {
+  id             String                @id @default(cuid())
+  /// Lien optionnel vers fiche Facturation (jamais écrit depuis Prospection).
+  clientId       String?               @unique
+  name           String
+  kind           CrmCompanyKind        @default(prospect)
+  sector         String                @default("")
+  size           String                @default("")
+  site           CrmSite               @default(libreville)
+  address        String                @default("")
+  phone          String                @default("")
+  email          String                @default("")
+  website        String                @default("")
+  managerId      String                @default("")
+  servicesBought CrmServiceLine[]      @default([])
+  targetLines    CrmServiceLine[]      @default([])
+  source         CrmOpportunitySource  @default(nouveau)
+  strategic      Boolean               @default(false)
+  caSigned       Decimal               @default(0) @db.Decimal(18, 2)
+  notes          String                @default("")
+  /// Plan de compte stratégique (JSON AccountPlan).
+  plan           Json?
+  createdById    String?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  client        Client?          @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  createdBy     StaffMember?     @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  contacts      CrmContact[]
+  opportunities CrmOpportunity[]
+  activities    CrmActivity[]
+  leads         CrmLead[]
+  expenses      CrmExpense[]
+
+  @@index([name])
+  @@index([kind])
+  @@index([site])
+  @@index([managerId])
+  @@index([createdById])
+  @@map("crm_companies")
+}
+
+model CrmContact {
+  id            String               @id @default(cuid())
+  companyId     String
+  firstName     String
+  lastName      String
+  role          String               @default("")
+  phone         String               @default("")
+  email         String               @default("")
+  decisionMaker Boolean              @default(false)
+  influence     CrmContactInfluence  @default(moyen)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  company CrmCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([lastName])
+  @@map("crm_contacts")
+}
+
+model CrmLead {
+  id          String         @id @default(cuid())
+  companyName String
+  companyId   String?
+  line        CrmServiceLine
+  need        String
+  comment     String         @default("")
+  ownerId     String
+  author      String         @default("")
+  status      CrmLeadStatus  @default(nouvelle)
+  at          DateTime       @default(now())
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  company     CrmCompany?     @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  opportunity CrmOpportunity?
+
+  @@index([status])
+  @@index([ownerId])
+  @@index([companyId])
+  @@index([at])
+  @@map("crm_leads")
+}
+
+model CrmOpportunity {
+  id           String                @id @default(cuid())
+  companyId    String
+  leadId       String?               @unique
+  title        String
+  line         CrmServiceLine
+  source       CrmOpportunitySource
+  stage        CrmPipelineStage      @default(qualification)
+  amount       Decimal               @default(0) @db.Decimal(18, 2)
+  probability  Int                   @default(20)
+  decisionOn   DateTime?             @db.Date
+  nextAction   String                @default("")
+  nextActionOn DateTime?             @db.Date
+  ownerId      String
+  notes        String                @default("")
+  lostReason   String?
+  reviveOn     DateTime?             @db.Date
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+
+  company    CrmCompany    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  lead       CrmLead?      @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  activities CrmActivity[]
+  expenses   CrmExpense[]
+
+  @@index([companyId])
+  @@index([stage])
+  @@index([ownerId])
+  @@index([nextActionOn])
+  @@map("crm_opportunities")
+}
+
+model CrmActivity {
+  id            String            @id @default(cuid())
+  companyId     String
+  opportunityId String?
+  at            DateTime          @db.Date
+  time          String?
+  kind          CrmActivityKind
+  title         String
+  summary       String            @default("")
+  nextAction    String?
+  nextActionOn  DateTime?         @db.Date
+  ownerId       String
+  status        CrmActivityStatus @default(terminee)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  company     CrmCompany      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  opportunity CrmOpportunity? @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  expenses    CrmExpense[]
+
+  @@index([companyId])
+  @@index([opportunityId])
+  @@index([at])
+  @@index([ownerId])
+  @@index([status])
+  @@map("crm_activities")
+}
+
+enum CrmExpenseCategory {
+  evenements
+  relations
+  communication
+  deplacements
+  reserve
+}
+
+enum CrmExpenseApproval {
+  none
+  pending
+  approved
+  rejected
+}
+
+enum CrmObjectiveMetric {
+  qualifies
+  contacts
+  rdv
+  propositions
+  signatures
+}
+
+enum CrmLibraryDomain {
+  rh
+  comptabilite
+  conseil
+  fiscalite
+  formation
+  audit
+  juridique
+}
+
+enum CrmReferentialKind {
+  line
+  stage
+  site
+  expense
+  sector
+}
+
+model CrmExpense {
+  id            String             @id @default(cuid())
+  managerId     String
+  category      CrmExpenseCategory
+  label         String
+  amount        Decimal            @db.Decimal(18, 2)
+  at            DateTime           @db.Date
+  companyId     String?
+  opportunityId String?
+  activityId    String?
+  receipt       Boolean            @default(false)
+  approval      CrmExpenseApproval @default(none)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  company     CrmCompany?     @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  opportunity CrmOpportunity? @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  activity    CrmActivity?    @relation(fields: [activityId], references: [id], onDelete: SetNull)
+
+  @@index([managerId])
+  @@index([at])
+  @@index([approval])
+  @@index([companyId])
+  @@map("crm_expenses")
+}
+
+model CrmObjective {
+  id        String             @id @default(cuid())
+  managerId String
+  metric    CrmObjectiveMetric
+  target    Int                @default(0)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  @@unique([managerId, metric])
+  @@index([managerId])
+  @@map("crm_objectives")
+}
+
+model CrmLibraryItem {
+  id        String           @id @default(cuid())
+  line      CrmLibraryDomain
+  category  String
+  title     String
+  body      String
+  terms     Json?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([line])
+  @@index([category])
+  @@map("crm_library_items")
+}
+
+model CrmReferential {
+  id        String             @id @default(cuid())
+  kind      CrmReferentialKind
+  label     String
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  @@index([kind])
+  @@map("crm_referentials")
+}
+
+model CrmWeekCheck {
+  id        String   @id @default(cuid())
+  /// Clé stable (ex. wk-1) pour le seed / sync.
+  key       String   @unique
+  label     String
+  done      Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sortOrder])
+  @@map("crm_week_checks")
+}
+
+/** Notifications de l’espace Prospection (séparées de celles Facturation). */
+model CrmNotification {
+  id        String   @id @default(cuid())
+  title     String
+  body      String
+  at        DateTime @default(now())
+  href      String   @default("/prospection")
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([read, at])
+  @@index([at])
+  @@map("crm_notifications")
 }

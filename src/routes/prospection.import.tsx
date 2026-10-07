@@ -6,6 +6,7 @@ import { CRM_PRIMARY_BTN, CRM_SECONDARY_BTN } from "@/components/prospection/Crm
 import type { Company, CompanyKind, Site } from "@/lib/prospection-demo";
 import { currency } from "@/lib/format";
 import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
+import { useProspectionCompanies } from "@/hooks/use-prospection-companies";
 
 export const Route = createFileRoute("/prospection/import")({
   head: () => ({ meta: [{ title: "Import / export — Prospection" }] }),
@@ -23,7 +24,7 @@ function parseSite(v: string | undefined): Site {
 }
 
 function ImportPage() {
-  const companies = useProspectionDemoStore((s) => s.companies);
+  const { companies } = useProspectionCompanies();
   const opportunities = useProspectionDemoStore((s) => s.opportunities);
   const importCompanies = useProspectionDemoStore((s) => s.importCompanies);
   const [preview, setPreview] = useState("");
@@ -88,8 +89,16 @@ function ImportPage() {
       toast.error("Aucune ligne valide");
       return;
     }
-    importCompanies(rows);
-    toast.success(`${rows.length} ligne(s) importée(s)${nextErrors.length ? ` · ${nextErrors.length} erreur(s)` : ""}`);
+    void (async () => {
+      try {
+        await importCompanies(rows);
+        toast.success(
+          `${rows.length} ligne(s) importée(s)${nextErrors.length ? ` · ${nextErrors.length} erreur(s)` : ""}`,
+        );
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Import impossible");
+      }
+    })();
   }
 
   return (

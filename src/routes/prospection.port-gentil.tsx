@@ -14,6 +14,7 @@ import { LineBadge, StageBadge } from "@/components/prospection/ProspectionBadge
 import { ACTIVE_STAGES, SERVICE_LINE_LABELS, STAGE_LABELS, managerName, type Company } from "@/lib/prospection-demo";
 import { currency, shortDate } from "@/lib/format";
 import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
+import { useProspectionCompanies } from "@/hooks/use-prospection-companies";
 
 export const Route = createFileRoute("/prospection/port-gentil")({
   head: () => ({ meta: [{ title: "Port-Gentil — Prospection" }] }),
@@ -21,7 +22,7 @@ export const Route = createFileRoute("/prospection/port-gentil")({
 });
 
 function PortGentilPage() {
-  const companies = useProspectionDemoStore((s) => s.companies);
+  const { companies } = useProspectionCompanies();
   const opportunities = useProspectionDemoStore((s) => s.opportunities);
   const activities = useProspectionDemoStore((s) => s.activities);
   const [query, setQuery] = useState("");

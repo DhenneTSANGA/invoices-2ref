@@ -22,6 +22,7 @@ import {
 } from "@/lib/prospection-demo";
 import { currency } from "@/lib/format";
 import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
+import { useProspectionCompanies } from "@/hooks/use-prospection-companies";
 
 export const Route = createFileRoute("/prospection/portefeuille")({
   head: () => ({ meta: [{ title: "Portefeuille — Prospection" }] }),
@@ -29,7 +30,7 @@ export const Route = createFileRoute("/prospection/portefeuille")({
 });
 
 function PortefeuillePage() {
-  const companies = useProspectionDemoStore((s) => s.companies);
+  const { companies } = useProspectionCompanies();
   const [site, setSite] = useState<"all" | Site>("all");
   const [query, setQuery] = useState("");
   const [createOpen, setCreateOpen] = useState(false);

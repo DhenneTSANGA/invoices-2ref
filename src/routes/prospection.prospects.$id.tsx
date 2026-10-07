@@ -47,6 +47,7 @@ import {
 } from "@/lib/prospection-demo";
 import { currency, shortDate } from "@/lib/format";
 import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
+import { useProspectionCompanies } from "@/hooks/use-prospection-companies";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/prospection/prospects/$id")({
@@ -58,12 +59,13 @@ const QUICK_KINDS: { kind: ActivityKind; label: string }[] = [
   { kind: "email", label: "E-mail" },
   { kind: "visite", label: "Visite" },
   { kind: "rdv", label: "Rendez-vous" },
+  { kind: "evenement", label: "Événement" },
 ];
 
 function ProspectDetailPage() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
-  const companies = useProspectionDemoStore((s) => s.companies);
+  const { companies } = useProspectionCompanies();
   const contacts = useProspectionDemoStore((s) => s.contacts);
   const opportunities = useProspectionDemoStore((s) => s.opportunities);
   const activities = useProspectionDemoStore((s) => s.activities);
@@ -111,9 +113,15 @@ function ProspectDetailPage() {
     setActivityOpen(true);
   };
   const convert = () => {
-    convertProspect(id);
-    toast.success("Converti en client");
-    void navigate({ to: "/prospection/clients/$id", params: { id } });
+    void (async () => {
+      try {
+        await convertProspect(id);
+        toast.success("Converti en client");
+        void navigate({ to: "/prospection/clients/$id", params: { id } });
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Conversion impossible");
+      }
+    })();
   };
 
   const steps = [

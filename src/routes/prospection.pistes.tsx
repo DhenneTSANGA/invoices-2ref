@@ -105,8 +105,14 @@ function LeadsPage() {
                     key={st}
                     type="button"
                     onClick={() => {
-                      setLeadStatus(l.id, st);
-                      toast.success(`Statut : ${LEAD_STATUS_LABELS[st]}`);
+                      void (async () => {
+                        try {
+                          await setLeadStatus(l.id, st);
+                          toast.success(`Statut : ${LEAD_STATUS_LABELS[st]}`);
+                        } catch (err) {
+                          toast.error(err instanceof Error ? err.message : "Mise à jour impossible");
+                        }
+                      })();
                     }}
                     className={CRM_SECONDARY_BTN + " !px-3 !py-1.5 !text-xs"}
                   >
@@ -117,9 +123,15 @@ function LeadsPage() {
                   type="button"
                   className={CRM_PRIMARY_BTN + " !px-3 !py-1.5 !text-xs"}
                   onClick={() => {
-                    convertLead(l.id);
-                    toast.success("Convertie en opportunité (Qualification)");
-                    void navigate({ to: "/prospection/opportunites" });
+                    void (async () => {
+                      try {
+                        await convertLead(l.id);
+                        toast.success("Convertie en opportunité (Qualification)");
+                        void navigate({ to: "/prospection/opportunites" });
+                      } catch (err) {
+                        toast.error(err instanceof Error ? err.message : "Conversion impossible");
+                      }
+                    })();
                   }}
                 >
                   Convertir

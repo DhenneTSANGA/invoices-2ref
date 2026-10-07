@@ -2,32 +2,24 @@ import type { LucideIcon } from "lucide-react";
 import type { NavIconMotion } from "@/components/layout/NavIcon";
 import type { CrmRole } from "@/lib/prospection-access";
 import {
-  BarChart3,
-  Bell,
   BookOpen,
   Building2,
-  CalendarDays,
-  Landmark,
   LayoutDashboard,
   ListChecks,
-  MapPin,
-  Megaphone,
   Settings,
-  Star,
   Target,
-  Upload,
   Users,
-  Wallet,
+  BarChart3,
 } from "lucide-react";
 
-export type CrmNavGroupId =
-  | "today"
-  | "captation"
-  | "pipeline"
-  | "actions"
-  | "portefeuille"
-  | "pilotage"
-  | "settings";
+export type CrmNavGroupId = "main" | "settings";
+
+export type CrmHubTab = {
+  to: string;
+  label: string;
+  /** Préfixes d’URL qui activent cet onglet (détails inclus). */
+  match?: string[];
+};
 
 export type CrmNavItem = {
   to: string;
@@ -36,51 +28,55 @@ export type CrmNavItem = {
   iconMotion?: NavIconMotion;
   roles: CrmRole[];
   group: CrmNavGroupId;
+  /** URLs qui gardent cet item actif dans la sidebar. */
+  matchPaths?: string[];
+  /** Onglets du hub (contenu regroupé). */
+  tabs?: CrmHubTab[];
 };
 
-/** Ordre du cycle commercial (cahier : captation → pipeline → actions → portefeuille). */
 export const CRM_NAV_GROUPS: { id: CrmNavGroupId; label: string }[] = [
-  { id: "today", label: "Aujourd’hui" },
-  { id: "captation", label: "1. Captation" },
-  { id: "pipeline", label: "2. Pipeline" },
-  { id: "actions", label: "3. Actions" },
-  { id: "portefeuille", label: "4. Portefeuille" },
-  { id: "pilotage", label: "5. Pilotage" },
+  { id: "main", label: "Espace" },
   { id: "settings", label: "Réglages" },
 ];
 
+/**
+ * Menu simplifié (~7 entrées).
+ * Le contenu des anciennes pages reste accessible via onglets.
+ */
 export const CRM_NAV: CrmNavItem[] = [
   {
     to: "/prospection",
-    label: "Dashboard",
+    label: "Aujourd’hui",
     icon: LayoutDashboard,
     iconMotion: "bounce",
     roles: ["manager", "direction", "chef_service", "collaborateur", "admin"],
-    group: "today",
+    group: "main",
   },
   {
     to: "/prospection/pistes",
-    label: "Pistes internes",
-    icon: Megaphone,
-    iconMotion: "wiggle",
-    roles: ["manager", "direction", "chef_service", "collaborateur", "admin"],
-    group: "captation",
-  },
-  {
-    to: "/prospection/prospects",
-    label: "Prospects",
+    label: "Captation",
     icon: Users,
     iconMotion: "pulse",
-    roles: ["manager", "direction", "admin"],
-    group: "captation",
+    roles: ["manager", "direction", "chef_service", "collaborateur", "admin"],
+    group: "main",
+    matchPaths: ["/prospection/pistes", "/prospection/prospects"],
+    tabs: [
+      { to: "/prospection/pistes", label: "Pistes internes" },
+      {
+        to: "/prospection/prospects",
+        label: "Prospects",
+        match: ["/prospection/prospects"],
+      },
+    ],
   },
   {
     to: "/prospection/opportunites",
-    label: "Opportunités",
+    label: "Pipeline",
     icon: Target,
     iconMotion: "bounce",
     roles: ["manager", "direction", "chef_service", "admin"],
-    group: "pipeline",
+    group: "main",
+    matchPaths: ["/prospection/opportunites", "/prospection/pipeline"],
   },
   {
     to: "/prospection/activites",
@@ -88,15 +84,12 @@ export const CRM_NAV: CrmNavItem[] = [
     icon: ListChecks,
     iconMotion: "pulse",
     roles: ["manager", "direction", "admin"],
-    group: "actions",
-  },
-  {
-    to: "/prospection/agenda",
-    label: "Agenda",
-    icon: CalendarDays,
-    iconMotion: "lift",
-    roles: ["manager", "direction", "admin"],
-    group: "actions",
+    group: "main",
+    matchPaths: ["/prospection/activites", "/prospection/agenda", "/prospection/actions"],
+    tabs: [
+      { to: "/prospection/activites", label: "Liste" },
+      { to: "/prospection/agenda", label: "Agenda" },
+    ],
   },
   {
     to: "/prospection/bibliotheque",
@@ -104,92 +97,124 @@ export const CRM_NAV: CrmNavItem[] = [
     icon: BookOpen,
     iconMotion: "tilt",
     roles: ["manager", "direction", "chef_service", "collaborateur", "admin"],
-    group: "actions",
+    group: "main",
   },
   {
     to: "/prospection/clients",
-    label: "Clients",
+    label: "Portefeuille",
     icon: Building2,
     iconMotion: "tilt",
     roles: ["manager", "direction", "chef_service", "admin"],
-    group: "portefeuille",
-  },
-  {
-    to: "/prospection/portefeuille",
-    label: "Portefeuille",
-    icon: Landmark,
-    iconMotion: "lift",
-    roles: ["manager", "direction", "admin"],
-    group: "portefeuille",
-  },
-  {
-    to: "/prospection/strategiques",
-    label: "Clients stratégiques",
-    icon: Star,
-    iconMotion: "bounce",
-    roles: ["manager", "direction", "admin"],
-    group: "portefeuille",
-  },
-  {
-    to: "/prospection/port-gentil",
-    label: "Port-Gentil",
-    icon: MapPin,
-    iconMotion: "tilt",
-    roles: ["direction", "admin"],
-    group: "portefeuille",
-  },
-  {
-    to: "/prospection/objectifs",
-    label: "Objectifs",
-    icon: Target,
-    iconMotion: "pulse",
-    roles: ["manager", "direction", "admin"],
-    group: "pilotage",
-  },
-  {
-    to: "/prospection/budget",
-    label: "Dépenses & budget",
-    icon: Wallet,
-    iconMotion: "bounce",
-    roles: ["manager", "direction", "admin"],
-    group: "pilotage",
+    group: "main",
+    matchPaths: [
+      "/prospection/clients",
+      "/prospection/portefeuille",
+      "/prospection/strategiques",
+      "/prospection/port-gentil",
+    ],
+    tabs: [
+      {
+        to: "/prospection/clients",
+        label: "Clients",
+        match: ["/prospection/clients"],
+      },
+      { to: "/prospection/portefeuille", label: "Vue portefeuille" },
+      { to: "/prospection/strategiques", label: "Stratégiques" },
+      {
+        to: "/prospection/port-gentil",
+        label: "Port-Gentil",
+        match: ["/prospection/port-gentil"],
+      },
+    ],
   },
   {
     to: "/prospection/kpi",
-    label: "Rapports & KPI",
+    label: "Pilotage",
     icon: BarChart3,
     iconMotion: "lift",
-    roles: ["direction", "admin", "manager"],
-    group: "pilotage",
-  },
-  {
-    to: "/prospection/notifications",
-    label: "Notifications",
-    icon: Bell,
-    iconMotion: "ring",
-    roles: ["manager", "direction", "collaborateur", "admin"],
-    group: "pilotage",
-  },
-  {
-    to: "/prospection/import",
-    label: "Import / export",
-    icon: Upload,
-    iconMotion: "lift",
-    roles: ["manager", "direction", "admin"],
-    group: "settings",
+    roles: ["direction", "admin", "manager", "collaborateur"],
+    group: "main",
+    matchPaths: [
+      "/prospection/kpi",
+      "/prospection/objectifs",
+      "/prospection/budget",
+      "/prospection/notifications",
+    ],
+    tabs: [
+      { to: "/prospection/kpi", label: "KPI" },
+      { to: "/prospection/objectifs", label: "Objectifs" },
+      { to: "/prospection/budget", label: "Budget" },
+      { to: "/prospection/notifications", label: "Notifications" },
+    ],
   },
   {
     to: "/prospection/admin",
-    label: "Administration",
+    label: "Réglages",
     icon: Settings,
     iconMotion: "spin",
-    roles: ["direction", "admin"],
+    roles: ["direction", "admin", "manager"],
     group: "settings",
+    matchPaths: ["/prospection/admin", "/prospection/import"],
+    tabs: [
+      {
+        to: "/prospection/admin",
+        label: "Administration",
+        match: ["/prospection/admin"],
+      },
+      {
+        to: "/prospection/import",
+        label: "Import / export",
+        match: ["/prospection/import"],
+      },
+    ],
   },
 ];
 
 export function crmNavFor(role: CrmRole) {
-  return CRM_NAV.filter((i) => i.roles.includes(role));
+  return CRM_NAV.filter((i) => i.roles.includes(role)).map((item) => {
+    if (!item.tabs) return item;
+
+    if (item.to === "/prospection/pistes") {
+      if (role === "chef_service" || role === "collaborateur") {
+        const tabs = item.tabs.filter((t) => t.to === "/prospection/pistes");
+        return { ...item, tabs, matchPaths: ["/prospection/pistes"] };
+      }
+      return item;
+    }
+
+    if (item.to === "/prospection/clients") {
+      let tabs = item.tabs;
+      if (role === "chef_service") {
+        tabs = tabs.filter((t) => t.to === "/prospection/clients");
+      } else if (role !== "direction" && role !== "admin") {
+        tabs = tabs.filter((t) => t.to !== "/prospection/port-gentil");
+      }
+      return { ...item, tabs, matchPaths: tabs.map((t) => t.to) };
+    }
+
+    if (item.to === "/prospection/kpi") {
+      if (role === "collaborateur") {
+        return {
+          ...item,
+          to: "/prospection/notifications",
+          tabs: item.tabs.filter((t) => t.to === "/prospection/notifications"),
+          matchPaths: ["/prospection/notifications"],
+        };
+      }
+      return item;
+    }
+
+    if (item.to === "/prospection/admin" && role === "manager") {
+      return {
+        ...item,
+        to: "/prospection/import",
+        tabs: item.tabs.filter((t) => t.to === "/prospection/import"),
+        matchPaths: ["/prospection/import"],
+      };
+    }
+
+    return item;
+  });
 }
 
 export function crmNavSections(role: CrmRole) {
@@ -198,4 +223,29 @@ export function crmNavSections(role: CrmRole) {
     ...group,
     items: items.filter((item) => item.group === group.id),
   })).filter((group) => group.items.length > 0);
+}
+
+export function findCrmHub(pathname: string, role: CrmRole): CrmNavItem | null {
+  const items = crmNavFor(role);
+  for (const item of items) {
+    if (!item.tabs?.length) continue;
+    const paths = item.matchPaths ?? [item.to];
+    if (paths.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
+      return item;
+    }
+  }
+  return null;
+}
+
+export function isCrmNavActive(pathname: string, item: CrmNavItem) {
+  const paths = item.matchPaths ?? [item.to];
+  return paths.some((to) => {
+    if (to === "/prospection") return pathname === "/prospection" || pathname === "/prospection/";
+    return pathname === to || pathname.startsWith(`${to}/`);
+  });
+}
+
+export function isCrmTabActive(pathname: string, tab: CrmHubTab) {
+  const paths = tab.match ?? [tab.to];
+  return paths.some((to) => pathname === to || pathname.startsWith(`${to}/`));
 }

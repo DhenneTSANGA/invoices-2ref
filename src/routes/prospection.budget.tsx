@@ -29,6 +29,7 @@ import { readFocusSearch, useSpotlight } from "@/hooks/use-spotlight";
 import { cn } from "@/lib/utils";
 import { canApproveExpenses, crmRoleFromStaff } from "@/lib/prospection-access";
 import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
+import { useProspectionCompanies } from "@/hooks/use-prospection-companies";
 
 export const Route = createFileRoute("/prospection/budget")({
   validateSearch: readFocusSearch,
@@ -58,7 +59,7 @@ function BudgetPage() {
   const crm = crmRoleFromStaff(session.staff.role);
   const canApprove = canApproveExpenses(crm);
   const expenses = useProspectionDemoStore((s) => s.expenses);
-  const companies = useProspectionDemoStore((s) => s.companies);
+  const { companies } = useProspectionCompanies();
   const setExpenseApproval = useProspectionDemoStore((s) => s.setExpenseApproval);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -146,8 +147,10 @@ function BudgetPage() {
                     type="button"
                     className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white"
                     onClick={() => {
-                      setExpenseApproval(e.id, "approved");
-                      toast.success("Dépense validée");
+                      void setExpenseApproval(e.id, "approved").then(
+                        () => toast.success("Dépense validée"),
+                        (err) => toast.error(err instanceof Error ? err.message : "Validation impossible"),
+                      );
                     }}
                   >
                     Valider
@@ -156,8 +159,10 @@ function BudgetPage() {
                     type="button"
                     className="rounded-xl bg-danger px-3 py-2 text-xs font-semibold text-white"
                     onClick={() => {
-                      setExpenseApproval(e.id, "rejected");
-                      toast.success("Dépense refusée");
+                      void setExpenseApproval(e.id, "rejected").then(
+                        () => toast.success("Dépense refusée"),
+                        (err) => toast.error(err instanceof Error ? err.message : "Validation impossible"),
+                      );
                     }}
                   >
                     Refuser

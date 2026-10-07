@@ -240,6 +240,23 @@ export const listClients = createServerFn({ method: "GET" })
     );
   });
 
+/**
+ * Pont Prospection → Facturation (lecture seule).
+ * Renvoie les clients des deux cabinets ; la Prospection n’écrit jamais ces fiches.
+ */
+export const listClientsForProspection = createServerFn({ method: "GET" }).handler(
+  async () => {
+    await requireSession();
+    const rows = await prisma.client.findMany({
+      where: { isTransient: false },
+      orderBy: [{ cabinet: "asc" }, { name: "asc" }],
+    });
+    const mapped = rows.map(mapClient);
+    const poles = await loadClientPoles(mapped.map((c) => c.id));
+    return mapped.map((c) => withClientPole(c, poles));
+  },
+);
+
 export const getClient = createServerFn({ method: "GET" })
   .validator(z.object({ id: z.string() }))
   .handler(async ({ data }) => {

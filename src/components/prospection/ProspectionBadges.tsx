@@ -62,6 +62,13 @@ const PIPELINE_STAGES: PipelineStage[] = [
 ];
 const OUTCOME_STAGES: PipelineStage[] = ["gagne", "perdu", "reporte"];
 
+/** Étape suivante logique dans le pipeline (hors issue gagnée/perdue/reportée). */
+export function nextPipelineStage(current: PipelineStage): PipelineStage | null {
+  const i = PIPELINE_STAGES.indexOf(current);
+  if (i < 0 || i >= PIPELINE_STAGES.length - 1) return null;
+  return PIPELINE_STAGES[i + 1] ?? null;
+}
+
 export function StageSelect({
   value,
   onChange,
@@ -69,6 +76,8 @@ export function StageSelect({
   value: PipelineStage;
   onChange: (stage: PipelineStage) => void;
 }) {
+  const suggested = nextPipelineStage(value);
+
   return (
     <div
       className="shrink-0"
@@ -77,7 +86,8 @@ export function StageSelect({
     >
       <SelectPrimitive.Root value={value} onValueChange={(next) => onChange(next as PipelineStage)}>
         <SelectPrimitive.Trigger
-          aria-label="Étape de l’opportunité"
+          aria-label={`Étape actuelle : ${STAGE_LABELS[value]}. Valider pour avancer ou clôturer.`}
+          title="Étape actuelle — validez pour avancer, ou clôturez"
           className={cn(
             "group inline-flex cursor-pointer items-center gap-1 rounded-full px-2.5 py-1.5 text-xs font-semibold outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-primary/40 data-[state=open]:ring-2 data-[state=open]:ring-primary/30",
             STAGE_CLASS[value],
@@ -91,15 +101,26 @@ export function StageSelect({
             position="popper"
             sideOffset={8}
             align="end"
-            className="z-[80] min-w-[240px] overflow-hidden rounded-2xl border border-border/70 bg-popover/95 p-1.5 text-popover-foreground shadow-float backdrop-blur-xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
+            className="z-[80] min-w-[280px] overflow-hidden rounded-2xl border border-border/70 bg-popover/95 p-1.5 text-popover-foreground shadow-float backdrop-blur-xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
           >
+            <div className="px-2.5 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Valider et avancer vers…
+            </div>
             <SelectPrimitive.Viewport className="flex flex-col gap-0.5">
               {PIPELINE_STAGES.map((st) => (
-                <StageOption key={st} stage={st} />
+                <StageOption
+                  key={st}
+                  stage={st}
+                  current={value}
+                  suggested={suggested === st}
+                />
               ))}
               <SelectPrimitive.Separator className="mx-1 my-1.5 h-px bg-border/70" />
+              <div className="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Clôturer
+              </div>
               {OUTCOME_STAGES.map((st) => (
-                <StageOption key={st} stage={st} />
+                <StageOption key={st} stage={st} current={value} />
               ))}
             </SelectPrimitive.Viewport>
           </SelectPrimitive.Content>
@@ -109,19 +130,43 @@ export function StageSelect({
   );
 }
 
-function StageOption({ stage }: { stage: PipelineStage }) {
+function StageOption({
+  stage,
+  current,
+  suggested,
+}: {
+  stage: PipelineStage;
+  current: PipelineStage;
+  suggested?: boolean;
+}) {
+  const isCurrent = stage === current;
   return (
     <SelectPrimitive.Item
       value={stage}
-      className="flex cursor-pointer items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm outline-none data-[highlighted]:bg-muted/80 data-[state=checked]:bg-muted/55"
+      disabled={isCurrent}
+      className={cn(
+        "flex cursor-pointer items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm outline-none data-[highlighted]:bg-muted/80 data-[disabled]:cursor-default data-[disabled]:opacity-100",
+        suggested && "bg-primary/8 ring-1 ring-inset ring-primary/25",
+        isCurrent && "bg-muted/40",
+      )}
     >
       <span className={cn("h-2 w-2 shrink-0 rounded-full", STAGE_DOT[stage])} />
       <SelectPrimitive.ItemText className="flex-1 font-medium">
         {STAGE_LABELS[stage]}
       </SelectPrimitive.ItemText>
-      <SelectPrimitive.ItemIndicator className="ml-auto text-primary">
-        <Check className="h-3.5 w-3.5" />
-      </SelectPrimitive.ItemIndicator>
+      {isCurrent ? (
+        <span className="ml-auto text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+          À valider
+        </span>
+      ) : suggested ? (
+        <span className="ml-auto text-[10px] font-semibold uppercase tracking-wide text-primary">
+          Suivante
+        </span>
+      ) : (
+        <SelectPrimitive.ItemIndicator className="ml-auto text-primary">
+          <Check className="h-3.5 w-3.5" />
+        </SelectPrimitive.ItemIndicator>
+      )}
     </SelectPrimitive.Item>
   );
 }

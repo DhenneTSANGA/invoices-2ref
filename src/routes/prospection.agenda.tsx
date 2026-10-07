@@ -9,6 +9,7 @@ import { CrmCard, CrmCardGrid, DateTile, KindMark } from "@/components/prospecti
 import { CRM_PRIMARY_BTN, CRM_SECONDARY_BTN, CrmSearchEmpty, CrmSearchField, FilterChip, matchesSearch } from "@/components/prospection/CrmUi";
 import { ACTIVITY_LABELS, managerName } from "@/lib/prospection-demo";
 import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
+import { useProspectionCompanies } from "@/hooks/use-prospection-companies";
 
 export const Route = createFileRoute("/prospection/agenda")({
   head: () => ({ meta: [{ title: "Agenda — Prospection" }] }),
@@ -16,7 +17,7 @@ export const Route = createFileRoute("/prospection/agenda")({
 });
 
 function AgendaPage() {
-  const companies = useProspectionDemoStore((s) => s.companies);
+  const { companies } = useProspectionCompanies();
   const activities = useProspectionDemoStore((s) => s.activities);
   const setActivityStatus = useProspectionDemoStore((s) => s.setActivityStatus);
   const [view, setView] = useState<"jour" | "semaine" | "mois">("semaine");
@@ -31,7 +32,8 @@ function AgendaPage() {
             a.kind === "rdv" ||
             a.kind === "visite" ||
             a.kind === "evenement" ||
-            a.kind === "tache" ||
+            a.kind === "appel" ||
+            a.kind === "email" ||
             a.status === "planifiee" ||
             a.status === "a_faire",
         )
@@ -118,8 +120,10 @@ function AgendaPage() {
                       type="button"
                       className={CRM_SECONDARY_BTN + " !px-3 !py-1.5 !text-xs"}
                       onClick={() => {
-                        setActivityStatus(a.id, "terminee");
-                        toast.success("Marqué fait");
+                        void setActivityStatus(a.id, "terminee").then(
+                          () => toast.success("Marqué fait"),
+                          (err) => toast.error(err instanceof Error ? err.message : "Mise à jour impossible"),
+                        );
                       }}
                     >
                       Fait
@@ -128,8 +132,10 @@ function AgendaPage() {
                       type="button"
                       className={CRM_SECONDARY_BTN + " !px-3 !py-1.5 !text-xs"}
                       onClick={() => {
-                        setActivityStatus(a.id, "annulee");
-                        toast.success("Annulé");
+                        void setActivityStatus(a.id, "annulee").then(
+                          () => toast.success("Annulé"),
+                          (err) => toast.error(err instanceof Error ? err.message : "Mise à jour impossible"),
+                        );
                       }}
                     >
                       Annuler

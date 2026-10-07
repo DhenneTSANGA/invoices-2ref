@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useRouteContext } from "@tanstack/react-router";
 import { useState } from "react";
+import { toast } from "sonner";
 import {
   AlertTriangle,
   CalendarDays,
@@ -39,6 +40,7 @@ import {
 import { currency, shortDate } from "@/lib/format";
 import { crmRoleFromStaff } from "@/lib/prospection-access";
 import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
+import { useProspectionCompanies } from "@/hooks/use-prospection-companies";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/prospection/")({
@@ -55,10 +57,11 @@ function ProspectionHomePage() {
   const { session } = useRouteContext({ from: "/prospection" });
   const crm = crmRoleFromStaff(session.staff.role);
   const data = useProspectionDemoStore((s) => s);
+  const { companies } = useProspectionCompanies();
   const toggleWeekCheck = useProspectionDemoStore((s) => s.toggleWeekCheck);
-  const kpis = computeKpis(data);
+  const kpis = computeKpis({ ...data, companies });
   const first = session.staff.firstName || "Collaborateur";
-  const pg = data.companies.filter((c) => c.site === "port_gentil" && c.strategic);
+  const pg = companies.filter((c) => c.site === "port_gentil" && c.strategic);
   const weekDone = data.activities.filter((a) => a.status === "terminee").length;
   const weekTodo = data.activities.filter(
     (a) => a.status === "a_faire" || a.status === "planifiee",
@@ -169,7 +172,7 @@ function ProspectionHomePage() {
           </div>
           <ul className="mt-4 space-y-2">
             {kpis.overdueActions.slice(0, 4).map((o) => {
-              const co = data.companies.find((c) => c.id === o.companyId);
+              const co = companies.find((c) => c.id === o.companyId);
               return (
                 <li key={o.id}>
                   <Link
@@ -263,7 +266,11 @@ function ProspectionHomePage() {
                   <input
                     type="checkbox"
                     checked={item.done}
-                    onChange={() => toggleWeekCheck(item.id)}
+                    onChange={() => {
+                      void toggleWeekCheck(item.id).catch((err) =>
+                        toast.error(err instanceof Error ? err.message : "Mise à jour impossible"),
+                      );
+                    }}
                     className="sr-only"
                   />
                   <span className={cn("leading-snug", item.done && "line-through")}>{item.label}</span>

@@ -1,7 +1,6 @@
 import { useSyncExternalStore } from "react";
 import {
   STAGE_PROBABILITY,
-  STAGE_LABELS,
   createProspectionDemoSeed,
   isoDate,
   type AccountPlan,
@@ -16,24 +15,53 @@ import {
   type LibraryItem,
   type Opportunity,
   type PipelineStage,
+  type ClientCrmOverlay,
   type ProspectionData,
   type ReferentialExtra,
   type ReferentialKind,
-  type ServiceLine,
 } from "@/lib/prospection-demo";
+import type { CrmPipelineSnapshot } from "@/lib/prospection-db";
+import {
+  advanceCrmOpportunity,
+  convertCrmLead,
+  convertCrmProspect,
+  createCrmContact,
+  createCrmExpense,
+  createCrmLibraryItem,
+  createCrmReferential,
+  importCrmCompanies,
+  listCrmPipeline,
+  markAllCrmNotificationsRead,
+  markCrmNotificationRead,
+  setCrmAccountPlan,
+  setCrmActivityStatus,
+  setCrmClientOverlay,
+  setCrmExpenseApproval,
+  setCrmLeadStatus,
+  setCrmObjectiveTarget,
+  toggleCrmWeekCheck,
+  updateCrmCompany,
+  upsertCrmActivity,
+  upsertCrmCompany,
+  upsertCrmLead,
+  upsertCrmOpportunity,
+} from "@/lib/prospection.functions";
 
 type Actions = {
-  upsertCompany: (company: Company) => void;
-  updateCompany: (id: string, patch: Partial<Company>) => void;
-  convertProspect: (id: string) => void;
-  addContact: (row: Omit<Contact, "id">) => void;
-  addOpportunity: (row: Omit<Opportunity, "id">) => string;
-  updateOpportunity: (id: string, patch: Partial<Opportunity>) => void;
+  hydratePipeline: (snapshot: CrmPipelineSnapshot) => void;
+  reloadPipeline: () => Promise<void>;
+  upsertCompany: (company: Company) => Promise<Company>;
+  updateCompany: (id: string, patch: Partial<Company>) => Promise<void>;
+  setClientOverlay: (id: string, patch: ClientCrmOverlay) => Promise<void>;
+  convertProspect: (id: string) => Promise<void>;
+  addContact: (row: Omit<Contact, "id">) => Promise<void>;
+  addOpportunity: (row: Omit<Opportunity, "id">) => Promise<string>;
+  updateOpportunity: (id: string, patch: Partial<Opportunity>) => Promise<void>;
   setStage: (
     id: string,
     stage: PipelineStage,
     extra?: { lostReason?: string; reviveOn?: string; nextAction?: string; nextActionOn?: string },
-  ) => void;
+  ) => Promise<void>;
   advanceStage: (
     id: string,
     stage: PipelineStage,
@@ -46,30 +74,31 @@ type Actions = {
       lostReason?: string;
       reviveOn?: string;
     },
-  ) => void;
-  addActivity: (row: Omit<Activity, "id">) => void;
-  updateActivity: (id: string, patch: Partial<Activity>) => void;
-  setActivityStatus: (id: string, status: ActivityStatus) => void;
-  addLead: (row: Omit<Lead, "id" | "at" | "status"> & { status?: LeadStatus }) => void;
-  setLeadStatus: (id: string, status: LeadStatus) => void;
-  updateLead: (id: string, patch: Partial<Lead>) => void;
-  convertLead: (id: string) => void;
-  addExpense: (row: Omit<Expense, "id" | "approval">) => void;
-  setExpenseApproval: (id: string, approval: Expense["approval"]) => void;
-  markNotificationRead: (id: string) => void;
-  markAllNotificationsRead: () => void;
-  importCompanies: (rows: Company[]) => void;
-  setObjectiveTarget: (id: string, target: number) => void;
-  addLibraryItem: (row: Omit<LibraryItem, "id">) => void;
-  addReferential: (kind: ReferentialKind, label: string) => void;
-  setAccountPlan: (companyId: string, plan: AccountPlan) => void;
-  toggleWeekCheck: (id: string) => void;
-  reset: () => void;
+  ) => Promise<void>;
+  addActivity: (row: Omit<Activity, "id">) => Promise<void>;
+  updateActivity: (id: string, patch: Partial<Activity>) => Promise<void>;
+  setActivityStatus: (id: string, status: ActivityStatus) => Promise<void>;
+  addLead: (row: Omit<Lead, "id" | "at" | "status"> & { status?: LeadStatus }) => Promise<void>;
+  setLeadStatus: (id: string, status: LeadStatus) => Promise<void>;
+  updateLead: (id: string, patch: Partial<Lead>) => Promise<void>;
+  convertLead: (id: string) => Promise<void>;
+  addExpense: (row: Omit<Expense, "id" | "approval">) => Promise<void>;
+  setExpenseApproval: (id: string, approval: Expense["approval"]) => Promise<void>;
+  markNotificationRead: (id: string) => Promise<void>;
+  markAllNotificationsRead: () => Promise<void>;
+  importCompanies: (rows: Company[]) => Promise<void>;
+  setObjectiveTarget: (id: string, target: number) => Promise<void>;
+  addLibraryItem: (row: Omit<LibraryItem, "id">) => Promise<void>;
+  addReferential: (kind: ReferentialKind, label: string) => Promise<void>;
+  setAccountPlan: (companyId: string, plan: AccountPlan) => Promise<void>;
+  toggleWeekCheck: (id: string) => Promise<void>;
+  reset: () => Promise<void>;
 };
 
 type Store = ProspectionData & Actions;
 
 let data: ProspectionData = createProspectionDemoSeed();
+let pipelineReady = false;
 const listeners = new Set<() => void>();
 function emit() {
   listeners.forEach((l) => l());
@@ -87,19 +116,24 @@ function nid(prefix: string) {
   return `${prefix}-${seq++}`;
 }
 
-function withWonContract(companies: Company[], opportunity: Opportunity, nextStage: PipelineStage) {
-  if (nextStage !== "gagne" || opportunity.stage === "gagne") return companies;
-  return companies.map((c) => {
-    if (c.id !== opportunity.companyId) return c;
-    const servicesBought = c.servicesBought.includes(opportunity.line)
-      ? c.servicesBought
-      : [...c.servicesBought, opportunity.line];
-    return {
-      ...c,
-      caSigned: c.caSigned + opportunity.amount,
-      servicesBought,
-    };
-  });
+function applyPipelineSnapshot(snapshot: CrmPipelineSnapshot) {
+  data = {
+    ...data,
+    companies: snapshot.companies,
+    clientOverlays: snapshot.clientOverlays,
+    contacts: snapshot.contacts,
+    opportunities: snapshot.opportunities,
+    activities: snapshot.activities,
+    leads: snapshot.leads,
+    expenses: snapshot.expenses,
+    objectives: snapshot.objectives,
+    notifications: snapshot.notifications,
+    libraryItems: snapshot.libraryItems,
+    referentials: snapshot.referentials,
+    weekChecks: snapshot.weekChecks,
+  };
+  pipelineReady = true;
+  emit();
 }
 
 function notify(title: string, body: string, href: string) {
@@ -114,328 +148,314 @@ function notify(title: string, body: string, href: string) {
 }
 
 const actions: Actions = {
-  upsertCompany: (company) => {
-    const i = data.companies.findIndex((c) => c.id === company.id);
-    const companies = [...data.companies];
-    if (i >= 0) companies[i] = company;
-    else companies.unshift(company);
-    data = { ...data, companies };
-    emit();
+  hydratePipeline: (snapshot) => {
+    applyPipelineSnapshot(snapshot);
   },
-  updateCompany: (id, patch) => {
-    data = {
-      ...data,
-      companies: data.companies.map((c) => (c.id === id ? { ...c, ...patch } : c)),
-    };
-    emit();
+  reloadPipeline: async () => {
+    const snapshot = await listCrmPipeline();
+    applyPipelineSnapshot(snapshot);
   },
-  convertProspect: (id) => {
-    const company = data.companies.find((c) => c.id === id);
-    if (!company) return;
-    data = {
-      ...data,
-      companies: data.companies.map((c) =>
-        c.id === id
-          ? {
-              ...c,
-              kind: "client" as const,
-              source: c.source === "nouveau" ? "client_existant" : c.source,
-              servicesBought: c.servicesBought.length ? c.servicesBought : c.targetLines.slice(0, 1),
-            }
-          : c,
-      ),
-      notifications: [
-        notify("Prospect converti", `${company.name} est désormais un client.`, "/prospection/clients"),
-        ...data.notifications,
-      ],
-    };
-    emit();
-  },
-  addContact: (row) => {
-    data = { ...data, contacts: [{ ...row, id: nid("ct") }, ...data.contacts] };
-    emit();
-  },
-  addOpportunity: (row) => {
-    const id = nid("op");
-    data = { ...data, opportunities: [{ ...row, id }, ...data.opportunities] };
-    emit();
-    return id;
-  },
-  updateOpportunity: (id, patch) => {
-    data = {
-      ...data,
-      opportunities: data.opportunities.map((o) => (o.id === id ? { ...o, ...patch } : o)),
-    };
-    emit();
-  },
-  setStage: (id, stage, extra) => {
-    data = {
-      ...data,
-      opportunities: data.opportunities.map((o) =>
-        o.id === id
-          ? {
-              ...o,
-              stage,
-              probability: STAGE_PROBABILITY[stage] ?? o.probability,
-              lostReason: extra?.lostReason ?? o.lostReason,
-              reviveOn: extra?.reviveOn ?? o.reviveOn,
-              nextAction: extra?.nextAction ?? o.nextAction,
-              nextActionOn: extra?.nextActionOn ?? o.nextActionOn,
-            }
-          : o,
-      ),
-    };
-    emit();
-  },
-  advanceStage: (id, stage, payload) => {
-    const current = data.opportunities.find((o) => o.id === id);
-    if (!current) return;
-    const company = data.companies.find((c) => c.id === current.companyId);
-    data = {
-      ...data,
-      companies: withWonContract(data.companies, current, stage),
-      opportunities: data.opportunities.map((o) => {
-        if (o.id !== id) return o;
-        return {
-          ...o,
-          stage,
-          probability: STAGE_PROBABILITY[stage] ?? o.probability,
-          nextAction: payload.nextAction,
-          nextActionOn: payload.nextActionOn,
-          lostReason: payload.lostReason ?? o.lostReason,
-          reviveOn: payload.reviveOn ?? o.reviveOn,
-        };
-      }),
-      activities: [
-        {
-          id: nid("ac"),
-          companyId: current.companyId,
-          opportunityId: id,
-          at: isoDate(),
-          kind: payload.kind,
-          title: payload.title,
-          summary: payload.summary,
-          ownerId: current.ownerId,
-          status: "terminee" as const,
+  upsertCompany: async (company) => {
+    if (company.fromFacturation) {
+      const { strategic, managerId, servicesBought, targetLines, caSigned, notes, site, sector, size, plan } =
+        company;
+      await setCrmClientOverlay({
+        data: {
+          clientId: company.id,
+          strategic,
+          managerId,
+          servicesBought,
+          targetLines,
+          caSigned,
+          notes,
+          site,
+          sector,
+          size,
+          plan,
         },
-        ...data.activities,
-      ],
+      });
+      await actions.reloadPipeline();
+      return company;
+    }
+    const saved = await upsertCrmCompany({
+      data: {
+        id: company.id.startsWith("co-new-") ? undefined : company.id,
+        name: company.name,
+        kind: company.kind,
+        sector: company.sector,
+        size: company.size,
+        site: company.site,
+        address: company.address,
+        phone: company.phone,
+        email: company.email,
+        website: company.website,
+        managerId: company.managerId,
+        servicesBought: company.servicesBought,
+        targetLines: company.targetLines,
+        source: company.source,
+        strategic: company.strategic,
+        caSigned: company.caSigned,
+        notes: company.notes,
+        plan: company.plan,
+      },
+    });
+    await actions.reloadPipeline();
+    return saved;
+  },
+  updateCompany: async (id, patch) => {
+    const local = data.companies.some((c) => c.id === id);
+    if (local) {
+      await updateCrmCompany({ data: { id, ...patch } });
+    } else {
+      await setCrmClientOverlay({ data: { clientId: id, ...patch } });
+    }
+    await actions.reloadPipeline();
+  },
+  setClientOverlay: async (id, patch) => {
+    await setCrmClientOverlay({ data: { clientId: id, ...patch } });
+    await actions.reloadPipeline();
+  },
+  convertProspect: async (id) => {
+    await convertCrmProspect({ data: { id } });
+    const company = data.companies.find((c) => c.id === id);
+    data = {
+      ...data,
       notifications: [
         notify(
-          `Étape : ${STAGE_LABELS[stage]}`,
-          `${company?.name ?? "Affaire"} — ${payload.nextAction}`,
-          "/prospection/opportunites",
+          "Prospect prêt",
+          `${company?.name ?? "Prospect"} : créez la fiche client dans Facturation pour l’avoir en portefeuille live.`,
+          "/prospection/prospects",
         ),
         ...data.notifications,
       ],
     };
-    emit();
+    await actions.reloadPipeline();
   },
-  addActivity: (row) => {
-    const next = { ...row, id: nid("ac") };
-    let opportunities = data.opportunities;
-    if (row.opportunityId && row.nextAction?.trim()) {
-      opportunities = data.opportunities.map((o) =>
-        o.id === row.opportunityId
-          ? {
-              ...o,
-              nextAction: row.nextAction!.trim(),
-              nextActionOn: row.nextActionOn || o.nextActionOn,
-            }
-          : o,
-      );
-    }
-    data = { ...data, activities: [next, ...data.activities], opportunities };
-    emit();
+  addContact: async (row) => {
+    await createCrmContact({ data: row });
+    await actions.reloadPipeline();
   },
-  updateActivity: (id, patch) => {
-    data = {
-      ...data,
-      activities: data.activities.map((a) => (a.id === id ? { ...a, ...patch } : a)),
-    };
-    emit();
+  addOpportunity: async (row) => {
+    const created = await upsertCrmOpportunity({ data: row });
+    await actions.reloadPipeline();
+    return created.id;
   },
-  setActivityStatus: (id, status) => {
-    data = {
-      ...data,
-      activities: data.activities.map((a) => (a.id === id ? { ...a, status } : a)),
-    };
-    emit();
+  updateOpportunity: async (id, patch) => {
+    const current = data.opportunities.find((o) => o.id === id);
+    if (!current) return;
+    await upsertCrmOpportunity({
+      data: {
+        id,
+        companyId: patch.companyId ?? current.companyId,
+        title: patch.title ?? current.title,
+        line: patch.line ?? current.line,
+        source: patch.source ?? current.source,
+        stage: patch.stage ?? current.stage,
+        amount: patch.amount ?? current.amount,
+        probability: patch.probability ?? current.probability,
+        decisionOn: patch.decisionOn ?? current.decisionOn,
+        nextAction: patch.nextAction ?? current.nextAction,
+        nextActionOn: patch.nextActionOn ?? current.nextActionOn,
+        ownerId: patch.ownerId ?? current.ownerId,
+        notes: patch.notes ?? current.notes,
+        lostReason: patch.lostReason ?? current.lostReason,
+        reviveOn: patch.reviveOn ?? current.reviveOn,
+      },
+    });
+    await actions.reloadPipeline();
   },
-  addLead: (row) => {
-    data = {
-      ...data,
-      leads: [
-        {
-          ...row,
-          id: nid("ld"),
-          at: isoDate(),
-          status: row.status ?? "nouvelle",
-        },
-        ...data.leads,
-      ],
-      notifications: [
-        notify("Nouvelle piste", `${row.companyName} — ${row.need}`, "/prospection/pistes"),
-        ...data.notifications,
-      ],
-    };
-    emit();
+  setStage: async (id, stage, extra) => {
+    const current = data.opportunities.find((o) => o.id === id);
+    if (!current) return;
+    await upsertCrmOpportunity({
+      data: {
+        id,
+        companyId: current.companyId,
+        title: current.title,
+        line: current.line,
+        source: current.source,
+        stage,
+        amount: current.amount,
+        probability: STAGE_PROBABILITY[stage] ?? current.probability,
+        decisionOn: current.decisionOn,
+        nextAction: extra?.nextAction ?? current.nextAction,
+        nextActionOn: extra?.nextActionOn ?? current.nextActionOn,
+        ownerId: current.ownerId,
+        notes: current.notes,
+        lostReason: extra?.lostReason ?? current.lostReason,
+        reviveOn: extra?.reviveOn ?? current.reviveOn,
+      },
+    });
+    await actions.reloadPipeline();
   },
-  setLeadStatus: (id, status) => {
-    data = {
-      ...data,
-      leads: data.leads.map((l) => (l.id === id ? { ...l, status } : l)),
-    };
-    emit();
+  advanceStage: async (id, stage, payload) => {
+    await advanceCrmOpportunity({
+      data: {
+        id,
+        stage,
+        kind: payload.kind,
+        title: payload.title,
+        summary: payload.summary,
+        nextAction: payload.nextAction,
+        nextActionOn: payload.nextActionOn,
+        lostReason: payload.lostReason,
+        reviveOn: payload.reviveOn,
+      },
+    });
+    await actions.reloadPipeline();
   },
-  updateLead: (id, patch) => {
-    data = {
-      ...data,
-      leads: data.leads.map((l) => (l.id === id ? { ...l, ...patch } : l)),
-    };
-    emit();
+  addActivity: async (row) => {
+    await upsertCrmActivity({ data: row });
+    await actions.reloadPipeline();
   },
-  convertLead: (id) => {
-    const lead = data.leads.find((l) => l.id === id);
-    if (!lead) return;
-    const existing = data.companies.find(
-      (c) => c.name.toLowerCase() === lead.companyName.trim().toLowerCase(),
-    );
-    const companyId = existing?.id ?? nid("co");
-    const companies = existing
-      ? data.companies
-      : [
-          {
-            id: companyId,
-            name: lead.companyName.trim(),
-            kind: "client" as const,
-            sector: "À préciser",
-            size: "—",
-            site: "libreville" as const,
-            address: "Libreville",
-            phone: "",
-            email: "",
-            website: "",
-            managerId: lead.ownerId,
-            servicesBought: [] as ServiceLine[],
-            targetLines: [lead.line],
-            source: "piste_interne" as const,
-            strategic: false,
-            caSigned: 0,
-            notes: lead.comment,
-          },
-          ...data.companies,
-        ];
-    const opportunity: Opportunity = {
-      id: nid("op"),
-      companyId,
-      title: lead.need,
-      line: lead.line,
-      source: "piste_interne",
-      stage: "qualification",
-      amount: 0,
-      probability: 20,
-      decisionOn: isoDate(45),
-      nextAction: "Qualifier le besoin",
-      nextActionOn: isoDate(2),
-      ownerId: lead.ownerId,
-      notes: lead.comment,
-    };
-    data = {
-      ...data,
-      companies,
-      opportunities: [opportunity, ...data.opportunities],
-      leads: data.leads.map((l) => (l.id === id ? { ...l, status: "convertie", companyId } : l)),
-      notifications: [
-        notify("Piste convertie", `${lead.companyName} — opportunité en Qualification.`, "/prospection/opportunites"),
-        ...data.notifications,
-      ],
-    };
-    emit();
+  updateActivity: async (id, patch) => {
+    const current = data.activities.find((a) => a.id === id);
+    if (!current) return;
+    await upsertCrmActivity({
+      data: {
+        id,
+        companyId: patch.companyId ?? current.companyId,
+        opportunityId: patch.opportunityId ?? current.opportunityId,
+        at: patch.at ?? current.at,
+        time: patch.time ?? current.time,
+        kind: patch.kind ?? current.kind,
+        title: patch.title ?? current.title,
+        summary: patch.summary ?? current.summary,
+        nextAction: patch.nextAction ?? current.nextAction,
+        nextActionOn: patch.nextActionOn ?? current.nextActionOn,
+        ownerId: patch.ownerId ?? current.ownerId,
+        status: patch.status ?? current.status,
+      },
+    });
+    await actions.reloadPipeline();
   },
-  addExpense: (row) => {
-    const approval = row.amount > 100_000 ? ("pending" as const) : ("none" as const);
-    const next = {
-      ...data,
-      expenses: [{ ...row, id: nid("ex"), approval }, ...data.expenses],
-    };
-    if (approval === "pending") {
-      next.notifications = [
-        notify("Budget à valider", `${row.label} — ${row.amount.toLocaleString("fr-FR")} FCFA`, "/prospection/budget"),
-        ...data.notifications,
-      ];
-    }
-    data = next;
-    emit();
+  setActivityStatus: async (id, status) => {
+    await setCrmActivityStatus({ data: { id, status } });
+    await actions.reloadPipeline();
   },
-  setExpenseApproval: (id, approval) => {
-    data = {
-      ...data,
-      expenses: data.expenses.map((e) => (e.id === id ? { ...e, approval } : e)),
-    };
-    emit();
+  addLead: async (row) => {
+    await upsertCrmLead({ data: row });
+    await actions.reloadPipeline();
   },
-  markNotificationRead: (id) => {
-    data = {
-      ...data,
-      notifications: data.notifications.map((n) =>
-        n.id === id ? { ...n, read: true } : n,
-      ),
-    };
-    emit();
+  setLeadStatus: async (id, status) => {
+    await setCrmLeadStatus({ data: { id, status } });
+    await actions.reloadPipeline();
   },
-  markAllNotificationsRead: () => {
-    data = {
-      ...data,
-      notifications: data.notifications.map((n) => ({ ...n, read: true })),
-    };
-    emit();
+  updateLead: async (id, patch) => {
+    const current = data.leads.find((l) => l.id === id);
+    if (!current) return;
+    await upsertCrmLead({
+      data: {
+        id,
+        companyName: patch.companyName ?? current.companyName,
+        companyId: patch.companyId ?? current.companyId,
+        line: patch.line ?? current.line,
+        need: patch.need ?? current.need,
+        comment: patch.comment ?? current.comment,
+        ownerId: patch.ownerId ?? current.ownerId,
+        author: patch.author ?? current.author,
+        status: patch.status ?? current.status,
+      },
+    });
+    await actions.reloadPipeline();
   },
-  importCompanies: (rows) => {
-    data = { ...data, companies: [...rows, ...data.companies] };
-    emit();
+  convertLead: async (id) => {
+    await convertCrmLead({ data: { id } });
+    await actions.reloadPipeline();
   },
-  setObjectiveTarget: (id, target) => {
-    data = {
-      ...data,
-      objectives: data.objectives.map((o) => (o.id === id ? { ...o, target } : o)),
-    };
-    emit();
+  addExpense: async (row) => {
+    await createCrmExpense({
+      data: {
+        managerId: row.managerId,
+        category: row.category,
+        label: row.label,
+        amount: row.amount,
+        at: row.at,
+        companyId: row.companyId,
+        opportunityId: row.opportunityId,
+        activityId: row.activityId,
+        receipt: row.receipt,
+      },
+    });
+    await actions.reloadPipeline();
   },
-  addLibraryItem: (row) => {
-    data = {
-      ...data,
-      libraryItems: [{ ...row, id: nid("lb") }, ...data.libraryItems],
-    };
-    emit();
+  setExpenseApproval: async (id, approval) => {
+    await setCrmExpenseApproval({ data: { id, approval } });
+    await actions.reloadPipeline();
   },
-  addReferential: (kind, label) => {
-    const item: ReferentialExtra = { id: nid("rf"), kind, label };
-    data = { ...data, referentials: [item, ...data.referentials] };
-    emit();
+  markNotificationRead: async (id) => {
+    await markCrmNotificationRead({ data: { id } });
+    await actions.reloadPipeline();
   },
-  setAccountPlan: (companyId, plan) => {
-    data = {
-      ...data,
-      companies: data.companies.map((c) => (c.id === companyId ? { ...c, plan } : c)),
-    };
-    emit();
+  markAllNotificationsRead: async () => {
+    await markAllCrmNotificationsRead();
+    await actions.reloadPipeline();
   },
-  toggleWeekCheck: (id) => {
-    data = {
-      ...data,
-      weekChecks: data.weekChecks.map((w) => (w.id === id ? { ...w, done: !w.done } : w)),
-    };
-    emit();
+  importCompanies: async (rows) => {
+    await importCrmCompanies({
+      data: {
+        rows: rows.map((r) => ({
+          name: r.name,
+          kind: r.kind,
+          sector: r.sector,
+          size: r.size,
+          site: r.site,
+          address: r.address,
+          phone: r.phone,
+          email: r.email,
+          website: r.website,
+          managerId: r.managerId,
+          servicesBought: r.servicesBought,
+          targetLines: r.targetLines,
+          source: r.source,
+          strategic: r.strategic,
+          caSigned: r.caSigned,
+          notes: r.notes,
+        })),
+      },
+    });
+    await actions.reloadPipeline();
   },
-  reset: () => {
-    seq = 1;
+  setObjectiveTarget: async (id, target) => {
+    await setCrmObjectiveTarget({ data: { id, target } });
+    await actions.reloadPipeline();
+  },
+  addLibraryItem: async (row) => {
+    await createCrmLibraryItem({
+      data: {
+        line: row.line,
+        category: row.category,
+        title: row.title,
+        body: row.body,
+        terms: row.terms,
+      },
+    });
+    await actions.reloadPipeline();
+  },
+  addReferential: async (kind, label) => {
+    await createCrmReferential({ data: { kind, label } });
+    await actions.reloadPipeline();
+  },
+  setAccountPlan: async (companyId, plan) => {
+    await setCrmAccountPlan({ data: { companyId, plan } });
+    await actions.reloadPipeline();
+  },
+  toggleWeekCheck: async (id) => {
+    await toggleCrmWeekCheck({ data: { id } });
+    await actions.reloadPipeline();
+  },
+  reset: async () => {
     data = createProspectionDemoSeed();
     emit();
+    await actions.reloadPipeline();
   },
 };
 
 export function useProspectionDemoStore<T>(selector: (s: Store) => T): T {
   const snap = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
   return selector({ ...snap, ...actions });
+}
+
+export function isProspectionPipelineReady() {
+  return pipelineReady;
 }

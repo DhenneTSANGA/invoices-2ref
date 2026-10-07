@@ -24,6 +24,7 @@ import {
   type Site,
 } from "@/lib/prospection-demo";
 import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
+import { useProspectionCompanies } from "@/hooks/use-prospection-companies";
 
 export const Route = createFileRoute("/prospection/prospects/")({
   head: () => ({ meta: [{ title: "Prospects — Prospection" }] }),
@@ -31,7 +32,7 @@ export const Route = createFileRoute("/prospection/prospects/")({
 });
 
 function ProspectsPage() {
-  const companies = useProspectionDemoStore((s) => s.companies);
+  const { companies } = useProspectionCompanies();
   const contacts = useProspectionDemoStore((s) => s.contacts);
   const opportunities = useProspectionDemoStore((s) => s.opportunities);
   const activities = useProspectionDemoStore((s) => s.activities);

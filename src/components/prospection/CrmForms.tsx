@@ -55,6 +55,7 @@ import {
   type Site,
 } from "@/lib/prospection-demo";
 import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
+import { useProspectionCompanies } from "@/hooks/use-prospection-companies";
 import { cn } from "@/lib/utils";
 import { CRM_FIELD, CrmDialog, CrmFormActions, CrmLabeledField, CrmSelect } from "./CrmUi";
 
@@ -202,9 +203,11 @@ export function CompanyDialog({
             : "Nouveau client"
       }
       description={
-        editing
-          ? "Mettez à jour l’identité, le suivi commercial et les notes de la fiche."
-          : "Trois blocs : l’entreprise, le suivi commercial, puis le contact décideur si vous l’avez déjà."
+        editing?.fromFacturation
+          ? "Client Facturation : seuls les enrichissements CRM sont enregistrés ici (pas la fiche factu)."
+          : editing
+            ? "Mettez à jour l’identité, le suivi commercial et les notes de la fiche."
+            : "Trois blocs : l’entreprise, le suivi commercial, puis le contact décideur si vous l’avez déjà."
       }
     >
       <form
@@ -229,40 +232,62 @@ export function CompanyDialog({
             return;
           }
           const id = editing?.id ?? `co-new-${Date.now()}`;
-          upsertCompany({
-            id,
-            name: name.trim(),
-            kind,
-            sector,
-            size,
-            site,
-            address: address.trim(),
-            phone,
-            email,
-            website,
-            managerId,
-            servicesBought: isProspect ? (editing?.servicesBought ?? []) : lines,
-            targetLines: isProspect ? lines : (editing?.targetLines ?? []),
-            source,
-            strategic: isProspect ? false : strategic,
-            caSigned: editing?.caSigned ?? 0,
-            notes,
-            plan: editing?.plan,
-          });
-          if (hasContact) {
-            addContact({
-              companyId: id,
-              firstName: contactFirst.trim() || "—",
-              lastName: contactLast.trim() || "—",
-              role: contactRole.trim(),
-              phone: contactPhone.trim(),
-              email: contactEmail.trim(),
-              decisionMaker: contactDecisionMaker,
-              influence: contactInfluence,
-            });
-          }
-          toast.success(editing ? "Fiche mise à jour" : isProspect ? "Prospect créé" : "Client créé");
-          onOpenChange(false);
+          const fromFacturation = Boolean(editing?.fromFacturation);
+          void (async () => {
+            try {
+              const saved = await upsertCompany({
+                id,
+                name: name.trim(),
+                kind: fromFacturation ? "client" : kind === "client" ? "prospect" : kind,
+                sector,
+                size,
+                site,
+                address: address.trim(),
+                phone,
+                email,
+                website,
+                managerId,
+                servicesBought: isProspect || (!fromFacturation && kind === "client")
+                  ? (editing?.servicesBought ?? [])
+                  : lines,
+                targetLines:
+                  isProspect || (!fromFacturation && kind === "client")
+                    ? lines
+                    : (editing?.targetLines ?? []),
+                source,
+                strategic: isProspect ? false : strategic,
+                caSigned: editing?.caSigned ?? 0,
+                notes,
+                plan: editing?.plan,
+                fromFacturation,
+                cabinet: editing?.cabinet,
+              });
+              if (hasContact && contactInfluence) {
+                await addContact({
+                  companyId: saved.id,
+                  firstName: contactFirst.trim() || "—",
+                  lastName: contactLast.trim() || "—",
+                  role: contactRole.trim(),
+                  phone: contactPhone.trim(),
+                  email: contactEmail.trim(),
+                  decisionMaker: contactDecisionMaker,
+                  influence: contactInfluence,
+                });
+              }
+              toast.success(
+                editing?.fromFacturation
+                  ? "Enrichissement CRM enregistré"
+                  : editing
+                    ? "Fiche mise à jour"
+                    : isProspect || kind === "client"
+                      ? "Prospect créé (les clients Facturation se synchronisent automatiquement)"
+                      : "Fiche créée",
+              );
+              onOpenChange(false);
+            } catch (err) {
+              toast.error(err instanceof Error ? err.message : "Enregistrement impossible");
+            }
+          })();
         }}
       >
         <div className="space-y-4 px-4 py-4 sm:px-5 sm:py-5">
@@ -569,7 +594,7 @@ export function NewLeadDialog({
   onOpenChange: (open: boolean) => void;
   defaultCompanyName?: string;
 }) {
-  const companies = useProspectionDemoStore((s) => s.companies);
+  const { companies } = useProspectionCompanies();
   const addLead = useProspectionDemoStore((s) => s.addLead);
   const [companyName, setCompanyName] = useState(defaultCompanyName);
   const [need, setNeed] = useState("");
@@ -617,21 +642,27 @@ export function NewLeadDialog({
             toast.error("Choisissez un manager — aucun référent trouvé pour cette entreprise");
             return;
           }
-          addLead({
-            companyName: companyName.trim(),
-            companyId: matchedCompany?.id,
-            line,
-            need: need.trim(),
-            comment: comment.trim(),
-            ownerId: resolvedOwner,
-            author: "Vous",
-          });
-          toast.success(
-            assignedManager
-              ? `Piste envoyée à ${assignedManager.name} (manager référent)`
-              : "Piste envoyée au manager",
-          );
-          onOpenChange(false);
+          void (async () => {
+            try {
+              await addLead({
+                companyName: companyName.trim(),
+                companyId: matchedCompany?.id,
+                line,
+                need: need.trim(),
+                comment: comment.trim(),
+                ownerId: resolvedOwner,
+                author: "Vous",
+              });
+              toast.success(
+                assignedManager
+                  ? `Piste envoyée à ${assignedManager.name} (manager référent)`
+                  : "Piste envoyée au manager",
+              );
+              onOpenChange(false);
+            } catch (err) {
+              toast.error(err instanceof Error ? err.message : "Enregistrement impossible");
+            }
+          })();
         }}
       >
         <CrmLabeledField label="Entreprise">
@@ -707,7 +738,7 @@ export function NewExpenseDialog({
   onOpenChange: (open: boolean) => void;
   defaultCompanyId?: string;
 }) {
-  const companies = useProspectionDemoStore((s) => s.companies);
+  const { companies } = useProspectionCompanies();
   const activities = useProspectionDemoStore((s) => s.activities);
   const opportunities = useProspectionDemoStore((s) => s.opportunities);
   const addExpense = useProspectionDemoStore((s) => s.addExpense);
@@ -770,23 +801,29 @@ export function NewExpenseDialog({
             toast.error("Justificatif photo obligatoire");
             return;
           }
-          addExpense({
-            managerId,
-            category,
-            label: label.trim(),
-            amount: Math.round(n),
-            at,
-            receipt,
-            companyId: companyId || undefined,
-            activityId,
-            opportunityId: opportunityId || undefined,
-          });
-          toast.success(
-            n > EXPENSE_APPROVAL_THRESHOLD
-              ? "Soumise à validation Direction"
-              : "Dépense enregistrée",
-          );
-          onOpenChange(false);
+          void (async () => {
+            try {
+              await addExpense({
+                managerId,
+                category,
+                label: label.trim(),
+                amount: Math.round(n),
+                at,
+                receipt,
+                companyId: companyId || undefined,
+                activityId,
+                opportunityId: opportunityId || undefined,
+              });
+              toast.success(
+                n > EXPENSE_APPROVAL_THRESHOLD
+                  ? "Soumise à validation Direction"
+                  : "Dépense enregistrée",
+              );
+              onOpenChange(false);
+            } catch (err) {
+              toast.error(err instanceof Error ? err.message : "Enregistrement impossible");
+            }
+          })();
         }}
       >
         <CrmLabeledField label="Manager">
@@ -895,7 +932,7 @@ export function NewActivityDialog({
   /** Complète une activité déjà planifiée (compte rendu) au lieu d’en créer une autre. */
   completeActivityId?: string;
 }) {
-  const companies = useProspectionDemoStore((s) => s.companies);
+  const { companies } = useProspectionCompanies();
   const opportunities = useProspectionDemoStore((s) => s.opportunities);
   const activities = useProspectionDemoStore((s) => s.activities);
   const addActivity = useProspectionDemoStore((s) => s.addActivity);
@@ -971,39 +1008,45 @@ export function NewActivityDialog({
           }
           const company = companies.find((c) => c.id === companyId);
           const title = `${ACTIVITY_LABELS[kind]}${company ? ` — ${company.name}` : ""}`;
-          if (completing) {
-            updateActivity(completing.id, {
-              summary: summary.trim(),
-              status: "terminee",
-              nextAction: nextAction.trim() || undefined,
-              nextActionOn: nextActionOn || undefined,
-              time: time || undefined,
-            });
-            if (completing.opportunityId && nextAction.trim()) {
-              updateOpportunity(completing.opportunityId, {
-                nextAction: nextAction.trim(),
-                ...(nextActionOn ? { nextActionOn } : {}),
+          void (async () => {
+            try {
+              if (completing) {
+                await updateActivity(completing.id, {
+                  summary: summary.trim(),
+                  status: "terminee",
+                  nextAction: nextAction.trim() || undefined,
+                  nextActionOn: nextActionOn || undefined,
+                  time: time || undefined,
+                });
+                if (completing.opportunityId && nextAction.trim()) {
+                  await updateOpportunity(completing.opportunityId, {
+                    nextAction: nextAction.trim(),
+                    ...(nextActionOn ? { nextActionOn } : {}),
+                  });
+                }
+                toast.success("Compte rendu enregistré");
+                onOpenChange(false);
+                return;
+              }
+              await addActivity({
+                companyId,
+                opportunityId: opportunityId || undefined,
+                at,
+                time: time || undefined,
+                kind,
+                title,
+                summary: summary.trim() || title,
+                nextAction: nextAction.trim() || undefined,
+                nextActionOn: nextActionOn || undefined,
+                ownerId,
+                status,
               });
+              toast.success("Activité enregistrée");
+              onOpenChange(false);
+            } catch (err) {
+              toast.error(err instanceof Error ? err.message : "Enregistrement impossible");
             }
-            toast.success("Compte rendu enregistré");
-            onOpenChange(false);
-            return;
-          }
-          addActivity({
-            companyId,
-            opportunityId: opportunityId || undefined,
-            at,
-            time: time || undefined,
-            kind,
-            title,
-            summary: summary.trim() || title,
-            nextAction: nextAction.trim() || undefined,
-            nextActionOn: nextActionOn || undefined,
-            ownerId,
-            status,
-          });
-          toast.success("Activité enregistrée");
-          onOpenChange(false);
+          })();
         }}
       >
         <CrmLabeledField label="Entreprise">
@@ -1125,7 +1168,7 @@ export function NewOpportunityDialog({
   defaultSource?: OpportunitySource;
   editing?: Opportunity | null;
 }) {
-  const companies = useProspectionDemoStore((s) => s.companies);
+  const { companies } = useProspectionCompanies();
   const addOpportunity = useProspectionDemoStore((s) => s.addOpportunity);
   const updateOpportunity = useProspectionDemoStore((s) => s.updateOpportunity);
   const [companyId, setCompanyId] = useState("");
@@ -1158,9 +1201,9 @@ export function NewOpportunityDialog({
       setLine(defaultLine ?? "");
       setSource(defaultSource ?? (defaultLine ? "client_existant" : ""));
       setAmount("");
-      setDecisionOn("");
-      setNextAction("");
-      setNextActionOn("");
+      setDecisionOn(isoDate(45));
+      setNextAction(STAGE_NEXT_PLACEHOLDER.qualification);
+      setNextActionOn(isoDate(2));
       const co = companies.find((c) => c.id === defaultCompanyId);
       setOwnerId(co?.managerId ?? "");
       setNotes("");
@@ -1174,7 +1217,7 @@ export function NewOpportunityDialog({
       icon={Target}
       wide
       title={editing ? "Modifier l’opportunité" : "Nouvelle opportunité"}
-      description="Créée en Qualification. Canvas : entreprise, ligne, montant, date de décision, prochaine action."
+      description="Créée en Qualification. La prochaine action prépare l’étape suivante (Premier contact)."
     >
       <form
         className="space-y-3 p-5 sm:p-6"
@@ -1207,14 +1250,20 @@ export function NewOpportunityDialog({
             ownerId,
             notes: notes.trim(),
           };
-          if (editing) {
-            updateOpportunity(editing.id, payload);
-            toast.success("Opportunité mise à jour");
-          } else {
-            addOpportunity(payload);
-            toast.success("Opportunité créée à Qualification");
-          }
-          onOpenChange(false);
+          void (async () => {
+            try {
+              if (editing) {
+                await updateOpportunity(editing.id, payload);
+                toast.success("Opportunité mise à jour");
+              } else {
+                await addOpportunity(payload);
+                toast.success("Opportunité créée à Qualification");
+              }
+              onOpenChange(false);
+            } catch (err) {
+              toast.error(err instanceof Error ? err.message : "Enregistrement impossible");
+            }
+          })();
         }}
       >
         <CrmLabeledField label="Entreprise">
@@ -1293,11 +1342,11 @@ export function NewOpportunityDialog({
             />
           </CrmLabeledField>
         </div>
-        <CrmLabeledField label="Prochaine action">
+        <CrmLabeledField label="Prochaine action (vers l’étape suivante)">
           <input
             value={nextAction}
             onChange={(e) => setNextAction(e.target.value)}
-            placeholder="Ex. appeler le DAF, envoyer un argumentaire"
+            placeholder={STAGE_NEXT_PLACEHOLDER.qualification}
             className={CRM_FIELD}
           />
         </CrmLabeledField>
@@ -1369,18 +1418,24 @@ export function NewContactDialog({
             toast.error("Indiquez le niveau d’influence");
             return;
           }
-          addContact({
-            companyId,
-            firstName: firstName.trim() || "—",
-            lastName: lastName.trim() || "—",
-            role: role.trim(),
-            phone: phone.trim(),
-            email: email.trim(),
-            decisionMaker,
-            influence,
-          });
-          toast.success("Contact ajouté");
-          onOpenChange(false);
+          void (async () => {
+            try {
+              await addContact({
+                companyId,
+                firstName: firstName.trim() || "—",
+                lastName: lastName.trim() || "—",
+                role: role.trim(),
+                phone: phone.trim(),
+                email: email.trim(),
+                decisionMaker,
+                influence,
+              });
+              toast.success("Contact ajouté");
+              onOpenChange(false);
+            } catch (err) {
+              toast.error(err instanceof Error ? err.message : "Enregistrement impossible");
+            }
+          })();
         }}
       >
         <div className="grid gap-3 sm:grid-cols-2">
@@ -1509,9 +1564,15 @@ export function AccountPlanDialog({
         className="space-y-3 p-5 sm:p-6"
         onSubmit={(e) => {
           e.preventDefault();
-          setAccountPlan(company.id, plan);
-          toast.success("Plan de compte enregistré");
-          onOpenChange(false);
+          void (async () => {
+            try {
+              await setAccountPlan(company.id, plan);
+              toast.success("Plan de compte enregistré");
+              onOpenChange(false);
+            } catch (err) {
+              toast.error(err instanceof Error ? err.message : "Enregistrement impossible");
+            }
+          })();
         }}
       >
         {(
@@ -1582,12 +1643,18 @@ export function EditObjectivesDialog({
         className="space-y-4 p-5 sm:p-6"
         onSubmit={(e) => {
           e.preventDefault();
-          for (const o of objectives) {
-            const n = Number(draft[o.id]);
-            if (Number.isFinite(n) && n >= 0) setObjectiveTarget(o.id, Math.round(n));
-          }
-          toast.success("Cibles mises à jour");
-          onOpenChange(false);
+          void (async () => {
+            try {
+              for (const o of objectives) {
+                const n = Number(draft[o.id]);
+                if (Number.isFinite(n) && n >= 0) await setObjectiveTarget(o.id, Math.round(n));
+              }
+              toast.success("Cibles mises à jour");
+              onOpenChange(false);
+            } catch (err) {
+              toast.error(err instanceof Error ? err.message : "Enregistrement impossible");
+            }
+          })();
         }}
       >
         {MANAGERS.map((m) => (
@@ -1653,9 +1720,15 @@ export function NewLibraryDialog({
             toast.error("Pôle, catégorie, titre et contenu sont requis");
             return;
           }
-          addLibraryItem({ line, category, title: title.trim(), body: body.trim() });
-          toast.success("Ressource ajoutée");
-          onOpenChange(false);
+          void (async () => {
+            try {
+              await addLibraryItem({ line, category, title: title.trim(), body: body.trim() });
+              toast.success("Ressource ajoutée");
+              onOpenChange(false);
+            } catch (err) {
+              toast.error(err instanceof Error ? err.message : "Enregistrement impossible");
+            }
+          })();
         }}
       >
         <CrmLabeledField label="Pôle">
@@ -1729,7 +1802,7 @@ export function AddReferentialDialog({
       onOpenChange={onOpenChange}
       icon={Settings}
       title="Ajouter au référentiel"
-      description="Démo uniquement — pas d’écriture en base."
+      description="Valeur persistée pour l’espace Prospection."
     >
       <form
         className="space-y-3 p-5 sm:p-6"
@@ -1739,9 +1812,15 @@ export function AddReferentialDialog({
             toast.error("Type et libellé requis");
             return;
           }
-          addReferential(kind, label.trim());
-          toast.success("Ajouté au référentiel démo");
-          onOpenChange(false);
+          void (async () => {
+            try {
+              await addReferential(kind, label.trim());
+              toast.success("Ajouté au référentiel");
+              onOpenChange(false);
+            } catch (err) {
+              toast.error(err instanceof Error ? err.message : "Enregistrement impossible");
+            }
+          })();
         }}
       >
         <CrmLabeledField label="Référentiel">
@@ -1781,16 +1860,17 @@ export function StageChangeDialog({
   nextStage: PipelineStage | null;
 }) {
   const opportunities = useProspectionDemoStore((s) => s.opportunities);
-  const companies = useProspectionDemoStore((s) => s.companies);
+  const { companies } = useProspectionCompanies();
   const advanceStage = useProspectionDemoStore((s) => s.advanceStage);
   const lastId = useRef(opportunityId);
   const lastStage = useRef(nextStage);
   if (opportunityId) lastId.current = opportunityId;
   if (nextStage) lastStage.current = nextStage;
   const activeId = opportunityId ?? lastId.current;
-  const activeStage = nextStage ?? lastStage.current;
+  const destination = nextStage ?? lastStage.current;
   const opportunity = opportunities.find((o) => o.id === activeId) ?? null;
   const company = opportunity ? companies.find((c) => c.id === opportunity.companyId) : null;
+  const currentStage = opportunity?.stage ?? null;
 
   const [kind, setKind] = useState<ActivityKind>("appel");
   const [summary, setSummary] = useState("");
@@ -1799,29 +1879,73 @@ export function StageChangeDialog({
   const [lostReason, setLostReason] = useState("");
 
   useEffect(() => {
-    if (!open || !nextStage) return;
-    setKind(STAGE_ACTIVITY_KIND[nextStage]);
+    if (!open || !destination || !currentStage) return;
+    setKind(STAGE_ACTIVITY_KIND[currentStage]);
     setSummary("");
-    setNextAction("");
+    setNextAction(STAGE_NEXT_PLACEHOLDER[destination]);
     setLostReason("");
-    if (nextStage === "reporte") setNextActionOn(isoDate(90));
-    else if (nextStage === "proposition") setNextActionOn(addBusinessDays(isoDate(), 5));
-    else if (nextStage === "rendez_vous") setNextActionOn(isoDate(2));
+    if (destination === "reporte") setNextActionOn(isoDate(90));
+    else if (destination === "proposition") setNextActionOn(addBusinessDays(isoDate(), 5));
+    else if (destination === "rendez_vous") setNextActionOn(isoDate(2));
     else setNextActionOn(isoDate(2));
-  }, [open, nextStage]);
+  }, [open, destination, currentStage]);
 
-  const crRequired = activeStage === "rendez_vous" || activeStage === "proposition";
-  const title = activeStage ? `Passer en ${STAGE_LABELS[activeStage]}` : "Changer d’étape";
+  const isOutcome = destination === "perdu" || destination === "reporte" || destination === "gagne";
+  /** Qualification = étape d’entrée par défaut après conversion : pas de commentaire forcé. */
+  const isEntryQualification = currentStage === "qualification";
+  /** À partir de Premier contact : on note ce qui s’est passé à l’étape courante. */
+  const commentRequired =
+    !isEntryQualification && ((!isOutcome && currentStage !== null) || destination === "gagne");
+  const fromLabel = currentStage ? STAGE_LABELS[currentStage] : null;
+  const toLabel = destination ? STAGE_LABELS[destination] : null;
+
+  const title =
+    destination === "perdu"
+      ? "Clôturer — Perdue"
+      : destination === "reporte"
+        ? "Clôturer — Reportée"
+        : destination === "gagne"
+          ? "Valider et gagner l’affaire"
+          : isEntryQualification && toLabel
+            ? `Passer en ${toLabel}`
+            : fromLabel
+              ? `Valider « ${fromLabel} »`
+              : "Valider l’étape";
+
   const description =
-    activeStage === "rendez_vous"
-      ? "Compte rendu obligatoire sous 48 h, puis prochaine action."
-      : activeStage === "proposition"
-        ? "Tracer l’envoi. Relance sous 5 jours ouvrés après un RDV concluant."
-        : activeStage === "perdu"
-          ? "Motif obligatoire. L’affaire reste en historique."
-          : activeStage === "reporte"
-            ? "Relance à 3 mois par défaut. Jamais de suppression."
-            : "Enregistrer l’activité de cette étape et la prochaine action.";
+    destination === "perdu"
+      ? "Motif obligatoire. L’affaire reste en historique."
+      : destination === "reporte"
+        ? "Clôture temporaire : programmez la relance (3 mois par défaut)."
+        : destination === "gagne"
+          ? "Confirmez le gain avec un court commentaire, puis la suite (kick-off…)."
+          : isEntryQualification && toLabel
+            ? `La Qualification est l’étape d’entrée. Programmez la suite en « ${toLabel} » — le détail se notera ensuite.`
+            : currentStage === "rendez_vous"
+              ? "Compte rendu du rendez-vous obligatoire, puis passage à l’étape suivante."
+              : currentStage === "proposition"
+                ? "Tracez l’envoi de la proposition, puis la relance prévue."
+                : fromLabel && toLabel
+                  ? `Notez ce qui s’est passé en « ${fromLabel} », puis l’affaire passera en « ${toLabel} ».`
+                  : "Notez ce qui s’est passé, puis avancez.";
+
+  const commentLabel =
+    currentStage === "rendez_vous"
+      ? "Compte rendu du rendez-vous"
+      : currentStage === "proposition"
+        ? "Détail de l’envoi (proposition)"
+        : fromLabel
+          ? `Ce qui s’est passé — ${fromLabel}`
+          : "Ce qui s’est passé";
+
+  const commentPlaceholder =
+    currentStage === "rendez_vous"
+      ? "Compte rendu du rendez-vous (points clés, décisions…)"
+      : currentStage === "proposition"
+        ? "Proposition envoyée (version, destinataire…)"
+        : currentStage === "premier_contact"
+          ? "Contact établi, échanges, disponibilités…"
+          : "Ce qui a été fait à cette étape";
 
   return (
     <CrmDialog open={open} onOpenChange={onOpenChange} icon={Target} title={title} description={description}>
@@ -1829,39 +1953,60 @@ export function StageChangeDialog({
         className="space-y-3 p-5 sm:p-6"
         onSubmit={(e) => {
           e.preventDefault();
-          if (!opportunity || !nextStage) return;
-          if (nextStage === "perdu" && !lostReason.trim()) {
+          if (!opportunity || !destination || !currentStage) return;
+          if (destination === "perdu" && !lostReason.trim()) {
             toast.error("Motif de perte obligatoire");
             return;
           }
-          if (crRequired && !summary.trim()) {
+          if (commentRequired && !summary.trim()) {
             toast.error(
-              nextStage === "rendez_vous"
+              currentStage === "rendez_vous"
                 ? "Compte rendu obligatoire après le rendez-vous"
-                : "Indiquez que la proposition a été envoyée",
+                : currentStage === "proposition"
+                  ? "Indiquez que la proposition a été envoyée"
+                  : "Indiquez ce qui s’est passé à cette étape",
             );
             return;
           }
-          if (!nextAction.trim() || !nextActionOn) {
+          if (destination !== "perdu" && (!nextAction.trim() || !nextActionOn)) {
             toast.error("Prochaine action et date obligatoires");
             return;
           }
-          const label = STAGE_LABELS[nextStage];
-          advanceStage(opportunity.id, nextStage, {
-            kind,
-            title: `${label} — ${opportunity.title}`,
-            summary:
-              summary.trim() ||
-              (nextStage === "perdu"
-                ? lostReason.trim()
-                : `${label} pour ${company?.name ?? opportunity.title}`),
-            nextAction: nextAction.trim(),
-            nextActionOn,
-            lostReason: nextStage === "perdu" ? lostReason.trim() : undefined,
-            reviveOn: nextStage === "reporte" ? nextActionOn : undefined,
-          });
-          toast.success(`${label} · prochaine action notée`);
-          onOpenChange(false);
+          const label = STAGE_LABELS[destination];
+          const activitySummary =
+            destination === "perdu"
+              ? lostReason.trim()
+              : summary.trim() ||
+                (isEntryQualification
+                  ? `Entrée pipeline → ${label}`
+                  : `Validation ${fromLabel ?? "étape"} → ${label}`);
+          void (async () => {
+            try {
+              await advanceStage(opportunity.id, destination, {
+                kind,
+                title: isEntryQualification
+                  ? `Passage ${fromLabel} → ${label} — ${opportunity.title}`
+                  : `Validation ${fromLabel ?? "étape"} → ${label} — ${opportunity.title}`,
+                summary: activitySummary,
+                nextAction: destination === "perdu" ? "Conserver en historique" : nextAction.trim(),
+                nextActionOn: destination === "perdu" ? isoDate() : nextActionOn,
+                lostReason: destination === "perdu" ? lostReason.trim() : undefined,
+                reviveOn: destination === "reporte" ? nextActionOn : undefined,
+              });
+              toast.success(
+                destination === "perdu"
+                  ? "Affaire clôturée (perdue)"
+                  : destination === "reporte"
+                    ? "Affaire reportée · relance notée"
+                    : isEntryQualification
+                      ? `Passée en ${label}`
+                      : `${fromLabel} validée · ${label}`,
+              );
+              onOpenChange(false);
+            } catch (err) {
+              toast.error(err instanceof Error ? err.message : "Enregistrement impossible");
+            }
+          })();
         }}
       >
         {company ? (
@@ -1869,8 +2014,25 @@ export function StageChangeDialog({
             {company.name} · {opportunity?.title}
           </p>
         ) : null}
-        {activeStage === "perdu" ? (
-          <CrmLabeledField label="Motif de perte">
+        {fromLabel && toLabel ? (
+          <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border/70 bg-muted/40 px-3 py-2.5 text-sm">
+            <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 shadow-sm dark:bg-slate-800 dark:text-slate-200">
+              {fromLabel}
+            </span>
+            <span className="text-muted-foreground" aria-hidden>
+              →
+            </span>
+            <span className="rounded-full bg-slate-900 px-2.5 py-1 text-xs font-semibold text-white dark:bg-slate-100 dark:text-slate-900">
+              {toLabel}
+            </span>
+            <span className="w-full text-[11px] text-muted-foreground sm:ml-auto sm:w-auto">
+              Étape validée → suivante
+            </span>
+          </div>
+        ) : null}
+
+        {destination === "perdu" ? (
+          <CrmLabeledField label="Motif de perte" required>
             <textarea
               value={lostReason}
               onChange={(e) => setLostReason(e.target.value)}
@@ -1879,59 +2041,68 @@ export function StageChangeDialog({
               className={CRM_FIELD}
             />
           </CrmLabeledField>
-        ) : null}
-        <div className="grid gap-3 sm:grid-cols-2">
-          <CrmLabeledField label="Type d’action">
-            <CrmSelect
-              value={kind}
-              onChange={(value) => setKind(value as ActivityKind)}
-              placeholder="Type d’action"
-              options={(Object.keys(ACTIVITY_LABELS) as ActivityKind[]).map((k) => ({
-                value: k,
-                label: ACTIVITY_LABELS[k],
-              }))}
-            />
-          </CrmLabeledField>
-          <CrmLabeledField label="Date prochaine action">
-            <input
-              type="date"
-              value={nextActionOn}
-              onChange={(e) => setNextActionOn(e.target.value)}
-              className={CRM_FIELD}
-            />
-          </CrmLabeledField>
-        </div>
-        <CrmLabeledField label={crRequired ? "Compte rendu" : "Ce qui s’est passé"}>
-          <textarea
-            value={summary}
-            onChange={(e) => setSummary(e.target.value)}
-            rows={3}
-            placeholder={
-              activeStage === "rendez_vous"
-                ? "Compte rendu du rendez-vous"
-                : activeStage === "proposition"
-                  ? "Proposition envoyée (version, destinataire…)"
-                  : "Notes de l’étape"
-            }
-            className={CRM_FIELD}
-          />
-        </CrmLabeledField>
-        <CrmLabeledField label="Prochaine action">
-          <input
-            value={nextAction}
-            onChange={(e) => setNextAction(e.target.value)}
-            placeholder={activeStage ? STAGE_NEXT_PLACEHOLDER[activeStage] : "Prochaine action"}
-            className={CRM_FIELD}
-          />
-        </CrmLabeledField>
+        ) : (
+          <>
+            {!isEntryQualification ? (
+              <>
+                <CrmLabeledField label="Type d’action réalisée">
+                  <CrmSelect
+                    value={kind}
+                    onChange={(value) => setKind(value as ActivityKind)}
+                    placeholder="Type d’action"
+                    options={(Object.keys(ACTIVITY_LABELS) as ActivityKind[]).map((k) => ({
+                      value: k,
+                      label: ACTIVITY_LABELS[k],
+                    }))}
+                  />
+                </CrmLabeledField>
+                <CrmLabeledField label={commentLabel} required={commentRequired}>
+                  <textarea
+                    value={summary}
+                    onChange={(e) => setSummary(e.target.value)}
+                    rows={3}
+                    placeholder={commentPlaceholder}
+                    className={CRM_FIELD}
+                  />
+                </CrmLabeledField>
+              </>
+            ) : null}
+            <CrmLabeledField
+              label={toLabel ? `Prochaine action (en « ${toLabel} »)` : "Prochaine action"}
+              required
+            >
+              <input
+                value={nextAction}
+                onChange={(e) => setNextAction(e.target.value)}
+                placeholder={destination ? STAGE_NEXT_PLACEHOLDER[destination] : "Prochaine action"}
+                className={CRM_FIELD}
+              />
+            </CrmLabeledField>
+            <CrmLabeledField label="Date de cette action" required>
+              <input
+                type="date"
+                value={nextActionOn}
+                onChange={(e) => setNextActionOn(e.target.value)}
+                className={CRM_FIELD}
+              />
+            </CrmLabeledField>
+          </>
+        )}
+
         <CrmFormActions
           onCancel={() => onOpenChange(false)}
           submitLabel={
-            activeStage === "perdu"
+            destination === "perdu"
               ? "Confirmer la perte"
-              : activeStage === "reporte"
+              : destination === "reporte"
                 ? "Programmer la relance"
-                : "Enregistrer et avancer"
+                : destination === "gagne"
+                  ? "Confirmer le gain"
+                  : isEntryQualification && toLabel
+                    ? `Passer en ${toLabel}`
+                    : fromLabel
+                      ? `Valider et passer en ${toLabel}`
+                      : "Valider et avancer"
           }
         />
       </form>
