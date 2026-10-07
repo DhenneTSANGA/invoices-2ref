@@ -26,12 +26,11 @@ import {
   usePeekNextLetterNumber,
 } from "@/hooks/use-data";
 import type { Cabinet } from "@/lib/cabinets";
-import { isAdmin } from "@/lib/roles";
+import { isAdmin, isSuperAdmin } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 import { clientLetterPostalLine, clientRepresentativeLine, clientDisplayName } from "@/lib/client-address";
 import {
   DEFAULT_SIGNATORY_TITLE,
-  isAccountantSignatory,
   resolveSignatoryRole,
   SIGNATORY_ROLES,
   signatoryTitleForRole,
@@ -167,8 +166,11 @@ export function LetterEditor({ initial }: Props) {
   const previewDoc = { ...doc, clientId: effectiveClientId };
   const selectedClient = clients.find((c) => c.id === effectiveClientId);
   const alreadySigned = doc.status === "signed" || doc.status === "sent";
-  const accountantSignatory = isAccountantSignatory(doc.signatoryTitle);
-  const canOnlineSign = !alreadySigned && !accountantSignatory;
+  const superAdmin = session ? isSuperAdmin(session.staff.role) : false;
+  const canOnlineSign = !alreadySigned;
+  const canEmail =
+    doc.status !== "cancelled" &&
+    (alreadySigned || (superAdmin && doc.status === "draft"));
 
   const persistDraft = async () => {
     if (!effectiveClientId) {
@@ -263,7 +265,11 @@ export function LetterEditor({ initial }: Props) {
         if (!saved) return;
         target = saved;
       }
-      if (target.status !== "signed" && target.status !== "sent") {
+      const ready =
+        target.status === "signed" ||
+        target.status === "sent" ||
+        (superAdmin && target.status === "draft");
+      if (!ready) {
         toast.error("Le courriel doit être signé avant l'envoi");
         void navigate({ to: "/lettre/$id", params: { id: target.id } });
         return;
@@ -438,8 +444,8 @@ export function LetterEditor({ initial }: Props) {
           icon={<Stamp className="h-4 w-4" />}
           title="Signature"
           hint={
-            accountantSignatory
-              ? "Chef comptable : téléchargez le PDF pour paraphe manuscrit. Pas de signature en ligne ni d’envoi e-mail."
+            superAdmin
+              ? "Super administrateur : vous pouvez signer et envoyer ce courriel, quel que soit le pôle. Envoyer applique la signature du cabinet puis transmet l’e-mail."
               : adminLike
                 ? "En tant qu’administrateur, vous pouvez signer directement ce courriel. L’envoi e-mail n’est possible qu’après signature."
                 : "Après enregistrement, demandez la signature de la Direction. L’envoi e-mail n’est possible qu’une fois le courriel signé."
@@ -503,7 +509,7 @@ export function LetterEditor({ initial }: Props) {
               {requestSignMutation.isPending ? "Demande…" : "Demander la signature"}
             </Button>
           )}
-          {alreadySigned && !accountantSignatory && (
+          {canEmail && (
             <Button
               className="rounded-xl bg-gradient-primary text-primary-foreground shadow-glow"
               disabled={busy}

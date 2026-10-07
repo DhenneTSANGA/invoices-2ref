@@ -119,6 +119,22 @@ export function canWriteDocument(
   return canEditForeignDocuments(role) || createdById === staffId;
 }
 
+/**
+ * Contenu d’une facture déjà enregistrée.
+ * Les membres ne peuvent plus la modifier (anti-fraude) : création seule, puis signature.
+ * Admin / super admin : mêmes droits que canWriteDocument.
+ */
+export function canEditInvoiceContent(
+  role: AppRole,
+  staffId: string,
+  createdById?: string | null,
+  options?: { isNew?: boolean },
+): boolean {
+  if (options?.isNew) return true;
+  if (isMember(role)) return false;
+  return canWriteDocument(role, staffId, createdById);
+}
+
 export function roleLabel(role: AppRole): string {
   if (role === "super_admin") return "Super administrateur";
   if (role === "admin") return "Administrateur";

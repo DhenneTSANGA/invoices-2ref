@@ -7,10 +7,7 @@ import { LegalFooter, PreviewLogo, PreviewShell } from "./PreviewShell";
 import { ManagerSignature } from "@/components/signature/ManagerSignature";
 import { clientLetterRecipientLines } from "@/lib/client-address";
 import { cn } from "@/lib/utils";
-import {
-  isAccountantSignatory,
-  signatoryDisplayName,
-} from "@/lib/signatory";
+import { signatoryDisplayName } from "@/lib/signatory";
 import { isRichTextEmpty, looksLikeHtml, plainTextToHtml } from "@/lib/rich-text";
 import { letterPlaceCityLabel } from "@/lib/letter-place-city";
 
@@ -51,11 +48,9 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
   const dense = false;
   const { accent, accentTo } = DOCUMENT_COLORS.letter;
   const city = letterPlaceCityLabel(doc.placeCity, company.city);
-  const accountantSignatory = isAccountantSignatory(doc.signatoryTitle);
   const signatoryName = signatoryDisplayName(doc.signatoryTitle);
   const showStamp =
-    !accountantSignatory &&
-    (doc.status === "signed" || doc.status === "sent");
+    doc.status === "signed" || doc.status === "sent";
   const stampUrl = company.stampUrl?.trim() || "";
   const niuLabel = niuLabelForCabinet(doc.cabinet);
 
@@ -161,7 +156,7 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
           accent={accent}
           compact={isThumb}
           forPdf={compact}
-          omitStamp={omitSignature || accountantSignatory}
+          omitStamp={omitSignature}
           cabinet={doc.cabinet}
         />
       </div>

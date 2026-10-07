@@ -5,7 +5,6 @@ import { useDownloadDocumentPdf, useSession } from "@/hooks/use-data";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { isAdmin } from "@/lib/roles";
-import { isAccountantSignatory } from "@/lib/signatory";
 
 type Props = {
   doc: Document;
@@ -29,9 +28,7 @@ export function DocumentPdfButton({
   const { data: session } = useSession();
   const downloadPdfMutation = useDownloadDocumentPdf();
   const busy = downloadPdfMutation.isPending;
-  const showSignedPreview =
-    Boolean(session && isAdmin(session.staff.role)) &&
-    !isAccountantSignatory(doc.signatoryTitle);
+  const showSignedPreview = Boolean(session && isAdmin(session.staff.role));
 
   const run = (includeSignature: boolean) => {
     const toastId = toast.loading(

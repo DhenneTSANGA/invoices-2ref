@@ -45,10 +45,7 @@ import {
   shouldHidePrintedZeros,
 } from "@/lib/line-quantity";
 import { cn } from "@/lib/utils";
-import {
-  isAccountantSignatory,
-  signatoryDisplayName,
-} from "@/lib/signatory";
+import { signatoryDisplayName } from "@/lib/signatory";
 
 /** Couleurs et surfaces — papier 2R Conseil (facture et devis). */
 const REF = CONSEIL_PAPER_COLORS;
@@ -94,7 +91,6 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
   const accentTo = isConseilDesign ? REF.accentTo : brandAccentTo;
 
   const niuLabel = niuLabelForCabinet(doc.cabinet);
-  const accountantSignatory = isAccountantSignatory(doc.signatoryTitle);
   const signatoryName = signatoryDisplayName(doc.signatoryTitle);
 
   const emitterLines = isConseilDesign
@@ -325,8 +321,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
           <div className="mt-auto flex justify-end pt-4">
             <ManagerSignature
               applied={
-                !accountantSignatory &&
-                (doc.status === "signed" || doc.status === "sent" || doc.status === "paid")
+                doc.status === "signed" || doc.status === "sent" || doc.status === "paid"
               }
               managerName={signatoryName}
               signatureUrl={company.stampUrl?.trim() || ""}
@@ -334,7 +329,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
               accent={accent}
               compact={dense}
               forPdf={compact}
-              omitStamp={omitSignature || accountantSignatory}
+              omitStamp={omitSignature}
               cabinet={doc.cabinet}
             />
           </div>
@@ -369,8 +364,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
           <div className={cn("flex justify-end", dense ? "mt-2" : "mt-2")}>
             <ManagerSignature
               applied={
-                !accountantSignatory &&
-                (doc.status === "signed" || doc.status === "sent" || doc.status === "paid")
+                doc.status === "signed" || doc.status === "sent" || doc.status === "paid"
               }
               managerName={signatoryName}
               signatureUrl={company.stampUrl?.trim() || ""}
@@ -378,7 +372,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
               accent={accent}
               compact={dense}
               forPdf={compact}
-              omitStamp={omitSignature || accountantSignatory}
+              omitStamp={omitSignature}
               cabinet={doc.cabinet}
             />
           </div>

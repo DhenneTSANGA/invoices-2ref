@@ -7,7 +7,6 @@ import { isAdmin, isSuperAdmin, canWriteDocument } from "@/lib/roles";
 import { loadDocumentPoles } from "@/lib/client-pole-db";
 import { assertMemberCanAccessPole } from "@/lib/staff-pole";
 import { parseClientPole } from "@/lib/client-pole";
-import { isAccountantSignatory } from "@/lib/signatory";
 import { companyForPreview } from "@/lib/company-defaults";
 import { staffDisplayName } from "@/lib/notify-document-status";
 import { documentTypeLabel } from "@/lib/document-status-labels";
@@ -115,11 +114,13 @@ async function loadSignableDoc(args: {
     include: args.includeCreatedBy ? { createdBy: true } : undefined,
   });
   if (!doc) throw new Error("Document introuvable");
-  const poles = await loadDocumentPoles([doc.id]);
-  assertMemberCanAccessPole(
-    args.staff,
-    poles.get(doc.id) ?? parseClientPole(undefined),
-  );
+  if (!isSuperAdmin(args.staff.role)) {
+    const poles = await loadDocumentPoles([doc.id]);
+    assertMemberCanAccessPole(
+      args.staff,
+      poles.get(doc.id) ?? parseClientPole(undefined),
+    );
+  }
   if (!isSignableType(doc.type)) {
     throw new Error("Ce type de document ne prend pas en charge la signature en ligne");
   }
@@ -166,11 +167,6 @@ export const requestLetterSignature = createServerFn({ method: "POST" })
       if (doc.status === "cancelled") {
         throw new Error("Document annulé");
       }
-      if (isAccountantSignatory(doc.signatoryTitle)) {
-        throw new Error(
-          "Document Chef comptable : utilisez le PDF pour paraphe manuscrit (pas de signature en ligne).",
-        );
-      }
 
       const pending = await prisma.letterSignatureRequest.findFirst({
         where: { documentId: doc.id, status: "pending" },
@@ -206,6 +202,47 @@ export const requestLetterSignature = createServerFn({ method: "POST" })
     }
   });
 
+/** Passe le document en « signé » et clôt la demande de signature. */
+export async function recordAdminSignature(args: {
+  documentId: string;
+  cabinet: "conseil" | "expertise_fiscale";
+  staffId: string;
+  note: string;
+}) {
+  const pending = await prisma.letterSignatureRequest.findFirst({
+    where: { documentId: args.documentId, status: "pending" },
+  });
+
+  await prisma.$transaction(async (tx) => {
+    await tx.document.update({
+      where: { id: args.documentId },
+      data: { status: "signed" },
+    });
+    if (pending) {
+      await tx.letterSignatureRequest.update({
+        where: { id: pending.id },
+        data: {
+          status: "accepted",
+          reviewedAt: new Date(),
+          reviewedById: args.staffId,
+        },
+      });
+    } else {
+      await tx.letterSignatureRequest.create({
+        data: {
+          documentId: args.documentId,
+          cabinet: args.cabinet,
+          requestedById: args.staffId,
+          status: "accepted",
+          reviewedAt: new Date(),
+          reviewedById: args.staffId,
+          note: args.note,
+        },
+      });
+    }
+  });
+}
+
 /**
  * Admin / SA signe après avoir consulté le document.
  * Applique le cachet cabinet (stampUrl + managerName) via le statut signed.
@@ -239,11 +276,6 @@ export const signLetterDocument = createServerFn({ method: "POST" })
     if (doc.status === "cancelled") {
       throw new Error("Document annulé");
     }
-    if (isAccountantSignatory(doc.signatoryTitle)) {
-      throw new Error(
-        "Document Chef comptable : utilisez le PDF pour paraphe manuscrit (pas de signature en ligne).",
-      );
-    }
 
     const company = companyForPreview(
       await prisma.company.findUnique({ where: { cabinet: doc.cabinet } }),
@@ -259,33 +291,11 @@ export const signLetterDocument = createServerFn({ method: "POST" })
       where: { documentId: doc.id, status: "pending" },
     });
 
-    await prisma.$transaction(async (tx) => {
-      await tx.document.update({
-        where: { id: doc.id },
-        data: { status: "signed" },
-      });
-      if (pending) {
-        await tx.letterSignatureRequest.update({
-          where: { id: pending.id },
-          data: {
-            status: "accepted",
-            reviewedAt: new Date(),
-            reviewedById: staff.id,
-          },
-        });
-      } else {
-        await tx.letterSignatureRequest.create({
-          data: {
-            documentId: doc.id,
-            cabinet: doc.cabinet,
-            requestedById: staff.id,
-            status: "accepted",
-            reviewedAt: new Date(),
-            reviewedById: staff.id,
-            note: "Signature directe par l’administrateur",
-          },
-        });
-      }
+    await recordAdminSignature({
+      documentId: doc.id,
+      cabinet: doc.cabinet,
+      staffId: staff.id,
+      note: "Signature directe par l’administrateur",
     });
 
     // Créateur + demandeur (souvent le même) : priorité à l’auteur du document

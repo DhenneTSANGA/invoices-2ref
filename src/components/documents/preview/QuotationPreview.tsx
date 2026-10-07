@@ -34,10 +34,7 @@ import {
 import { clientDocumentLines, clientConseilDocumentLines } from "@/lib/client-address";
 import { ManagerSignature } from "@/components/signature/ManagerSignature";
 import { cn } from "@/lib/utils";
-import {
-  isAccountantSignatory,
-  signatoryDisplayName,
-} from "@/lib/signatory";
+import { signatoryDisplayName } from "@/lib/signatory";
 
 type Props = {
   doc: Document;
@@ -68,7 +65,6 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
   const cardTint = isConseilDesign ? CONSEIL_PAPER_COLORS.paymentBg : tint;
 
   const niuLabel = niuLabelForCabinet(doc.cabinet);
-  const accountantSignatory = isAccountantSignatory(doc.signatoryTitle);
   const signatoryName = signatoryDisplayName(doc.signatoryTitle);
 
   const emitterLines = isConseilDesign
@@ -340,10 +336,9 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
           <div className="mt-auto flex justify-end pt-4">
             <ManagerSignature
               applied={
-                !accountantSignatory &&
-                (doc.status === "signed" ||
-                  doc.status === "sent" ||
-                  doc.status === "accepted")
+                doc.status === "signed" ||
+                doc.status === "sent" ||
+                doc.status === "accepted"
               }
               managerName={signatoryName}
               signatureUrl={company.stampUrl?.trim() || ""}
@@ -351,7 +346,7 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
               accent={accent}
               compact={dense}
               forPdf={compact}
-              omitStamp={omitSignature || accountantSignatory}
+              omitStamp={omitSignature}
               cabinet={doc.cabinet}
             />
           </div>
@@ -412,10 +407,9 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
           <div className={cn("flex justify-end", dense ? "mt-2" : "mt-4")}>
             <ManagerSignature
               applied={
-                !accountantSignatory &&
-                (doc.status === "signed" ||
-                  doc.status === "sent" ||
-                  doc.status === "accepted")
+                doc.status === "signed" ||
+                doc.status === "sent" ||
+                doc.status === "accepted"
               }
               managerName={signatoryName}
               signatureUrl={company.stampUrl?.trim() || ""}
@@ -423,7 +417,7 @@ export const QuotationPreview = forwardRef<HTMLDivElement, Props>(function Quota
               accent={accent}
               compact={dense}
               forPdf={compact}
-              omitStamp={omitSignature || accountantSignatory}
+              omitStamp={omitSignature}
               cabinet={doc.cabinet}
             />
           </div>

@@ -12,10 +12,7 @@ import {
   CONSEIL_PAPER_COLORS,
   CONSEIL_BAR_FILL,
 } from "@/lib/cabinets";
-import {
-  isAccountantSignatory,
-  signatoryDisplayName,
-} from "@/lib/signatory";
+import { signatoryDisplayName } from "@/lib/signatory";
 import {
   escapeHtml,
   requireResendApiKey,
@@ -30,6 +27,7 @@ import {
 import { documentTypeLabel } from "@/lib/document-status-labels";
 import { amountInWords, number as formatAmount } from "@/lib/format";
 import { canWriteDocument, isAdmin, isSuperAdmin } from "@/lib/roles";
+import { recordAdminSignature } from "@/lib/letter-signature.functions";
 import { loadDocumentPoles } from "@/lib/client-pole-db";
 import { assertMemberCanAccessPole } from "@/lib/staff-pole";
 import { parseClientPole } from "@/lib/client-pole";
@@ -667,7 +665,8 @@ export async function sendDocumentEmailInternal(params: {
     },
   });
   if (!doc) throw new Error("Document introuvable");
-  if (!params.skipAccessCheck) {
+  const superAdmin = isSuperAdmin(params.staff.role);
+  if (!params.skipAccessCheck && !superAdmin) {
     const mailPoles = await loadDocumentPoles([doc.id]);
     assertMemberCanAccessPole(
       params.staff,
@@ -677,17 +676,36 @@ export async function sendDocumentEmailInternal(params: {
       throw new Error("Accès refusé — document en lecture seule");
     }
   }
-    if (isAccountantSignatory(doc.signatoryTitle)) {
-      throw new Error(
-        "Document signé par le Chef comptable : utilisez le PDF pour paraphe manuscrit (pas d’envoi e-mail).",
-      );
-    }
     if (
       doc.type === "letter" ||
       doc.type === "invoice" ||
       doc.type === "quotation"
     ) {
-      if (doc.status !== "signed" && doc.status !== "sent") {
+      if (doc.status === "cancelled") {
+        throw new Error("Document annulé");
+      }
+      const sendable =
+        doc.status === "signed" ||
+        doc.status === "sent" ||
+        doc.status === "paid";
+      if (!sendable && superAdmin && doc.status === "draft") {
+        const companyRow = await prisma.company.findUnique({
+          where: { cabinet: doc.cabinet },
+        });
+        const company = companyForPreview(companyRow, doc.cabinet);
+        if (!company.managerName?.trim()) {
+          throw new Error(
+            "Configurez le nom du gérant dans Paramètres avant de signer.",
+          );
+        }
+        await recordAdminSignature({
+          documentId: doc.id,
+          cabinet: doc.cabinet,
+          staffId: params.staff.id,
+          note: "Signature du super administrateur à l’envoi",
+        });
+        doc.status = "signed";
+      } else if (!sendable) {
         throw new Error(
           "Le document doit être signé par un administrateur avant l'envoi (ou imprimé en PDF pour signature physique).",
         );

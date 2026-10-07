@@ -40,8 +40,7 @@ import { currency, longDate, shortDate } from "@/lib/format";
 import { remainingDue, normalizedDeposit, isFundsLine, computeDocumentTotals } from "@/lib/document-math";
 import { dueMonthMention } from "@/lib/subscription";
 import { paymentMethodLabel } from "@/lib/payment-method";
-import { isAdmin } from "@/lib/roles";
-import { isAccountantSignatory } from "@/lib/signatory";
+import { canEditInvoiceContent, isAdmin, isMember } from "@/lib/roles";
 import { Switch } from "@/components/ui/switch";
 import {
   clientAllowsSubscription,
@@ -114,8 +113,15 @@ function InvoiceDetailPage() {
     : null;
   if (doc.type !== "invoice") return null;
 
-  const canSend = documentCanSendEmail(doc);
-  const accountantSignatory = isAccountantSignatory(doc.signatoryTitle);
+  const canSend = documentCanSendEmail(doc, session?.staff.role);
+  const canEditContent = Boolean(
+    session &&
+      canEditInvoiceContent(
+        session.staff.role,
+        session.staff.id,
+        doc.createdById,
+      ),
+  );
   const canSubscribe = clientAllowsSubscription(client?.billingProfile);
   const isSubscriptionTemplate = isSubscriptionTemplateInvoice(doc);
   const isSubscriptionGenerated = isSubscriptionGeneratedInvoice(doc);
@@ -129,7 +135,6 @@ function InvoiceDetailPage() {
   const needsSignatureRecovery =
     isSubscriptionTemplate &&
     !subscriptionTemplateReady &&
-    !accountantSignatory &&
     doc.status !== "paid" &&
     doc.status !== "cancelled";
 
@@ -209,21 +214,19 @@ function InvoiceDetailPage() {
         subtitle={`${client?.name ?? ""} · Émise le ${longDate(doc.issueDate)}`}
         actions={
           <>
-            <Link
-              to="/invoices/$id/edit"
-              params={{ id: doc.id }}
-              className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted"
-            >
-              <Edit3 className="h-4 w-4" /> Modifier
-            </Link>
+            {canEditContent ? (
+              <Link
+                to="/invoices/$id/edit"
+                params={{ id: doc.id }}
+                className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted"
+              >
+                <Edit3 className="h-4 w-4" /> Modifier
+              </Link>
+            ) : null}
             <button onClick={() => setPreviewOpen(true)} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted"><Eye className="h-4 w-4" /> Aperçu</button>
             <DocumentPdfButton doc={doc} appearance="header" />
-            {!accountantSignatory ? (
-              <DocumentSignatureActions doc={doc} previewSeen={previewSeen} compact />
-            ) : null}
-            {!accountantSignatory ? (
-              <button onClick={sendByEmail} disabled={sendEmailMutation.isPending || !canSend} className={doc.status === "signed" ? "inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow disabled:opacity-60" : "inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60"}><Send className="h-4 w-4" /> {sendEmailMutation.isPending ? "Envoi…" : "Envoyer"}</button>
-            ) : null}
+            <DocumentSignatureActions doc={doc} previewSeen={previewSeen} compact />
+            <button onClick={sendByEmail} disabled={sendEmailMutation.isPending || !canSend} className={doc.status === "signed" ? "inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow disabled:opacity-60" : "inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60"}><Send className="h-4 w-4" /> {sendEmailMutation.isPending ? "Envoi…" : "Envoyer"}</button>
             {doc.status !== "paid" && doc.status !== "cancelled" && (
               <button onClick={() => setPaidOpen(true)} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-success px-4 py-2 text-sm font-medium text-success-foreground shadow"><CheckCircle2 className="h-4 w-4" /> Marquer payée</button>
             )}
@@ -232,7 +235,7 @@ function InvoiceDetailPage() {
         }
       />
 
-      {doc.status === "draft" && !accountantSignatory && (
+      {doc.status === "draft" && (
         <div className="glass-panel mb-4 rounded-3xl p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -248,17 +251,17 @@ function InvoiceDetailPage() {
         </div>
       )}
 
-      {doc.status === "draft" && accountantSignatory && (
+      {doc.status === "draft" && session && isMember(session.staff.role) ? (
         <p className="mb-4 text-xs text-muted-foreground">
-          Signataire Chef comptable : téléchargez le PDF pour paraphe manuscrit.
+          Facture non modifiable après création — vérifiez le contenu, puis demandez la signature.
         </p>
-      )}
-
-      {doc.status === "draft" && !accountantSignatory && (
+      ) : doc.status === "draft" ? (
         <p className="mb-4 text-xs text-muted-foreground">
-          L’envoi e-mail nécessite le statut « Signé ».
+          {session?.staff.role === "super_admin"
+            ? "Super administrateur : vous pouvez signer et envoyer cette facture, quel que soit le pôle. Envoyer applique la signature du cabinet puis transmet l’e-mail."
+            : "L’envoi e-mail nécessite le statut « Signé »."}
         </p>
-      )}
+      ) : null}
 
       {doc.status === "signed" && <SignedDocumentReadyBanner type={doc.type} />}
 
@@ -475,7 +478,7 @@ function InvoiceDetailPage() {
                       <PauseCircle className="h-3.5 w-3.5" /> Mettre en pause
                     </button>
                   )}
-                  {isSubscriptionTemplate && (
+                  {isSubscriptionTemplate && canEditContent && (
                     <Link
                       to="/invoices/$id/edit"
                       params={{ id: doc.id }}

@@ -21,6 +21,7 @@ import {
   archiveScope,
   canDeleteClient,
   canEditCompanySettings,
+  canEditInvoiceContent,
   canWriteDocument,
   canWriteService,
   isSuperAdmin,
@@ -955,7 +956,17 @@ async function upsertDocumentHandler(
         staff,
         existingPoles.get(existing.id) ?? parseClientPole(undefined),
       );
-      if (!canWriteDocument(staff.role, staff.id, existing.createdById)) {
+      if (existing.type === "invoice") {
+        if (
+          !canEditInvoiceContent(staff.role, staff.id, existing.createdById)
+        ) {
+          throw new Error(
+            "Facture non modifiable — les collaborateurs ne peuvent plus modifier une facture après création (anti-fraude). Demandez une correction à un administrateur.",
+          );
+        }
+      } else if (
+        !canWriteDocument(staff.role, staff.id, existing.createdById)
+      ) {
         throw new Error("Accès refusé — document en lecture seule");
       }
       if (existing.type !== data.type) {

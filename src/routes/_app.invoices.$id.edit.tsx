@@ -1,9 +1,11 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { ArrowLeft, FileText } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { LoadingState } from "@/components/common/LoadingState";
 import { DocumentEditor } from "@/components/editor/DocumentEditor";
-import { useDocument } from "@/hooks/use-data";
+import { useDocument, useSession } from "@/hooks/use-data";
+import { canEditInvoiceContent } from "@/lib/roles";
 
 export const Route = createFileRoute("/_app/invoices/$id/edit")({
   head: () => ({ meta: [{ title: "Modifier la facture — 2R Hub" }] }),
@@ -12,7 +14,30 @@ export const Route = createFileRoute("/_app/invoices/$id/edit")({
 
 function EditInvoice() {
   const { id } = Route.useParams();
+  const navigate = useNavigate();
+  const { data: session } = useSession();
   const { data: doc, isLoading } = useDocument(id);
+
+  const allowed =
+    Boolean(session && doc) &&
+    canEditInvoiceContent(
+      session!.staff.role,
+      session!.staff.id,
+      doc!.createdById,
+    );
+
+  useEffect(() => {
+    if (isLoading || !doc || !session) return;
+    if (
+      !canEditInvoiceContent(
+        session.staff.role,
+        session.staff.id,
+        doc.createdById,
+      )
+    ) {
+      void navigate({ to: "/invoices/$id", params: { id: doc.id }, replace: true });
+    }
+  }, [doc, session, isLoading, navigate]);
 
   if (isLoading) {
     return (
@@ -34,6 +59,16 @@ function EditInvoice() {
           </Link>
         </div>
       </div>
+    );
+  }
+
+  if (!allowed) {
+    return (
+      <LoadingState
+        icon={FileText}
+        title="Facture non modifiable"
+        description="Redirection vers la fiche…"
+      />
     );
   }
 

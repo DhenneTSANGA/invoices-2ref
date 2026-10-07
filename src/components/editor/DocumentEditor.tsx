@@ -44,11 +44,9 @@ import {
   lineQuantityForTotal,
   parseLineQuantityUnit,
 } from "@/lib/line-quantity";
-import { isAdmin } from "@/lib/roles";
-import { documentCanSendEmail } from "@/components/documents/DocumentSignatureActions";
+import { canEditInvoiceContent, isAdmin, isMember, isSuperAdmin } from "@/lib/roles";
 import {
   DEFAULT_SIGNATORY_TITLE,
-  isAccountantSignatory,
   resolveSignatoryRole,
   SIGNATORY_ROLES,
   signatoryTitleForRole,
@@ -131,6 +129,13 @@ export function DocumentEditor({ initial, type }: Props) {
   const commercial = type === "invoice" || type === "quotation";
   const adminLike = session ? isAdmin(session.staff.role) : false;
   const memberPole = memberVisibilityPole(session?.staff);
+  const invoiceLockedForMember = Boolean(
+    type === "invoice" &&
+      session &&
+      isMember(session.staff.role) &&
+      initial &&
+      isPersistedId(initial.id),
+  );
 
   const clientOptions = (() => {
     const map = new Map(clients.map((c) => [c.id, c.name]));
@@ -561,13 +566,12 @@ export function DocumentEditor({ initial, type }: Props) {
         ? ({ to: "/quotations/$id" as const, params: { id } })
         : ({ to: "/lettre/$id" as const, params: { id } });
 
-  const accountantSignatory = isAccountantSignatory(doc.signatoryTitle);
   const alreadySigned =
     doc.status === "signed" ||
     doc.status === "sent" ||
     doc.status === "paid" ||
     doc.status === "accepted";
-  const canOnlineSign = commercial && !alreadySigned && !accountantSignatory;
+  const canOnlineSign = commercial && !alreadySigned;
 
   const buildPayload = (status: Document["status"] = "draft") => {
     // Ne pas écraser un statut « figé » (signé / envoyé / payé…) en brouillon
@@ -670,6 +674,14 @@ export function DocumentEditor({ initial, type }: Props) {
       toast.error("Ajoutez au moins une prestation");
       return null;
     }
+    if (
+      type === "invoice" &&
+      session &&
+      isMember(session.staff.role) &&
+      isPersistedId(merged.id)
+    ) {
+      return merged;
+    }
     const saved = await upsertMutation.mutateAsync(buildPayload("draft"));
     setDoc((d) => ({ ...d, ...saved, id: saved.id }));
     return saved;
@@ -684,15 +696,39 @@ export function DocumentEditor({ initial, type }: Props) {
       toast.error("Ajoutez au moins une prestation");
       return;
     }
+    if (
+      type === "invoice" &&
+      session &&
+      !canEditInvoiceContent(
+        session.staff.role,
+        session.staff.id,
+        merged.createdById ?? session.staff.id,
+        { isNew: !isPersistedId(merged.id) },
+      )
+    ) {
+      toast.error(
+        "Facture non modifiable après création — demandez une correction à un administrateur.",
+      );
+      void navigate(detailPath(merged.id));
+      return;
+    }
     setSaving(true);
     try {
       const saved = await upsertMutation.mutateAsync(buildPayload(status));
       setDoc((d) => ({ ...d, ...saved, id: saved.id }));
       if (status === "sent") {
-        if (saved.status !== "signed" && saved.status !== "sent") {
+        const superAdmin = session ? isSuperAdmin(session.staff.role) : false;
+        const ready =
+          saved.status === "signed" ||
+          saved.status === "sent" ||
+          saved.status === "paid" ||
+          (superAdmin && saved.status === "draft");
+        if (!ready) {
           toast.success("Document enregistré", {
             description:
-              "Demandez la signature (ou PDF physique) avant l’envoi e-mail.",
+              type === "invoice" && session && isMember(session.staff.role)
+                ? "Facture figée — demandez la signature (ou PDF physique) avant l’envoi e-mail."
+                : "Demandez la signature (ou PDF physique) avant l’envoi e-mail.",
           });
           void navigate(detailPath(saved.id));
           return;
@@ -702,7 +738,12 @@ export function DocumentEditor({ initial, type }: Props) {
           description: `${saved.number} → ${emailed.to}`,
         });
       } else {
-        toast.success("Document enregistré", { description: saved.number });
+        toast.success("Document enregistré", {
+          description:
+            type === "invoice" && session && isMember(session.staff.role)
+              ? `${saved.number} — non modifiable après création`
+              : saved.number,
+        });
       }
       if (commercial) {
         void navigate(detailPath(saved.id));
@@ -1729,7 +1770,7 @@ export function DocumentEditor({ initial, type }: Props) {
           type="button"
           variant="outline"
           className="rounded-xl"
-          disabled={saving}
+          disabled={saving || invoiceLockedForMember}
           onClick={() => void save("draft")}
         >
           <Save className="h-4 w-4" /> Enregistrer
@@ -1758,25 +1799,27 @@ export function DocumentEditor({ initial, type }: Props) {
             {signMutation.isPending ? "Signature…" : "Signer"}
           </Button>
         )}
-        {!accountantSignatory ? (
-          <Button
-            type="button"
-            className="rounded-xl bg-gradient-primary text-primary-foreground shadow-glow hover:opacity-95"
-            disabled={saving}
-            onClick={() => void save("sent")}
-          >
-            <Send className="h-4 w-4" /> Envoyer
-          </Button>
-        ) : null}
+        <Button
+          type="button"
+          className="rounded-xl bg-gradient-primary text-primary-foreground shadow-glow hover:opacity-95"
+          disabled={saving || invoiceLockedForMember}
+          onClick={() => void save("sent")}
+        >
+          <Send className="h-4 w-4" /> Envoyer
+        </Button>
       </div>
 
       {commercial && !alreadySigned ? (
         <p className="text-right text-xs text-muted-foreground">
-          {accountantSignatory
-            ? "Signataire Chef comptable : téléchargez le PDF pour paraphe manuscrit. Pas de signature en ligne ni d’envoi e-mail."
-            : adminLike
-              ? "En tant qu’administrateur, vous pouvez signer directement. L’envoi e-mail reste possible après signature (ou PDF physique)."
-              : "Option : demandez la signature de la Direction (notification). Le PDF reste disponible pour une signature physique."}
+          {invoiceLockedForMember
+            ? "Facture figée après création — demandez la signature ou téléchargez le PDF."
+            : type === "invoice" && session && isMember(session.staff.role)
+              ? "Après enregistrement, cette facture ne sera plus modifiable. Relisez bien avant de valider."
+              : session && isSuperAdmin(session.staff.role)
+                ? "Super administrateur : vous pouvez signer et envoyer, quel que soit le pôle. Envoyer applique la signature du cabinet puis transmet l’e-mail."
+                : adminLike
+                  ? "En tant qu’administrateur, vous pouvez signer directement. L’envoi e-mail reste possible après signature (ou PDF physique)."
+                  : "Option : demandez la signature de la Direction (notification). Le PDF reste disponible pour une signature physique."}
         </p>
       ) : null}
 
