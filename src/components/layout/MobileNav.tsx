@@ -13,6 +13,7 @@ import { Logo } from "@/components/common/Logo";
 import { primaryNav, secondaryNav, navForRole, type NavItem } from "./nav-items";
 import { NavIcon } from "./NavIcon";
 import { CabinetSwitcher } from "./CabinetSwitcher";
+import { canChooseSpace } from "@/lib/app-space";
 import { canSwitchCabinet, isAdmin, isSuperAdmin, roleLabel } from "@/lib/roles";
 import { CABINET_LABELS } from "@/lib/cabinets";
 import { prefetchForNavPath } from "@/lib/prefetch-app-data";
@@ -31,6 +32,7 @@ export function MobileNav() {
   const isSa = isSuperAdmin(session.staff.role);
   const adminLike = isAdmin(session.staff.role) && !isSa;
   const cabinetLabel = CABINET_LABELS[session.activeCabinet];
+  const showSpaceSwitcher = canChooseSpace(session.staff);
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -117,14 +119,16 @@ export function MobileNav() {
         </SheetHeader>
 
         <nav className="flex-1 overflow-y-auto px-3 py-4">
-          <Link
-            to="/hub"
-            onClick={() => setOpen(false)}
-            className="mb-4 flex items-center gap-3 rounded-2xl border border-border/60 px-3 py-3 text-sm font-medium hover:bg-muted"
-          >
-            <LayoutGrid className="h-4 w-4" />
-            Changer d’espace
-          </Link>
+          {showSpaceSwitcher ? (
+            <Link
+              to="/hub"
+              onClick={() => setOpen(false)}
+              className="mb-4 flex items-center gap-3 rounded-2xl border border-border/60 px-3 py-3 text-sm font-medium hover:bg-muted"
+            >
+              <LayoutGrid className="h-4 w-4" />
+              Changer d’espace
+            </Link>
+          ) : null}
           {canSwitchCabinet(session.staff.role) && (
             <div className="mb-4 px-1">
               <CabinetSwitcher />

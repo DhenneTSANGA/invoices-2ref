@@ -3,6 +3,11 @@ import type { QueryClient } from "@tanstack/react-query";
 import { getAuthBootstrap } from "@/lib/admin.functions";
 import { sessionKey } from "@/hooks/use-data";
 import type { AppSession } from "@/lib/session.functions";
+import {
+  canAccessSpace,
+  homePathForStaff,
+  type AppSpace,
+} from "@/lib/app-space";
 
 /** Durée pendant laquelle on réutilise la session client sans re-bootstrap serveur. */
 export const SESSION_CLIENT_TTL_MS = 5 * 60_000;
@@ -54,4 +59,16 @@ export async function requireReadySession(queryClient: QueryClient): Promise<{
     console.error("[requireReadySession]", err);
     throw redirect({ to: "/login" });
   }
+}
+
+/** Session prête + droit d’accès à l’espace demandé. */
+export async function requireSpaceSession(
+  queryClient: QueryClient,
+  space: AppSpace,
+): Promise<{ session: NonNullable<AppSession> }> {
+  const { session } = await requireReadySession(queryClient);
+  if (!canAccessSpace(session.staff, space)) {
+    throw redirect({ to: homePathForStaff(session.staff) });
+  }
+  return { session };
 }

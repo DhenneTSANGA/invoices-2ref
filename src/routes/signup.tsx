@@ -20,7 +20,7 @@ import { syncStaffFromSignup } from "@/lib/staff-client";
 import { getCurrentSession } from "@/lib/session.functions";
 import { GoogleIcon } from "@/components/auth/AuthIcons";
 import { CABINET_LABELS, STAFF_JOB_TITLES } from "@/lib/cabinets";
-import { homePathForRole } from "@/lib/roles";
+import { homePathForStaff } from "@/lib/app-space";
 import { isPublicSelfSignupEnabled } from "@/lib/access-policy";
 import { humanAuthError } from "@/lib/auth-errors";
 
@@ -34,7 +34,7 @@ export const Route = createFileRoute("/signup")({
       });
     }
     const session = await getCurrentSession();
-    if (session) throw redirect({ to: homePathForRole(session.staff.role) });
+    if (session) throw redirect({ to: homePathForStaff(session.staff) });
   },
   component: SignupPage,
 });

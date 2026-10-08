@@ -26,6 +26,7 @@ import {
   canWriteService,
   isSuperAdmin,
 } from "@/lib/roles";
+import { canAccessSpace } from "@/lib/app-space";
 import {
   clampSubscriptionDay,
   inferSubscriptionDuePattern,
@@ -246,7 +247,10 @@ export const listClients = createServerFn({ method: "GET" })
  */
 export const listClientsForProspection = createServerFn({ method: "GET" }).handler(
   async () => {
-    await requireSession();
+    const session = await requireSession();
+    if (!canAccessSpace(session.staff, "prospection")) {
+      throw new Error("Accès Prospection non autorisé");
+    }
     const rows = await prisma.client.findMany({
       where: { isTransient: false },
       orderBy: [{ cabinet: "asc" }, { name: "asc" }],

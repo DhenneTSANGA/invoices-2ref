@@ -3,6 +3,7 @@ import { z } from "zod";
 import { Prisma, type CrmPipelineStage, type CrmServiceLine } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSession, type AppSession } from "@/lib/session.functions";
+import { canAccessSpace } from "@/lib/app-space";
 import {
   EXPENSE_APPROVAL_THRESHOLD,
   MANAGERS,
@@ -39,6 +40,9 @@ import {
 async function requireSession(): Promise<NonNullable<AppSession>> {
   const session = await getCurrentSession();
   if (!session) throw new Error("Non authentifié");
+  if (!canAccessSpace(session.staff, "prospection")) {
+    throw new Error("Accès Prospection non autorisé");
+  }
   return session;
 }
 

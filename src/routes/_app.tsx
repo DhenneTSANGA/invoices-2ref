@@ -10,10 +10,11 @@ import { PageTransition } from "@/components/common/PageTransition";
 import { prefetchCommonAppData } from "@/lib/prefetch-app-data";
 import { NotificationSync } from "@/components/layout/NotificationSync";
 import { BrandTheme } from "@/components/layout/BrandTheme";
-import { requireReadySession } from "@/lib/app-session-gate";
+import { requireSpaceSession } from "@/lib/app-session-gate";
 
 export const Route = createFileRoute("/_app")({
-  beforeLoad: async ({ context }) => requireReadySession(context.queryClient),
+  beforeLoad: async ({ context }) =>
+    requireSpaceSession(context.queryClient, "facturation"),
   component: AppLayout,
 });
 

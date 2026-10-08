@@ -18,7 +18,7 @@ import {
 import { DualCabinetLogos, Logo } from "@/components/common/Logo";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { getCurrentSession } from "@/lib/session.functions";
-import { homePathForRole } from "@/lib/roles";
+import { homePathForStaff } from "@/lib/app-space";
 import { isPublicSelfSignupEnabled } from "@/lib/access-policy";
 import {
   documentStatusLabel,
@@ -179,7 +179,7 @@ function LandingPage() {
   const { theme, toggle, ready } = useTheme();
   const { landingSession } = Route.useRouteContext();
   const appHome = landingSession
-    ? homePathForRole(landingSession.staff.role)
+    ? homePathForStaff(landingSession.staff)
     : null;
   const publicSignup = isPublicSelfSignupEnabled();
 

@@ -5,6 +5,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/common/Logo";
 import { CABINET_LABELS } from "@/lib/cabinets";
+import { canChooseSpace } from "@/lib/app-space";
 import { canSwitchCabinet, isAdmin, isSuperAdmin, roleLabel } from "@/lib/roles";
 import { primaryNav, secondaryNav, navForRole, type NavItem } from "./nav-items";
 import { NavIcon } from "./NavIcon";
@@ -25,6 +26,7 @@ export function AppSidebar() {
   const cabinetLabel = CABINET_LABELS[session.activeCabinet];
   const isSa = isSuperAdmin(session.staff.role);
   const adminLike = isAdmin(session.staff.role) && !isSa;
+  const showSpaceSwitcher = canChooseSpace(session.staff);
 
   return (
     <motion.aside
@@ -114,16 +116,18 @@ export function AppSidebar() {
       )}
 
       <div className="mt-2 flex-1 overflow-y-auto pr-1">
-        <Link
-          to="/hub"
-          className={cn(
-            "mb-3 flex items-center gap-3 rounded-2xl border border-border/60 px-3 py-2.5 text-sm font-medium text-foreground/80 hover:bg-muted/70 hover:text-foreground",
-            collapsed && "justify-center px-0",
-          )}
-        >
-          <LayoutGrid className="h-4 w-4 shrink-0" />
-          {!collapsed && <span className="truncate">Changer d’espace</span>}
-        </Link>
+        {showSpaceSwitcher ? (
+          <Link
+            to="/hub"
+            className={cn(
+              "mb-3 flex items-center gap-3 rounded-2xl border border-border/60 px-3 py-2.5 text-sm font-medium text-foreground/80 hover:bg-muted/70 hover:text-foreground",
+              collapsed && "justify-center px-0",
+            )}
+          >
+            <LayoutGrid className="h-4 w-4 shrink-0" />
+            {!collapsed && <span className="truncate">Changer d’espace</span>}
+          </Link>
+        ) : null}
         <NavSection title="Principal" items={items} pathname={pathname} collapsed={collapsed} />
         <div className="mx-3 my-3 h-px bg-border" />
         <NavSection title="Espace" items={secondary} pathname={pathname} collapsed={collapsed} />

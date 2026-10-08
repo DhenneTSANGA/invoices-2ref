@@ -32,6 +32,7 @@ import {
 import { BrandTheme } from "@/components/layout/BrandTheme";
 import { NavIcon } from "@/components/layout/NavIcon";
 import { PageTransition } from "@/components/common/PageTransition";
+import { canChooseSpace } from "@/lib/app-space";
 import { isAdmin, isSuperAdmin, roleLabel } from "@/lib/roles";
 import { crmRoleFromStaff } from "@/lib/prospection-access";
 import {
@@ -120,6 +121,7 @@ function ProspectionSidebar() {
   const isSa = isSuperAdmin(session.staff.role);
   const adminLike = isAdmin(session.staff.role) && !isSa;
   const sections = crmNavSections(crmRoleFromStaff(session.staff.role));
+  const showSpaceSwitcher = canChooseSpace(session.staff);
 
   return (
     <motion.aside
@@ -202,16 +204,18 @@ function ProspectionSidebar() {
       )}
 
       <div className="mt-2 flex-1 overflow-y-auto pr-1">
-        <Link
-          to="/hub"
-          className={cn(
-            "mb-3 flex items-center gap-3 rounded-2xl border border-border/60 px-3 py-2.5 text-sm font-medium text-foreground/80 hover:bg-muted/70 hover:text-foreground",
-            collapsed && "justify-center px-0",
-          )}
-        >
-          <LayoutGrid className="h-4 w-4 shrink-0" />
-          {!collapsed && <span className="truncate">Changer d’espace</span>}
-        </Link>
+        {showSpaceSwitcher ? (
+          <Link
+            to="/hub"
+            className={cn(
+              "mb-3 flex items-center gap-3 rounded-2xl border border-border/60 px-3 py-2.5 text-sm font-medium text-foreground/80 hover:bg-muted/70 hover:text-foreground",
+              collapsed && "justify-center px-0",
+            )}
+          >
+            <LayoutGrid className="h-4 w-4 shrink-0" />
+            {!collapsed && <span className="truncate">Changer d’espace</span>}
+          </Link>
+        ) : null}
         {sections.map((section, i) => (
           <div key={section.id} className={cn(i > 0 && "mt-4")}>
             {!collapsed ? (
@@ -244,6 +248,7 @@ function ProspectionTopbar() {
   const [open, setOpen] = useState(false);
   const staff = session.staff;
   const displayName = `${staff.firstName} ${staff.lastName}`.trim() || "Collaborateur";
+  const showSpaceSwitcher = canChooseSpace(staff);
 
   const logout = async () => {
     await signOut();
@@ -295,13 +300,15 @@ function ProspectionTopbar() {
           </button>
           {open ? (
             <div className="glass-panel absolute right-0 top-12 z-50 w-56 rounded-2xl p-2 shadow-float">
-              <Link
-                to="/hub"
-                onClick={() => setOpen(false)}
-                className="block rounded-xl px-3 py-2 text-sm hover:bg-muted"
-              >
-                Changer d’espace
-              </Link>
+              {showSpaceSwitcher ? (
+                <Link
+                  to="/hub"
+                  onClick={() => setOpen(false)}
+                  className="block rounded-xl px-3 py-2 text-sm hover:bg-muted"
+                >
+                  Changer d’espace
+                </Link>
+              ) : null}
               <button
                 type="button"
                 onClick={logout}

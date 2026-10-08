@@ -1,3 +1,5 @@
+export type StaffSpacesAllowed = "facturation" | "prospection" | "both";
+
 export type StaffMember = {
   id: string;
   email: string;
@@ -10,6 +12,8 @@ export type StaffMember = {
   cabinet: "conseil" | "expertise_fiscale" | null;
   /** Conservé pour l’admin ; restreint uniquement les membres. Null pour super_admin. */
   pole?: ClientPole | null;
+  /** Espaces applicatifs autorisés. */
+  spacesAllowed: StaffSpacesAllowed;
 };
 
 export type Cabinet = "conseil" | "expertise_fiscale";

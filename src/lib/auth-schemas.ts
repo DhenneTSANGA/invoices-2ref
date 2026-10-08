@@ -63,6 +63,8 @@ export const onboardingSchema = z.object({
     }),
 });
 
+const spacesAllowedSchema = z.enum(["facturation", "prospection"]);
+
 /** Invitation collaborateur (super admin) — e-mail Supabase (conservé, non exposé par défaut). */
 export const inviteStaffSchema = z.object({
   firstName: z.string().min(1, "Prénom requis"),
@@ -78,6 +80,8 @@ export const inviteStaffSchema = z.object({
     }),
   role: z.enum(["member", "admin"]).default("member"),
   pole: z.enum(CLIENT_POLES, { error: "Choisissez un pôle" }),
+  /** Espace mono-accès (le super_admin reste `both` automatiquement). */
+  spacesAllowed: spacesAllowedSchema.default("facturation"),
 });
 
 /** Création directe d’un accès (super admin) — e-mail + mot de passe, sans e-mail Supabase. */

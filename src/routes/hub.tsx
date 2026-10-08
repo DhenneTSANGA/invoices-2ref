@@ -1,10 +1,15 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import { ArrowRight, Compass, ReceiptText } from "lucide-react";
 import { Logo } from "@/components/common/Logo";
 import { BrandTheme } from "@/components/layout/BrandTheme";
 import { requireReadySession } from "@/lib/app-session-gate";
-import { rememberSpace } from "@/lib/app-space";
+import {
+  canAccessSpace,
+  canChooseSpace,
+  homePathForStaff,
+  rememberSpace,
+} from "@/lib/app-space";
 import { facturationHomePath } from "@/lib/roles";
 
 export const Route = createFileRoute("/hub")({
@@ -17,7 +22,13 @@ export const Route = createFileRoute("/hub")({
       },
     ],
   }),
-  beforeLoad: async ({ context }) => requireReadySession(context.queryClient),
+  beforeLoad: async ({ context }) => {
+    const { session } = await requireReadySession(context.queryClient);
+    if (!canChooseSpace(session.staff)) {
+      throw redirect({ to: homePathForStaff(session.staff) });
+    }
+    return { session };
+  },
   component: HubPage,
 });
 
@@ -25,6 +36,8 @@ function HubPage() {
   const { session } = Route.useRouteContext();
   const factuTo = facturationHomePath(session.staff.role);
   const first = session.staff.firstName || "Collaborateur";
+  const showFactu = canAccessSpace(session.staff, "facturation");
+  const showProspect = canAccessSpace(session.staff, "prospection");
 
   return (
     <div className="aurora-bg flex min-h-screen items-center justify-center px-4 py-12">
@@ -36,28 +49,32 @@ function HubPage() {
             Bonjour {first}
           </h1>
           <p className="mt-2 max-w-lg text-sm text-muted-foreground">
-            Deux espaces, un seul compte. La facturation reste à part du canevas
-            commercial.
+            Choisissez l’espace dans lequel travailler. Facturation et Prospection
+            restent séparés.
           </p>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <SpaceCard
-            to={factuTo}
-            space="facturation"
-            icon={ReceiptText}
-            title="Facturation"
-            subtitle="Devis, factures, clients, courriels et dossiers de production."
-            delay={0}
-          />
-          <SpaceCard
-            to="/prospection"
-            space="prospection"
-            icon={Compass}
-            title="Prospection"
-            subtitle="Pipeline, portefeuille, actions, budget et plans de compte — démo."
-            delay={0.08}
-          />
+          {showFactu ? (
+            <SpaceCard
+              to={factuTo}
+              space="facturation"
+              icon={ReceiptText}
+              title="Facturation"
+              subtitle="Devis, factures, clients, courriels et dossiers de production."
+              delay={0}
+            />
+          ) : null}
+          {showProspect ? (
+            <SpaceCard
+              to="/prospection"
+              space="prospection"
+              icon={Compass}
+              title="Prospection"
+              subtitle="Pipeline, portefeuille, actions, budget et plans de compte."
+              delay={0.08}
+            />
+          ) : null}
         </div>
       </div>
     </div>

@@ -9,7 +9,7 @@ import {
 } from "@/lib/admin.functions";
 import { onboardingSchema } from "@/lib/auth-schemas";
 import { CABINET_LABELS, STAFF_JOB_TITLES } from "@/lib/cabinets";
-import { homePathForRole } from "@/lib/roles";
+import { homePathForStaff } from "@/lib/app-space";
 
 export const Route = createFileRoute("/onboarding")({
   head: () => ({ meta: [{ title: "Finaliser le profil — 2R Hub" }] }),
@@ -23,7 +23,7 @@ export const Route = createFileRoute("/onboarding")({
       throw redirect({ href: "/login?error=invite_only" });
     }
     if (boot.status === "ready") {
-      throw redirect({ to: homePathForRole(boot.staff.role) });
+      throw redirect({ to: homePathForStaff(boot.staff) });
     }
   },
   loader: async () => {
@@ -78,7 +78,7 @@ function OnboardingPage() {
     try {
       const staff = await completeOnboarding({ data: parsed.data });
       toast.success("Profil complété");
-      void navigate({ to: homePathForRole(staff.role) });
+      void navigate({ to: homePathForStaff(staff) });
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : "Impossible de continuer pour le moment.",

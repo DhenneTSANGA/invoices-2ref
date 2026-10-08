@@ -4,6 +4,7 @@ import { isCabinet } from "@/lib/cabinets";
 export type SyncStaffInput = StaffPayload & {
   id: string;
   role?: "member" | "admin" | "super_admin";
+  spacesAllowed?: "facturation" | "prospection" | "both";
 };
 
 function metaString(meta: Record<string, unknown>, ...keys: string[]): string | undefined {

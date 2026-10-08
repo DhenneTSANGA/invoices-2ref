@@ -283,6 +283,7 @@ export const createStaffWithPassword = createServerFn({ method: "POST" })
         phone: staffMeta.phone,
         cabinet: data.cabinet,
         role: data.role,
+        spacesAllowed: data.spacesAllowed,
       });
 
       await persistStaffPole(staff.id, parseClientPole(data.pole));
@@ -372,6 +373,7 @@ export const inviteStaffMember = createServerFn({ method: "POST" })
         phone: staffMeta.phone,
         cabinet: data.cabinet,
         role: data.role,
+        spacesAllowed: data.spacesAllowed,
       });
 
       await persistStaffPole(staff.id, parseClientPole(data.pole));
@@ -586,7 +588,11 @@ export const setStaffAdminRole = createServerFn({ method: "POST" })
       }
       await prisma.staffMember.update({
         where: { id: data.staffId },
-        data: { role: data.role, cabinet: data.cabinet },
+        data: {
+          role: data.role,
+          cabinet: data.cabinet,
+          spacesAllowed: "facturation",
+        },
       });
       const poles = await loadStaffPoles([data.staffId]);
       if (!poles.get(data.staffId)) {
@@ -635,6 +641,37 @@ export const setStaffPole = createServerFn({ method: "POST" })
     await persistStaffPole(target.id, data.pole);
     clearSessionMemo(target.id);
     return { ok: true as const, pole: data.pole };
+  });
+
+/** Modifie l’espace autorisé (Facturation / Prospection). Réservé super admin. */
+export const setStaffSpacesAllowed = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      staffId: z.string(),
+      spacesAllowed: z.enum(["facturation", "prospection", "both"]),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const session = await getCurrentSession();
+    if (!session) throw new Error("Non authentifié");
+    if (!canPromoteOrDemoteAdmins(session.staff.role)) {
+      throw new Error("Réservé au super administrateur");
+    }
+
+    const target = await prisma.staffMember.findUnique({
+      where: { id: data.staffId },
+    });
+    if (!target) throw new Error("Collaborateur introuvable");
+    if (target.role === "super_admin" && data.spacesAllowed !== "both") {
+      throw new Error("Le super administrateur conserve l’accès aux deux espaces");
+    }
+
+    await prisma.staffMember.update({
+      where: { id: data.staffId },
+      data: { spacesAllowed: data.spacesAllowed },
+    });
+    clearSessionMemo(target.id);
+    return { ok: true as const, spacesAllowed: data.spacesAllowed };
   });
 
 export const deleteStaffMember = createServerFn({ method: "POST" })

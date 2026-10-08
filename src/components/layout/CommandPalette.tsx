@@ -11,7 +11,7 @@ import {
   CommandSeparator,
   CommandShortcut,
 } from "@/components/ui/command";
-import { useClients, useDocuments } from "@/hooks/use-data";
+import { useClients, useDocuments, useSession } from "@/hooks/use-data";
 import {
   FileText,
   ReceiptText,
@@ -29,6 +29,7 @@ import {
   LayoutGrid,
   Compass,
 } from "lucide-react";
+import { canAccessSpace, canChooseSpace } from "@/lib/app-space";
 import { documentTypeLabel } from "@/lib/document-status-labels";
 import { CABINET_LABELS } from "@/lib/cabinets";
 import { cn } from "@/lib/utils";
@@ -146,8 +147,16 @@ export function CommandPalette({
   onOpenChange: (o: boolean) => void;
 }) {
   const navigate = useNavigate();
+  const { data: session } = useSession();
   const { data: clients = [] } = useClients();
   const { data: documents = [] } = useDocuments();
+  const staff = session?.staff;
+  const navActions = NAV_ACTIONS.filter((action) => {
+    if (!staff) return action.path !== "/hub" && action.path !== "/prospection";
+    if (action.path === "/hub") return canChooseSpace(staff);
+    if (action.path === "/prospection") return canAccessSpace(staff, "prospection");
+    return true;
+  });
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -224,7 +233,7 @@ export function CommandPalette({
         <CommandSeparator className="my-2" />
 
         <CommandGroup heading="Navigation">
-          {NAV_ACTIONS.map((action) => (
+          {navActions.map((action) => (
             <CommandItem
               key={action.path}
               value={action.label}

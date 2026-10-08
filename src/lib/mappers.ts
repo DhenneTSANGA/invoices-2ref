@@ -29,7 +29,16 @@ export function mapStaff(row: {
   role: "member" | "admin" | "super_admin";
   cabinet: "conseil" | "expertise_fiscale" | null;
   pole?: ClientPole | null;
+  spacesAllowed?: "facturation" | "prospection" | "both" | null;
 }): StaffMember {
+  const spacesAllowed =
+    row.role === "super_admin"
+      ? ("both" as const)
+      : row.spacesAllowed === "prospection" ||
+          row.spacesAllowed === "both" ||
+          row.spacesAllowed === "facturation"
+        ? row.spacesAllowed
+        : ("facturation" as const);
   return {
     id: row.id,
     email: row.email,
@@ -41,6 +50,7 @@ export function mapStaff(row: {
     role: row.role,
     cabinet: row.cabinet,
     pole: row.role === "super_admin" ? null : parseClientPole(row.pole),
+    spacesAllowed,
   };
 }
 

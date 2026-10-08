@@ -13,7 +13,7 @@ import { loginSchema, resetPasswordRequestSchema } from "@/lib/auth-schemas";
 import { syncStaffToDatabase } from "@/lib/staff-client";
 import { staffFromAuthUser } from "@/lib/staff-parse";
 import { getCurrentSession } from "@/lib/session.functions";
-import { homePathForRole } from "@/lib/roles";
+import { homePathForStaff } from "@/lib/app-space";
 import {
   checkAccountRemoved,
   getAuthBootstrap,
@@ -56,7 +56,7 @@ export const Route = createFileRoute("/login")({
         throw redirect({ to: "/onboarding" });
       }
       const session = await getCurrentSession();
-      if (session) throw redirect({ to: homePathForRole(session.staff.role) });
+      if (session) throw redirect({ to: homePathForStaff(session.staff) });
     } catch (err) {
       if (isRedirect(err)) throw err;
       // DB / réseau : afficher le formulaire plutôt qu’un écran d’erreur bloquant
@@ -154,7 +154,7 @@ function LoginPage() {
         } else {
           toast.success("Connexion réussie");
         }
-        void navigate({ to: homePathForRole(session.staff.role) });
+        void navigate({ to: homePathForStaff(session.staff) });
       } else if (!publicSignup) {
         const boot = await getAuthBootstrap();
         if (boot?.status === "account_removed") {

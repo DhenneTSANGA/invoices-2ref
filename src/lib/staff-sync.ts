@@ -13,6 +13,9 @@ export async function syncStaffMember(input: SyncStaffInput) {
   const jobTitle =
     normalizeJobTitleValue(input.jobTitle) ?? input.jobTitle.trim();
 
+  const spacesAllowed =
+    role === "super_admin" ? ("both" as const) : (input.spacesAllowed ?? "facturation");
+
   const base = {
     email: input.email,
     firstName: input.firstName,
@@ -30,6 +33,7 @@ export async function syncStaffMember(input: SyncStaffInput) {
         id: input.id,
         ...base,
         cabinet,
+        spacesAllowed,
       },
       update: {
         ...base,
@@ -37,6 +41,9 @@ export async function syncStaffMember(input: SyncStaffInput) {
         ...(input.role !== undefined ? { role: input.role } : {}),
         ...(input.cabinet !== undefined
           ? { cabinet: role === "super_admin" ? null : input.cabinet }
+          : {}),
+        ...(input.spacesAllowed !== undefined || role === "super_admin"
+          ? { spacesAllowed }
           : {}),
       },
     });

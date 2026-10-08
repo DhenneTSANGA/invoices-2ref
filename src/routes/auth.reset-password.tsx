@@ -10,7 +10,7 @@ import {
   SUGGEST_PASSWORD_CHANGE_KEY,
 } from "@/lib/auth-password";
 import { getAuthBootstrap } from "@/lib/admin.functions";
-import { homePathForRole } from "@/lib/roles";
+import { homePathForStaff } from "@/lib/app-space";
 import { getCurrentSession } from "@/lib/session.functions";
 import { humanAuthError } from "@/lib/auth-errors";
 
@@ -70,7 +70,7 @@ function ResetPasswordPage() {
 
       const session = await getCurrentSession();
       if (session) {
-        void navigate({ to: homePathForRole(session.staff.role) });
+        void navigate({ to: homePathForStaff(session.staff) });
         return;
       }
       void navigate({ to: "/login" });

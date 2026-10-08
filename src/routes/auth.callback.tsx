@@ -16,7 +16,7 @@ import {
 } from "@/lib/auth-password";
 import { getAuthBootstrap } from "@/lib/admin.functions";
 import { getCurrentSession } from "@/lib/session.functions";
-import { homePathForRole } from "@/lib/roles";
+import { homePathForStaff } from "@/lib/app-space";
 import { syncStaffToDatabase } from "@/lib/staff-client";
 import { humanAuthError } from "@/lib/auth-errors";
 
@@ -107,7 +107,7 @@ function AuthCallbackPage() {
       }
       if (boot?.status === "ready") {
         if (!cancelled) {
-          void navigate({ to: homePathForRole(boot.staff.role) });
+          void navigate({ to: homePathForStaff(boot.staff) });
         }
         return;
       }
@@ -124,7 +124,7 @@ function AuthCallbackPage() {
         const session = await getCurrentSession();
         if (session) {
           if (!cancelled) {
-            void navigate({ to: homePathForRole(session.staff.role) });
+            void navigate({ to: homePathForStaff(session.staff) });
           }
           return;
         }
@@ -135,7 +135,7 @@ function AuthCallbackPage() {
       const session = await getCurrentSession();
       if (session) {
         if (!cancelled) {
-          void navigate({ to: homePathForRole(session.staff.role) });
+          void navigate({ to: homePathForStaff(session.staff) });
         }
         return;
       }

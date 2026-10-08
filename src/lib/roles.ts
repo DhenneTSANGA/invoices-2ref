@@ -101,7 +101,7 @@ export function archiveScope(role: AppRole): "own" | "cabinet" {
   return isAdmin(role) ? "cabinet" : "own";
 }
 
-/** Choix d’espace après connexion (facturation vs prospection). */
+/** @deprecated Utiliser `homePathForStaff` (`@/lib/app-space`). */
 export function homePathForRole(_role?: AppRole): "/hub" {
   return "/hub";
 }

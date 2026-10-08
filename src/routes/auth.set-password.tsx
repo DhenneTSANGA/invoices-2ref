@@ -7,7 +7,7 @@ import { createClient } from "@/lib/client";
 import { setPasswordSchema } from "@/lib/auth-schemas";
 import { MUST_SET_PASSWORD_KEY } from "@/lib/auth-password";
 import { getAuthBootstrap } from "@/lib/admin.functions";
-import { homePathForRole } from "@/lib/roles";
+import { homePathForStaff } from "@/lib/app-space";
 import { humanAuthError } from "@/lib/auth-errors";
 
 export const Route = createFileRoute("/auth/set-password")({
@@ -23,7 +23,7 @@ export const Route = createFileRoute("/auth/set-password")({
     }
     if (boot.status === "needs_password") return;
     if (boot.status === "ready") {
-      throw redirect({ to: homePathForRole(boot.staff.role) });
+      throw redirect({ to: homePathForStaff(boot.staff) });
     }
     if (boot.status === "needs_onboarding") {
       throw redirect({ to: "/onboarding" });
@@ -70,7 +70,7 @@ function SetPasswordPage() {
 
       const boot = await getAuthBootstrap();
       if (boot?.status === "ready") {
-        void navigate({ to: homePathForRole(boot.staff.role) });
+        void navigate({ to: homePathForStaff(boot.staff) });
         return;
       }
       void navigate({ to: "/login" });

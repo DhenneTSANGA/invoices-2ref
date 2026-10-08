@@ -97,6 +97,13 @@ enum StaffRole {
   super_admin
 }
 
+/** Espaces applicatifs autorisés pour ce collaborateur. */
+enum StaffSpacesAllowed {
+  facturation
+  prospection
+  both
+}
+
 enum AdminRequestStatus {
   pending
   accepted
@@ -159,6 +166,8 @@ model StaffMember {
   cabinet   Cabinet?
   /// Conservé à la promotion admin (visibilité cabinet entière). Null pour super_admin.
   pole      ClientPole?
+  /// Facturation / Prospection / les deux (super_admin = both).
+  spacesAllowed StaffSpacesAllowed @default(facturation)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
@@ -182,6 +191,7 @@ model StaffMember {
   @@index([cabinet])
   @@index([pole])
   @@index([cabinet, pole])
+  @@index([spacesAllowed])
   @@map("staff_members")
 }
 
