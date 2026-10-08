@@ -8,6 +8,7 @@ import {
   homePathForStaff,
   type AppSpace,
 } from "@/lib/app-space";
+import { canUseProspectionSpace } from "@/lib/prospection-access";
 
 /** Durée pendant laquelle on réutilise la session client sans re-bootstrap serveur. */
 export const SESSION_CLIENT_TTL_MS = 5 * 60_000;
@@ -68,6 +69,9 @@ export async function requireSpaceSession(
 ): Promise<{ session: NonNullable<AppSession> }> {
   const { session } = await requireReadySession(queryClient);
   if (!canAccessSpace(session.staff, space)) {
+    throw redirect({ to: homePathForStaff(session.staff) });
+  }
+  if (space === "prospection" && !canUseProspectionSpace(session.staff.role)) {
     throw redirect({ to: homePathForStaff(session.staff) });
   }
   return { session };

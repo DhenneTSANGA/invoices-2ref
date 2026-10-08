@@ -4,9 +4,19 @@ import { Prisma, type CrmPipelineStage, type CrmServiceLine } from "@prisma/clie
 import { prisma } from "@/lib/prisma";
 import { getCurrentSession, type AppSession } from "@/lib/session.functions";
 import { canAccessSpace } from "@/lib/app-space";
+import type { ClientPole } from "@/lib/client-pole";
+import { mapStaff } from "@/lib/mappers";
+import {
+  FAKE_MANAGER_IDS,
+  isProspectionAssignableStaff,
+  staffToCrmManager,
+} from "@/lib/prospection-managers";
+import { assertProspectionStaff } from "@/lib/prospection-access";
+import { resolveCabinet } from "@/lib/roles";
+import { resolveStaffWritePole } from "@/lib/staff-pole";
+import { withLoadedStaffPoles } from "@/lib/staff-pole-db";
 import {
   EXPENSE_APPROVAL_THRESHOLD,
-  MANAGERS,
   STAGE_LABELS,
   STAGE_PROBABILITY,
   type ActivityKind,
@@ -14,6 +24,7 @@ import {
   type Company,
   type CompanyKind,
   type LeadStatus,
+  type Manager,
   type OpportunitySource,
   type PipelineStage,
   type Site,
@@ -43,7 +54,27 @@ async function requireSession(): Promise<NonNullable<AppSession>> {
   if (!canAccessSpace(session.staff, "prospection")) {
     throw new Error("Accès Prospection non autorisé");
   }
+  assertProspectionStaff(session.staff.role);
   return session;
+}
+
+function cityFromCrmSite(site: Site): string {
+  if (site === "port_gentil") return "Port-Gentil";
+  if (site === "franceville") return "Franceville";
+  return "Libreville";
+}
+
+function poleFromCrmLines(lines: readonly string[]): ClientPole {
+  if (lines.includes("formation")) return "formation";
+  if (lines.includes("comptabilite")) return "comptabilite";
+  if (
+    lines.includes("conseil") ||
+    lines.includes("fiscalite") ||
+    lines.includes("rh")
+  ) {
+    return "audit";
+  }
+  return "formation";
 }
 
 const serviceLineSchema = z.enum([
@@ -136,24 +167,83 @@ async function resolveCrmCompanyId(uiId: string, staffId?: string): Promise<stri
   return created.id;
 }
 
-async function ensureCrmDefaults() {
-  const [objCount, weekCount] = await Promise.all([
-    prisma.crmObjective.count(),
-    prisma.crmWeekCheck.count(),
+async function loadCrmManagers(): Promise<Manager[]> {
+  const rows = await prisma.staffMember.findMany({
+    orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+  });
+  const staff = await withLoadedStaffPoles(rows.map(mapStaff));
+  return staff
+    .filter(
+      (s) =>
+        isProspectionAssignableStaff(s) &&
+        (s.role === "admin" || s.role === "super_admin"),
+    )
+    .map(staffToCrmManager);
+}
+
+async function remapFakeManagerIds(fallbackId: string) {
+  const fakeIds = [...FAKE_MANAGER_IDS];
+  await Promise.all([
+    prisma.crmCompany.updateMany({
+      where: { managerId: { in: fakeIds } },
+      data: { managerId: fallbackId },
+    }),
+    prisma.crmOpportunity.updateMany({
+      where: { ownerId: { in: fakeIds } },
+      data: { ownerId: fallbackId },
+    }),
+    prisma.crmActivity.updateMany({
+      where: { ownerId: { in: fakeIds } },
+      data: { ownerId: fallbackId },
+    }),
+    prisma.crmLead.updateMany({
+      where: { ownerId: { in: fakeIds } },
+      data: { ownerId: fallbackId },
+    }),
+    prisma.crmExpense.updateMany({
+      where: { managerId: { in: fakeIds } },
+      data: { managerId: fallbackId },
+    }),
+    prisma.crmObjective.deleteMany({
+      where: { managerId: { in: fakeIds } },
+    }),
   ]);
+}
 
-  if (objCount === 0) {
-    await prisma.crmObjective.createMany({
-      data: MANAGERS.flatMap((m) =>
-        DEFAULT_OBJECTIVE_TARGETS.map((t) => ({
-          managerId: m.id,
-          metric: t.metric,
-          target: t.target,
-        })),
-      ),
-    });
+async function ensureObjectivesForManagers(managers: Manager[]) {
+  if (managers.length === 0) return;
+  const existing = await prisma.crmObjective.findMany({
+    select: { managerId: true, metric: true },
+  });
+  const have = new Set(existing.map((o) => `${o.managerId}:${o.metric}`));
+  const missing = managers.flatMap((m) =>
+    DEFAULT_OBJECTIVE_TARGETS.filter((t) => !have.has(`${m.id}:${t.metric}`)).map(
+      (t) => ({
+        managerId: m.id,
+        metric: t.metric,
+        target: t.target,
+      }),
+    ),
+  );
+  if (missing.length > 0) {
+    await prisma.crmObjective.createMany({ data: missing });
   }
+}
 
+async function ensureCrmDefaults(managers: Manager[], sessionStaffId: string) {
+  const fallbackId = managers[0]?.id ?? sessionStaffId;
+  if (fallbackId) {
+    await remapFakeManagerIds(fallbackId);
+  }
+  await ensureObjectivesForManagers(
+    managers.length > 0
+      ? managers
+      : fallbackId
+        ? [{ id: fallbackId, name: "Collaborateur", lines: [] }]
+        : [],
+  );
+
+  const weekCount = await prisma.crmWeekCheck.count();
   if (weekCount === 0) {
     await prisma.crmWeekCheck.createMany({
       data: DEFAULT_WEEK_CHECKS.map((w) => ({
@@ -172,8 +262,11 @@ async function createCrmNotificationRow(title: string, body: string, href: strin
   });
 }
 
-async function loadPipelineSnapshot(): Promise<CrmPipelineSnapshot> {
-  await ensureCrmDefaults();
+async function loadPipelineSnapshot(
+  sessionStaffId: string,
+): Promise<CrmPipelineSnapshot> {
+  const managers = await loadCrmManagers();
+  await ensureCrmDefaults(managers, sessionStaffId);
 
   const [
     companies,
@@ -225,6 +318,7 @@ async function loadPipelineSnapshot(): Promise<CrmPipelineSnapshot> {
   return {
     companies: localCompanies,
     clientOverlays,
+    managers,
     contacts: contacts.map((c) => mapCrmContact(c, c.company)),
     opportunities: opportunities.map((o) => mapCrmOpportunity(o, o.company)),
     activities: activities.map((a) => mapCrmActivity(a, a.company)),
@@ -239,8 +333,8 @@ async function loadPipelineSnapshot(): Promise<CrmPipelineSnapshot> {
 }
 
 export const listCrmPipeline = createServerFn({ method: "GET" }).handler(async () => {
-  await requireSession();
-  return loadPipelineSnapshot();
+  const session = await requireSession();
+  return loadPipelineSnapshot(session.staff.id);
 });
 
 const companyInputSchema = z.object({
@@ -279,7 +373,7 @@ export const upsertCrmCompany = createServerFn({ method: "POST" })
       phone: data.phone ?? "",
       email: data.email ?? "",
       website: data.website ?? "",
-      managerId: data.managerId ?? "",
+      managerId: data.managerId?.trim() || staff.id,
       servicesBought: (data.servicesBought ?? []) as CrmServiceLine[],
       targetLines: (data.targetLines ?? []) as CrmServiceLine[],
       source: (data.source ?? "nouveau") as OpportunitySource,
@@ -418,15 +512,81 @@ export const setCrmClientOverlay = createServerFn({ method: "POST" })
 export const convertCrmProspect = createServerFn({ method: "POST" })
   .validator(z.object({ id: z.string() }))
   .handler(async ({ data }) => {
-    await requireSession();
+    const session = await requireSession();
+    const { staff, activeCabinet } = session;
     const existing = await prisma.crmCompany.findFirst({
       where: { OR: [{ id: data.id }, { clientId: data.id }] },
     });
     if (!existing) throw new Error("Prospect introuvable");
-    const row = await prisma.crmCompany.update({
-      where: { id: existing.id },
-      data: { kind: "client" },
+
+    if (existing.clientId) {
+      const row = await prisma.crmCompany.update({
+        where: { id: existing.id },
+        data: { kind: "client" },
+      });
+      return mapCrmCompany(row);
+    }
+
+    const cabinet = resolveCabinet(staff.role, staff.cabinet, activeCabinet);
+    const pole = resolveStaffWritePole(
+      staff,
+      poleFromCrmLines([
+        ...existing.servicesBought,
+        ...existing.targetLines,
+      ]),
+    );
+
+    const row = await prisma.$transaction(async (tx) => {
+      const client = await tx.client.create({
+        data: {
+          name: existing.name.trim(),
+          sigle: "",
+          legalForm: "—",
+          shareCapital: "",
+          clientRef: "",
+          nif: "",
+          niu: "",
+          rccm: "",
+          cnss: "",
+          cnamgs: "",
+          activity: existing.sector || "",
+          activityDetail: existing.notes || "",
+          contactName: existing.name.trim(),
+          representativeTitle: "",
+          email: existing.email || "",
+          phone: existing.phone || "",
+          address: existing.address || "",
+          bp: "",
+          city: cityFromCrmSite(existing.site),
+          country: "Gabon",
+          anpiNumber: "",
+          anpiDate: "",
+          billingProfile: "one_off",
+          pole,
+          cabinet,
+          createdById: staff.id,
+        },
+      });
+
+      return tx.crmCompany.update({
+        where: { id: existing.id },
+        data: {
+          kind: "client",
+          clientId: client.id,
+          servicesBought:
+            existing.servicesBought.length > 0
+              ? existing.servicesBought
+              : existing.targetLines,
+        },
+      });
     });
+
+    await createCrmNotificationRow(
+      "Prospect converti",
+      `${row.name} est maintenant un client Facturation (portefeuille live).`,
+      `/prospection/clients/${row.clientId}`,
+    );
+
     return mapCrmCompany(row);
   });
 
@@ -842,7 +1002,7 @@ export const importCrmCompanies = createServerFn({ method: "POST" })
           phone: row.phone ?? "",
           email: row.email ?? "",
           website: row.website ?? "",
-          managerId: row.managerId ?? "",
+          managerId: row.managerId?.trim() || staff.id,
           servicesBought: (row.servicesBought ?? []) as CrmServiceLine[],
           targetLines: (row.targetLines ?? []) as CrmServiceLine[],
           source: row.source ?? "nouveau",

@@ -434,14 +434,30 @@ export const OBJECTIVE_LABELS: Record<Objective["metric"], string> = {
   signatures: "Missions signées",
 };
 
-export const MANAGERS: Manager[] = [
-  { id: "mgr-awa", name: "Awa Ndong", lines: ["formation", "rh"] },
-  { id: "mgr-jean", name: "Jean-Marc Ovono", lines: ["conseil", "fiscalite"] },
-  { id: "mgr-nadege", name: "Nadège Mba", lines: ["comptabilite"] },
-];
+/** Rempli à l’hydratation pipeline (staff réel). Les imports `MANAGERS` restent valides. */
+export const MANAGERS: Manager[] = [];
+
+/** Résolution synchrone — cache rempli via `setManagersCache`. */
+let managersCache: Manager[] = [];
+
+const LEGACY_FAKE_MANAGER_IDS = new Set(["mgr-awa", "mgr-jean", "mgr-nadege"]);
+
+export function setManagersCache(list: Manager[]) {
+  managersCache = list;
+  MANAGERS.length = 0;
+  MANAGERS.push(...list);
+}
+
+export function getManagersCache(): Manager[] {
+  return managersCache;
+}
 
 export function managerName(id: string) {
-  return MANAGERS.find((m) => m.id === id)?.name ?? id;
+  if (!id?.trim()) return "—";
+  const hit = managersCache.find((m) => m.id === id);
+  if (hit) return hit.name;
+  if (LEGACY_FAKE_MANAGER_IDS.has(id)) return "Ancien manager (à réassigner)";
+  return "Collaborateur";
 }
 
 export function weightedAmount(o: { amount: number; probability: number }) {
@@ -470,6 +486,8 @@ export type ProspectionData = {
   companies: Company[];
   /** Enrichissements CRM sur un client Facturation (sans écrire la fiche factu). */
   clientOverlays: Record<string, ClientCrmOverlay>;
+  /** Collaborateurs assignables (staff avec accès Prospection). */
+  managers: Manager[];
   contacts: Contact[];
   opportunities: Opportunity[];
   activities: Activity[];
@@ -530,7 +548,7 @@ export function computeKpis(data: ProspectionData) {
       .reduce((s, o) => s + o.amount, 0),
     signatures: won.length,
     spent,
-    budgetCap: MONTHLY_BUDGET * MANAGERS.length,
+    budgetCap: MONTHLY_BUDGET * Math.max(1, data.managers?.length || managersCache.length || 1),
     rdvDone,
     calls: activities.filter((a) => a.kind === "appel").length,
     emails: activities.filter((a) => a.kind === "email").length,
@@ -591,6 +609,7 @@ export function createProspectionDemoSeed(): ProspectionData {
   return {
     companies: [],
     clientOverlays: {},
+    managers: [],
     contacts: [],
     opportunities: [],
     activities: [],

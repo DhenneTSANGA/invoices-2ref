@@ -1,14 +1,13 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { TeamAdminPage } from "@/components/admin/TeamAdminPage";
 import { canManageAdminRequests } from "@/lib/roles";
-import type { AppSession } from "@/lib/session.functions";
 
-export const Route = createFileRoute("/_app/users")({
-  head: () => ({ meta: [{ title: "Équipe — 2R Hub" }] }),
+export const Route = createFileRoute("/prospection/equipe")({
+  head: () => ({ meta: [{ title: "Équipe — Prospection" }] }),
   beforeLoad: ({ context }) => {
-    const session = (context as { session?: NonNullable<AppSession> }).session;
+    const session = context.session;
     if (!session || !canManageAdminRequests(session.staff.role)) {
-      throw redirect({ to: "/home" });
+      throw redirect({ to: "/prospection" });
     }
   },
   component: TeamAdminPage,

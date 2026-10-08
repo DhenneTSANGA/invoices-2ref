@@ -10,7 +10,7 @@ import {
 } from "@/components/prospection/CrmCards";
 import { CRM_PRIMARY_BTN } from "@/components/prospection/CrmUi";
 import { LineBadge } from "@/components/prospection/ProspectionBadges";
-import { MANAGERS, OBJECTIVE_LABELS, realizedForMetric } from "@/lib/prospection-demo";
+import { OBJECTIVE_LABELS, realizedForMetric } from "@/lib/prospection-demo";
 import { canApproveExpenses, crmRoleFromStaff } from "@/lib/prospection-access";
 import { cn } from "@/lib/utils";
 import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
@@ -25,6 +25,7 @@ function ObjectivesPage() {
   const crm = crmRoleFromStaff(session.staff.role);
   const canEdit = canApproveExpenses(crm);
   const data = useProspectionDemoStore((s) => s);
+  const managers = data.managers;
   const [open, setOpen] = useState(false);
 
   return (
@@ -41,7 +42,7 @@ function ObjectivesPage() {
         }
       />
       <CrmCardGrid>
-        {MANAGERS.map((m, i) => {
+        {managers.map((m, i) => {
           const rows = data.objectives.filter((o) => o.managerId === m.id);
           return (
             <CrmCard key={m.id} index={i} className="h-full">

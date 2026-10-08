@@ -30,7 +30,6 @@ import {
 } from "@/components/prospection/CrmCards";
 import { CRM_PRIMARY_BTN, CRM_SECONDARY_BTN } from "@/components/prospection/CrmUi";
 import {
-  MANAGERS,
   MONTHLY_BUDGET,
   OBJECTIVE_LABELS,
   computeKpis,
@@ -38,7 +37,7 @@ import {
   realizedForMetric,
 } from "@/lib/prospection-demo";
 import { currency, shortDate } from "@/lib/format";
-import { crmRoleFromStaff } from "@/lib/prospection-access";
+import { canSeeAllPortfolios, crmRoleFromStaff } from "@/lib/prospection-access";
 import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
 import { useProspectionCompanies } from "@/hooks/use-prospection-companies";
 import { cn } from "@/lib/utils";
@@ -48,15 +47,11 @@ export const Route = createFileRoute("/prospection/")({
   component: ProspectionHomePage,
 });
 
-function managerIdForName(firstName: string) {
-  const match = MANAGERS.find((m) => m.name.toLowerCase().startsWith(firstName.toLowerCase()));
-  return match?.id ?? "mgr-awa";
-}
-
 function ProspectionHomePage() {
   const { session } = useRouteContext({ from: "/prospection" });
   const crm = crmRoleFromStaff(session.staff.role);
   const data = useProspectionDemoStore((s) => s);
+  const managers = data.managers;
   const { companies } = useProspectionCompanies();
   const toggleWeekCheck = useProspectionDemoStore((s) => s.toggleWeekCheck);
   const kpis = computeKpis({ ...data, companies });
@@ -68,8 +63,11 @@ function ProspectionHomePage() {
   ).length;
   const weekChecksDone = data.weekChecks.filter((w) => w.done).length;
   const budgetPct = Math.round((kpis.spent / kpis.budgetCap) * 100);
-  const focusManagerId = managerIdForName(first);
-  const objectiveManagers = crm === "direction" ? MANAGERS : MANAGERS.filter((m) => m.id === focusManagerId);
+  const focusManagerId = session.staff.id;
+  const seeAll = canSeeAllPortfolios(crm);
+  const objectiveManagers = seeAll
+    ? managers
+    : managers.filter((m) => m.id === focusManagerId);
   const [leadOpen, setLeadOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
   const [expenseOpen, setExpenseOpen] = useState(false);
@@ -82,11 +80,9 @@ function ProspectionHomePage() {
       <PageHeader
         title={`Bonjour ${first}`}
         subtitle={
-          crm === "direction"
-            ? "Vue Direction — pipeline, budgets et Port-Gentil."
-            : crm === "collaborateur"
-              ? "Remontez une piste en moins d’une minute."
-              : "Votre semaine commerciale et votre pipeline."
+          seeAll
+            ? "Pilotage Prospection — pipeline, budgets et portefeuille."
+            : "Votre semaine commerciale et votre pipeline."
         }
         actions={
           <>
@@ -366,11 +362,11 @@ function ProspectionHomePage() {
         </section>
       ) : null}
 
-      {crm === "direction" ? (
+      {seeAll ? (
         <section>
           <h3 className="mb-3 font-display font-semibold">Performance managers</h3>
           <CrmCardGrid>
-            {MANAGERS.map((m, i) => {
+            {managers.map((m, i) => {
               const ops = data.opportunities.filter((o) => o.ownerId === m.id);
               const signed = ops.filter((o) => o.stage === "gagne");
               const signedCa = signed.reduce((s, o) => s + o.amount, 0);

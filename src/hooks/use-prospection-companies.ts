@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useRouteContext } from "@tanstack/react-router";
 import { listClientsForProspection } from "@/lib/data.functions";
 import { mergeProspectionCompanies } from "@/lib/prospection-facturation-clients";
 import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
@@ -15,8 +16,10 @@ export function useProspectionCompanies(): {
   error: Error | null;
   refetch: () => void;
 } {
+  const { session } = useRouteContext({ from: "/prospection" });
   const localCompanies = useProspectionDemoStore((s) => s.companies);
   const overlays = useProspectionDemoStore((s) => s.clientOverlays);
+  const defaultManagerId = session.staff.id;
 
   const query = useQuery({
     queryKey: prospectionClientsKey,
@@ -30,8 +33,9 @@ export function useProspectionCompanies(): {
         facturationClients: query.data ?? [],
         localCompanies,
         overlays: overlays ?? {},
+        defaultManagerId,
       }),
-    [query.data, localCompanies, overlays],
+    [query.data, localCompanies, overlays, defaultManagerId],
   );
 
   return {

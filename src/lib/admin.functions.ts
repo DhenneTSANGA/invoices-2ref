@@ -604,7 +604,13 @@ export const setStaffAdminRole = createServerFn({ method: "POST" })
 
     await prisma.staffMember.update({
       where: { id: data.staffId },
-      data: { role: data.role },
+      data: {
+        role: data.role,
+        ...(data.role === "member" &&
+        (target.spacesAllowed === "prospection" || target.spacesAllowed === "both")
+          ? { spacesAllowed: "facturation" as const }
+          : {}),
+      },
     });
     clearSessionMemo(data.staffId);
     return { ok: true };
@@ -664,6 +670,14 @@ export const setStaffSpacesAllowed = createServerFn({ method: "POST" })
     if (!target) throw new Error("Collaborateur introuvable");
     if (target.role === "super_admin" && data.spacesAllowed !== "both") {
       throw new Error("Le super administrateur conserve l’accès aux deux espaces");
+    }
+    if (
+      (data.spacesAllowed === "prospection" || data.spacesAllowed === "both") &&
+      target.role === "member"
+    ) {
+      throw new Error(
+        "Prospection réservée aux administrateurs — promouvez d’abord le collaborateur",
+      );
     }
 
     await prisma.staffMember.update({

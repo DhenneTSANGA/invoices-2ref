@@ -29,7 +29,7 @@ export function siteFromClientCity(city?: string | null): Site {
 export function companyFromFacturationClient(
   client: Client,
   overlay?: ClientCrmOverlay,
-  defaultManagerId = "mgr-awa",
+  defaultManagerId = "",
 ): Company {
   const pole = parseClientPole(client.pole);
   const line = POLE_TO_LINE[pole];

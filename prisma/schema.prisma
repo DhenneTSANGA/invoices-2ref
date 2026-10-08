@@ -717,7 +717,7 @@ enum CrmContactInfluence {
 /** Fiche entreprise CRM (prospect local, ou enrichissement d’un client Facturation). */
 model CrmCompany {
   id             String                @id @default(cuid())
-  /// Lien optionnel vers fiche Facturation (jamais écrit depuis Prospection).
+  /// Lien vers fiche Facturation (écrit à la conversion prospect → client).
   clientId       String?               @unique
   name           String
   kind           CrmCompanyKind        @default(prospect)

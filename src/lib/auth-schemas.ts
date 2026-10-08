@@ -93,6 +93,10 @@ export const createStaffWithPasswordSchema = inviteStaffSchema
   .refine((d) => d.password === d.confirmPassword, {
     message: "Les mots de passe ne correspondent pas",
     path: ["confirmPassword"],
+  })
+  .refine((d) => d.spacesAllowed !== "prospection" || d.role === "admin", {
+    message: "L’espace Prospection est réservé aux administrateurs",
+    path: ["role"],
   });
 
 /** Changement de mot de passe depuis /profile. */

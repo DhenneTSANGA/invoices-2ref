@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -47,7 +48,10 @@ import {
 } from "@/lib/prospection-demo";
 import { currency, shortDate } from "@/lib/format";
 import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
-import { useProspectionCompanies } from "@/hooks/use-prospection-companies";
+import {
+  prospectionClientsKey,
+  useProspectionCompanies,
+} from "@/hooks/use-prospection-companies";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/prospection/prospects/$id")({
@@ -65,6 +69,7 @@ const QUICK_KINDS: { kind: ActivityKind; label: string }[] = [
 function ProspectDetailPage() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const { companies } = useProspectionCompanies();
   const contacts = useProspectionDemoStore((s) => s.contacts);
   const opportunities = useProspectionDemoStore((s) => s.opportunities);
@@ -115,9 +120,13 @@ function ProspectDetailPage() {
   const convert = () => {
     void (async () => {
       try {
-        await convertProspect(id);
-        toast.success("Converti en client");
-        void navigate({ to: "/prospection/clients/$id", params: { id } });
+        const converted = await convertProspect(id);
+        void qc.invalidateQueries({ queryKey: prospectionClientsKey });
+        toast.success("Client créé dans Facturation");
+        void navigate({
+          to: "/prospection/clients/$id",
+          params: { id: converted.id },
+        });
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Conversion impossible");
       }

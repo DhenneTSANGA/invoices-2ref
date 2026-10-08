@@ -15,7 +15,6 @@ import { CompanyDialog } from "@/components/prospection/CrmForms";
 import { CRM_PRIMARY_BTN, CrmSelect, FilterChip } from "@/components/prospection/CrmUi";
 import { currency, shortDate } from "@/lib/format";
 import {
-  MANAGERS,
   SERVICE_LINE_LABELS,
   SERVICE_LINES,
   SITE_LABELS,
@@ -33,6 +32,7 @@ export const Route = createFileRoute("/prospection/prospects/")({
 
 function ProspectsPage() {
   const { companies } = useProspectionCompanies();
+  const managers = useProspectionDemoStore((s) => s.managers);
   const contacts = useProspectionDemoStore((s) => s.contacts);
   const opportunities = useProspectionDemoStore((s) => s.opportunities);
   const activities = useProspectionDemoStore((s) => s.activities);
@@ -114,7 +114,7 @@ function ProspectsPage() {
               placeholder="Tous les managers"
               options={[
                 { value: "all", label: "Tous les managers" },
-                ...MANAGERS.map((m) => ({ value: m.id, label: m.name })),
+                ...managers.map((m) => ({ value: m.id, label: m.name })),
               ]}
               className="w-auto min-w-48 bg-surface"
             />

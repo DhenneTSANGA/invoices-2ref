@@ -2,7 +2,7 @@ import { useSyncExternalStore } from "react";
 import {
   STAGE_PROBABILITY,
   createProspectionDemoSeed,
-  isoDate,
+  setManagersCache,
   type AccountPlan,
   type Activity,
   type ActivityKind,
@@ -53,7 +53,7 @@ type Actions = {
   upsertCompany: (company: Company) => Promise<Company>;
   updateCompany: (id: string, patch: Partial<Company>) => Promise<void>;
   setClientOverlay: (id: string, patch: ClientCrmOverlay) => Promise<void>;
-  convertProspect: (id: string) => Promise<void>;
+  convertProspect: (id: string) => Promise<Company>;
   addContact: (row: Omit<Contact, "id">) => Promise<void>;
   addOpportunity: (row: Omit<Opportunity, "id">) => Promise<string>;
   updateOpportunity: (id: string, patch: Partial<Opportunity>) => Promise<void>;
@@ -111,16 +111,13 @@ function getSnapshot() {
   return data;
 }
 
-let seq = 1;
-function nid(prefix: string) {
-  return `${prefix}-${seq++}`;
-}
-
 function applyPipelineSnapshot(snapshot: CrmPipelineSnapshot) {
+  setManagersCache(snapshot.managers);
   data = {
     ...data,
     companies: snapshot.companies,
     clientOverlays: snapshot.clientOverlays,
+    managers: snapshot.managers,
     contacts: snapshot.contacts,
     opportunities: snapshot.opportunities,
     activities: snapshot.activities,
@@ -134,17 +131,6 @@ function applyPipelineSnapshot(snapshot: CrmPipelineSnapshot) {
   };
   pipelineReady = true;
   emit();
-}
-
-function notify(title: string, body: string, href: string) {
-  return {
-    id: nid("nt"),
-    title,
-    body,
-    at: isoDate(),
-    href,
-    read: false,
-  };
 }
 
 const actions: Actions = {
@@ -216,20 +202,9 @@ const actions: Actions = {
     await actions.reloadPipeline();
   },
   convertProspect: async (id) => {
-    await convertCrmProspect({ data: { id } });
-    const company = data.companies.find((c) => c.id === id);
-    data = {
-      ...data,
-      notifications: [
-        notify(
-          "Prospect prêt",
-          `${company?.name ?? "Prospect"} : créez la fiche client dans Facturation pour l’avoir en portefeuille live.`,
-          "/prospection/prospects",
-        ),
-        ...data.notifications,
-      ],
-    };
+    const converted = await convertCrmProspect({ data: { id } });
     await actions.reloadPipeline();
+    return converted;
   },
   addContact: async (row) => {
     await createCrmContact({ data: row });
@@ -445,7 +420,9 @@ const actions: Actions = {
     await actions.reloadPipeline();
   },
   reset: async () => {
+    setManagersCache([]);
     data = createProspectionDemoSeed();
+    pipelineReady = false;
     emit();
     await actions.reloadPipeline();
   },

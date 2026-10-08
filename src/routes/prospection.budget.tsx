@@ -19,7 +19,6 @@ import {
   EXPENSE_APPROVAL_LABELS,
   EXPENSE_APPROVAL_THRESHOLD,
   EXPENSE_LABELS,
-  MANAGERS,
   MONTHLY_BUDGET,
   managerName,
   type ExpenseApproval,
@@ -59,6 +58,7 @@ function BudgetPage() {
   const crm = crmRoleFromStaff(session.staff.role);
   const canApprove = canApproveExpenses(crm);
   const expenses = useProspectionDemoStore((s) => s.expenses);
+  const allManagers = useProspectionDemoStore((s) => s.managers);
   const { companies } = useProspectionCompanies();
   const setExpenseApproval = useProspectionDemoStore((s) => s.setExpenseApproval);
   const [open, setOpen] = useState(false);
@@ -89,16 +89,16 @@ function BudgetPage() {
   const journal = useMemo(() => expenses.filter((e) => matchesExpense(e.id)), [expenses, matchesExpense]);
   const managers = useMemo(
     () =>
-      MANAGERS.filter((m) => {
+      allManagers.filter((m) => {
         if (!query.trim()) return true;
         if (matchesSearch(query, m.name)) return true;
         return expenses.some((e) => e.managerId === m.id && e.id !== focus && matchesExpense(e.id));
       }),
-    [query, expenses, focus, matchesExpense],
+    [allManagers, query, expenses, focus, matchesExpense],
   );
 
   const spentCabinet = expenses.reduce((s, e) => s + e.amount, 0);
-  const capCabinet = MONTHLY_BUDGET * MANAGERS.length;
+  const capCabinet = MONTHLY_BUDGET * Math.max(1, allManagers.length);
 
   return (
     <div>

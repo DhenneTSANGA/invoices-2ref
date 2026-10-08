@@ -23,6 +23,7 @@ import type {
   Lead,
   LibraryItem,
   LibraryTerm,
+  Manager,
   Objective,
   Opportunity,
   ReferentialExtra,
@@ -260,6 +261,8 @@ export type CrmPipelineSnapshot = {
   companies: Company[];
   /** Enrichissements CRM indexés par id client Facturation. */
   clientOverlays: Record<string, ClientCrmOverlay>;
+  /** Staff réel avec accès Prospection (référents / owners). */
+  managers: Manager[];
   contacts: Contact[];
   opportunities: Opportunity[];
   activities: Activity[];

@@ -31,7 +31,7 @@ function AdminPage() {
     <div>
       <PageHeader
         title="Administration"
-        subtitle="Référentiels de la démo — ajout possible, pas encore d’édition PostgreSQL."
+        subtitle="Référentiels CRM — ajout en base. L’équipe se gère dans l’onglet Équipe."
         actions={
           <button type="button" onClick={() => setOpen(true)} className={CRM_PRIMARY_BTN}>
             <Plus className="h-4 w-4" />
@@ -72,8 +72,8 @@ function AdminPage() {
         />
       </CrmCardGrid>
       <p className="mt-4 text-sm text-muted-foreground">
-        Rôles CRM : manager, direction, chef de service, collaborateur, administrateur. Mapping actuel 2R Hub
-        : super-admin → direction, admin → manager, membre → collaborateur.
+        Prospection réservée aux administrateurs : super-admin → direction CRM,
+        admin → admin CRM (pipeline, budget, validations).
       </p>
       <AddReferentialDialog open={open} onOpenChange={setOpen} />
     </div>

@@ -6,7 +6,6 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { StatCard } from "@/components/common/StatCard";
 import { CRM_PRIMARY_BTN, FilterChip } from "@/components/prospection/CrmUi";
 import {
-  MANAGERS,
   SERVICE_LINE_LABELS,
   SERVICE_LINES,
   computeKpis,
@@ -23,6 +22,7 @@ export const Route = createFileRoute("/prospection/kpi")({
 
 function KpiPage() {
   const data = useProspectionDemoStore((s) => s);
+  const managers = data.managers;
   const { companies } = useProspectionCompanies();
   const [managerId, setManagerId] = useState<"all" | string>("all");
   const [line, setLine] = useState<"all" | ServiceLine>("all");
@@ -84,7 +84,7 @@ function KpiPage() {
         <FilterChip active={managerId === "all"} onClick={() => setManagerId("all")}>
           Tous les managers
         </FilterChip>
-        {MANAGERS.map((m) => (
+        {managers.map((m) => (
           <FilterChip key={m.id} active={managerId === m.id} onClick={() => setManagerId(m.id)}>
             {m.name}
           </FilterChip>

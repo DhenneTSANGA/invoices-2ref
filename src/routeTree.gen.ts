@@ -49,6 +49,7 @@ import { Route as ProspectionAgendaRouteImport } from './routes/prospection.agen
 import { Route as ProspectionBibliothequeRouteImport } from './routes/prospection.bibliotheque'
 import { Route as ProspectionBudgetRouteImport } from './routes/prospection.budget'
 import { Route as ProspectionClientsRouteImport } from './routes/prospection.clients'
+import { Route as ProspectionEquipeRouteImport } from './routes/prospection.equipe'
 import { Route as ProspectionImportRouteImport } from './routes/prospection.import'
 import { Route as ProspectionKpiRouteImport } from './routes/prospection.kpi'
 import { Route as ProspectionNotificationsRouteImport } from './routes/prospection.notifications'
@@ -285,6 +286,11 @@ const ProspectionClientsRoute = ProspectionClientsRouteImport.update({
   path: '/clients',
   getParentRoute: () => ProspectionRoute,
 } as any)
+const ProspectionEquipeRoute = ProspectionEquipeRouteImport.update({
+  id: '/equipe',
+  path: '/equipe',
+  getParentRoute: () => ProspectionRoute,
+} as any)
 const ProspectionImportRoute = ProspectionImportRouteImport.update({
   id: '/import',
   path: '/import',
@@ -507,6 +513,7 @@ export interface FileRoutesByFullPath {
   '/prospection/bibliotheque': typeof ProspectionBibliothequeRoute
   '/prospection/budget': typeof ProspectionBudgetRoute
   '/prospection/clients': typeof ProspectionClientsRouteWithChildren
+  '/prospection/equipe': typeof ProspectionEquipeRoute
   '/prospection/import': typeof ProspectionImportRoute
   '/prospection/kpi': typeof ProspectionKpiRoute
   '/prospection/notifications': typeof ProspectionNotificationsRoute
@@ -579,6 +586,7 @@ export interface FileRoutesByTo {
   '/prospection/agenda': typeof ProspectionAgendaRoute
   '/prospection/bibliotheque': typeof ProspectionBibliothequeRoute
   '/prospection/budget': typeof ProspectionBudgetRoute
+  '/prospection/equipe': typeof ProspectionEquipeRoute
   '/prospection/import': typeof ProspectionImportRoute
   '/prospection/kpi': typeof ProspectionKpiRoute
   '/prospection/notifications': typeof ProspectionNotificationsRoute
@@ -657,6 +665,7 @@ export interface FileRoutesById {
   '/prospection/bibliotheque': typeof ProspectionBibliothequeRoute
   '/prospection/budget': typeof ProspectionBudgetRoute
   '/prospection/clients': typeof ProspectionClientsRouteWithChildren
+  '/prospection/equipe': typeof ProspectionEquipeRoute
   '/prospection/import': typeof ProspectionImportRoute
   '/prospection/kpi': typeof ProspectionKpiRoute
   '/prospection/notifications': typeof ProspectionNotificationsRoute
@@ -736,6 +745,7 @@ export interface FileRouteTypes {
     | '/prospection/bibliotheque'
     | '/prospection/budget'
     | '/prospection/clients'
+    | '/prospection/equipe'
     | '/prospection/import'
     | '/prospection/kpi'
     | '/prospection/notifications'
@@ -808,6 +818,7 @@ export interface FileRouteTypes {
     | '/prospection/agenda'
     | '/prospection/bibliotheque'
     | '/prospection/budget'
+    | '/prospection/equipe'
     | '/prospection/import'
     | '/prospection/kpi'
     | '/prospection/notifications'
@@ -885,6 +896,7 @@ export interface FileRouteTypes {
     | '/prospection/bibliotheque'
     | '/prospection/budget'
     | '/prospection/clients'
+    | '/prospection/equipe'
     | '/prospection/import'
     | '/prospection/kpi'
     | '/prospection/notifications'
@@ -1223,6 +1235,13 @@ declare module '@tanstack/react-router' {
       path: '/clients'
       fullPath: '/prospection/clients'
       preLoaderRoute: typeof ProspectionClientsRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
+    '/prospection/equipe': {
+      id: '/prospection/equipe'
+      path: '/equipe'
+      fullPath: '/prospection/equipe'
+      preLoaderRoute: typeof ProspectionEquipeRouteImport
       parentRoute: typeof ProspectionRoute
     }
     '/prospection/import': {
@@ -1644,6 +1663,7 @@ interface ProspectionRouteChildren {
   ProspectionBibliothequeRoute: typeof ProspectionBibliothequeRoute
   ProspectionBudgetRoute: typeof ProspectionBudgetRoute
   ProspectionClientsRoute: typeof ProspectionClientsRouteWithChildren
+  ProspectionEquipeRoute: typeof ProspectionEquipeRoute
   ProspectionImportRoute: typeof ProspectionImportRoute
   ProspectionKpiRoute: typeof ProspectionKpiRoute
   ProspectionNotificationsRoute: typeof ProspectionNotificationsRoute
@@ -1667,6 +1687,7 @@ const ProspectionRouteChildren: ProspectionRouteChildren = {
   ProspectionBibliothequeRoute: ProspectionBibliothequeRoute,
   ProspectionBudgetRoute: ProspectionBudgetRoute,
   ProspectionClientsRoute: ProspectionClientsRouteWithChildren,
+  ProspectionEquipeRoute: ProspectionEquipeRoute,
   ProspectionImportRoute: ProspectionImportRoute,
   ProspectionKpiRoute: ProspectionKpiRoute,
   ProspectionNotificationsRoute: ProspectionNotificationsRoute,

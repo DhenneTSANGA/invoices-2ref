@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useRouteContext } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -24,6 +24,8 @@ function parseSite(v: string | undefined): Site {
 }
 
 function ImportPage() {
+  const { session } = useRouteContext({ from: "/prospection" });
+  const selfId = session.staff.id;
   const { companies } = useProspectionCompanies();
   const opportunities = useProspectionDemoStore((s) => s.opportunities);
   const importCompanies = useProspectionDemoStore((s) => s.importCompanies);
@@ -44,6 +46,7 @@ function ImportPage() {
         nextErrors.push(`Ligne ${i + 1 + start} : nom manquant`);
         return;
       }
+      const managerFromCsv = parts[3]?.trim();
       rows.push({
         id: `co-imp-${Date.now()}-${i}`,
         name: parts[0],
@@ -55,13 +58,13 @@ function ImportPage() {
         phone: "",
         email: "",
         website: "",
-        managerId: "mgr-awa",
+        managerId: managerFromCsv || selfId,
         servicesBought: [],
         targetLines: [],
         source: "nouveau",
         strategic: false,
-        caSigned: 0,
-        notes: "Import CSV démo",
+        caSigned: Number(parts[4]) || 0,
+        notes: "Import CSV",
       });
     });
     return { rows, nextErrors };

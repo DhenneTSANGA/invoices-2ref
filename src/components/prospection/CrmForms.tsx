@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useRouteContext } from "@tanstack/react-router";
 import {
   BookOpen,
   Briefcase,
@@ -27,7 +28,6 @@ import {
   LIBRARY_CATEGORIES,
   LIBRARY_DOMAIN_LABELS,
   LIBRARY_DOMAINS,
-  MANAGERS,
   OBJECTIVE_LABELS,
   SECTORS,
   SERVICE_LINE_LABELS,
@@ -97,6 +97,9 @@ export function CompanyDialog({
   kind: CompanyKind;
   editing?: Company | null;
 }) {
+  const { session } = useRouteContext({ from: "/prospection" });
+  const selfId = session.staff.id;
+  const managers = useProspectionDemoStore((s) => s.managers);
   const upsertCompany = useProspectionDemoStore((s) => s.upsertCompany);
   const addContact = useProspectionDemoStore((s) => s.addContact);
   const extraSectors = useProspectionDemoStore((s) => s.referentials)
@@ -144,7 +147,7 @@ export function CompanyDialog({
             ? editing.servicesBought
             : editing.targetLines,
       );
-      setManagerId(editing.managerId);
+      setManagerId(editing.managerId || selfId);
       setNotes(editing.notes);
       setStrategic(editing.strategic);
       setContactFirst("");
@@ -165,7 +168,7 @@ export function CompanyDialog({
       setWebsite("");
       setSource("");
       setLines([]);
-      setManagerId("");
+      setManagerId(selfId);
       setNotes("");
       setStrategic(false);
       setContactFirst("");
@@ -176,7 +179,7 @@ export function CompanyDialog({
       setContactDecisionMaker(false);
       setContactInfluence("");
     }
-  }, [open, editing, isProspect]);
+  }, [open, editing, isProspect, selfId]);
 
   const toggleLine = (line: ServiceLine) => {
     setLines((prev) =>
@@ -396,7 +399,7 @@ export function CompanyDialog({
                 value={managerId}
                 onChange={setManagerId}
                 placeholder="Choisir le manager"
-                options={MANAGERS.map((m) => ({ value: m.id, label: m.name }))}
+                options={managers.map((m) => ({ value: m.id, label: m.name }))}
               />
             </CrmLabeledField>
           </div>
@@ -594,7 +597,10 @@ export function NewLeadDialog({
   onOpenChange: (open: boolean) => void;
   defaultCompanyName?: string;
 }) {
+  const { session } = useRouteContext({ from: "/prospection" });
+  const selfId = session.staff.id;
   const { companies } = useProspectionCompanies();
+  const managers = useProspectionDemoStore((s) => s.managers);
   const addLead = useProspectionDemoStore((s) => s.addLead);
   const [companyName, setCompanyName] = useState(defaultCompanyName);
   const [need, setNeed] = useState("");
@@ -606,7 +612,7 @@ export function NewLeadDialog({
     (c) => c.name.toLowerCase() === companyName.trim().toLowerCase(),
   );
   const assignedManager = matchedCompany
-    ? MANAGERS.find((m) => m.id === matchedCompany.managerId)
+    ? managers.find((m) => m.id === matchedCompany.managerId)
     : undefined;
 
   useEffect(() => {
@@ -618,8 +624,8 @@ export function NewLeadDialog({
     const match = companies.find(
       (c) => c.name.toLowerCase() === defaultCompanyName.trim().toLowerCase(),
     );
-    setOwnerId(match?.managerId ?? "");
-  }, [open, defaultCompanyName, companies]);
+    setOwnerId(match?.managerId || selfId);
+  }, [open, defaultCompanyName, companies, selfId]);
 
   return (
     <CrmDialog
@@ -710,7 +716,7 @@ export function NewLeadDialog({
               value={ownerId}
               onChange={setOwnerId}
               placeholder="Choisir un manager"
-              options={MANAGERS.map((m) => ({ value: m.id, label: m.name }))}
+              options={managers.map((m) => ({ value: m.id, label: m.name }))}
             />
           </CrmLabeledField>
         )}
@@ -738,7 +744,10 @@ export function NewExpenseDialog({
   onOpenChange: (open: boolean) => void;
   defaultCompanyId?: string;
 }) {
+  const { session } = useRouteContext({ from: "/prospection" });
+  const selfId = session.staff.id;
   const { companies } = useProspectionCompanies();
+  const managers = useProspectionDemoStore((s) => s.managers);
   const activities = useProspectionDemoStore((s) => s.activities);
   const opportunities = useProspectionDemoStore((s) => s.opportunities);
   const addExpense = useProspectionDemoStore((s) => s.addExpense);
@@ -761,7 +770,7 @@ export function NewExpenseDialog({
 
   useEffect(() => {
     if (!open) return;
-    setManagerId("");
+    setManagerId(selfId);
     setCategory("");
     setLabel("");
     setAmount("");
@@ -770,7 +779,7 @@ export function NewExpenseDialog({
     setActivityId("");
     setOpportunityId("");
     setReceipt(false);
-  }, [open, defaultCompanyId]);
+  }, [open, defaultCompanyId, selfId]);
 
   return (
     <CrmDialog
@@ -831,7 +840,7 @@ export function NewExpenseDialog({
             value={managerId}
             onChange={setManagerId}
             placeholder="Qui a engagé la dépense"
-            options={MANAGERS.map((m) => ({ value: m.id, label: m.name }))}
+            options={managers.map((m) => ({ value: m.id, label: m.name }))}
           />
         </CrmLabeledField>
         <CrmLabeledField label="Catégorie">
@@ -932,7 +941,10 @@ export function NewActivityDialog({
   /** Complète une activité déjà planifiée (compte rendu) au lieu d’en créer une autre. */
   completeActivityId?: string;
 }) {
+  const { session } = useRouteContext({ from: "/prospection" });
+  const selfId = session.staff.id;
   const { companies } = useProspectionCompanies();
+  const managers = useProspectionDemoStore((s) => s.managers);
   const opportunities = useProspectionDemoStore((s) => s.opportunities);
   const activities = useProspectionDemoStore((s) => s.activities);
   const addActivity = useProspectionDemoStore((s) => s.addActivity);
@@ -959,7 +971,7 @@ export function NewActivityDialog({
       setSummary(completing.summary);
       setNextAction(completing.nextAction ?? "");
       setNextActionOn(completing.nextActionOn ?? "");
-      setOwnerId(completing.ownerId);
+      setOwnerId(completing.ownerId || selfId);
       setStatus("terminee");
       setAt(completing.at);
       setTime(completing.time ?? "");
@@ -972,11 +984,12 @@ export function NewActivityDialog({
     setSummary("");
     setNextAction("");
     setNextActionOn("");
-    setOwnerId("");
+    const co = companies.find((c) => c.id === (defaultCompanyId ?? ""));
+    setOwnerId(co?.managerId || selfId);
     setStatus(planned ? "planifiee" : "");
     setAt(isoDate());
     setTime("");
-  }, [open, defaultCompanyId, defaultKind, defaultOpportunityId, completing]);
+  }, [open, defaultCompanyId, defaultKind, defaultOpportunityId, completing, selfId, companies]);
 
   const linkedOps = opportunities.filter((o) => o.companyId === companyId);
   const isRdv = kind === "rdv";
@@ -1113,7 +1126,7 @@ export function NewActivityDialog({
             value={ownerId}
             onChange={setOwnerId}
             placeholder="Manager"
-            options={MANAGERS.map((m) => ({ value: m.id, label: m.name }))}
+            options={managers.map((m) => ({ value: m.id, label: m.name }))}
           />
         </CrmLabeledField>
         <CrmLabeledField label={done ? "Compte rendu" : "Notes / ordre du jour"}>
@@ -1168,6 +1181,9 @@ export function NewOpportunityDialog({
   defaultSource?: OpportunitySource;
   editing?: Opportunity | null;
 }) {
+  const { session } = useRouteContext({ from: "/prospection" });
+  const selfId = session.staff.id;
+  const managers = useProspectionDemoStore((s) => s.managers);
   const { companies } = useProspectionCompanies();
   const addOpportunity = useProspectionDemoStore((s) => s.addOpportunity);
   const updateOpportunity = useProspectionDemoStore((s) => s.updateOpportunity);
@@ -1193,7 +1209,7 @@ export function NewOpportunityDialog({
       setDecisionOn(editing.decisionOn);
       setNextAction(editing.nextAction);
       setNextActionOn(editing.nextActionOn);
-      setOwnerId(editing.ownerId);
+      setOwnerId(editing.ownerId || selfId);
       setNotes(editing.notes);
     } else {
       setCompanyId(defaultCompanyId ?? "");
@@ -1205,10 +1221,10 @@ export function NewOpportunityDialog({
       setNextAction(STAGE_NEXT_PLACEHOLDER.qualification);
       setNextActionOn(isoDate(2));
       const co = companies.find((c) => c.id === defaultCompanyId);
-      setOwnerId(co?.managerId ?? "");
+      setOwnerId(co?.managerId || selfId);
       setNotes("");
     }
-  }, [open, editing, defaultCompanyId, defaultLine, defaultSource, companies]);
+  }, [open, editing, defaultCompanyId, defaultLine, defaultSource, companies, selfId]);
 
   return (
     <CrmDialog
@@ -1272,7 +1288,7 @@ export function NewOpportunityDialog({
             onChange={(id) => {
               setCompanyId(id);
               const co = companies.find((c) => c.id === id);
-              if (co && !editing) setOwnerId(co.managerId);
+              if (co && !editing) setOwnerId(co.managerId || selfId);
             }}
             placeholder="Client ou prospect"
             options={companies.map((c) => ({
@@ -1330,7 +1346,7 @@ export function NewOpportunityDialog({
               value={ownerId}
               onChange={setOwnerId}
               placeholder="Manager"
-              options={MANAGERS.map((m) => ({ value: m.id, label: m.name }))}
+              options={managers.map((m) => ({ value: m.id, label: m.name }))}
             />
           </CrmLabeledField>
           <CrmLabeledField label="Date prochaine action">
@@ -1620,6 +1636,7 @@ export function EditObjectivesDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const managers = useProspectionDemoStore((s) => s.managers);
   const objectives = useProspectionDemoStore((s) => s.objectives);
   const setObjectiveTarget = useProspectionDemoStore((s) => s.setObjectiveTarget);
   const [draft, setDraft] = useState<Record<string, string>>({});
@@ -1657,7 +1674,7 @@ export function EditObjectivesDialog({
           })();
         }}
       >
-        {MANAGERS.map((m) => (
+        {managers.map((m) => (
           <section key={m.id} className="space-y-2">
             <h3 className="text-sm font-semibold">{m.name}</h3>
             <div className="grid gap-2 sm:grid-cols-2">
