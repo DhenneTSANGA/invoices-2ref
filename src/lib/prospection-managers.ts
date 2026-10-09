@@ -46,6 +46,7 @@ export function isProspectionAssignableStaff(staff: {
   role: AppRole;
   spacesAllowed?: StaffSpacesAllowed | null;
 }): boolean {
+  // Managers CRM = admin / super_admin avec accès Prospection effectif.
   return canAccessSpace(staff, "prospection");
 }
 

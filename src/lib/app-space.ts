@@ -1,5 +1,5 @@
 import type { AppRole } from "@/lib/roles";
-import { facturationHomePath, isSuperAdmin } from "@/lib/roles";
+import { facturationHomePath, isAdmin, isSuperAdmin } from "@/lib/roles";
 
 export type AppSpace = "facturation" | "prospection";
 
@@ -32,6 +32,8 @@ export function normalizeSpacesAllowed(
   role?: AppRole,
 ): StaffSpacesAllowed {
   if (role && isSuperAdmin(role)) return "both";
+  // Prospection = admin / super_admin uniquement (ignore un spacesAllowed incohérent).
+  if (role && !isAdmin(role)) return "facturation";
   if (value === "facturation" || value === "prospection" || value === "both") {
     return value;
   }
@@ -42,6 +44,7 @@ export function canAccessSpace(
   staff: { role: AppRole; spacesAllowed?: StaffSpacesAllowed | null },
   space: AppSpace,
 ): boolean {
+  if (space === "prospection" && !isAdmin(staff.role)) return false;
   const spaces = normalizeSpacesAllowed(staff.spacesAllowed, staff.role);
   if (spaces === "both") return true;
   return spaces === space;

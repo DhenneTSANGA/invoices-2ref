@@ -82,6 +82,9 @@ export const inviteStaffSchema = z.object({
   pole: z.enum(CLIENT_POLES, { error: "Choisissez un pôle" }),
   /** Espace mono-accès (le super_admin reste `both` automatiquement). */
   spacesAllowed: spacesAllowedSchema.default("facturation"),
+}).refine((d) => d.spacesAllowed !== "prospection" || d.role === "admin", {
+  message: "L’espace Prospection est réservé aux administrateurs",
+  path: ["role"],
 });
 
 /** Création directe d’un accès (super admin) — e-mail + mot de passe, sans e-mail Supabase. */
@@ -93,10 +96,6 @@ export const createStaffWithPasswordSchema = inviteStaffSchema
   .refine((d) => d.password === d.confirmPassword, {
     message: "Les mots de passe ne correspondent pas",
     path: ["confirmPassword"],
-  })
-  .refine((d) => d.spacesAllowed !== "prospection" || d.role === "admin", {
-    message: "L’espace Prospection est réservé aux administrateurs",
-    path: ["role"],
   });
 
 /** Changement de mot de passe depuis /profile. */
