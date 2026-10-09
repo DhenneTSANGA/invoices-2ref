@@ -7,7 +7,13 @@ import { LeadBadge, LineBadge } from "@/components/prospection/ProspectionBadges
 import { NewLeadDialog } from "@/components/prospection/CrmForms";
 import { CrmCard, CrmCardGrid, EntityMark, MetricTile } from "@/components/prospection/CrmCards";
 import { CRM_PRIMARY_BTN, CRM_SECONDARY_BTN, CrmSearchEmpty, CrmSearchField, matchesSearch } from "@/components/prospection/CrmUi";
-import { LEAD_STATUS_LABELS, SERVICE_LINE_LABELS, managerName, type LeadStatus } from "@/lib/prospection-demo";
+import {
+  LEAD_STATUS_LABELS,
+  SERVICE_LINE_LABELS,
+  managerName,
+  type Lead,
+  type LeadStatus,
+} from "@/lib/prospection-demo";
 import { canManagePipeline, crmRoleFromStaff } from "@/lib/prospection-access";
 import { shortDate } from "@/lib/format";
 import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
@@ -26,8 +32,10 @@ function LeadsPage() {
   const leads = useProspectionDemoStore((s) => s.leads);
   const setLeadStatus = useProspectionDemoStore((s) => s.setLeadStatus);
   const convertLead = useProspectionDemoStore((s) => s.convertLead);
+  const deleteLead = useProspectionDemoStore((s) => s.deleteLead);
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Lead | null>(null);
   const [query, setQuery] = useState("");
 
   const list = useMemo(
@@ -136,14 +144,66 @@ function LeadsPage() {
                 >
                   Convertir
                 </button>
+                <button
+                  type="button"
+                  className={CRM_SECONDARY_BTN + " !px-3 !py-1.5 !text-xs"}
+                  onClick={() => setEditing(l)}
+                >
+                  Modifier
+                </button>
+                <button
+                  type="button"
+                  className={CRM_SECONDARY_BTN + " !px-3 !py-1.5 !text-xs text-danger"}
+                  onClick={() => {
+                    if (!confirm("Supprimer cette piste ?")) return;
+                    void deleteLead(l.id).then(
+                      () => toast.success("Piste supprimée"),
+                      (err) =>
+                        toast.error(err instanceof Error ? err.message : "Suppression impossible"),
+                    );
+                  }}
+                >
+                  Supprimer
+                </button>
               </div>
-            ) : null}
+            ) : (
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className={CRM_SECONDARY_BTN + " !px-3 !py-1.5 !text-xs"}
+                  onClick={() => setEditing(l)}
+                >
+                  Modifier
+                </button>
+                <button
+                  type="button"
+                  className={CRM_SECONDARY_BTN + " !px-3 !py-1.5 !text-xs text-danger"}
+                  onClick={() => {
+                    if (!confirm("Supprimer cette piste ?")) return;
+                    void deleteLead(l.id).then(
+                      () => toast.success("Piste supprimée"),
+                      (err) =>
+                        toast.error(err instanceof Error ? err.message : "Suppression impossible"),
+                    );
+                  }}
+                >
+                  Supprimer
+                </button>
+              </div>
+            )}
           </CrmCard>
         ))}
       </CrmCardGrid>
       )}
 
       <NewLeadDialog open={open} onOpenChange={setOpen} />
+      <NewLeadDialog
+        open={Boolean(editing)}
+        onOpenChange={(v) => {
+          if (!v) setEditing(null);
+        }}
+        editing={editing}
+      />
     </div>
   );
 }

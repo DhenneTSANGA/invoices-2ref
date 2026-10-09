@@ -16,6 +16,7 @@ import type {
   AccountPlan,
   Activity,
   ClientCrmOverlay,
+  BudgetSettings,
   Company,
   Contact,
   CrmNotification as UiCrmNotification,
@@ -263,6 +264,7 @@ export type CrmPipelineSnapshot = {
   clientOverlays: Record<string, ClientCrmOverlay>;
   /** Staff réel avec accès Prospection (référents / owners). */
   managers: Manager[];
+  budgetSettings: BudgetSettings;
   contacts: Contact[];
   opportunities: Opportunity[];
   activities: Activity[];

@@ -16,11 +16,12 @@ import { resolveCabinet } from "@/lib/roles";
 import { resolveStaffWritePole } from "@/lib/staff-pole";
 import { withLoadedStaffPoles } from "@/lib/staff-pole-db";
 import {
-  EXPENSE_APPROVAL_THRESHOLD,
+  DEFAULT_BUDGET_SETTINGS,
   STAGE_LABELS,
   STAGE_PROBABILITY,
   type ActivityKind,
   type ActivityStatus,
+  type BudgetSettings,
   type Company,
   type CompanyKind,
   type LeadStatus,
@@ -29,6 +30,7 @@ import {
   type PipelineStage,
   type Site,
 } from "@/lib/prospection-demo";
+import { HELP_LIBRARY } from "@/lib/prospection-library";
 import {
   DEFAULT_OBJECTIVE_TARGETS,
   DEFAULT_WEEK_CHECKS,
@@ -230,45 +232,138 @@ async function ensureObjectivesForManagers(managers: Manager[]) {
   }
 }
 
+async function ensureBudgetSettings(): Promise<BudgetSettings> {
+  const row = await prisma.crmBudgetSettings.upsert({
+    where: { id: "default" },
+    create: {
+      id: "default",
+      monthlyBudgetPerManager: DEFAULT_BUDGET_SETTINGS.monthlyBudgetPerManager,
+      alertRatio: DEFAULT_BUDGET_SETTINGS.alertRatio,
+      approvalThreshold: DEFAULT_BUDGET_SETTINGS.approvalThreshold,
+    },
+    update: {},
+  });
+  return {
+    monthlyBudgetPerManager: Number(row.monthlyBudgetPerManager),
+    alertRatio: row.alertRatio,
+    approvalThreshold: Number(row.approvalThreshold),
+  };
+}
+
+async function ensureLibrarySeed() {
+  const count = await prisma.crmLibraryItem.count();
+  if (count > 0) return;
+  await prisma.crmLibraryItem.createMany({
+    data: HELP_LIBRARY.map((item) => ({
+      line: item.line,
+      category: item.category,
+      title: item.title,
+      body: item.body,
+      terms: item.terms ?? undefined,
+    })),
+  });
+}
+
+async function ensureWeekChecksSeed() {
+  const weekCount = await prisma.crmWeekCheck.count();
+  if (weekCount > 0) return;
+  await prisma.crmWeekCheck.createMany({
+    data: DEFAULT_WEEK_CHECKS.map((w) => ({
+      key: w.key,
+      label: w.label,
+      sortOrder: w.sortOrder,
+      done: false,
+    })),
+  });
+}
+
 async function ensureCrmDefaults(managers: Manager[], sessionStaffId: string) {
   const fallbackId = managers[0]?.id ?? sessionStaffId;
   if (fallbackId) {
     await remapFakeManagerIds(fallbackId);
   }
-  await ensureObjectivesForManagers(
-    managers.length > 0
-      ? managers
-      : fallbackId
-        ? [{ id: fallbackId, name: "Collaborateur", lines: [] }]
-        : [],
-  );
-
-  const weekCount = await prisma.crmWeekCheck.count();
-  if (weekCount === 0) {
-    await prisma.crmWeekCheck.createMany({
-      data: DEFAULT_WEEK_CHECKS.map((w) => ({
-        key: w.key,
-        label: w.label,
-        sortOrder: w.sortOrder,
-        done: false,
-      })),
-    });
-  }
+  await Promise.all([
+    ensureObjectivesForManagers(
+      managers.length > 0
+        ? managers
+        : fallbackId
+          ? [{ id: fallbackId, name: "Collaborateur", lines: [] }]
+          : [],
+    ),
+    ensureBudgetSettings(),
+    ensureLibrarySeed(),
+    ensureWeekChecksSeed(),
+  ]);
 }
 
-async function createCrmNotificationRow(title: string, body: string, href: string) {
-  return prisma.crmNotification.create({
-    data: { title, body, href, at: new Date() },
+/** Seeds / remappages déjà faits pour cet ensemble de managers (par process serveur). */
+let crmDefaultsSignature: string | null = null;
+
+async function readBudgetSettings(): Promise<BudgetSettings> {
+  const row = await prisma.crmBudgetSettings.findUnique({ where: { id: "default" } });
+  if (!row) return { ...DEFAULT_BUDGET_SETTINGS };
+  return {
+    monthlyBudgetPerManager: Number(row.monthlyBudgetPerManager),
+    alertRatio: row.alertRatio,
+    approvalThreshold: Number(row.approvalThreshold),
+  };
+}
+
+/** Notifie un ou plusieurs collaborateurs Prospection. */
+async function notifyCrmStaff(
+  title: string,
+  body: string,
+  href: string,
+  staffIds?: string[],
+) {
+  const ids =
+    staffIds && staffIds.length > 0
+      ? [...new Set(staffIds)]
+      : (await loadCrmManagers()).map((m) => m.id);
+  if (ids.length === 0) return;
+  const at = new Date();
+  await prisma.crmNotification.createMany({
+    data: ids.map((staffId) => ({ title, body, href, staffId, at })),
   });
 }
 
 async function loadPipelineSnapshot(
   sessionStaffId: string,
 ): Promise<CrmPipelineSnapshot> {
-  const managers = await loadCrmManagers();
-  await ensureCrmDefaults(managers, sessionStaffId);
+  const managersPromise = loadCrmManagers();
+  if (crmDefaultsSignature === null) {
+    const managers = await managersPromise;
+    await ensureCrmDefaults(managers, sessionStaffId);
+    crmDefaultsSignature = managerSignature(managers);
+    return readPipelineData(sessionStaffId, managers);
+  }
 
+  const [managers, snapshot] = await Promise.all([
+    managersPromise,
+    readPipelineData(sessionStaffId, []),
+  ]);
+  const signature = managerSignature(managers);
+  if (signature !== crmDefaultsSignature) {
+    await ensureCrmDefaults(managers, sessionStaffId);
+    crmDefaultsSignature = signature;
+    return readPipelineData(sessionStaffId, managers);
+  }
+  return { ...snapshot, managers };
+}
+
+function managerSignature(managers: Manager[]) {
+  return managers
+    .map((m) => m.id)
+    .sort()
+    .join(",");
+}
+
+async function readPipelineData(
+  sessionStaffId: string,
+  managers: Manager[],
+): Promise<CrmPipelineSnapshot> {
   const [
+    budgetSettings,
     companies,
     contacts,
     opportunities,
@@ -281,6 +376,7 @@ async function loadPipelineSnapshot(
     referentials,
     weekChecks,
   ] = await Promise.all([
+    readBudgetSettings(),
     prisma.crmCompany.findMany({ orderBy: { name: "asc" } }),
     prisma.crmContact.findMany({
       include: { company: { select: { id: true, clientId: true } } },
@@ -303,8 +399,12 @@ async function loadPipelineSnapshot(
       orderBy: [{ at: "desc" }, { createdAt: "desc" }],
     }),
     prisma.crmObjective.findMany({ orderBy: [{ managerId: "asc" }, { metric: "asc" }] }),
-    prisma.crmNotification.findMany({ orderBy: { at: "desc" } }),
-    prisma.crmLibraryItem.findMany({ orderBy: { updatedAt: "desc" } }),
+    prisma.crmNotification.findMany({
+      where: { staffId: sessionStaffId },
+      orderBy: { at: "desc" },
+      take: 200,
+    }),
+    prisma.crmLibraryItem.findMany({ orderBy: [{ line: "asc" }, { category: "asc" }, { title: "asc" }] }),
     prisma.crmReferential.findMany({ orderBy: { createdAt: "desc" } }),
     prisma.crmWeekCheck.findMany({ orderBy: { sortOrder: "asc" } }),
   ]);
@@ -319,6 +419,7 @@ async function loadPipelineSnapshot(
     companies: localCompanies,
     clientOverlays,
     managers,
+    budgetSettings,
     contacts: contacts.map((c) => mapCrmContact(c, c.company)),
     opportunities: opportunities.map((o) => mapCrmOpportunity(o, o.company)),
     activities: activities.map((a) => mapCrmActivity(a, a.company)),
@@ -581,7 +682,7 @@ export const convertCrmProspect = createServerFn({ method: "POST" })
       });
     });
 
-    await createCrmNotificationRow(
+    await notifyCrmStaff(
       "Prospect converti",
       `${row.name} est maintenant un client Facturation (portefeuille live).`,
       `/prospection/clients/${row.clientId}`,
@@ -607,6 +708,28 @@ export const createCrmContact = createServerFn({ method: "POST" })
     const { staff } = await requireSession();
     const companyId = await resolveCrmCompanyId(data.companyId, staff.id);
     const row = await prisma.crmContact.create({
+      data: {
+        companyId,
+        firstName: data.firstName.trim(),
+        lastName: data.lastName.trim(),
+        role: data.role ?? "",
+        phone: data.phone ?? "",
+        email: data.email ?? "",
+        decisionMaker: data.decisionMaker ?? false,
+        influence: data.influence ?? "moyen",
+      },
+      include: { company: { select: { id: true, clientId: true } } },
+    });
+    return mapCrmContact(row, row.company);
+  });
+
+export const updateCrmContact = createServerFn({ method: "POST" })
+  .validator(contactInputSchema.extend({ id: z.string() }))
+  .handler(async ({ data }) => {
+    const { staff } = await requireSession();
+    const companyId = await resolveCrmCompanyId(data.companyId, staff.id);
+    const row = await prisma.crmContact.update({
+      where: { id: data.id },
       data: {
         companyId,
         firstName: data.firstName.trim(),
@@ -754,7 +877,7 @@ export const advanceCrmOpportunity = createServerFn({ method: "POST" })
     const company = await prisma.crmCompany.findUniqueOrThrow({
       where: { id: current.companyId },
     });
-    await createCrmNotificationRow(
+    await notifyCrmStaff(
       `Étape : ${STAGE_LABELS[stage as PipelineStage]}`,
       `${company.name} — ${data.nextAction}`,
       "/prospection/opportunites",
@@ -972,7 +1095,7 @@ export const convertCrmLead = createServerFn({ method: "POST" })
       return { opportunity, lead: updatedLead, company: company! };
     });
 
-    await createCrmNotificationRow(
+    await notifyCrmStaff(
       "Piste convertie",
       `${result.lead.companyName} — opportunité en Qualification.`,
       "/prospection/opportunites",
@@ -1073,8 +1196,9 @@ export const createCrmExpense = createServerFn({ method: "POST" })
     if (data.companyId) {
       companyId = await resolveCrmCompanyId(data.companyId, staff.id);
     }
+    const budget = await readBudgetSettings();
     const approval =
-      data.amount > EXPENSE_APPROVAL_THRESHOLD ? ("pending" as const) : ("none" as const);
+      data.amount > budget.approvalThreshold ? ("pending" as const) : ("none" as const);
 
     const row = await prisma.crmExpense.create({
       data: {
@@ -1093,10 +1217,79 @@ export const createCrmExpense = createServerFn({ method: "POST" })
     });
 
     if (approval === "pending") {
-      await createCrmNotificationRow(
+      const managers = await loadCrmManagers();
+      const approvers = managers
+        .filter((m) => m.id !== data.managerId)
+        .map((m) => m.id);
+      await notifyCrmStaff(
         "Budget à valider",
         `${row.label} — ${Number(row.amount).toLocaleString("fr-FR")} FCFA`,
         "/prospection/budget",
+        approvers.length > 0 ? approvers : managers.map((m) => m.id),
+      );
+    }
+
+    return mapCrmExpense(row, row.company);
+  });
+
+export const updateCrmExpense = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      id: z.string(),
+      managerId: z.string(),
+      category: expenseCategorySchema,
+      label: z.string().min(1),
+      amount: z.number().positive(),
+      at: z.string(),
+      companyId: z.string().optional(),
+      opportunityId: z.string().optional(),
+      activityId: z.string().optional(),
+      receipt: z.boolean().optional(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const { staff } = await requireSession();
+    const current = await prisma.crmExpense.findUnique({ where: { id: data.id } });
+    if (!current) throw new Error("Dépense introuvable");
+    let companyId: string | null = null;
+    if (data.companyId) {
+      companyId = await resolveCrmCompanyId(data.companyId, staff.id);
+    }
+    const budget = await readBudgetSettings();
+    const overThreshold = data.amount > budget.approvalThreshold;
+    const amountChanged = Number(current.amount) !== data.amount;
+    let approval = current.approval;
+    if (overThreshold && (current.approval === "none" || (amountChanged && current.approval !== "pending"))) {
+      approval = "pending";
+    } else if (!overThreshold && current.approval === "pending") {
+      approval = "none";
+    }
+
+    const row = await prisma.crmExpense.update({
+      where: { id: data.id },
+      data: {
+        managerId: data.managerId,
+        category: data.category,
+        label: data.label.trim(),
+        amount: data.amount,
+        at: toDateInput(data.at)!,
+        companyId,
+        opportunityId: data.opportunityId || null,
+        activityId: data.activityId || null,
+        receipt: data.receipt ?? false,
+        approval,
+      },
+      include: { company: { select: { id: true, clientId: true } } },
+    });
+
+    if (approval === "pending" && current.approval !== "pending") {
+      const managers = await loadCrmManagers();
+      const approvers = managers.filter((m) => m.id !== data.managerId).map((m) => m.id);
+      await notifyCrmStaff(
+        "Budget à valider",
+        `${row.label} — ${Number(row.amount).toLocaleString("fr-FR")} FCFA`,
+        "/prospection/budget",
+        approvers.length > 0 ? approvers : managers.map((m) => m.id),
       );
     }
 
@@ -1171,11 +1364,50 @@ export const createCrmLibraryItem = createServerFn({ method: "POST" })
     return mapCrmLibraryItem(row);
   });
 
+export const updateCrmLibraryItem = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      id: z.string(),
+      line: libraryDomainSchema,
+      category: z.string().min(1),
+      title: z.string().min(1),
+      body: z.string().min(1),
+      terms: z.array(z.object({ term: z.string(), def: z.string() })).optional(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    await requireSession();
+    const row = await prisma.crmLibraryItem.update({
+      where: { id: data.id },
+      data: {
+        line: data.line,
+        category: data.category,
+        title: data.title.trim(),
+        body: data.body.trim(),
+        terms: data.terms ?? Prisma.JsonNull,
+      },
+    });
+    return mapCrmLibraryItem(row);
+  });
+
 export const createCrmReferential = createServerFn({ method: "POST" })
   .validator(z.object({ kind: referentialKindSchema, label: z.string().min(1) }))
   .handler(async ({ data }) => {
     await requireSession();
     const row = await prisma.crmReferential.create({
+      data: { kind: data.kind, label: data.label.trim() },
+    });
+    return mapCrmReferential(row);
+  });
+
+export const updateCrmReferential = createServerFn({ method: "POST" })
+  .validator(
+    z.object({ id: z.string(), kind: referentialKindSchema, label: z.string().min(1) }),
+  )
+  .handler(async ({ data }) => {
+    await requireSession();
+    const row = await prisma.crmReferential.update({
+      where: { id: data.id },
       data: { kind: data.kind, label: data.label.trim() },
     });
     return mapCrmReferential(row);
@@ -1197,21 +1429,159 @@ export const toggleCrmWeekCheck = createServerFn({ method: "POST" })
 export const markCrmNotificationRead = createServerFn({ method: "POST" })
   .validator(z.object({ id: z.string() }))
   .handler(async ({ data }) => {
-    await requireSession();
+    const { staff } = await requireSession();
+    const existing = await prisma.crmNotification.findFirst({
+      where: { id: data.id, staffId: staff.id },
+    });
+    if (!existing) throw new Error("Notification introuvable");
     const row = await prisma.crmNotification.update({
-      where: { id: data.id },
+      where: { id: existing.id },
       data: { read: true },
+    });
+    return mapCrmNotification(row);
+  });
+
+export const updateCrmNotification = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      id: z.string(),
+      title: z.string().min(1),
+      body: z.string(),
+      read: z.boolean(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const { staff } = await requireSession();
+    const existing = await prisma.crmNotification.findFirst({
+      where: { id: data.id, staffId: staff.id },
+    });
+    if (!existing) throw new Error("Notification introuvable");
+    const row = await prisma.crmNotification.update({
+      where: { id: existing.id },
+      data: { title: data.title.trim(), body: data.body.trim(), read: data.read },
     });
     return mapCrmNotification(row);
   });
 
 export const markAllCrmNotificationsRead = createServerFn({ method: "POST" }).handler(
   async () => {
-    await requireSession();
+    const { staff } = await requireSession();
     await prisma.crmNotification.updateMany({
-      where: { read: false },
+      where: { staffId: staff.id, read: false },
       data: { read: true },
     });
     return true;
   },
 );
+
+export const setCrmBudgetSettings = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      monthlyBudgetPerManager: z.number().positive(),
+      alertRatio: z.number().min(0.1).max(1),
+      approvalThreshold: z.number().positive(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    await requireSession();
+    const row = await prisma.crmBudgetSettings.upsert({
+      where: { id: "default" },
+      create: {
+        id: "default",
+        monthlyBudgetPerManager: data.monthlyBudgetPerManager,
+        alertRatio: data.alertRatio,
+        approvalThreshold: data.approvalThreshold,
+      },
+      update: {
+        monthlyBudgetPerManager: data.monthlyBudgetPerManager,
+        alertRatio: data.alertRatio,
+        approvalThreshold: data.approvalThreshold,
+      },
+    });
+    return {
+      monthlyBudgetPerManager: Number(row.monthlyBudgetPerManager),
+      alertRatio: row.alertRatio,
+      approvalThreshold: Number(row.approvalThreshold),
+    } satisfies BudgetSettings;
+  });
+
+export const deleteCrmCompany = createServerFn({ method: "POST" })
+  .validator(z.object({ id: z.string() }))
+  .handler(async ({ data }) => {
+    await requireSession();
+    const existing = await prisma.crmCompany.findFirst({
+      where: { OR: [{ id: data.id }, { clientId: data.id }] },
+    });
+    if (!existing) return true;
+    // Supprime uniquement la fiche / overlay CRM — jamais le Client Facturation.
+    await prisma.crmCompany.deleteMany({ where: { id: existing.id } });
+    return true;
+  });
+
+export const deleteCrmContact = createServerFn({ method: "POST" })
+  .validator(z.object({ id: z.string() }))
+  .handler(async ({ data }) => {
+    await requireSession();
+    await prisma.crmContact.deleteMany({ where: { id: data.id } });
+    return true;
+  });
+
+export const deleteCrmOpportunity = createServerFn({ method: "POST" })
+  .validator(z.object({ id: z.string() }))
+  .handler(async ({ data }) => {
+    await requireSession();
+    await prisma.crmOpportunity.deleteMany({ where: { id: data.id } });
+    return true;
+  });
+
+export const deleteCrmActivity = createServerFn({ method: "POST" })
+  .validator(z.object({ id: z.string() }))
+  .handler(async ({ data }) => {
+    await requireSession();
+    await prisma.crmActivity.deleteMany({ where: { id: data.id } });
+    return true;
+  });
+
+export const deleteCrmLead = createServerFn({ method: "POST" })
+  .validator(z.object({ id: z.string() }))
+  .handler(async ({ data }) => {
+    await requireSession();
+    await prisma.crmLead.deleteMany({ where: { id: data.id } });
+    return true;
+  });
+
+export const deleteCrmExpense = createServerFn({ method: "POST" })
+  .validator(z.object({ id: z.string() }))
+  .handler(async ({ data }) => {
+    await requireSession();
+    await prisma.crmExpense.deleteMany({ where: { id: data.id } });
+    return true;
+  });
+
+export const deleteCrmLibraryItem = createServerFn({ method: "POST" })
+  .validator(z.object({ id: z.string() }))
+  .handler(async ({ data }) => {
+    await requireSession();
+    await prisma.crmLibraryItem.deleteMany({ where: { id: data.id } });
+    return true;
+  });
+
+export const deleteCrmReferential = createServerFn({ method: "POST" })
+  .validator(z.object({ id: z.string() }))
+  .handler(async ({ data }) => {
+    await requireSession();
+    await prisma.crmReferential.deleteMany({ where: { id: data.id } });
+    return true;
+  });
+
+export const deleteCrmNotification = createServerFn({ method: "POST" })
+  .validator(z.object({ id: z.string() }))
+  .handler(async ({ data }) => {
+    const { staff } = await requireSession();
+    const existing = await prisma.crmNotification.findFirst({
+      where: { id: data.id, staffId: staff.id },
+    });
+    if (!existing) throw new Error("Notification introuvable");
+    await prisma.crmNotification.delete({ where: { id: existing.id } });
+    return true;
+  });

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { BookMarked, BookOpen, Briefcase, HelpCircle, Mail, MessageCircle, Plus, Target } from "lucide-react";
+import { BookMarked, BookOpen, Briefcase, HelpCircle, Mail, MessageCircle, Plus, Target, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -7,12 +7,12 @@ import { NewLibraryDialog } from "@/components/prospection/CrmForms";
 import { CrmCard, CrmCardGrid, IconMark } from "@/components/prospection/CrmCards";
 import { LibraryDomainBadge } from "@/components/prospection/ProspectionBadges";
 import { CRM_PRIMARY_BTN, CRM_SECONDARY_BTN, CrmSearchEmpty, CrmSearchField, FilterChip, matchesSearch } from "@/components/prospection/CrmUi";
-import { HELP_LIBRARY } from "@/lib/prospection-library";
 import {
   LIBRARY_CATEGORIES,
   LIBRARY_DOMAIN_LABELS,
   LIBRARY_DOMAINS,
   type LibraryDomain,
+  type LibraryItem,
 } from "@/lib/prospection-demo";
 import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
 
@@ -37,17 +37,17 @@ function copyText(item: { title: string; body: string; terms?: { term: string; d
 }
 
 function LibraryPage() {
-  const extras = useProspectionDemoStore((s) => s.libraryItems);
+  const itemsAll = useProspectionDemoStore((s) => s.libraryItems);
+  const deleteLibraryItem = useProspectionDemoStore((s) => s.deleteLibraryItem);
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<LibraryItem | null>(null);
   const [line, setLine] = useState<"all" | LibraryDomain>("all");
   const [category, setCategory] = useState<(typeof LIBRARY_CATEGORIES)[number] | "all">("Lexique");
   const [query, setQuery] = useState("");
 
-  const all = useMemo(() => [...extras, ...HELP_LIBRARY], [extras]);
-
   const items = useMemo(
     () =>
-      all.filter(
+      itemsAll.filter(
         (i) =>
           (line === "all" || i.line === line) &&
           (category === "all" || i.category === category) &&
@@ -60,14 +60,14 @@ function LibraryPage() {
             ...(i.terms?.flatMap((t) => [t.term, t.def]) ?? []),
           ),
       ),
-    [all, line, category, query],
+    [itemsAll, line, category, query],
   );
 
   return (
     <div>
       <PageHeader
         title="Bibliothèque commerciale"
-        subtitle="Lexique et supports par pôle : comptabilité, fiscalité, audit, juridique, RH, formation, conseil."
+        subtitle="Lexique et supports par pôle — contenus en base, éditables."
         actions={
           <button type="button" onClick={() => setOpen(true)} className={CRM_PRIMARY_BTN}>
             <Plus className="h-4 w-4" />
@@ -128,7 +128,7 @@ function LibraryPage() {
               tone: "bg-primary/15 text-primary",
             };
             return (
-              <CrmCard key={`${item.line}-${item.category}-${item.title}-${i}`} index={i} className="h-full">
+              <CrmCard key={item.id} index={i} className="h-full">
                 <div className="flex items-start gap-3">
                   <IconMark icon={mark.icon} tone={mark.tone} />
                   <div className="min-w-0 flex-1">
@@ -157,16 +157,38 @@ function LibraryPage() {
                     {LIBRARY_DOMAIN_LABELS[item.line]}
                     {item.terms?.length ? ` · ${item.terms.length} termes` : ""}
                   </p>
-                  <button
-                    type="button"
-                    className={CRM_SECONDARY_BTN + " !px-3 !py-1.5 !text-xs"}
-                    onClick={async () => {
-                      await navigator.clipboard.writeText(copyText(item));
-                      toast.success("Texte copié");
-                    }}
-                  >
-                    Copier
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      className={CRM_SECONDARY_BTN + " !px-3 !py-1.5 !text-xs"}
+                      onClick={async () => {
+                        await navigator.clipboard.writeText(copyText(item));
+                        toast.success("Texte copié");
+                      }}
+                    >
+                      Copier
+                    </button>
+                    <button
+                      type="button"
+                      className={CRM_SECONDARY_BTN + " !px-3 !py-1.5 !text-xs"}
+                      onClick={() => setEditing(item)}
+                    >
+                      Modifier
+                    </button>
+                    <button
+                      type="button"
+                      className={CRM_SECONDARY_BTN + " !px-3 !py-1.5 !text-xs text-danger"}
+                      onClick={() => {
+                        if (!confirm(`Supprimer « ${item.title} » ?`)) return;
+                        void deleteLibraryItem(item.id).then(
+                          () => toast.success("Fiche supprimée"),
+                          (err) => toast.error(err instanceof Error ? err.message : "Suppression impossible"),
+                        );
+                      }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
               </CrmCard>
             );
@@ -174,6 +196,13 @@ function LibraryPage() {
         </CrmCardGrid>
       )}
       <NewLibraryDialog open={open} onOpenChange={setOpen} />
+      <NewLibraryDialog
+        open={Boolean(editing)}
+        onOpenChange={(v) => {
+          if (!v) setEditing(null);
+        }}
+        editing={editing}
+      />
     </div>
   );
 }

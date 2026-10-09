@@ -30,7 +30,6 @@ import {
 } from "@/components/prospection/CrmCards";
 import { CRM_PRIMARY_BTN, CRM_SECONDARY_BTN } from "@/components/prospection/CrmUi";
 import {
-  MONTHLY_BUDGET,
   OBJECTIVE_LABELS,
   computeKpis,
   managerName,
@@ -52,6 +51,7 @@ function ProspectionHomePage() {
   const crm = crmRoleFromStaff(session.staff.role);
   const data = useProspectionDemoStore((s) => s);
   const managers = data.managers;
+  const monthlyCap = data.budgetSettings.monthlyBudgetPerManager;
   const { companies } = useProspectionCompanies();
   const toggleWeekCheck = useProspectionDemoStore((s) => s.toggleWeekCheck);
   const kpis = computeKpis({ ...data, companies });
@@ -371,9 +371,9 @@ function ProspectionHomePage() {
               const signed = ops.filter((o) => o.stage === "gagne");
               const signedCa = signed.reduce((s, o) => s + o.amount, 0);
               const spent = data.expenses.filter((e) => e.managerId === m.id).reduce((s, e) => s + e.amount, 0);
-              const ratio = spent / MONTHLY_BUDGET;
+              const ratio = spent / monthlyCap;
               return (
-                <CrmCard key={m.id} index={i} className="h-full" accent={ratio >= 0.8 ? "bg-danger" : undefined}>
+                <CrmCard key={m.id} index={i} className="h-full" accent={ratio >= data.budgetSettings.alertRatio ? "bg-danger" : undefined}>
                   <div className="flex items-start gap-3">
                     <EntityMark name={m.name} />
                     <div className="min-w-0 flex-1">
@@ -392,7 +392,7 @@ function ProspectionHomePage() {
                       hint={`${signed.length} mission(s)`}
                       accent
                     />
-                    <MetricTile label="Budget" value={currency(spent)} hint={`/ ${currency(MONTHLY_BUDGET)}`} />
+                    <MetricTile label="Budget" value={currency(spent)} hint={`/ ${currency(monthlyCap)}`} />
                   </div>
                   <div className="mt-4">
                     <ProgressMeter

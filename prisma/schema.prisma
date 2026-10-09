@@ -981,9 +981,22 @@ model CrmWeekCheck {
   @@map("crm_week_checks")
 }
 
-/** Notifications de l’espace Prospection (séparées de celles Facturation). */
+/** Paramètres budget CRM (global, une seule ligne). */
+model CrmBudgetSettings {
+  id                      String   @id @default("default")
+  monthlyBudgetPerManager Decimal  @default(500000) @db.Decimal(18, 2)
+  alertRatio              Float    @default(0.8)
+  approvalThreshold       Decimal  @default(100000) @db.Decimal(18, 2)
+  updatedAt               DateTime @updatedAt
+
+  @@map("crm_budget_settings")
+}
+
+/** Notifications de l’espace Prospection (par collaborateur). */
 model CrmNotification {
   id        String   @id @default(cuid())
+  /// Destinataire staff (espace Prospection).
+  staffId   String
   title     String
   body      String
   at        DateTime @default(now())
@@ -992,6 +1005,8 @@ model CrmNotification {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([staffId, read, at])
+  @@index([staffId, at])
   @@index([read, at])
   @@index([at])
   @@map("crm_notifications")

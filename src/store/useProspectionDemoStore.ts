@@ -7,6 +7,7 @@ import {
   type Activity,
   type ActivityKind,
   type ActivityStatus,
+  type BudgetSettings,
   type Company,
   type Contact,
   type Expense,
@@ -29,18 +30,33 @@ import {
   createCrmExpense,
   createCrmLibraryItem,
   createCrmReferential,
+  deleteCrmActivity,
+  deleteCrmCompany,
+  deleteCrmContact,
+  deleteCrmExpense,
+  deleteCrmLead,
+  deleteCrmLibraryItem,
+  deleteCrmNotification,
+  deleteCrmOpportunity,
+  deleteCrmReferential,
   importCrmCompanies,
   listCrmPipeline,
   markAllCrmNotificationsRead,
   markCrmNotificationRead,
   setCrmAccountPlan,
   setCrmActivityStatus,
+  setCrmBudgetSettings,
   setCrmClientOverlay,
   setCrmExpenseApproval,
   setCrmLeadStatus,
   setCrmObjectiveTarget,
   toggleCrmWeekCheck,
   updateCrmCompany,
+  updateCrmContact,
+  updateCrmExpense,
+  updateCrmLibraryItem,
+  updateCrmNotification,
+  updateCrmReferential,
   upsertCrmActivity,
   upsertCrmCompany,
   upsertCrmLead,
@@ -54,9 +70,13 @@ type Actions = {
   updateCompany: (id: string, patch: Partial<Company>) => Promise<void>;
   setClientOverlay: (id: string, patch: ClientCrmOverlay) => Promise<void>;
   convertProspect: (id: string) => Promise<Company>;
+  deleteCompany: (id: string) => Promise<void>;
   addContact: (row: Omit<Contact, "id">) => Promise<void>;
+  deleteContact: (id: string) => Promise<void>;
+  updateContact: (id: string, row: Omit<Contact, "id">) => Promise<void>;
   addOpportunity: (row: Omit<Opportunity, "id">) => Promise<string>;
   updateOpportunity: (id: string, patch: Partial<Opportunity>) => Promise<void>;
+  deleteOpportunity: (id: string) => Promise<void>;
   setStage: (
     id: string,
     stage: PipelineStage,
@@ -78,18 +98,32 @@ type Actions = {
   addActivity: (row: Omit<Activity, "id">) => Promise<void>;
   updateActivity: (id: string, patch: Partial<Activity>) => Promise<void>;
   setActivityStatus: (id: string, status: ActivityStatus) => Promise<void>;
+  deleteActivity: (id: string) => Promise<void>;
   addLead: (row: Omit<Lead, "id" | "at" | "status"> & { status?: LeadStatus }) => Promise<void>;
   setLeadStatus: (id: string, status: LeadStatus) => Promise<void>;
   updateLead: (id: string, patch: Partial<Lead>) => Promise<void>;
   convertLead: (id: string) => Promise<void>;
+  deleteLead: (id: string) => Promise<void>;
   addExpense: (row: Omit<Expense, "id" | "approval">) => Promise<void>;
   setExpenseApproval: (id: string, approval: Expense["approval"]) => Promise<void>;
+  deleteExpense: (id: string) => Promise<void>;
+  updateExpense: (id: string, row: Omit<Expense, "id" | "approval">) => Promise<void>;
   markNotificationRead: (id: string) => Promise<void>;
   markAllNotificationsRead: () => Promise<void>;
+  deleteNotification: (id: string) => Promise<void>;
+  updateNotification: (
+    id: string,
+    patch: { title: string; body: string; read: boolean },
+  ) => Promise<void>;
   importCompanies: (rows: Company[]) => Promise<void>;
   setObjectiveTarget: (id: string, target: number) => Promise<void>;
+  setBudgetSettings: (settings: BudgetSettings) => Promise<void>;
   addLibraryItem: (row: Omit<LibraryItem, "id">) => Promise<void>;
+  deleteLibraryItem: (id: string) => Promise<void>;
+  updateLibraryItem: (id: string, row: Omit<LibraryItem, "id">) => Promise<void>;
   addReferential: (kind: ReferentialKind, label: string) => Promise<void>;
+  deleteReferential: (id: string) => Promise<void>;
+  updateReferential: (id: string, kind: ReferentialKind, label: string) => Promise<void>;
   setAccountPlan: (companyId: string, plan: AccountPlan) => Promise<void>;
   toggleWeekCheck: (id: string) => Promise<void>;
   reset: () => Promise<void>;
@@ -118,6 +152,7 @@ function applyPipelineSnapshot(snapshot: CrmPipelineSnapshot) {
     companies: snapshot.companies,
     clientOverlays: snapshot.clientOverlays,
     managers: snapshot.managers,
+    budgetSettings: snapshot.budgetSettings,
     contacts: snapshot.contacts,
     opportunities: snapshot.opportunities,
     activities: snapshot.activities,
@@ -133,12 +168,67 @@ function applyPipelineSnapshot(snapshot: CrmPipelineSnapshot) {
   emit();
 }
 
+type RemovableKey =
+  | "contacts"
+  | "opportunities"
+  | "activities"
+  | "leads"
+  | "expenses"
+  | "notifications"
+  | "libraryItems"
+  | "referentials";
+
+function patchLocal<K extends RemovableKey | "weekChecks">(
+  key: K,
+  id: string,
+  patch: Partial<ProspectionData[K][number]>,
+) {
+  const list = data[key] as { id: string }[];
+  if (!list.some((row) => row.id === id)) return;
+  data = {
+    ...data,
+    [key]: list.map((row) => (row.id === id ? { ...row, ...patch } : row)),
+  };
+  emit();
+}
+
+function removeLocal(key: RemovableKey, id: string) {
+  const list = data[key] as { id: string }[];
+  if (!list.some((row) => row.id === id)) return;
+  data = { ...data, [key]: list.filter((row) => row.id !== id) };
+  emit();
+}
+
+let reloadSeq = 0;
+let reloadInFlight: Promise<void> | null = null;
+let reloadQueued = false;
+
+/** Resynchronise en arrière-plan ; les appels rapprochés sont regroupés en un seul rechargement. */
+function scheduleReload() {
+  if (reloadInFlight) {
+    reloadQueued = true;
+    return;
+  }
+  reloadInFlight = actions
+    .reloadPipeline()
+    .catch((err) => console.error("Rechargement CRM impossible", err))
+    .finally(() => {
+      reloadInFlight = null;
+      if (reloadQueued) {
+        reloadQueued = false;
+        scheduleReload();
+      }
+    });
+}
+
 const actions: Actions = {
   hydratePipeline: (snapshot) => {
     applyPipelineSnapshot(snapshot);
   },
   reloadPipeline: async () => {
+    const seq = ++reloadSeq;
     const snapshot = await listCrmPipeline();
+    if (seq !== reloadSeq) return;
     applyPipelineSnapshot(snapshot);
   },
   upsertCompany: async (company) => {
@@ -160,7 +250,7 @@ const actions: Actions = {
           plan,
         },
       });
-      await actions.reloadPipeline();
+      scheduleReload();
       return company;
     }
     const saved = await upsertCrmCompany({
@@ -195,29 +285,44 @@ const actions: Actions = {
     } else {
       await setCrmClientOverlay({ data: { clientId: id, ...patch } });
     }
-    await actions.reloadPipeline();
+    scheduleReload();
   },
   setClientOverlay: async (id, patch) => {
     await setCrmClientOverlay({ data: { clientId: id, ...patch } });
-    await actions.reloadPipeline();
+    scheduleReload();
   },
   convertProspect: async (id) => {
     const converted = await convertCrmProspect({ data: { id } });
     await actions.reloadPipeline();
     return converted;
   },
+  deleteCompany: async (id) => {
+    await deleteCrmCompany({ data: { id } });
+    scheduleReload();
+  },
   addContact: async (row) => {
     await createCrmContact({ data: row });
-    await actions.reloadPipeline();
+    scheduleReload();
+  },
+  deleteContact: async (id) => {
+    removeLocal("contacts", id);
+    await deleteCrmContact({ data: { id } });
+    scheduleReload();
+  },
+  updateContact: async (id, row) => {
+    patchLocal("contacts", id, row);
+    await updateCrmContact({ data: { id, ...row } });
+    scheduleReload();
   },
   addOpportunity: async (row) => {
     const created = await upsertCrmOpportunity({ data: row });
-    await actions.reloadPipeline();
+    scheduleReload();
     return created.id;
   },
   updateOpportunity: async (id, patch) => {
     const current = data.opportunities.find((o) => o.id === id);
     if (!current) return;
+    patchLocal("opportunities", id, patch);
     await upsertCrmOpportunity({
       data: {
         id,
@@ -237,11 +342,16 @@ const actions: Actions = {
         reviveOn: patch.reviveOn ?? current.reviveOn,
       },
     });
-    await actions.reloadPipeline();
+    scheduleReload();
   },
   setStage: async (id, stage, extra) => {
     const current = data.opportunities.find((o) => o.id === id);
     if (!current) return;
+    patchLocal("opportunities", id, {
+      stage,
+      probability: STAGE_PROBABILITY[stage] ?? current.probability,
+      ...extra,
+    });
     await upsertCrmOpportunity({
       data: {
         id,
@@ -261,7 +371,7 @@ const actions: Actions = {
         reviveOn: extra?.reviveOn ?? current.reviveOn,
       },
     });
-    await actions.reloadPipeline();
+    scheduleReload();
   },
   advanceStage: async (id, stage, payload) => {
     await advanceCrmOpportunity({
@@ -277,15 +387,16 @@ const actions: Actions = {
         reviveOn: payload.reviveOn,
       },
     });
-    await actions.reloadPipeline();
+    scheduleReload();
   },
   addActivity: async (row) => {
     await upsertCrmActivity({ data: row });
-    await actions.reloadPipeline();
+    scheduleReload();
   },
   updateActivity: async (id, patch) => {
     const current = data.activities.find((a) => a.id === id);
     if (!current) return;
+    patchLocal("activities", id, patch);
     await upsertCrmActivity({
       data: {
         id,
@@ -302,23 +413,64 @@ const actions: Actions = {
         status: patch.status ?? current.status,
       },
     });
-    await actions.reloadPipeline();
+    scheduleReload();
   },
   setActivityStatus: async (id, status) => {
+    patchLocal("activities", id, { status });
     await setCrmActivityStatus({ data: { id, status } });
-    await actions.reloadPipeline();
+    scheduleReload();
+  },
+  deleteActivity: async (id) => {
+    removeLocal("activities", id);
+    await deleteCrmActivity({ data: { id } });
+    scheduleReload();
+  },
+  deleteOpportunity: async (id) => {
+    removeLocal("opportunities", id);
+    await deleteCrmOpportunity({ data: { id } });
+    scheduleReload();
+  },
+  deleteLead: async (id) => {
+    removeLocal("leads", id);
+    await deleteCrmLead({ data: { id } });
+    scheduleReload();
+  },
+  deleteExpense: async (id) => {
+    removeLocal("expenses", id);
+    await deleteCrmExpense({ data: { id } });
+    scheduleReload();
+  },
+  updateExpense: async (id, row) => {
+    patchLocal("expenses", id, row);
+    await updateCrmExpense({
+      data: {
+        id,
+        managerId: row.managerId,
+        category: row.category,
+        label: row.label,
+        amount: row.amount,
+        at: row.at,
+        companyId: row.companyId,
+        opportunityId: row.opportunityId,
+        activityId: row.activityId,
+        receipt: row.receipt,
+      },
+    });
+    scheduleReload();
   },
   addLead: async (row) => {
     await upsertCrmLead({ data: row });
-    await actions.reloadPipeline();
+    scheduleReload();
   },
   setLeadStatus: async (id, status) => {
+    patchLocal("leads", id, { status });
     await setCrmLeadStatus({ data: { id, status } });
-    await actions.reloadPipeline();
+    scheduleReload();
   },
   updateLead: async (id, patch) => {
     const current = data.leads.find((l) => l.id === id);
     if (!current) return;
+    patchLocal("leads", id, patch);
     await upsertCrmLead({
       data: {
         id,
@@ -332,11 +484,11 @@ const actions: Actions = {
         status: patch.status ?? current.status,
       },
     });
-    await actions.reloadPipeline();
+    scheduleReload();
   },
   convertLead: async (id) => {
     await convertCrmLead({ data: { id } });
-    await actions.reloadPipeline();
+    scheduleReload();
   },
   addExpense: async (row) => {
     await createCrmExpense({
@@ -352,19 +504,37 @@ const actions: Actions = {
         receipt: row.receipt,
       },
     });
-    await actions.reloadPipeline();
+    scheduleReload();
   },
   setExpenseApproval: async (id, approval) => {
+    patchLocal("expenses", id, { approval });
     await setCrmExpenseApproval({ data: { id, approval } });
-    await actions.reloadPipeline();
+    scheduleReload();
   },
   markNotificationRead: async (id) => {
+    patchLocal("notifications", id, { read: true });
     await markCrmNotificationRead({ data: { id } });
-    await actions.reloadPipeline();
+    scheduleReload();
   },
   markAllNotificationsRead: async () => {
+    data = { ...data, notifications: data.notifications.map((n) => ({ ...n, read: true })) };
+    emit();
     await markAllCrmNotificationsRead();
-    await actions.reloadPipeline();
+    scheduleReload();
+  },
+  deleteNotification: async (id) => {
+    removeLocal("notifications", id);
+    await deleteCrmNotification({ data: { id } });
+    scheduleReload();
+  },
+  updateNotification: async (id, patch) => {
+    patchLocal("notifications", id, patch);
+    await updateCrmNotification({ data: { id, ...patch } });
+    scheduleReload();
+  },
+  setBudgetSettings: async (settings) => {
+    await setCrmBudgetSettings({ data: settings });
+    scheduleReload();
   },
   importCompanies: async (rows) => {
     await importCrmCompanies({
@@ -389,11 +559,11 @@ const actions: Actions = {
         })),
       },
     });
-    await actions.reloadPipeline();
+    scheduleReload();
   },
   setObjectiveTarget: async (id, target) => {
     await setCrmObjectiveTarget({ data: { id, target } });
-    await actions.reloadPipeline();
+    scheduleReload();
   },
   addLibraryItem: async (row) => {
     await createCrmLibraryItem({
@@ -405,19 +575,50 @@ const actions: Actions = {
         terms: row.terms,
       },
     });
-    await actions.reloadPipeline();
+    scheduleReload();
+  },
+  deleteLibraryItem: async (id) => {
+    removeLocal("libraryItems", id);
+    await deleteCrmLibraryItem({ data: { id } });
+    scheduleReload();
+  },
+  updateLibraryItem: async (id, row) => {
+    patchLocal("libraryItems", id, row);
+    await updateCrmLibraryItem({
+      data: {
+        id,
+        line: row.line,
+        category: row.category,
+        title: row.title,
+        body: row.body,
+        terms: row.terms,
+      },
+    });
+    scheduleReload();
   },
   addReferential: async (kind, label) => {
     await createCrmReferential({ data: { kind, label } });
-    await actions.reloadPipeline();
+    scheduleReload();
+  },
+  deleteReferential: async (id) => {
+    removeLocal("referentials", id);
+    await deleteCrmReferential({ data: { id } });
+    scheduleReload();
+  },
+  updateReferential: async (id, kind, label) => {
+    patchLocal("referentials", id, { kind, label });
+    await updateCrmReferential({ data: { id, kind, label } });
+    scheduleReload();
   },
   setAccountPlan: async (companyId, plan) => {
     await setCrmAccountPlan({ data: { companyId, plan } });
-    await actions.reloadPipeline();
+    scheduleReload();
   },
   toggleWeekCheck: async (id) => {
+    const check = data.weekChecks.find((w) => w.id === id);
+    if (check) patchLocal("weekChecks", id, { done: !check.done });
     await toggleCrmWeekCheck({ data: { id } });
-    await actions.reloadPipeline();
+    scheduleReload();
   },
   reset: async () => {
     setManagersCache([]);
@@ -428,9 +629,26 @@ const actions: Actions = {
   },
 };
 
+/** Un échec serveur après mise à jour optimiste : on resynchronise avant de propager l’erreur. */
+const exposedActions = Object.fromEntries(
+  Object.entries(actions).map(([name, fn]) => [
+    name,
+    name === "hydratePipeline" || name === "reloadPipeline"
+      ? fn
+      : async (...args: unknown[]) => {
+          try {
+            return await (fn as (...a: unknown[]) => Promise<unknown>)(...args);
+          } catch (err) {
+            scheduleReload();
+            throw err;
+          }
+        },
+  ]),
+) as Actions;
+
 export function useProspectionDemoStore<T>(selector: (s: Store) => T): T {
   const snap = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-  return selector({ ...snap, ...actions });
+  return selector({ ...snap, ...exposedActions });
 }
 
 export function isProspectionPipelineReady() {

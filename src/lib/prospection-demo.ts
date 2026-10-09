@@ -302,9 +302,29 @@ export const LIBRARY_DOMAINS: LibraryDomain[] = [
   "conseil",
 ];
 
-export const MONTHLY_BUDGET = 500_000;
-export const BUDGET_ALERT_RATIO = 0.8;
-export const EXPENSE_APPROVAL_THRESHOLD = 100_000;
+/** Défauts — la valeur runtime vient de `CrmBudgetSettings` / store.budgetSettings. */
+export const DEFAULT_MONTHLY_BUDGET = 500_000;
+export const DEFAULT_BUDGET_ALERT_RATIO = 0.8;
+export const DEFAULT_EXPENSE_APPROVAL_THRESHOLD = 100_000;
+
+/** @deprecated Utiliser `budgetSettings` du store. */
+export const MONTHLY_BUDGET = DEFAULT_MONTHLY_BUDGET;
+/** @deprecated Utiliser `budgetSettings` du store. */
+export const BUDGET_ALERT_RATIO = DEFAULT_BUDGET_ALERT_RATIO;
+/** @deprecated Utiliser `budgetSettings` du store. */
+export const EXPENSE_APPROVAL_THRESHOLD = DEFAULT_EXPENSE_APPROVAL_THRESHOLD;
+
+export type BudgetSettings = {
+  monthlyBudgetPerManager: number;
+  alertRatio: number;
+  approvalThreshold: number;
+};
+
+export const DEFAULT_BUDGET_SETTINGS: BudgetSettings = {
+  monthlyBudgetPerManager: DEFAULT_MONTHLY_BUDGET,
+  alertRatio: DEFAULT_BUDGET_ALERT_RATIO,
+  approvalThreshold: DEFAULT_EXPENSE_APPROVAL_THRESHOLD,
+};
 
 export const SERVICE_LINE_LABELS: Record<ServiceLine, string> = {
   rh: "Ressources humaines",
@@ -488,6 +508,7 @@ export type ProspectionData = {
   clientOverlays: Record<string, ClientCrmOverlay>;
   /** Collaborateurs assignables (staff avec accès Prospection). */
   managers: Manager[];
+  budgetSettings: BudgetSettings;
   contacts: Contact[];
   opportunities: Opportunity[];
   activities: Activity[];
@@ -548,7 +569,9 @@ export function computeKpis(data: ProspectionData) {
       .reduce((s, o) => s + o.amount, 0),
     signatures: won.length,
     spent,
-    budgetCap: MONTHLY_BUDGET * Math.max(1, data.managers?.length || managersCache.length || 1),
+    budgetCap:
+      (data.budgetSettings?.monthlyBudgetPerManager ?? DEFAULT_MONTHLY_BUDGET) *
+      Math.max(1, data.managers?.length || managersCache.length || 1),
     rdvDone,
     calls: activities.filter((a) => a.kind === "appel").length,
     emails: activities.filter((a) => a.kind === "email").length,
@@ -610,6 +633,7 @@ export function createProspectionDemoSeed(): ProspectionData {
     companies: [],
     clientOverlays: {},
     managers: [],
+    budgetSettings: { ...DEFAULT_BUDGET_SETTINGS },
     contacts: [],
     opportunities: [],
     activities: [],

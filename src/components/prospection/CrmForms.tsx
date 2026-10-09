@@ -23,7 +23,6 @@ import {
   ACTIVITY_LABELS,
   ACTIVITY_STATUS_LABELS,
   COMPANY_SIZES,
-  EXPENSE_APPROVAL_THRESHOLD,
   EXPENSE_LABELS,
   LIBRARY_CATEGORIES,
   LIBRARY_DOMAIN_LABELS,
@@ -41,15 +40,22 @@ import {
   addBusinessDays,
   isoDate,
   type AccountPlan,
+  type Activity,
   type ActivityKind,
   type ActivityStatus,
   type Company,
   type CompanyKind,
+  type Contact,
+  type CrmNotification,
+  type Expense,
   type ExpenseCategory,
+  type Lead,
+  type LibraryItem,
   type Opportunity,
   type OpportunitySource,
   type PipelineStage,
   type LibraryDomain,
+  type ReferentialExtra,
   type ReferentialKind,
   type ServiceLine,
   type Site,
@@ -592,16 +598,19 @@ export function NewLeadDialog({
   open,
   onOpenChange,
   defaultCompanyName = "",
+  editing,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultCompanyName?: string;
+  editing?: Lead | null;
 }) {
   const { session } = useRouteContext({ from: "/prospection" });
   const selfId = session.staff.id;
   const { companies } = useProspectionCompanies();
   const managers = useProspectionDemoStore((s) => s.managers);
   const addLead = useProspectionDemoStore((s) => s.addLead);
+  const updateLead = useProspectionDemoStore((s) => s.updateLead);
   const [companyName, setCompanyName] = useState(defaultCompanyName);
   const [need, setNeed] = useState("");
   const [comment, setComment] = useState("");
@@ -617,6 +626,14 @@ export function NewLeadDialog({
 
   useEffect(() => {
     if (!open) return;
+    if (editing) {
+      setCompanyName(editing.companyName);
+      setNeed(editing.need);
+      setComment(editing.comment);
+      setLine(editing.line);
+      setOwnerId(editing.ownerId || selfId);
+      return;
+    }
     setCompanyName(defaultCompanyName);
     setNeed("");
     setComment("");
@@ -625,14 +642,14 @@ export function NewLeadDialog({
       (c) => c.name.toLowerCase() === defaultCompanyName.trim().toLowerCase(),
     );
     setOwnerId(match?.managerId || selfId);
-  }, [open, defaultCompanyName, companies, selfId]);
+  }, [open, editing, defaultCompanyName, companies, selfId]);
 
   return (
     <CrmDialog
       open={open}
       onOpenChange={onOpenChange}
       icon={Megaphone}
-      title="Signaler une piste"
+      title={editing ? "Modifier la piste" : "Signaler une piste"}
       description="Attribution automatique au manager référent si l’entreprise est déjà en portefeuille."
     >
       <form
@@ -650,6 +667,19 @@ export function NewLeadDialog({
           }
           void (async () => {
             try {
+              if (editing) {
+                await updateLead(editing.id, {
+                  companyName: companyName.trim(),
+                  companyId: matchedCompany?.id,
+                  line,
+                  need: need.trim(),
+                  comment: comment.trim(),
+                  ownerId: resolvedOwner,
+                });
+                toast.success("Piste mise à jour");
+                onOpenChange(false);
+                return;
+              }
               await addLead({
                 companyName: companyName.trim(),
                 companyId: matchedCompany?.id,
@@ -729,7 +759,10 @@ export function NewLeadDialog({
             className={CRM_FIELD}
           />
         </CrmLabeledField>
-        <CrmFormActions onCancel={() => onOpenChange(false)} submitLabel="Envoyer" />
+        <CrmFormActions
+          onCancel={() => onOpenChange(false)}
+          submitLabel={editing ? "Enregistrer" : "Envoyer"}
+        />
       </form>
     </CrmDialog>
   );
@@ -739,18 +772,24 @@ export function NewExpenseDialog({
   open,
   onOpenChange,
   defaultCompanyId = "",
+  editing,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultCompanyId?: string;
+  editing?: Expense | null;
 }) {
   const { session } = useRouteContext({ from: "/prospection" });
   const selfId = session.staff.id;
   const { companies } = useProspectionCompanies();
   const managers = useProspectionDemoStore((s) => s.managers);
+  const approvalThreshold = useProspectionDemoStore(
+    (s) => s.budgetSettings.approvalThreshold,
+  );
   const activities = useProspectionDemoStore((s) => s.activities);
   const opportunities = useProspectionDemoStore((s) => s.opportunities);
   const addExpense = useProspectionDemoStore((s) => s.addExpense);
+  const updateExpense = useProspectionDemoStore((s) => s.updateExpense);
   const [managerId, setManagerId] = useState("");
   const [category, setCategory] = useState<ExpenseCategory | "">("");
   const [label, setLabel] = useState("");
@@ -770,6 +809,18 @@ export function NewExpenseDialog({
 
   useEffect(() => {
     if (!open) return;
+    if (editing) {
+      setManagerId(editing.managerId || selfId);
+      setCategory(editing.category);
+      setLabel(editing.label);
+      setAmount(String(editing.amount));
+      setAt(editing.at);
+      setCompanyId(editing.companyId ?? "");
+      setActivityId(editing.activityId ?? "");
+      setOpportunityId(editing.opportunityId ?? "");
+      setReceipt(editing.receipt);
+      return;
+    }
     setManagerId(selfId);
     setCategory("");
     setLabel("");
@@ -779,15 +830,15 @@ export function NewExpenseDialog({
     setActivityId("");
     setOpportunityId("");
     setReceipt(false);
-  }, [open, defaultCompanyId, selfId]);
+  }, [open, editing, defaultCompanyId, selfId]);
 
   return (
     <CrmDialog
       open={open}
       onOpenChange={onOpenChange}
       icon={Wallet}
-      title="Nouvelle dépense"
-      description={`Rattachée à une action. Justificatif photo obligatoire. Au-delà de ${EXPENSE_APPROVAL_THRESHOLD.toLocaleString("fr-FR")} FCFA, validation Direction.`}
+      title={editing ? "Modifier la dépense" : "Nouvelle dépense"}
+      description={`Rattachée à une action. Justificatif photo obligatoire. Au-delà de ${approvalThreshold.toLocaleString("fr-FR")} FCFA, validation Direction.`}
     >
       <form
         className="space-y-3 p-5 sm:p-6"
@@ -812,7 +863,7 @@ export function NewExpenseDialog({
           }
           void (async () => {
             try {
-              await addExpense({
+              const row = {
                 managerId,
                 category,
                 label: label.trim(),
@@ -822,9 +873,16 @@ export function NewExpenseDialog({
                 companyId: companyId || undefined,
                 activityId,
                 opportunityId: opportunityId || undefined,
-              });
+              };
+              if (editing) {
+                await updateExpense(editing.id, row);
+                toast.success("Dépense mise à jour");
+                onOpenChange(false);
+                return;
+              }
+              await addExpense(row);
               toast.success(
-                n > EXPENSE_APPROVAL_THRESHOLD
+                n > approvalThreshold
                   ? "Soumise à validation Direction"
                   : "Dépense enregistrée",
               );
@@ -932,6 +990,7 @@ export function NewActivityDialog({
   defaultKind,
   defaultOpportunityId,
   completeActivityId,
+  editing,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -940,6 +999,7 @@ export function NewActivityDialog({
   defaultOpportunityId?: string;
   /** Complète une activité déjà planifiée (compte rendu) au lieu d’en créer une autre. */
   completeActivityId?: string;
+  editing?: Activity | null;
 }) {
   const { session } = useRouteContext({ from: "/prospection" });
   const selfId = session.staff.id;
@@ -964,6 +1024,19 @@ export function NewActivityDialog({
 
   useEffect(() => {
     if (!open) return;
+    if (editing) {
+      setCompanyId(editing.companyId);
+      setOpportunityId(editing.opportunityId ?? "");
+      setKind(editing.kind);
+      setSummary(editing.summary);
+      setNextAction(editing.nextAction ?? "");
+      setNextActionOn(editing.nextActionOn ?? "");
+      setOwnerId(editing.ownerId || selfId);
+      setStatus(editing.status);
+      setAt(editing.at);
+      setTime(editing.time ?? "");
+      return;
+    }
     if (completing) {
       setCompanyId(completing.companyId);
       setOpportunityId(completing.opportunityId ?? "");
@@ -989,7 +1062,7 @@ export function NewActivityDialog({
     setStatus(planned ? "planifiee" : "");
     setAt(isoDate());
     setTime("");
-  }, [open, defaultCompanyId, defaultKind, defaultOpportunityId, completing, selfId, companies]);
+  }, [open, editing, defaultCompanyId, defaultKind, defaultOpportunityId, completing, selfId, companies]);
 
   const linkedOps = opportunities.filter((o) => o.companyId === companyId);
   const isRdv = kind === "rdv";
@@ -1000,7 +1073,15 @@ export function NewActivityDialog({
       open={open}
       onOpenChange={onOpenChange}
       icon={CalendarDays}
-      title={completing ? "Compte rendu" : isRdv ? "Nouveau rendez-vous" : "Nouvelle activité"}
+      title={
+        editing
+          ? "Modifier l’activité"
+          : completing
+            ? "Compte rendu"
+            : isRdv
+              ? "Nouveau rendez-vous"
+              : "Nouvelle activité"
+      }
       description="Cahier : saisie en moins d’une minute — type, compte rendu, prochaine étape. Après un RDV, le CR sous 48 h."
     >
       <form
@@ -1023,6 +1104,24 @@ export function NewActivityDialog({
           const title = `${ACTIVITY_LABELS[kind]}${company ? ` — ${company.name}` : ""}`;
           void (async () => {
             try {
+              if (editing) {
+                await updateActivity(editing.id, {
+                  companyId,
+                  opportunityId,
+                  at,
+                  time,
+                  kind,
+                  title: editing.kind === kind && editing.companyId === companyId ? editing.title : title,
+                  summary: summary.trim() || title,
+                  nextAction: nextAction.trim(),
+                  nextActionOn,
+                  ownerId,
+                  status,
+                });
+                toast.success("Activité mise à jour");
+                onOpenChange(false);
+                return;
+              }
               if (completing) {
                 await updateActivity(completing.id, {
                   summary: summary.trim(),
@@ -1388,12 +1487,15 @@ export function NewContactDialog({
   open,
   onOpenChange,
   companyId,
+  editing,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   companyId: string;
+  editing?: Contact | null;
 }) {
   const addContact = useProspectionDemoStore((s) => s.addContact);
+  const updateContact = useProspectionDemoStore((s) => s.updateContact);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [role, setRole] = useState("");
@@ -1403,23 +1505,22 @@ export function NewContactDialog({
   const [influence, setInfluence] = useState<"" | "faible" | "moyen" | "fort">("");
 
   useEffect(() => {
-    if (open) {
-      setFirstName("");
-      setLastName("");
-      setRole("");
-      setPhone("");
-      setEmail("");
-      setDecisionMaker(false);
-      setInfluence("");
-    }
-  }, [open]);
+    if (!open) return;
+    setFirstName(editing?.firstName ?? "");
+    setLastName(editing?.lastName ?? "");
+    setRole(editing?.role ?? "");
+    setPhone(editing?.phone ?? "");
+    setEmail(editing?.email ?? "");
+    setDecisionMaker(editing?.decisionMaker ?? false);
+    setInfluence(editing?.influence ?? "");
+  }, [open, editing]);
 
   return (
     <CrmDialog
       open={open}
       onOpenChange={onOpenChange}
       icon={UserRound}
-      title="Nouveau contact"
+      title={editing ? "Modifier le contact" : "Nouveau contact"}
       description="Décideur, influenceur ou relais interne."
     >
       <form
@@ -1436,8 +1537,8 @@ export function NewContactDialog({
           }
           void (async () => {
             try {
-              await addContact({
-                companyId,
+              const row = {
+                companyId: editing?.companyId ?? companyId,
                 firstName: firstName.trim() || "—",
                 lastName: lastName.trim() || "—",
                 role: role.trim(),
@@ -1445,7 +1546,14 @@ export function NewContactDialog({
                 email: email.trim(),
                 decisionMaker,
                 influence,
-              });
+              };
+              if (editing) {
+                await updateContact(editing.id, row);
+                toast.success("Contact mis à jour");
+                onOpenChange(false);
+                return;
+              }
+              await addContact(row);
               toast.success("Contact ajouté");
               onOpenChange(false);
             } catch (err) {
@@ -1519,7 +1627,10 @@ export function NewContactDialog({
             ]}
           />
         </CrmLabeledField>
-        <CrmFormActions onCancel={() => onOpenChange(false)} submitLabel="Ajouter" />
+        <CrmFormActions
+          onCancel={() => onOpenChange(false)}
+          submitLabel={editing ? "Enregistrer" : "Ajouter"}
+        />
       </form>
     </CrmDialog>
   );
@@ -1702,31 +1813,35 @@ export function EditObjectivesDialog({
 export function NewLibraryDialog({
   open,
   onOpenChange,
+  editing,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  editing?: LibraryItem | null;
 }) {
   const addLibraryItem = useProspectionDemoStore((s) => s.addLibraryItem);
+  const updateLibraryItem = useProspectionDemoStore((s) => s.updateLibraryItem);
   const [line, setLine] = useState<LibraryDomain | "">("");
   const [category, setCategory] = useState("");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  const [terms, setTerms] = useState("");
 
   useEffect(() => {
-    if (open) {
-      setLine("");
-      setCategory("");
-      setTitle("");
-      setBody("");
-    }
-  }, [open]);
+    if (!open) return;
+    setLine(editing?.line ?? "");
+    setCategory(editing?.category ?? "");
+    setTitle(editing?.title ?? "");
+    setBody(editing?.body ?? "");
+    setTerms(editing?.terms?.map((t) => `${t.term} — ${t.def}`).join("\n") ?? "");
+  }, [open, editing]);
 
   return (
     <CrmDialog
       open={open}
       onOpenChange={onOpenChange}
       icon={BookOpen}
-      title="Ajouter une ressource"
+      title={editing ? "Modifier la ressource" : "Ajouter une ressource"}
       description="Lexique, cibles, argumentaires, questions, offres, e-mails, WhatsApp — par pôle."
     >
       <form
@@ -1737,9 +1852,31 @@ export function NewLibraryDialog({
             toast.error("Pôle, catégorie, titre et contenu sont requis");
             return;
           }
+          const parsedTerms = terms
+            .split("\n")
+            .map((rowText) => rowText.trim())
+            .filter(Boolean)
+            .map((rowText) => {
+              const [term, ...rest] = rowText.split(/\s+[—–-]\s+/);
+              return { term: term.trim(), def: rest.join(" — ").trim() };
+            })
+            .filter((t) => t.term);
+          const row = {
+            line,
+            category,
+            title: title.trim(),
+            body: body.trim(),
+            terms: parsedTerms.length > 0 ? parsedTerms : undefined,
+          };
           void (async () => {
             try {
-              await addLibraryItem({ line, category, title: title.trim(), body: body.trim() });
+              if (editing) {
+                await updateLibraryItem(editing.id, row);
+                toast.success("Ressource mise à jour");
+                onOpenChange(false);
+                return;
+              }
+              await addLibraryItem(row);
               toast.success("Ressource ajoutée");
               onOpenChange(false);
             } catch (err) {
@@ -1781,7 +1918,89 @@ export function NewLibraryDialog({
             className={CRM_FIELD}
           />
         </CrmLabeledField>
-        <CrmFormActions onCancel={() => onOpenChange(false)} submitLabel="Ajouter" />
+        <CrmLabeledField label="Glossaire (optionnel — une ligne « terme — définition »)">
+          <textarea
+            value={terms}
+            onChange={(e) => setTerms(e.target.value)}
+            placeholder={"SYSCOHADA — Plan comptable OHADA\nBalance — Liste des comptes et soldes"}
+            rows={4}
+            className={CRM_FIELD}
+          />
+        </CrmLabeledField>
+        <CrmFormActions
+          onCancel={() => onOpenChange(false)}
+          submitLabel={editing ? "Enregistrer" : "Ajouter"}
+        />
+      </form>
+    </CrmDialog>
+  );
+}
+
+export function EditNotificationDialog({
+  open,
+  onOpenChange,
+  editing,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  editing: CrmNotification | null;
+}) {
+  const updateNotification = useProspectionDemoStore((s) => s.updateNotification);
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [read, setRead] = useState(false);
+
+  useEffect(() => {
+    if (!open || !editing) return;
+    setTitle(editing.title);
+    setBody(editing.body);
+    setRead(editing.read);
+  }, [open, editing]);
+
+  return (
+    <CrmDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      icon={StickyNote}
+      title="Modifier la notification"
+      description="Annotez ou reformulez l’alerte, et choisissez son état de lecture."
+    >
+      <form
+        className="space-y-3 p-5 sm:p-6"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!editing) return;
+          if (!title.trim()) {
+            toast.error("Titre requis");
+            return;
+          }
+          void (async () => {
+            try {
+              await updateNotification(editing.id, { title: title.trim(), body: body.trim(), read });
+              toast.success("Notification mise à jour");
+              onOpenChange(false);
+            } catch (err) {
+              toast.error(err instanceof Error ? err.message : "Enregistrement impossible");
+            }
+          })();
+        }}
+      >
+        <CrmLabeledField label="Titre">
+          <input value={title} onChange={(e) => setTitle(e.target.value)} className={CRM_FIELD} />
+        </CrmLabeledField>
+        <CrmLabeledField label="Message">
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            rows={4}
+            className={CRM_FIELD}
+          />
+        </CrmLabeledField>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={read} onChange={(e) => setRead(e.target.checked)} />
+          Marquée comme lue
+        </label>
+        <CrmFormActions onCancel={() => onOpenChange(false)} submitLabel="Enregistrer" />
       </form>
     </CrmDialog>
   );
@@ -1790,20 +2009,22 @@ export function NewLibraryDialog({
 export function AddReferentialDialog({
   open,
   onOpenChange,
+  editing,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  editing?: ReferentialExtra | null;
 }) {
   const addReferential = useProspectionDemoStore((s) => s.addReferential);
+  const updateReferential = useProspectionDemoStore((s) => s.updateReferential);
   const [kind, setKind] = useState<ReferentialKind | "">("");
   const [label, setLabel] = useState("");
 
   useEffect(() => {
-    if (open) {
-      setKind("");
-      setLabel("");
-    }
-  }, [open]);
+    if (!open) return;
+    setKind(editing?.kind ?? "");
+    setLabel(editing?.label ?? "");
+  }, [open, editing]);
 
   const kindLabel: Record<ReferentialKind, string> = {
     line: "Ligne de service",
@@ -1818,7 +2039,7 @@ export function AddReferentialDialog({
       open={open}
       onOpenChange={onOpenChange}
       icon={Settings}
-      title="Ajouter au référentiel"
+      title={editing ? "Modifier la valeur" : "Ajouter au référentiel"}
       description="Valeur persistée pour l’espace Prospection."
     >
       <form
@@ -1831,6 +2052,12 @@ export function AddReferentialDialog({
           }
           void (async () => {
             try {
+              if (editing) {
+                await updateReferential(editing.id, kind, label.trim());
+                toast.success("Valeur mise à jour");
+                onOpenChange(false);
+                return;
+              }
               await addReferential(kind, label.trim());
               toast.success("Ajouté au référentiel");
               onOpenChange(false);
@@ -1859,7 +2086,10 @@ export function AddReferentialDialog({
             className={CRM_FIELD}
           />
         </CrmLabeledField>
-        <CrmFormActions onCancel={() => onOpenChange(false)} submitLabel="Ajouter" />
+        <CrmFormActions
+          onCancel={() => onOpenChange(false)}
+          submitLabel={editing ? "Enregistrer" : "Ajouter"}
+        />
       </form>
     </CrmDialog>
   );

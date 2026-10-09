@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { CheckCircle2, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { LineBadge, StageSelect, nextPipelineStage } from "@/components/prospection/ProspectionBadges";
 import { NewOpportunityDialog, StageChangeDialog } from "@/components/prospection/CrmForms";
@@ -56,6 +57,7 @@ function OpportunitiesPage() {
   });
   const { companies } = useProspectionCompanies();
   const opportunities = useProspectionDemoStore((s) => s.opportunities);
+  const deleteOpportunity = useProspectionDemoStore((s) => s.deleteOpportunity);
   const [stage, setFilter] = useState<"all" | PipelineStage>("all");
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -191,6 +193,21 @@ function OpportunitiesPage() {
                       Valider et gagner
                     </button>
                   ) : null}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!confirm("Supprimer cette opportunité ?")) return;
+                      void deleteOpportunity(o.id).then(
+                        () => toast.success("Opportunité supprimée"),
+                        (err) =>
+                          toast.error(err instanceof Error ? err.message : "Suppression impossible"),
+                      );
+                    }}
+                    className={`${CRM_SECONDARY_BTN} !h-8 !px-3 !text-xs text-danger`}
+                  >
+                    Supprimer
+                  </button>
                 </div>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-2">

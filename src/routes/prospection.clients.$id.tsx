@@ -41,6 +41,10 @@ import {
   SITE_LABELS,
   SOURCE_LABELS,
   managerName,
+  type Activity,
+  type Contact,
+  type Lead,
+  type Opportunity,
   type ServiceLine,
 } from "@/lib/prospection-demo";
 import { currency, shortDate } from "@/lib/format";
@@ -79,6 +83,10 @@ function CrmClientDetailPage() {
   const [activityOpen, setActivityOpen] = useState(false);
   const [planOpen, setPlanOpen] = useState(false);
   const [leadOpen, setLeadOpen] = useState(false);
+  const [editContact, setEditContact] = useState<Contact | null>(null);
+  const [editOpp, setEditOpp] = useState<Opportunity | null>(null);
+  const [editActivity, setEditActivity] = useState<Activity | null>(null);
+  const [editLead, setEditLead] = useState<Lead | null>(null);
   const company = companies.find((c) => c.id === id);
 
   if (!company) {
@@ -237,7 +245,7 @@ function CrmClientDetailPage() {
               {people.map((c) => (
                 <li key={c.id} className="flex items-start gap-3 rounded-2xl bg-muted/45 px-3 py-2.5">
                   <EntityMark name={`${c.firstName} ${c.lastName}`} size="sm" />
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-sm font-semibold">
                         {c.firstName} {c.lastName}
@@ -256,6 +264,13 @@ function CrmClientDetailPage() {
                       {c.phone ? ` · ${c.phone}` : ""}
                     </p>
                   </div>
+                  <button
+                    type="button"
+                    className="shrink-0 text-xs font-semibold text-muted-foreground hover:text-primary"
+                    onClick={() => setEditContact(c)}
+                  >
+                    Modif.
+                  </button>
                 </li>
               ))}
             </ul>
@@ -340,7 +355,16 @@ function CrmClientDetailPage() {
                 <li key={o.id} className="rounded-2xl bg-muted/45 px-3 py-2.5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-sm font-semibold">{o.title}</span>
-                    <StageBadge stage={o.stage} />
+                    <div className="flex items-center gap-2">
+                      <StageBadge stage={o.stage} />
+                      <button
+                        type="button"
+                        className="text-xs text-muted-foreground hover:text-primary"
+                        onClick={() => setEditOpp(o)}
+                      >
+                        Modif.
+                      </button>
+                    </div>
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <LineBadge line={o.line} />
@@ -370,7 +394,16 @@ function CrmClientDetailPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="text-sm font-semibold">{a.title}</span>
-                      <ActivityStatusBadge status={a.status} />
+                      <div className="flex items-center gap-2">
+                        <ActivityStatusBadge status={a.status} />
+                        <button
+                          type="button"
+                          className="text-xs text-muted-foreground hover:text-primary"
+                          onClick={() => setEditActivity(a)}
+                        >
+                          Modif.
+                        </button>
+                      </div>
                     </div>
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       {ACTIVITY_LABELS[a.kind]} · {shortDate(a.at)}
@@ -389,8 +422,17 @@ function CrmClientDetailPage() {
               <ul className="mt-2 space-y-2">
                 {companyLeads.map((l) => (
                   <li key={l.id} className="flex items-center justify-between gap-2 rounded-2xl bg-muted/45 px-3 py-2 text-sm">
-                    <span>{l.need}</span>
-                    <LeadBadge status={l.status} />
+                    <span className="min-w-0 truncate">{l.need}</span>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <LeadBadge status={l.status} />
+                      <button
+                        type="button"
+                        className="text-xs text-muted-foreground hover:text-primary"
+                        onClick={() => setEditLead(l)}
+                      >
+                        Modif.
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -413,6 +455,35 @@ function CrmClientDetailPage() {
       <NewActivityDialog open={activityOpen} onOpenChange={setActivityOpen} defaultCompanyId={id} />
       <AccountPlanDialog open={planOpen} onOpenChange={setPlanOpen} company={company} />
       <NewLeadDialog open={leadOpen} onOpenChange={setLeadOpen} defaultCompanyName={company.name} />
+      <NewContactDialog
+        open={Boolean(editContact)}
+        onOpenChange={(v) => {
+          if (!v) setEditContact(null);
+        }}
+        companyId={id}
+        editing={editContact}
+      />
+      <NewOpportunityDialog
+        open={Boolean(editOpp)}
+        onOpenChange={(v) => {
+          if (!v) setEditOpp(null);
+        }}
+        editing={editOpp}
+      />
+      <NewActivityDialog
+        open={Boolean(editActivity)}
+        onOpenChange={(v) => {
+          if (!v) setEditActivity(null);
+        }}
+        editing={editActivity}
+      />
+      <NewLeadDialog
+        open={Boolean(editLead)}
+        onOpenChange={(v) => {
+          if (!v) setEditLead(null);
+        }}
+        editing={editLead}
+      />
     </div>
   );
 }

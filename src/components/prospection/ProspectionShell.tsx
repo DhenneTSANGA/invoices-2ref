@@ -7,7 +7,6 @@ import {
   LayoutGrid,
   Menu,
   Moon,
-  RotateCcw,
   Shield,
   Sun,
 } from "lucide-react";
@@ -60,7 +59,6 @@ export function ProspectionShell({ children }: { children: React.ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <ProspectionTopbar />
         <main className="min-w-0 flex-1 overflow-x-clip px-3 py-5 sm:px-4 sm:py-6 md:px-8">
-          <DemoBanner />
           {hub ? <CrmHubTabs hub={hub} pathname={pathname} /> : null}
           <PageTransition>{children}</PageTransition>
         </main>
@@ -86,32 +84,6 @@ function ProspectionPipelineSync() {
     };
   }, [hydratePipeline]);
   return null;
-}
-
-function DemoBanner() {
-  const reset = useProspectionDemoStore((s) => s.reset);
-  return (
-    <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-sky-200/80 bg-sky-50 px-4 py-3 text-sm text-sky-950 dark:border-sky-900/40 dark:bg-sky-950/40 dark:text-sky-100 sm:flex-row sm:items-center sm:justify-between">
-      <p>
-        <strong>Espace prospection</strong> — clients lus depuis Facturation (les
-        deux cabinets). Pipeline, budget, objectifs, biblio et notifications sont
-        en base. La Facturation n’est jamais modifiée depuis ici.
-      </p>
-      <button
-        type="button"
-        onClick={() => {
-          void reset().then(
-            () => toast.success("Données rechargées depuis la base"),
-            (err) => toast.error(err instanceof Error ? err.message : "Rechargement impossible"),
-          );
-        }}
-        className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-sky-300/70 bg-white/70 px-3 py-1.5 text-xs font-medium hover:bg-white dark:border-sky-800 dark:bg-sky-950/60"
-      >
-        <RotateCcw className="h-3.5 w-3.5" />
-        Recharger
-      </button>
-    </div>
-  );
 }
 
 function ProspectionSidebar() {
@@ -166,7 +138,7 @@ function ProspectionSidebar() {
                 {roleLabel(session.staff.role)}
               </div>
               <div className="mt-0.5 text-[11px] text-muted-foreground">
-                CRM commercial · démo
+                CRM commercial
               </div>
             </div>
           ) : (

@@ -13,14 +13,12 @@ import {
   MetricTile,
   ProgressMeter,
 } from "@/components/prospection/CrmCards";
-import { CRM_PRIMARY_BTN, CrmSearchEmpty, CrmSearchField, matchesSearch } from "@/components/prospection/CrmUi";
+import { CRM_PRIMARY_BTN, CRM_SECONDARY_BTN, CrmSearchEmpty, CrmSearchField, matchesSearch } from "@/components/prospection/CrmUi";
 import {
-  BUDGET_ALERT_RATIO,
   EXPENSE_APPROVAL_LABELS,
-  EXPENSE_APPROVAL_THRESHOLD,
   EXPENSE_LABELS,
-  MONTHLY_BUDGET,
   managerName,
+  type Expense,
   type ExpenseApproval,
 } from "@/lib/prospection-demo";
 import { currency, shortDate } from "@/lib/format";
@@ -59,10 +57,21 @@ function BudgetPage() {
   const canApprove = canApproveExpenses(crm);
   const expenses = useProspectionDemoStore((s) => s.expenses);
   const allManagers = useProspectionDemoStore((s) => s.managers);
+  const budgetSettings = useProspectionDemoStore((s) => s.budgetSettings);
+  const setBudgetSettings = useProspectionDemoStore((s) => s.setBudgetSettings);
+  const deleteExpense = useProspectionDemoStore((s) => s.deleteExpense);
   const { companies } = useProspectionCompanies();
   const setExpenseApproval = useProspectionDemoStore((s) => s.setExpenseApproval);
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Expense | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const monthlyCap = budgetSettings.monthlyBudgetPerManager;
+  const alertRatio = budgetSettings.alertRatio;
+  const approvalThreshold = budgetSettings.approvalThreshold;
+  const [draftCap, setDraftCap] = useState(String(monthlyCap));
+  const [draftAlert, setDraftAlert] = useState(String(Math.round(alertRatio * 100)));
+  const [draftThreshold, setDraftThreshold] = useState(String(approvalThreshold));
 
   const matchesExpense = useMemo(() => {
     return (id: string) => {
@@ -98,20 +107,102 @@ function BudgetPage() {
   );
 
   const spentCabinet = expenses.reduce((s, e) => s + e.amount, 0);
-  const capCabinet = MONTHLY_BUDGET * Math.max(1, allManagers.length);
+  const capCabinet = monthlyCap * Math.max(1, allManagers.length);
 
   return (
     <div>
       <PageHeader
         title="Dépenses & budget"
-        subtitle={`${currency(MONTHLY_BUDGET)} / manager / mois · alerte ${BUDGET_ALERT_RATIO * 100}% · validation dès ${currency(EXPENSE_APPROVAL_THRESHOLD)}`}
+        subtitle={`${currency(monthlyCap)} / manager / mois · alerte ${Math.round(alertRatio * 100)}% · validation dès ${currency(approvalThreshold)}`}
         actions={
-          <button type="button" onClick={() => setOpen(true)} className={CRM_PRIMARY_BTN}>
-            <Plus className="h-4 w-4" />
-            Nouvelle dépense
-          </button>
+          <div className="flex flex-wrap gap-2">
+            {canApprove ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setDraftCap(String(monthlyCap));
+                  setDraftAlert(String(Math.round(alertRatio * 100)));
+                  setDraftThreshold(String(approvalThreshold));
+                  setSettingsOpen((v) => !v);
+                }}
+                className={CRM_SECONDARY_BTN}
+              >
+                Paramètres
+              </button>
+            ) : null}
+            <button type="button" onClick={() => setOpen(true)} className={CRM_PRIMARY_BTN}>
+              <Plus className="h-4 w-4" />
+              Nouvelle dépense
+            </button>
+          </div>
         }
       />
+      {settingsOpen && canApprove ? (
+        <form
+          className="glass-panel mb-5 grid gap-3 rounded-2xl p-4 sm:grid-cols-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const cap = Number(draftCap);
+            const alert = Number(draftAlert) / 100;
+            const threshold = Number(draftThreshold);
+            if (!Number.isFinite(cap) || cap <= 0 || !Number.isFinite(threshold) || threshold <= 0) {
+              toast.error("Montants invalides");
+              return;
+            }
+            if (!Number.isFinite(alert) || alert < 0.1 || alert > 1) {
+              toast.error("Alerte entre 10 % et 100 %");
+              return;
+            }
+            void setBudgetSettings({
+              monthlyBudgetPerManager: Math.round(cap),
+              alertRatio: alert,
+              approvalThreshold: Math.round(threshold),
+            }).then(
+              () => {
+                toast.success("Paramètres budget enregistrés");
+                setSettingsOpen(false);
+              },
+              (err) => toast.error(err instanceof Error ? err.message : "Enregistrement impossible"),
+            );
+          }}
+        >
+          <label className="text-sm">
+            <span className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Plafond / manager (FCFA)
+            </span>
+            <input
+              value={draftCap}
+              onChange={(e) => setDraftCap(e.target.value)}
+              className="w-full rounded-xl border border-border/60 bg-surface px-3 py-2"
+            />
+          </label>
+          <label className="text-sm">
+            <span className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Seuil d’alerte (%)
+            </span>
+            <input
+              value={draftAlert}
+              onChange={(e) => setDraftAlert(e.target.value)}
+              className="w-full rounded-xl border border-border/60 bg-surface px-3 py-2"
+            />
+          </label>
+          <label className="text-sm">
+            <span className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Validation dès (FCFA)
+            </span>
+            <input
+              value={draftThreshold}
+              onChange={(e) => setDraftThreshold(e.target.value)}
+              className="w-full rounded-xl border border-border/60 bg-surface px-3 py-2"
+            />
+          </label>
+          <div className="sm:col-span-3">
+            <button type="submit" className={CRM_PRIMARY_BTN}>
+              Enregistrer les plafonds
+            </button>
+          </div>
+        </form>
+      ) : null}
       <CrmSearchField
         value={query}
         onChange={setQuery}
@@ -181,7 +272,7 @@ function BudgetPage() {
           label="% consommé"
           value={Math.round((spentCabinet / capCabinet) * 100)}
           icon={Wallet}
-          variant={spentCabinet / capCabinet >= BUDGET_ALERT_RATIO ? "danger" : "default"}
+          variant={spentCabinet / capCabinet >= alertRatio ? "danger" : "default"}
           suffix=" %"
         />
       </div>
@@ -191,14 +282,14 @@ function BudgetPage() {
         <CrmCardGrid>
           {managers.map((m, i) => {
           const spent = expenses.filter((e) => e.managerId === m.id).reduce((s, e) => s + e.amount, 0);
-          const ratio = spent / MONTHLY_BUDGET;
-          const remaining = Math.max(0, MONTHLY_BUDGET - spent);
+          const ratio = spent / monthlyCap;
+          const remaining = Math.max(0, monthlyCap - spent);
           return (
             <CrmCard
               key={m.id}
               index={i}
               className="h-full"
-              accent={ratio >= BUDGET_ALERT_RATIO ? "bg-danger" : undefined}
+              accent={ratio >= alertRatio ? "bg-danger" : undefined}
             >
               <div className="flex items-start gap-3">
                 <EntityMark name={m.name} />
@@ -208,13 +299,13 @@ function BudgetPage() {
                 </div>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-2">
-                <MetricTile label="Consommé" value={currency(spent)} accent={ratio >= BUDGET_ALERT_RATIO} />
+                <MetricTile label="Consommé" value={currency(spent)} accent={ratio >= alertRatio} />
                 <MetricTile label="Restant" value={currency(remaining)} />
               </div>
               <div className="mt-4">
                 <ProgressMeter
                   value={Math.round(ratio * 100)}
-                  label={ratio >= BUDGET_ALERT_RATIO ? "Alerte 80 %" : "Consommation"}
+                  label={ratio >= alertRatio ? `Alerte ${Math.round(alertRatio * 100)} %` : "Consommation"}
                   hint={`${Math.round(ratio * 100)} %`}
                 />
               </div>
@@ -273,6 +364,28 @@ function BudgetPage() {
                   hint={shortDate(e.at)}
                 />
               </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className={CRM_SECONDARY_BTN + " !px-3 !py-1.5 !text-xs"}
+                  onClick={() => setEditing(e)}
+                >
+                  Modifier
+                </button>
+                <button
+                  type="button"
+                  className={CRM_SECONDARY_BTN + " !px-3 !py-1.5 !text-xs text-danger"}
+                  onClick={() => {
+                    if (!confirm("Supprimer cette dépense ?")) return;
+                    void deleteExpense(e.id).then(
+                      () => toast.success("Dépense supprimée"),
+                      (err) => toast.error(err instanceof Error ? err.message : "Suppression impossible"),
+                    );
+                  }}
+                >
+                  Supprimer
+                </button>
+              </div>
             </CrmCard>
           );
         })}
@@ -281,6 +394,13 @@ function BudgetPage() {
       )}
 
       <NewExpenseDialog open={open} onOpenChange={setOpen} />
+      <NewExpenseDialog
+        open={Boolean(editing)}
+        onOpenChange={(v) => {
+          if (!v) setEditing(null);
+        }}
+        editing={editing}
+      />
     </div>
   );
 }

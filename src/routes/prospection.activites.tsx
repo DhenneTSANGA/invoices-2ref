@@ -11,6 +11,7 @@ import {
   ACTIVITY_LABELS,
   ACTIVITY_STATUS_LABELS,
   managerName,
+  type Activity,
   type ActivityKind,
 } from "@/lib/prospection-demo";
 import { shortDate } from "@/lib/format";
@@ -26,7 +27,9 @@ function ActivitiesPage() {
   const { companies } = useProspectionCompanies();
   const activities = useProspectionDemoStore((s) => s.activities);
   const setActivityStatus = useProspectionDemoStore((s) => s.setActivityStatus);
+  const deleteActivity = useProspectionDemoStore((s) => s.deleteActivity);
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Activity | null>(null);
   const [kindFilter, setKindFilter] = useState<"all" | ActivityKind>("all");
   const [query, setQuery] = useState("");
   const [crFor, setCrFor] = useState<string | undefined>();
@@ -154,6 +157,26 @@ function ActivitiesPage() {
                     Annuler
                   </button>
                 ) : null}
+                <button
+                  type="button"
+                  className={CRM_SECONDARY_BTN + " !px-3 !py-1.5 !text-xs"}
+                  onClick={() => setEditing(a)}
+                >
+                  Modifier
+                </button>
+                <button
+                  type="button"
+                  className={CRM_SECONDARY_BTN + " !px-3 !py-1.5 !text-xs text-danger"}
+                  onClick={() => {
+                    if (!confirm("Supprimer cette activité ?")) return;
+                    void deleteActivity(a.id).then(
+                      () => toast.success("Activité supprimée"),
+                      (err) => toast.error(err instanceof Error ? err.message : "Suppression impossible"),
+                    );
+                  }}
+                >
+                  Supprimer
+                </button>
               </div>
             </CrmCard>
           );
@@ -168,6 +191,13 @@ function ActivitiesPage() {
           if (!v) setCrFor(undefined);
         }}
         completeActivityId={crFor}
+      />
+      <NewActivityDialog
+        open={Boolean(editing)}
+        onOpenChange={(v) => {
+          if (!v) setEditing(null);
+        }}
+        editing={editing}
       />
     </div>
   );

@@ -1,28 +1,64 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { NewActivityDialog } from "@/components/prospection/CrmForms";
 import { ActivityStatusBadge } from "@/components/prospection/ProspectionBadges";
-import { CrmCard, CrmCardGrid, DateTile, KindMark } from "@/components/prospection/CrmCards";
-import { CRM_PRIMARY_BTN, CRM_SECONDARY_BTN, CrmSearchEmpty, CrmSearchField, FilterChip, matchesSearch } from "@/components/prospection/CrmUi";
-import { ACTIVITY_LABELS, managerName } from "@/lib/prospection-demo";
+import { CRM_PRIMARY_BTN, CRM_SECONDARY_BTN, FilterChip, matchesSearch } from "@/components/prospection/CrmUi";
+import { ACTIVITY_LABELS, managerName, type Activity } from "@/lib/prospection-demo";
 import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
 import { useProspectionCompanies } from "@/hooks/use-prospection-companies";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/prospection/agenda")({
   head: () => ({ meta: [{ title: "Agenda — Prospection" }] }),
   component: AgendaPage,
 });
 
+const WEEKDAYS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+
+function startOfMonth(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), 1);
+}
+
+function addMonths(d: Date, n: number) {
+  return new Date(d.getFullYear(), d.getMonth() + n, 1);
+}
+
+function isoDay(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function monthLabel(d: Date) {
+  return d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+}
+
+function buildMonthCells(cursor: Date) {
+  const first = startOfMonth(cursor);
+  const startOffset = (first.getDay() + 6) % 7; // Monday-first
+  const start = new Date(first);
+  start.setDate(first.getDate() - startOffset);
+  return Array.from({ length: 42 }, (_, i) => {
+    const day = new Date(start);
+    day.setDate(start.getDate() + i);
+    return day;
+  });
+}
+
 function AgendaPage() {
   const { companies } = useProspectionCompanies();
   const activities = useProspectionDemoStore((s) => s.activities);
   const setActivityStatus = useProspectionDemoStore((s) => s.setActivityStatus);
-  const [view, setView] = useState<"jour" | "semaine" | "mois">("semaine");
+  const deleteActivity = useProspectionDemoStore((s) => s.deleteActivity);
+  const [cursor, setCursor] = useState(() => startOfMonth(new Date()));
+  const [selected, setSelected] = useState(() => isoDay(new Date()));
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Activity | null>(null);
 
   const dated = useMemo(
     () =>
@@ -37,28 +73,43 @@ function AgendaPage() {
             a.status === "planifiee" ||
             a.status === "a_faire",
         )
-        .sort((a, b) => a.at.localeCompare(b.at)),
+        .sort((a, b) => `${a.at}${a.time ?? ""}`.localeCompare(`${b.at}${b.time ?? ""}`)),
     [activities],
   );
 
-  const today = new Date().toISOString().slice(0, 10);
-  const filtered = dated.filter((a) => {
-    const inPeriod =
-      view === "jour"
-        ? a.at === today
-        : view === "semaine"
-          ? Math.abs(new Date(a.at).getTime() - new Date(today).getTime()) < 8 * 86400000
-          : a.at.slice(0, 7) === today.slice(0, 7);
-    if (!inPeriod) return false;
-    const co = companies.find((c) => c.id === a.companyId);
-    return matchesSearch(query, co?.name, a.title, a.summary, a.time, ACTIVITY_LABELS[a.kind], managerName(a.ownerId));
-  });
+  const byDay = useMemo(() => {
+    const map = new Map<string, Activity[]>();
+    for (const a of dated) {
+      const co = companies.find((c) => c.id === a.companyId);
+      if (
+        !matchesSearch(
+          query,
+          co?.name,
+          a.title,
+          a.summary,
+          a.time,
+          ACTIVITY_LABELS[a.kind],
+          managerName(a.ownerId),
+        )
+      ) {
+        continue;
+      }
+      const list = map.get(a.at) ?? [];
+      list.push(a);
+      map.set(a.at, list);
+    }
+    return map;
+  }, [dated, companies, query]);
+
+  const cells = useMemo(() => buildMonthCells(cursor), [cursor]);
+  const selectedEvents = byDay.get(selected) ?? [];
+  const today = isoDay(new Date());
 
   return (
     <div>
       <PageHeader
         title="Agenda"
-        subtitle="Jour, semaine, mois — RDV, visites, événements, tâches planifiées."
+        subtitle="Calendrier mensuel — RDV, visites, événements et tâches planifiées."
         actions={
           <button type="button" onClick={() => setOpen(true)} className={CRM_PRIMARY_BTN}>
             <Plus className="h-4 w-4" />
@@ -66,88 +117,214 @@ function AgendaPage() {
           </button>
         }
       />
-      <CrmSearchField
-        value={query}
-        onChange={setQuery}
-        label="Rechercher dans l’agenda"
-        placeholder="Rechercher une entreprise, un rendez-vous, un manager…"
-      />
-      <div className="mb-4 flex flex-wrap gap-2">
-        {(["jour", "semaine", "mois"] as const).map((v) => (
-          <FilterChip key={v} active={view === v} onClick={() => setView(v)}>
-            {v}
+
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className={CRM_SECONDARY_BTN + " !px-2.5 !py-2"}
+            onClick={() => setCursor((c) => addMonths(c, -1))}
+            aria-label="Mois précédent"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <h2 className="min-w-[10rem] text-center font-display text-lg font-semibold capitalize">
+            {monthLabel(cursor)}
+          </h2>
+          <button
+            type="button"
+            className={CRM_SECONDARY_BTN + " !px-2.5 !py-2"}
+            onClick={() => setCursor((c) => addMonths(c, 1))}
+            aria-label="Mois suivant"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+          <FilterChip
+            active={false}
+            onClick={() => {
+              const now = new Date();
+              setCursor(startOfMonth(now));
+              setSelected(isoDay(now));
+            }}
+          >
+            Aujourd’hui
           </FilterChip>
-        ))}
+        </div>
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Filtrer le calendrier…"
+          className="w-full rounded-xl border border-border/60 bg-surface/70 px-3 py-2 text-sm sm:max-w-xs"
+        />
       </div>
-      {filtered.length === 0 ? (
-        query ? (
-          <CrmSearchEmpty
-            title="Aucun rendez-vous"
-            description="Rien ne correspond à cette recherche sur la période affichée."
-            onClear={() => setQuery("")}
-          />
-        ) : (
-          <p className="text-sm text-muted-foreground">Rien sur cette période.</p>
-        )
-      ) : (
-        <CrmCardGrid dense>
-          {filtered.map((a, i) => {
-            const co = companies.find((c) => c.id === a.companyId);
+
+      <div className="glass-panel overflow-hidden rounded-3xl">
+        <div className="grid grid-cols-7 border-b border-border/50 bg-muted/40">
+          {WEEKDAYS.map((d) => (
+            <div
+              key={d}
+              className="px-1 py-2 text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+            >
+              {d}
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7">
+          {cells.map((day) => {
+            const key = isoDay(day);
+            const inMonth = day.getMonth() === cursor.getMonth();
+            const events = byDay.get(key) ?? [];
+            const isSelected = key === selected;
+            const isToday = key === today;
             return (
-              <CrmCard key={a.id} index={i} className="h-full">
-                <div className="flex items-start gap-3">
-                  <DateTile iso={a.at} />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div>
-                        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                          {a.time ?? "Toute la journée"} · {ACTIVITY_LABELS[a.kind]}
-                        </p>
-                        <h2 className="mt-0.5 font-display text-base font-semibold leading-tight">
-                          {co?.name ?? "Entreprise"}
-                        </h2>
-                      </div>
-                      <ActivityStatusBadge status={a.status} />
-                    </div>
-                    <p className="mt-2 text-sm">{a.title}</p>
-                    {a.summary ? <p className="mt-1 text-sm text-muted-foreground">{a.summary}</p> : null}
-                  </div>
-                  <KindMark kind={a.kind} />
+              <button
+                key={key}
+                type="button"
+                onClick={() => setSelected(key)}
+                className={cn(
+                  "min-h-[5.5rem] border-b border-r border-border/40 p-1.5 text-left transition hover:bg-muted/50 sm:min-h-[6.5rem]",
+                  !inMonth && "bg-muted/20 text-muted-foreground",
+                  isSelected && "bg-primary/8 ring-2 ring-inset ring-primary/40",
+                )}
+              >
+                <div className="flex items-center justify-between gap-1">
+                  <span
+                    className={cn(
+                      "inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold",
+                      isToday && "bg-primary text-primary-foreground",
+                    )}
+                  >
+                    {day.getDate()}
+                  </span>
+                  {events.length > 0 ? (
+                    <span className="rounded-full bg-muted px-1.5 text-[10px] font-semibold tabular-nums">
+                      {events.length}
+                    </span>
+                  ) : null}
                 </div>
-                {a.status !== "terminee" && a.status !== "annulee" ? (
-                  <div className="mt-4 flex gap-2">
-                    <button
-                      type="button"
-                      className={CRM_SECONDARY_BTN + " !px-3 !py-1.5 !text-xs"}
-                      onClick={() => {
-                        void setActivityStatus(a.id, "terminee").then(
-                          () => toast.success("Marqué fait"),
-                          (err) => toast.error(err instanceof Error ? err.message : "Mise à jour impossible"),
-                        );
-                      }}
+                <ul className="mt-1 space-y-0.5">
+                  {events.slice(0, 3).map((a) => (
+                    <li
+                      key={a.id}
+                      className="truncate rounded-md bg-primary/10 px-1 py-0.5 text-[10px] font-medium text-primary"
+                      title={a.title}
                     >
-                      Fait
-                    </button>
-                    <button
-                      type="button"
-                      className={CRM_SECONDARY_BTN + " !px-3 !py-1.5 !text-xs"}
-                      onClick={() => {
-                        void setActivityStatus(a.id, "annulee").then(
-                          () => toast.success("Annulé"),
-                          (err) => toast.error(err instanceof Error ? err.message : "Mise à jour impossible"),
-                        );
-                      }}
-                    >
-                      Annuler
-                    </button>
-                  </div>
-                ) : null}
-              </CrmCard>
+                      {(a.time ? `${a.time} ` : "") + a.title}
+                    </li>
+                  ))}
+                  {events.length > 3 ? (
+                    <li className="text-[10px] text-muted-foreground">+{events.length - 3}</li>
+                  ) : null}
+                </ul>
+              </button>
             );
           })}
-        </CrmCardGrid>
-      )}
+        </div>
+      </div>
+
+      <section className="mt-5">
+        <h3 className="mb-3 font-display font-semibold">
+          {new Date(`${selected}T12:00:00`).toLocaleDateString("fr-FR", {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+          })}
+        </h3>
+        {selectedEvents.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Aucun événement ce jour.</p>
+        ) : (
+          <ul className="space-y-3">
+            {selectedEvents.map((a) => {
+              const co = companies.find((c) => c.id === a.companyId);
+              return (
+                <li
+                  key={a.id}
+                  className="glass-panel flex flex-col gap-3 rounded-2xl p-4 sm:flex-row sm:items-start sm:justify-between"
+                >
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        {a.time ?? "Toute la journée"} · {ACTIVITY_LABELS[a.kind]}
+                      </p>
+                      <ActivityStatusBadge status={a.status} />
+                    </div>
+                    <h4 className="mt-1 font-display text-base font-semibold">
+                      {co?.name ?? "Entreprise"}
+                    </h4>
+                    <p className="mt-1 text-sm">{a.title}</p>
+                    {a.summary ? (
+                      <p className="mt-1 text-sm text-muted-foreground">{a.summary}</p>
+                    ) : null}
+                    <p className="mt-1 text-xs text-muted-foreground">{managerName(a.ownerId)}</p>
+                  </div>
+                  <div className="flex shrink-0 flex-wrap gap-2">
+                    {a.status !== "terminee" && a.status !== "annulee" ? (
+                      <>
+                        <button
+                          type="button"
+                          className={CRM_SECONDARY_BTN + " !px-3 !py-1.5 !text-xs"}
+                          onClick={() => {
+                            void setActivityStatus(a.id, "terminee").then(
+                              () => toast.success("Marqué fait"),
+                              (err) =>
+                                toast.error(err instanceof Error ? err.message : "Mise à jour impossible"),
+                            );
+                          }}
+                        >
+                          Fait
+                        </button>
+                        <button
+                          type="button"
+                          className={CRM_SECONDARY_BTN + " !px-3 !py-1.5 !text-xs"}
+                          onClick={() => {
+                            void setActivityStatus(a.id, "annulee").then(
+                              () => toast.success("Annulé"),
+                              (err) =>
+                                toast.error(err instanceof Error ? err.message : "Mise à jour impossible"),
+                            );
+                          }}
+                        >
+                          Annuler
+                        </button>
+                      </>
+                    ) : null}
+                    <button
+                      type="button"
+                      className={CRM_SECONDARY_BTN + " !px-3 !py-1.5 !text-xs"}
+                      onClick={() => setEditing(a)}
+                    >
+                      Modifier
+                    </button>
+                    <button
+                      type="button"
+                      className={CRM_SECONDARY_BTN + " !px-3 !py-1.5 !text-xs text-danger"}
+                      onClick={() => {
+                        if (!confirm("Supprimer cette activité ?")) return;
+                        void deleteActivity(a.id).then(
+                          () => toast.success("Activité supprimée"),
+                          (err) =>
+                            toast.error(err instanceof Error ? err.message : "Suppression impossible"),
+                        );
+                      }}
+                    >
+                      Supprimer
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+
       <NewActivityDialog open={open} onOpenChange={setOpen} defaultKind="rdv" />
+      <NewActivityDialog
+        open={Boolean(editing)}
+        onOpenChange={(v) => {
+          if (!v) setEditing(null);
+        }}
+        editing={editing}
+      />
     </div>
   );
 }
