@@ -98,6 +98,7 @@ export function mapClient(row: {
   cnamgs?: string | null;
   activity?: string | null;
   activityDetail?: string | null;
+  civility?: string | null;
   contactName: string;
   representativeTitle?: string | null;
   email: string;
@@ -132,6 +133,7 @@ export function mapClient(row: {
     cnamgs: row.cnamgs ?? "",
     activity: row.activity ?? "",
     activityDetail: row.activityDetail ?? "",
+    civility: row.civility ?? "",
     contactName: row.contactName,
     representativeTitle: row.representativeTitle ?? "",
     email: row.email,

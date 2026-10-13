@@ -244,7 +244,8 @@ export async function recordAdminSignature(args: {
 }
 
 /**
- * Admin / SA signe après avoir consulté le document.
+ * Signature électronique après consultation de l’aperçu.
+ * Devis : tous les profils. Factures / lettres : admin / SA uniquement.
  * Applique le cachet cabinet (stampUrl + managerName) via le statut signed.
  */
 export const signLetterDocument = createServerFn({ method: "POST" })
@@ -257,9 +258,6 @@ export const signLetterDocument = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const session = await requireSession();
     const { staff, activeCabinet } = session;
-    if (!isAdmin(staff.role)) {
-      throw new Error("Seuls l’administrateur (gérant) ou le super admin peuvent signer");
-    }
 
     const doc = await loadSignableDoc({
       documentId: data.documentId,
@@ -267,6 +265,12 @@ export const signLetterDocument = createServerFn({ method: "POST" })
       activeCabinet,
       includeCreatedBy: true,
     });
+    const isQuotation = doc.type === "quotation";
+    if (!isAdmin(staff.role) && !isQuotation) {
+      throw new Error(
+        "Seuls l’administrateur (gérant) ou le super admin peuvent signer ce type de document",
+      );
+    }
     if (!isSuperAdmin(staff.role) && doc.cabinet !== activeCabinet) {
       throw new Error("Ce document appartient à un autre cabinet");
     }
@@ -295,7 +299,9 @@ export const signLetterDocument = createServerFn({ method: "POST" })
       documentId: doc.id,
       cabinet: doc.cabinet,
       staffId: staff.id,
-      note: "Signature directe par l’administrateur",
+      note: isAdmin(staff.role)
+        ? "Signature directe par l’administrateur"
+        : "Signature du devis par un collaborateur",
     });
 
     // Créateur + demandeur (souvent le même) : priorité à l’auteur du document

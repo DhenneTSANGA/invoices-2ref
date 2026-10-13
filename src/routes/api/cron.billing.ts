@@ -1,5 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { runBillingJobs } from "@/lib/billing-jobs";
+import {
+  runCrmOpportunityReminders,
+  type CrmReminderJobResult,
+} from "@/lib/crm-reminder-jobs";
 
 function authorizeCron(request: Request): boolean {
   const secret = process.env.CRON_SECRET?.trim();
@@ -30,7 +34,15 @@ export const Route = createFileRoute("/api/cron/billing")({
 
           const result = await runBillingJobs(refDate ? { refDate } : undefined);
           console.info("[cron/billing]", JSON.stringify(result));
-          return Response.json({ ok: true, ...result });
+          let crmReminders: CrmReminderJobResult | { error: string };
+          try {
+            crmReminders = await runCrmOpportunityReminders(refDate ? { refDate } : undefined);
+            console.info("[cron/billing] crm reminders", JSON.stringify(crmReminders));
+          } catch (err) {
+            console.error("[cron/billing] crm reminders", err);
+            crmReminders = { error: err instanceof Error ? err.message : "Erreur serveur" };
+          }
+          return Response.json({ ok: true, ...result, crmReminders });
         } catch (err) {
           console.error("[cron/billing]", err);
           return Response.json(

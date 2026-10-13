@@ -79,6 +79,7 @@ import { Route as AppQuotationsIndexRouteImport } from './routes/_app.quotations
 import { Route as AppQuotationsIdRouteImport } from './routes/_app.quotations.$id'
 import { Route as AppQuotationsNewRouteImport } from './routes/_app.quotations.new'
 import { Route as ApiCronBillingRouteImport } from './routes/api/cron.billing'
+import { Route as ApiCronProspectionRouteImport } from './routes/api/cron.prospection'
 import { Route as ApiStaffSyncRouteImport } from './routes/api/staff.sync'
 import { Route as ProspectionClientsIndexRouteImport } from './routes/prospection.clients.index'
 import { Route as ProspectionClientsIdRouteImport } from './routes/prospection.clients.$id'
@@ -437,6 +438,11 @@ const ApiCronBillingRoute = ApiCronBillingRouteImport.update({
   path: '/api/cron/billing',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCronProspectionRoute = ApiCronProspectionRouteImport.update({
+  id: '/api/cron/prospection',
+  path: '/api/cron/prospection',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiStaffSyncRoute = ApiStaffSyncRouteImport.update({
   id: '/api/staff/sync',
   path: '/api/staff/sync',
@@ -539,6 +545,7 @@ export interface FileRoutesByFullPath {
   '/quotations/$id': typeof AppQuotationsIdRouteWithChildren
   '/quotations/new': typeof AppQuotationsNewRoute
   '/api/cron/billing': typeof ApiCronBillingRoute
+  '/api/cron/prospection': typeof ApiCronProspectionRoute
   '/api/staff/sync': typeof ApiStaffSyncRoute
   '/prospection/clients/$id': typeof ProspectionClientsIdRoute
   '/prospection/prospects/$id': typeof ProspectionProspectsIdRoute
@@ -611,6 +618,7 @@ export interface FileRoutesByTo {
   '/quotations/$id': typeof AppQuotationsIdRouteWithChildren
   '/quotations/new': typeof AppQuotationsNewRoute
   '/api/cron/billing': typeof ApiCronBillingRoute
+  '/api/cron/prospection': typeof ApiCronProspectionRoute
   '/api/staff/sync': typeof ApiStaffSyncRoute
   '/prospection/clients/$id': typeof ProspectionClientsIdRoute
   '/prospection/prospects/$id': typeof ProspectionProspectsIdRoute
@@ -691,6 +699,7 @@ export interface FileRoutesById {
   '/_app/quotations/$id': typeof AppQuotationsIdRouteWithChildren
   '/_app/quotations/new': typeof AppQuotationsNewRoute
   '/api/cron/billing': typeof ApiCronBillingRoute
+  '/api/cron/prospection': typeof ApiCronProspectionRoute
   '/api/staff/sync': typeof ApiStaffSyncRoute
   '/prospection/clients/$id': typeof ProspectionClientsIdRoute
   '/prospection/prospects/$id': typeof ProspectionProspectsIdRoute
@@ -771,6 +780,7 @@ export interface FileRouteTypes {
     | '/quotations/$id'
     | '/quotations/new'
     | '/api/cron/billing'
+    | '/api/cron/prospection'
     | '/api/staff/sync'
     | '/prospection/clients/$id'
     | '/prospection/prospects/$id'
@@ -843,6 +853,7 @@ export interface FileRouteTypes {
     | '/quotations/$id'
     | '/quotations/new'
     | '/api/cron/billing'
+    | '/api/cron/prospection'
     | '/api/staff/sync'
     | '/prospection/clients/$id'
     | '/prospection/prospects/$id'
@@ -922,6 +933,7 @@ export interface FileRouteTypes {
     | '/_app/quotations/$id'
     | '/_app/quotations/new'
     | '/api/cron/billing'
+    | '/api/cron/prospection'
     | '/api/staff/sync'
     | '/prospection/clients/$id'
     | '/prospection/prospects/$id'
@@ -952,6 +964,7 @@ export interface RootRouteChildren {
   AuthResetPasswordRoute: typeof AuthResetPasswordRoute
   AuthSetPasswordRoute: typeof AuthSetPasswordRoute
   ApiCronBillingRoute: typeof ApiCronBillingRoute
+  ApiCronProspectionRoute: typeof ApiCronProspectionRoute
   ApiStaffSyncRoute: typeof ApiStaffSyncRoute
 }
 
@@ -1447,6 +1460,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCronBillingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/cron/prospection': {
+      id: '/api/cron/prospection'
+      path: '/api/cron/prospection'
+      fullPath: '/api/cron/prospection'
+      preLoaderRoute: typeof ApiCronProspectionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/staff/sync': {
       id: '/api/staff/sync'
       path: '/api/staff/sync'
@@ -1723,6 +1743,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthResetPasswordRoute: AuthResetPasswordRoute,
   AuthSetPasswordRoute: AuthSetPasswordRoute,
   ApiCronBillingRoute: ApiCronBillingRoute,
+  ApiCronProspectionRoute: ApiCronProspectionRoute,
   ApiStaffSyncRoute: ApiStaffSyncRoute,
 }
 export const routeTree = rootRouteImport

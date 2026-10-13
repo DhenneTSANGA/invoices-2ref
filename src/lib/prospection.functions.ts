@@ -787,9 +787,16 @@ export const upsertCrmOpportunity = createServerFn({ method: "POST" })
     };
 
     if (data.id) {
+      const previous = await prisma.crmOpportunity.findUnique({
+        where: { id: data.id },
+        select: { stage: true },
+      });
       const row = await prisma.crmOpportunity.update({
         where: { id: data.id },
-        data: common,
+        data: {
+          ...common,
+          ...(previous && previous.stage !== stage ? { stageChangedAt: new Date() } : {}),
+        },
         include: { company: { select: { id: true, clientId: true } } },
       });
       return mapCrmOpportunity(row, row.company);
@@ -832,6 +839,7 @@ export const advanceCrmOpportunity = createServerFn({ method: "POST" })
         where: { id: data.id },
         data: {
           stage,
+          ...(stage !== current.stage ? { stageChangedAt: new Date() } : {}),
           probability,
           nextAction: data.nextAction,
           nextActionOn: toDateInput(data.nextActionOn),

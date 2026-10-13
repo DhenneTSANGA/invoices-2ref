@@ -279,6 +279,10 @@ export const getClient = createServerFn({ method: "GET" })
     return mapped;
   });
 
+function normalizeCivility(value: string | undefined): string {
+  return value === "Monsieur" || value === "Madame" ? value : "";
+}
+
 export const createClient = createServerFn({ method: "POST" })
   .validator(clientInputSchema)
   .handler(async ({ data }) => {
@@ -297,6 +301,7 @@ export const createClient = createServerFn({ method: "POST" })
         cnamgs: data.cnamgs ?? "",
         activity: data.activity ?? "",
         activityDetail: data.activityDetail ?? "",
+        civility: normalizeCivility(data.civility),
         contactName: data.contactName,
         representativeTitle: data.representativeTitle ?? "",
         email: data.email,
@@ -351,6 +356,7 @@ export const updateClient = createServerFn({ method: "POST" })
         cnamgs: rest.cnamgs ?? "",
         activity: rest.activity ?? "",
         activityDetail: rest.activityDetail ?? "",
+        civility: normalizeCivility(rest.civility),
         contactName: rest.contactName,
         representativeTitle: rest.representativeTitle ?? "",
         email: rest.email,
@@ -1136,6 +1142,14 @@ async function upsertDocumentHandler(
           await resolveDocumentPole(data.clientId, data.pole),
         ),
       );
+      await prisma.documentPdfTrace.create({
+        data: {
+          documentId: updated.id,
+          cabinet: updated.cabinet,
+          action: "edit",
+          staffId: staff.id,
+        },
+      });
       return mappedDocument(updated);
     }
 
@@ -1889,7 +1903,7 @@ export const listDocumentPdfTraces = createServerFn({ method: "GET" })
 
     return rows.map((r) => ({
       id: r.id,
-      action: r.action as "download" | "email",
+      action: r.action as "download" | "email" | "edit",
       fileName: r.fileName,
       fileUrl: r.fileUrl,
       createdAt: r.createdAt.toISOString(),

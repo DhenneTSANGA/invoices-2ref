@@ -507,7 +507,7 @@ export function LetterEditor({ initial }: Props) {
               onClick={() => void signNow()}
             >
               <Stamp className="h-4 w-4" />
-              {signMutation.isPending ? "Signature…" : "Signer"}
+              {signMutation.isPending ? "Signature en cours…" : "Signer"}
             </Button>
           )}
           {canOnlineSign && !adminLike && (

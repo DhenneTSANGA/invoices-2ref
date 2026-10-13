@@ -197,6 +197,7 @@ export const clientInputSchema = z.object({
   cnamgs: z.string().default(""),
   activity: z.string().default(""),
   activityDetail: z.string().default(""),
+  civility: z.string().default(""),
   contactName: z.string().default(""),
   representativeTitle: z.string().default(""),
   email: z.string().default(""),

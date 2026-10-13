@@ -213,7 +213,7 @@ function LetterDetail() {
                 className="inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow disabled:opacity-60"
               >
                 <Stamp className="h-4 w-4" />
-                {signMutation.isPending ? "Signature…" : "Signer"}
+                {signMutation.isPending ? "Signature en cours…" : "Signer"}
               </button>
             )}
             {adminLike && pending && (
@@ -265,7 +265,7 @@ function LetterDetail() {
               className="inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow disabled:opacity-60"
             >
               <Send className="h-4 w-4" />{" "}
-              {sendEmailMutation.isPending ? "Envoi…" : "Envoyer"}
+              {sendEmailMutation.isPending ? "Envoi en cours…" : "Envoyer"}
             </button>
             {canDelete ? (
               <button

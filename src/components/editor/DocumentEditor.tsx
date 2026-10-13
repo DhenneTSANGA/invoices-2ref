@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Plus, Minus, Trash2, Save, Send, Eye, Users, Check, PenLine, Stamp } from "lucide-react";
+import { Plus, Minus, Trash2, Save, Send, Eye, Users, Check, PenLine, Stamp, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   computeTotals,
@@ -206,7 +206,10 @@ export function DocumentEditor({ initial, type }: Props) {
   }, [commercial, isNew, peekedNumber?.number, sectionTitlesKey]);
 
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [busyAction, setBusyAction] = useState<
+    "save" | "send" | "sign" | "request" | null
+  >(null);
+  const saving = busyAction !== null;
   /** Choix avant saisie : lignes HT classiques, ou montant TTC global. */
   const [amountMode, setAmountMode] = useState<"ht" | "ttc">("ht");
   const [ttcInput, setTtcInput] = useState("");
@@ -583,6 +586,8 @@ export function DocumentEditor({ initial, type }: Props) {
     doc.status === "paid" ||
     doc.status === "accepted";
   const canOnlineSign = commercial && !alreadySigned;
+  /** Devis : tous les profils signent. Factures : admin / SA uniquement. */
+  const canSignDirectly = adminLike || type === "quotation";
 
   const buildPayload = (status: Document["status"] = "draft") => {
     // Ne pas écraser un statut « figé » (signé / envoyé / payé…) en brouillon
@@ -723,7 +728,7 @@ export function DocumentEditor({ initial, type }: Props) {
       void navigate(detailPath(merged.id));
       return;
     }
-    setSaving(true);
+    setBusyAction(status === "sent" ? "send" : "save");
     try {
       const saved = await upsertMutation.mutateAsync(buildPayload(status));
       setDoc((d) => ({ ...d, ...saved, id: saved.id }));
@@ -763,12 +768,12 @@ export function DocumentEditor({ initial, type }: Props) {
     } catch (err) {
       toast.error(formatSaveError(err));
     } finally {
-      setSaving(false);
+      setBusyAction(null);
     }
   };
 
   const requestSignature = async () => {
-    setSaving(true);
+    setBusyAction("request");
     try {
       const saved = await persistDraft();
       if (!saved) return;
@@ -781,12 +786,12 @@ export function DocumentEditor({ initial, type }: Props) {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Demande impossible");
     } finally {
-      setSaving(false);
+      setBusyAction(null);
     }
   };
 
   const signNow = async () => {
-    setSaving(true);
+    setBusyAction("sign");
     try {
       const saved = await persistDraft();
       if (!saved) return;
@@ -798,7 +803,7 @@ export function DocumentEditor({ initial, type }: Props) {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Signature impossible");
     } finally {
-      setSaving(false);
+      setBusyAction(null);
     }
   };
 
@@ -1790,30 +1795,46 @@ export function DocumentEditor({ initial, type }: Props) {
           disabled={saving || invoiceLockedForMember}
           onClick={() => void save("draft")}
         >
-          <Save className="h-4 w-4" /> Enregistrer
+          {busyAction === "save" ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" /> Enregistrement en cours…
+            </>
+          ) : (
+            <>
+              <Save className="h-4 w-4" /> Enregistrer
+            </>
+          )}
         </Button>
-        {canOnlineSign && !adminLike && (
+        {canOnlineSign && !canSignDirectly && (
           <Button
             type="button"
             className="rounded-xl bg-amber-600 text-white hover:bg-amber-600/90"
             disabled={saving || requestSignMutation.isPending}
             onClick={() => void requestSignature()}
           >
-            <PenLine className="h-4 w-4" />
-            {requestSignMutation.isPending
-              ? "Demande…"
+            {busyAction === "request" ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <PenLine className="h-4 w-4" />
+            )}
+            {busyAction === "request"
+              ? "Demande en cours…"
               : "Demander la signature"}
           </Button>
         )}
-        {canOnlineSign && adminLike && (
+        {canOnlineSign && canSignDirectly && (
           <Button
             type="button"
             className="rounded-xl bg-gradient-primary text-primary-foreground shadow-glow"
             disabled={saving || signMutation.isPending}
             onClick={() => void signNow()}
           >
-            <Stamp className="h-4 w-4" />
-            {signMutation.isPending ? "Signature…" : "Signer"}
+            {busyAction === "sign" ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Stamp className="h-4 w-4" />
+            )}
+            {busyAction === "sign" ? "Signature en cours…" : "Signer"}
           </Button>
         )}
         <Button
@@ -1822,7 +1843,15 @@ export function DocumentEditor({ initial, type }: Props) {
           disabled={saving || invoiceLockedForMember}
           onClick={() => void save("sent")}
         >
-          <Send className="h-4 w-4" /> Envoyer
+          {busyAction === "send" ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" /> Envoi en cours…
+            </>
+          ) : (
+            <>
+              <Send className="h-4 w-4" /> Envoyer
+            </>
+          )}
         </Button>
       </div>
 

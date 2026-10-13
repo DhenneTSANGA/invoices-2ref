@@ -212,16 +212,26 @@ export async function buildDocumentPdfFromDoc(
   }
 }
 
+function documentIsElectronicallySigned(doc: Document): boolean {
+  return (
+    doc.status === "signed" ||
+    doc.status === "sent" ||
+    doc.status === "paid" ||
+    doc.status === "accepted"
+  );
+}
+
 /**
  * Génère le PDF, l'enregistre comme trace (Storage + DB), puis télécharge localement.
  * Les documents non persistés (brouillon tmp) sont seulement téléchargés.
- * `includeSignature` : aperçu admin du tampon électronique (pas d’enregistrement de trace).
+ * Par défaut : signature incluse si le document est déjà signé / envoyé / payé.
  */
 export async function downloadDocumentPdf(
   doc: Document,
   options?: { includeSignature?: boolean },
 ): Promise<void> {
-  const includeSignature = Boolean(options?.includeSignature);
+  const includeSignature =
+    options?.includeSignature ?? documentIsElectronicallySigned(doc);
   const previewDoc: Document = includeSignature
     ? { ...doc, status: "signed" }
     : doc;
@@ -234,13 +244,15 @@ export async function downloadDocumentPdf(
     !doc.id.startsWith("tmp-") &&
     !doc.id.startsWith("tpl-");
 
-  if (persisted && !includeSignature) {
+  if (persisted) {
     try {
       await recordDocumentPdf({
         data: {
           documentId: doc.id,
           action: "download",
-          fileName: built.fileName,
+          fileName: includeSignature
+            ? built.fileName.replace(/\.pdf$/i, "-signe.pdf")
+            : built.fileName,
           base64: built.base64,
         },
       });

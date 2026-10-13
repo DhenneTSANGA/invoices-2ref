@@ -22,9 +22,9 @@ type Props = {
 
 /**
  * Actions signature en ligne (courriel / facture / devis).
- * - Membre : Demander la signature
- * - Admin / SA : Signer / Refuser (après consultation de l’aperçu)
- * Le PDF reste disponible pour signature physique.
+ * - Devis : tous les profils peuvent signer (après aperçu)
+ * - Facture / lettre : membre demande ; admin / SA signe ou refuse
+ * Le PDF reste disponible pour signature physique sur les brouillons.
  */
 export function DocumentSignatureActions({
   doc,
@@ -43,22 +43,28 @@ export function DocumentSignatureActions({
   const isCreator = Boolean(
     session?.staff.id && doc.createdById === session.staff.id,
   );
+  const isQuotation = doc.type === "quotation";
   const pending = signatureReq?.status === "pending";
   const alreadySigned =
     doc.status === "signed" ||
     doc.status === "sent" ||
     doc.status === "paid";
 
-  /** Membres (créateur) : demander une signature — admin / SA signent directement. */
+  /** Facture / lettre : le créateur membre demande la signature. */
   const canRequest =
     !alreadySigned &&
     doc.status === "draft" &&
     !pending &&
     isCreator &&
-    !adminLike;
+    !adminLike &&
+    !isQuotation;
 
+  /** Devis : tous les profils. Autres types : admin / SA. */
   const canSign =
-    adminLike && !alreadySigned && doc.status === "draft" && previewSeen;
+    !alreadySigned &&
+    doc.status === "draft" &&
+    previewSeen &&
+    (adminLike || isQuotation);
 
   if (alreadySigned) return null;
 
@@ -125,7 +131,7 @@ export function DocumentSignatureActions({
           }}
         >
           <Stamp className="h-4 w-4" />
-          {signMutation.isPending ? "Signature…" : "Signer"}
+          {signMutation.isPending ? "Signature en cours…" : "Signer"}
         </button>
       )}
       {adminLike && pending && (
@@ -154,7 +160,7 @@ export function DocumentSignatureActions({
           <Ban className="h-4 w-4" /> Refuser
         </button>
       )}
-      {adminLike && !previewSeen && doc.status === "draft" && (
+      {(adminLike || isQuotation) && !previewSeen && doc.status === "draft" && (
         <span className="text-xs text-muted-foreground">
           Consultez l’aperçu pour activer la signature.
         </span>

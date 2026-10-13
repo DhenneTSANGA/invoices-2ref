@@ -42,6 +42,8 @@ export type Client = {
   cnamgs: string;
   activity: string;
   activityDetail: string;
+  /** Civilité du représentant : « Monsieur », « Madame » ou vide. */
+  civility: string;
   /** Représentant légal. */
   contactName: string;
   /** Qualité (ex. Gérant). */
