@@ -189,19 +189,11 @@ function buildCommercialEmailHtml(params: {
   typeLabel: string;
   number: string;
   greeting: string;
-  clientName: string;
-  clientLines: string[];
-  clientNif?: string;
-  clientPhone?: string;
-  clientRccm?: string;
-  clientCnss?: string;
-  clientCnamgs?: string;
   issueDate: string;
   dueDate?: string | null;
   currency: string;
   total: number;
   deposit?: number;
-  niuLabel: string;
   cabinet?: "conseil" | "expertise_fiscale";
   /** Image de la facture intégrée au corps (cid). */
   hasPreviewImage: boolean;
@@ -215,46 +207,13 @@ function buildCommercialEmailHtml(params: {
   const typeLower = params.typeLabel.toLowerCase();
   const c = params.company;
 
-  const emitterLines = isConseil
-    ? [c.address, c.city, c.phone, c.email, c.website].filter(Boolean)
-    : [
-        c.capital,
-        c.address,
-        c.city,
-        [c.phone, c.email].filter(Boolean).join(" · "),
-      ].filter(Boolean);
-
-  const emitterLegalBits = isConseil
-    ? []
-    : [
-        c.nif && c.nif !== "—" ? `NIF : ${c.nif}` : "",
-        c.niu && c.niu !== "—" ? `${params.niuLabel} : ${c.niu}` : "",
-        c.rccm && c.rccm !== "—" ? `RCCM : ${c.rccm}` : "",
-      ].filter(Boolean);
-
-  const clientLegalBits = [
-    params.clientNif ? `NIF : ${params.clientNif}` : "",
-    isConseil && !params.clientNif && params.clientPhone ? params.clientPhone : "",
-    !isConseil && params.clientRccm ? `RCCM : ${params.clientRccm}` : "",
-    params.clientCnss ? `CNSS : ${params.clientCnss}` : "",
-    params.clientCnamgs ? `CNAMGS : ${params.clientCnamgs}` : "",
-  ].filter(Boolean);
-
-  const card = (title: string, name: string, lines: string[], legal: string[]) => `
-    <div style="background:#F1F5F9;border-radius:10px;padding:14px 16px;">
-      <div style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#64748B;">${title}</div>
-      <div style="margin-top:6px;font-size:14px;font-weight:600;color:#0F172A;">${escapeHtml(name)}</div>
-      ${lines.map((l) => `<div style="font-size:12px;line-height:1.45;color:#475569;">${escapeHtml(l)}</div>`).join("")}
-      ${legal.map((l) => `<div style="font-size:11px;line-height:1.45;color:#64748B;">${escapeHtml(l)}</div>`).join("")}
-    </div>`;
-
   const deposit = normalizedDeposit(params.deposit);
   const due = remainingDue(params.total, deposit);
   const summaryRow = (label: string, value: string, strong = false) =>
     `<tr><td style="padding:6px 0;font-size:13px;color:#64748B;">${escapeHtml(label)}</td><td style="padding:6px 0;text-align:right;font-size:13px;${strong ? "font-weight:700;color:#0F172A;" : "color:#0F172A;"}">${escapeHtml(value)}</td></tr>`;
 
   const previewHtml = params.hasPreviewImage
-    ? `<div style="margin-top:24px;">
+    ? `<div style="margin-top:8px;">
         <img src="cid:${DOCUMENT_PREVIEW_CID}" alt="${escapeHtml(`${params.typeLabel} n° ${params.number}`)}" width="584" style="display:block;width:100%;max-width:584px;height:auto;border:1px solid #E2E8F0;border-radius:6px;" />
       </div>`
     : `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px;border-top:1px solid #E2E8F0;border-bottom:1px solid #E2E8F0;">
@@ -301,17 +260,6 @@ function buildCommercialEmailHtml(params: {
                 <strong style="color:#0F172A;">${escapeHtml(typeLower)}</strong>
                 n° <strong style="color:#0F172A;">${escapeHtml(params.number)}</strong> (PDF joint).
               </p>
-
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td width="48%" valign="top" style="padding-right:8px;">
-                    ${card("Émetteur", c.name, emitterLines, emitterLegalBits)}
-                  </td>
-                  <td width="52%" valign="top" style="padding-left:8px;">
-                    ${card("Client", params.clientName, params.clientLines, clientLegalBits)}
-                  </td>
-                </tr>
-              </table>
 
               ${previewHtml}
               ${pdfLinkHtml}
@@ -649,22 +597,11 @@ export async function sendDocumentEmailInternal(params: {
         typeLabel,
         number: doc.number,
         greeting: emailGreeting(doc.client.civility, doc.client.contactName),
-        clientName: clientDisplayName(doc.client),
-        clientLines:
-          doc.cabinet === "conseil"
-            ? clientConseilDocumentLines(doc.client)
-            : clientDocumentLines(doc.client),
-        clientNif: doc.client.nif || undefined,
-        clientPhone: doc.client.phone || undefined,
-        clientRccm: doc.client.rccm || undefined,
-        clientCnss: doc.client.cnss || undefined,
-        clientCnamgs: doc.client.cnamgs || undefined,
         issueDate: formatDate(doc.issueDate),
         dueDate: doc.dueDate ? formatDate(doc.dueDate) : null,
         currency,
         total: useComputed ? totals.total : Math.max(0, Number(doc.total)),
         deposit,
-        niuLabel,
         cabinet: doc.cabinet,
         hasPreviewImage,
         pdfUrl: pdfTraceUrl,
