@@ -11,7 +11,7 @@ import {
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { shortDate } from "@/lib/format";
-import type { ActivityKind, PipelineStage } from "@/lib/prospection-demo";
+import type { ActivityKind, PipelineStage } from "@/lib/prospection-model";
 
 const AVATAR_TONES = [
   "bg-gradient-primary text-primary-foreground shadow-glow",
@@ -24,6 +24,7 @@ const AVATAR_TONES = [
 ];
 
 export const STAGE_ACCENT: Record<PipelineStage, string> = {
+  identification: "bg-slate-400",
   qualification: "bg-sky-500",
   premier_contact: "bg-indigo-500",
   rendez_vous: "bg-amber-500",

@@ -14,6 +14,10 @@ export type StaffMember = {
   pole?: ClientPole | null;
   /** Espaces applicatifs autorisés. */
   spacesAllowed: StaffSpacesAllowed;
+  /** Profil espace Prospection (null = déduit du rôle). */
+  crmProfile?: import("@/lib/prospection-access").CrmProfile | null;
+  /** Lignes de service couvertes (manager / chef de service). */
+  crmLines?: import("@/lib/prospection-model").ServiceLine[];
 };
 
 export type Cabinet = "conseil" | "expertise_fiscale";

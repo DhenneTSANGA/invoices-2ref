@@ -20,7 +20,7 @@ import { useTheme } from "@/components/theme/ThemeProvider";
 import { signOut } from "@/lib/auth";
 import { sessionKey } from "@/hooks/use-data";
 import { useQueryClient } from "@tanstack/react-query";
-import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
+import { useProspectionStore } from "@/store/useProspectionStore";
 import { listCrmPipeline } from "@/lib/prospection.functions";
 import {
   Sheet,
@@ -49,7 +49,7 @@ function selectPathname(s: { location: { pathname: string } }) {
 export function ProspectionShell({ children }: { children: React.ReactNode }) {
   const pathname = useRouterState({ select: selectPathname });
   const { session } = useRouteContext({ from: "/prospection" });
-  const hub = findCrmHub(pathname, crmRoleFromStaff(session.staff.role));
+  const hub = findCrmHub(pathname, crmRoleFromStaff(session.staff));
 
   return (
     <div className="flex min-h-screen w-full max-w-[100vw] overflow-x-clip">
@@ -68,7 +68,7 @@ export function ProspectionShell({ children }: { children: React.ReactNode }) {
 }
 
 function ProspectionPipelineSync() {
-  const hydratePipeline = useProspectionDemoStore((s) => s.hydratePipeline);
+  const hydratePipeline = useProspectionStore((s) => s.hydratePipeline);
   useEffect(() => {
     let cancelled = false;
     void listCrmPipeline()
@@ -92,7 +92,7 @@ function ProspectionSidebar() {
   const { session } = useRouteContext({ from: "/prospection" });
   const isSa = isSuperAdmin(session.staff.role);
   const adminLike = isAdmin(session.staff.role) && !isSa;
-  const sections = crmNavSections(crmRoleFromStaff(session.staff.role));
+  const sections = crmNavSections(crmRoleFromStaff(session.staff));
   const showSpaceSwitcher = canChooseSpace(session.staff);
 
   return (
@@ -343,7 +343,7 @@ function MobileProspectionNav() {
   const [open, setOpen] = useState(false);
   const pathname = useRouterState({ select: selectPathname });
   const { session } = useRouteContext({ from: "/prospection" });
-  const sections = crmNavSections(crmRoleFromStaff(session.staff.role));
+  const sections = crmNavSections(crmRoleFromStaff(session.staff));
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>

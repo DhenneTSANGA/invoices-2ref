@@ -11,9 +11,9 @@ import {
 } from "@/components/prospection/CrmCards";
 import { CRM_PRIMARY_BTN, CRM_SECONDARY_BTN, CrmSearchEmpty, CrmSearchField, matchesSearch } from "@/components/prospection/CrmUi";
 import { LineBadge, StageBadge } from "@/components/prospection/ProspectionBadges";
-import { ACTIVE_STAGES, SERVICE_LINE_LABELS, STAGE_LABELS, managerName, type Company } from "@/lib/prospection-demo";
+import { ACTIVE_STAGES, SERVICE_LINE_LABELS, STAGE_LABELS, managerName, type Company } from "@/lib/prospection-model";
 import { currency, shortDate } from "@/lib/format";
-import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
+import { useProspectionStore } from "@/store/useProspectionStore";
 import { useProspectionCompanies } from "@/hooks/use-prospection-companies";
 
 export const Route = createFileRoute("/prospection/port-gentil")({
@@ -23,8 +23,8 @@ export const Route = createFileRoute("/prospection/port-gentil")({
 
 function PortGentilPage() {
   const { companies } = useProspectionCompanies();
-  const opportunities = useProspectionDemoStore((s) => s.opportunities);
-  const activities = useProspectionDemoStore((s) => s.activities);
+  const opportunities = useProspectionStore((s) => s.opportunities);
+  const activities = useProspectionStore((s) => s.activities);
   const [query, setQuery] = useState("");
   const six = useMemo(
     () =>

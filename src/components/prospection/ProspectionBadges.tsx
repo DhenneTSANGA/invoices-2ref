@@ -18,9 +18,10 @@ import {
   type OpportunitySource,
   type PipelineStage,
   type ServiceLine,
-} from "@/lib/prospection-demo";
+} from "@/lib/prospection-model";
 
 const STAGE_CLASS: Record<PipelineStage, string> = {
+  identification: "bg-slate-500/15 text-slate-700 dark:text-slate-300",
   qualification: "bg-sky-500/15 text-sky-800 dark:text-sky-300",
   premier_contact: "bg-indigo-500/15 text-indigo-700 dark:text-indigo-300",
   rendez_vous: "bg-amber-500/15 text-amber-800 dark:text-amber-300",
@@ -41,6 +42,7 @@ export function StageBadge({ stage }: { stage: PipelineStage }) {
 }
 
 const STAGE_DOT: Record<PipelineStage, string> = {
+  identification: "bg-slate-400",
   qualification: "bg-sky-500",
   premier_contact: "bg-indigo-500",
   rendez_vous: "bg-amber-500",
@@ -53,6 +55,7 @@ const STAGE_DOT: Record<PipelineStage, string> = {
 };
 
 const PIPELINE_STAGES: PipelineStage[] = [
+  "identification",
   "qualification",
   "premier_contact",
   "rendez_vous",

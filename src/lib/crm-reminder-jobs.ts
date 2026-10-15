@@ -8,7 +8,7 @@ import {
   resolveCabinetMailAddresses,
 } from "@/lib/email";
 import { absoluteAppUrl } from "@/lib/app-url";
-import { ACTIVE_STAGES, STAGE_LABELS, type PipelineStage } from "@/lib/prospection-demo";
+import { ACTIVE_STAGES, STAGE_LABELS, type PipelineStage } from "@/lib/prospection-model";
 
 export type CrmReminderKind = "before" | "after";
 
@@ -48,7 +48,7 @@ function formatDateFr(d: Date): string {
   }).format(d);
 }
 
-async function resolveProspectionSender(): Promise<{ from: string; replyTo?: string }> {
+export async function resolveProspectionSender(): Promise<{ from: string; replyTo?: string }> {
   const companies = await prisma.company.findMany({
     where: { mailFromEmail: { not: null } },
     select: { cabinet: true, mailFromEmail: true, mailReplyTo: true },

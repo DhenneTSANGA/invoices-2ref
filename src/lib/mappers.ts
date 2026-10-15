@@ -12,6 +12,7 @@ import type {
 import { companyForPreview } from "@/lib/company-defaults";
 import { parseLineQuantityUnit } from "@/lib/line-quantity";
 import { parseClientPole, type ClientPole } from "@/lib/client-pole";
+import { parseCrmProfile, parseServiceLines } from "@/lib/prospection-access";
 
 export function decimalToNumber(v: Decimal | number | string): number {
   if (typeof v === "number") return v;
@@ -30,6 +31,8 @@ export function mapStaff(row: {
   cabinet: "conseil" | "expertise_fiscale" | null;
   pole?: ClientPole | null;
   spacesAllowed?: "facturation" | "prospection" | "both" | null;
+  crmProfile?: string | null;
+  crmLines?: string[] | null;
 }): StaffMember {
   const spacesAllowed =
     row.role === "super_admin"
@@ -51,6 +54,8 @@ export function mapStaff(row: {
     cabinet: row.cabinet,
     pole: row.role === "super_admin" ? null : parseClientPole(row.pole),
     spacesAllowed,
+    crmProfile: row.role === "super_admin" ? "direction" : parseCrmProfile(row.crmProfile),
+    crmLines: parseServiceLines(row.crmLines),
   };
 }
 

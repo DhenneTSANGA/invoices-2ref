@@ -292,6 +292,7 @@ export const createStaffWithPassword = createServerFn({ method: "POST" })
       });
 
       await persistStaffPole(staff.id, parseClientPole(data.pole));
+      await persistCreatedCrmProfile(staff.id, data);
       await clearRevokedAccount(email);
 
       return {
@@ -310,6 +311,26 @@ export const createStaffWithPassword = createServerFn({ method: "POST" })
       throw err;
     }
   });
+
+/** Profil Prospection choisi dans le formulaire de création (comptes Prospection uniquement). */
+async function persistCreatedCrmProfile(
+  staffId: string,
+  data: {
+    spacesAllowed: "facturation" | "prospection";
+    crmProfile: "manager" | "direction" | "chef_service" | "admin" | null;
+    crmLines: ("rh" | "comptabilite" | "conseil" | "fiscalite" | "formation")[];
+  },
+) {
+  if (data.spacesAllowed !== "prospection" || !data.crmProfile) return;
+  const withLines = data.crmProfile === "manager" || data.crmProfile === "chef_service";
+  await prisma.staffMember.update({
+    where: { id: staffId },
+    data: {
+      crmProfile: data.crmProfile,
+      crmLines: withLines ? [...new Set(data.crmLines)] : [],
+    },
+  });
+}
 
 /** Conservé : invitation par e-mail Supabase (non exposée dans l’UI par défaut). */
 export const inviteStaffMember = createServerFn({ method: "POST" })
@@ -382,6 +403,7 @@ export const inviteStaffMember = createServerFn({ method: "POST" })
       });
 
       await persistStaffPole(staff.id, parseClientPole(data.pole));
+      await persistCreatedCrmProfile(staff.id, data);
       await clearRevokedAccount(email);
 
       return {
@@ -691,6 +713,49 @@ export const setStaffSpacesAllowed = createServerFn({ method: "POST" })
     });
     clearSessionMemo(target.id);
     return { ok: true as const, spacesAllowed: data.spacesAllowed };
+  });
+
+/**
+ * Profil Prospection d’un administrateur (cahier des charges §3) :
+ * manager, chef de service, direction ou administrateur, et lignes couvertes.
+ * Réservé super admin.
+ */
+export const setStaffCrmProfile = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      staffId: z.string(),
+      crmProfile: z.enum(["manager", "direction", "chef_service", "admin"]).nullable(),
+      crmLines: z
+        .array(z.enum(["rh", "comptabilite", "conseil", "fiscalite", "formation"]))
+        .default([]),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const session = await getCurrentSession();
+    if (!session) throw new Error("Non authentifié");
+    if (!canPromoteOrDemoteAdmins(session.staff.role)) {
+      throw new Error("Réservé au super administrateur");
+    }
+
+    const target = await prisma.staffMember.findUnique({
+      where: { id: data.staffId },
+    });
+    if (!target) throw new Error("Collaborateur introuvable");
+    if (target.role !== "admin") {
+      throw new Error(
+        target.role === "super_admin"
+          ? "Le super administrateur a toujours le profil Direction"
+          : "Profil Prospection réservé aux administrateurs — promouvez d’abord le collaborateur",
+      );
+    }
+
+    const crmLines = [...new Set(data.crmLines)];
+    await prisma.staffMember.update({
+      where: { id: data.staffId },
+      data: { crmProfile: data.crmProfile, crmLines },
+    });
+    clearSessionMemo(target.id);
+    return { ok: true as const, crmProfile: data.crmProfile, crmLines };
   });
 
 export const deleteStaffMember = createServerFn({ method: "POST" })

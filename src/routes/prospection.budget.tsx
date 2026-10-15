@@ -18,14 +18,16 @@ import {
   EXPENSE_APPROVAL_LABELS,
   EXPENSE_LABELS,
   managerName,
+  portfolioManagers,
   type Expense,
   type ExpenseApproval,
-} from "@/lib/prospection-demo";
+} from "@/lib/prospection-model";
 import { currency, shortDate } from "@/lib/format";
 import { readFocusSearch, useSpotlight } from "@/hooks/use-spotlight";
 import { cn } from "@/lib/utils";
 import { canApproveExpenses, crmRoleFromStaff } from "@/lib/prospection-access";
-import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
+import { getCrmReceiptUrl } from "@/lib/prospection.functions";
+import { useProspectionStore } from "@/store/useProspectionStore";
 import { useProspectionCompanies } from "@/hooks/use-prospection-companies";
 
 export const Route = createFileRoute("/prospection/budget")({
@@ -53,15 +55,16 @@ function BudgetPage() {
     });
   });
   const { session } = useRouteContext({ from: "/prospection" });
-  const crm = crmRoleFromStaff(session.staff.role);
+  const crm = crmRoleFromStaff(session.staff);
   const canApprove = canApproveExpenses(crm);
-  const expenses = useProspectionDemoStore((s) => s.expenses);
-  const allManagers = useProspectionDemoStore((s) => s.managers);
-  const budgetSettings = useProspectionDemoStore((s) => s.budgetSettings);
-  const setBudgetSettings = useProspectionDemoStore((s) => s.setBudgetSettings);
-  const deleteExpense = useProspectionDemoStore((s) => s.deleteExpense);
+  const expenses = useProspectionStore((s) => s.expenses);
+  // Budget : 500 000 FCFA par porteur de portefeuille (la direction n’en a pas).
+  const allManagers = portfolioManagers(useProspectionStore((s) => s.managers));
+  const budgetSettings = useProspectionStore((s) => s.budgetSettings);
+  const setBudgetSettings = useProspectionStore((s) => s.setBudgetSettings);
+  const deleteExpense = useProspectionStore((s) => s.deleteExpense);
   const { companies } = useProspectionCompanies();
-  const setExpenseApproval = useProspectionDemoStore((s) => s.setExpenseApproval);
+  const setExpenseApproval = useProspectionStore((s) => s.setExpenseApproval);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Expense | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -365,6 +368,23 @@ function BudgetPage() {
                 />
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
+                {e.receiptName ? (
+                  <button
+                    type="button"
+                    className={CRM_SECONDARY_BTN + " !px-3 !py-1.5 !text-xs"}
+                    onClick={() => {
+                      void getCrmReceiptUrl({ data: { expenseId: e.id } })
+                        .then(({ url }) => window.open(url, "_blank", "noopener"))
+                        .catch((err) =>
+                          toast.error(
+                            err instanceof Error ? err.message : "Justificatif indisponible",
+                          ),
+                        );
+                    }}
+                  >
+                    Voir le justificatif
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   className={CRM_SECONDARY_BTN + " !px-3 !py-1.5 !text-xs"}

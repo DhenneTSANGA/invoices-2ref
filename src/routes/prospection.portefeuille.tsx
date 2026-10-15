@@ -19,9 +19,9 @@ import {
   missingServices,
   type ServiceLine,
   type Site,
-} from "@/lib/prospection-demo";
+} from "@/lib/prospection-model";
 import { currency } from "@/lib/format";
-import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
+import { useProspectionStore } from "@/store/useProspectionStore";
 import { useProspectionCompanies } from "@/hooks/use-prospection-companies";
 
 export const Route = createFileRoute("/prospection/portefeuille")({

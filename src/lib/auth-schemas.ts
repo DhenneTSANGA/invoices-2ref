@@ -82,10 +82,31 @@ export const inviteStaffSchema = z.object({
   pole: z.enum(CLIENT_POLES, { error: "Choisissez un pôle" }),
   /** Espace mono-accès (le super_admin reste `both` automatiquement). */
   spacesAllowed: spacesAllowedSchema.default("facturation"),
-}).refine((d) => d.spacesAllowed !== "prospection" || d.role === "admin", {
-  message: "L’espace Prospection est réservé aux administrateurs",
-  path: ["role"],
-});
+  /** Profil Prospection (cahier des charges §3) — obligatoire pour un compte Prospection. */
+  crmProfile: z.enum(["manager", "direction", "chef_service", "admin"]).nullable().default(null),
+  /** Lignes de service couvertes (manager / chef de service). */
+  crmLines: z
+    .array(z.enum(["rh", "comptabilite", "conseil", "fiscalite", "formation"]))
+    .default([]),
+})
+  .refine((d) => d.spacesAllowed !== "prospection" || d.role === "admin", {
+    message: "L’espace Prospection est réservé aux administrateurs",
+    path: ["role"],
+  })
+  .refine((d) => d.spacesAllowed !== "prospection" || d.crmProfile !== null, {
+    message: "Choisissez le profil Prospection du collaborateur",
+    path: ["crmProfile"],
+  })
+  .refine(
+    (d) =>
+      d.spacesAllowed !== "prospection" ||
+      (d.crmProfile !== "manager" && d.crmProfile !== "chef_service") ||
+      d.crmLines.length > 0,
+    {
+      message: "Cochez au moins une ligne de service pour ce profil",
+      path: ["crmLines"],
+    },
+  );
 
 /** Création directe d’un accès (super admin) — e-mail + mot de passe, sans e-mail Supabase. */
 export const createStaffWithPasswordSchema = inviteStaffSchema

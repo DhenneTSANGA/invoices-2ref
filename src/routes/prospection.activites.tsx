@@ -13,9 +13,9 @@ import {
   managerName,
   type Activity,
   type ActivityKind,
-} from "@/lib/prospection-demo";
+} from "@/lib/prospection-model";
 import { shortDate } from "@/lib/format";
-import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
+import { useProspectionStore } from "@/store/useProspectionStore";
 import { useProspectionCompanies } from "@/hooks/use-prospection-companies";
 
 export const Route = createFileRoute("/prospection/activites")({
@@ -25,9 +25,9 @@ export const Route = createFileRoute("/prospection/activites")({
 
 function ActivitiesPage() {
   const { companies } = useProspectionCompanies();
-  const activities = useProspectionDemoStore((s) => s.activities);
-  const setActivityStatus = useProspectionDemoStore((s) => s.setActivityStatus);
-  const deleteActivity = useProspectionDemoStore((s) => s.deleteActivity);
+  const activities = useProspectionStore((s) => s.activities);
+  const setActivityStatus = useProspectionStore((s) => s.setActivityStatus);
+  const deleteActivity = useProspectionStore((s) => s.deleteActivity);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Activity | null>(null);
   const [kindFilter, setKindFilter] = useState<"all" | ActivityKind>("all");

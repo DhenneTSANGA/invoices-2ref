@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 import {
   STAGE_PROBABILITY,
-  createProspectionDemoSeed,
+  createEmptyProspectionData,
   setManagersCache,
   type AccountPlan,
   type Activity,
@@ -14,13 +14,14 @@ import {
   type Lead,
   type LeadStatus,
   type LibraryItem,
+  type Objective,
   type Opportunity,
   type PipelineStage,
   type ClientCrmOverlay,
   type ProspectionData,
   type ReferentialExtra,
   type ReferentialKind,
-} from "@/lib/prospection-demo";
+} from "@/lib/prospection-model";
 import type { CrmPipelineSnapshot } from "@/lib/prospection-db";
 import {
   advanceCrmOpportunity,
@@ -49,8 +50,8 @@ import {
   setCrmClientOverlay,
   setCrmExpenseApproval,
   setCrmLeadStatus,
-  setCrmObjectiveTarget,
-  toggleCrmWeekCheck,
+  ensureCrmObjectivesMonth,
+  setCrmObjectiveTargets,
   updateCrmCompany,
   updateCrmContact,
   updateCrmExpense,
@@ -63,13 +64,16 @@ import {
   upsertCrmOpportunity,
 } from "@/lib/prospection.functions";
 
+/** Justificatif déjà téléversé (bucket privé) via `uploadCrmReceipt`. */
+export type ReceiptUpload = { path: string; name: string };
+
 type Actions = {
   hydratePipeline: (snapshot: CrmPipelineSnapshot) => void;
   reloadPipeline: () => Promise<void>;
   upsertCompany: (company: Company) => Promise<Company>;
   updateCompany: (id: string, patch: Partial<Company>) => Promise<void>;
   setClientOverlay: (id: string, patch: ClientCrmOverlay) => Promise<void>;
-  convertProspect: (id: string) => Promise<Company>;
+  convertProspect: (id: string, cabinet: "conseil" | "expertise_fiscale") => Promise<Company>;
   deleteCompany: (id: string) => Promise<void>;
   addContact: (row: Omit<Contact, "id">) => Promise<void>;
   deleteContact: (id: string) => Promise<void>;
@@ -104,10 +108,14 @@ type Actions = {
   updateLead: (id: string, patch: Partial<Lead>) => Promise<void>;
   convertLead: (id: string) => Promise<void>;
   deleteLead: (id: string) => Promise<void>;
-  addExpense: (row: Omit<Expense, "id" | "approval">) => Promise<void>;
+  addExpense: (row: Omit<Expense, "id" | "approval">, receipt: ReceiptUpload) => Promise<void>;
   setExpenseApproval: (id: string, approval: Expense["approval"]) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
-  updateExpense: (id: string, row: Omit<Expense, "id" | "approval">) => Promise<void>;
+  updateExpense: (
+    id: string,
+    row: Omit<Expense, "id" | "approval">,
+    receipt?: ReceiptUpload,
+  ) => Promise<void>;
   markNotificationRead: (id: string) => Promise<void>;
   markAllNotificationsRead: () => Promise<void>;
   deleteNotification: (id: string) => Promise<void>;
@@ -116,7 +124,11 @@ type Actions = {
     patch: { title: string; body: string; read: boolean },
   ) => Promise<void>;
   importCompanies: (rows: Company[]) => Promise<void>;
-  setObjectiveTarget: (id: string, target: number) => Promise<void>;
+  ensureObjectivesMonth: (month: string) => Promise<void>;
+  setObjectiveTargets: (
+    month: string,
+    items: { managerId: string; metric: Objective["metric"]; target: number }[],
+  ) => Promise<void>;
   setBudgetSettings: (settings: BudgetSettings) => Promise<void>;
   addLibraryItem: (row: Omit<LibraryItem, "id">) => Promise<void>;
   deleteLibraryItem: (id: string) => Promise<void>;
@@ -125,13 +137,12 @@ type Actions = {
   deleteReferential: (id: string) => Promise<void>;
   updateReferential: (id: string, kind: ReferentialKind, label: string) => Promise<void>;
   setAccountPlan: (companyId: string, plan: AccountPlan) => Promise<void>;
-  toggleWeekCheck: (id: string) => Promise<void>;
   reset: () => Promise<void>;
 };
 
 type Store = ProspectionData & Actions;
 
-let data: ProspectionData = createProspectionDemoSeed();
+let data: ProspectionData = createEmptyProspectionData();
 let pipelineReady = false;
 const listeners = new Set<() => void>();
 function emit() {
@@ -162,7 +173,6 @@ function applyPipelineSnapshot(snapshot: CrmPipelineSnapshot) {
     notifications: snapshot.notifications,
     libraryItems: snapshot.libraryItems,
     referentials: snapshot.referentials,
-    weekChecks: snapshot.weekChecks,
   };
   pipelineReady = true;
   emit();
@@ -178,7 +188,7 @@ type RemovableKey =
   | "libraryItems"
   | "referentials";
 
-function patchLocal<K extends RemovableKey | "weekChecks">(
+function patchLocal<K extends RemovableKey>(
   key: K,
   id: string,
   patch: Partial<ProspectionData[K][number]>,
@@ -291,8 +301,8 @@ const actions: Actions = {
     await setCrmClientOverlay({ data: { clientId: id, ...patch } });
     scheduleReload();
   },
-  convertProspect: async (id) => {
-    const converted = await convertCrmProspect({ data: { id } });
+  convertProspect: async (id, cabinet) => {
+    const converted = await convertCrmProspect({ data: { id, cabinet } });
     await actions.reloadPipeline();
     return converted;
   },
@@ -440,7 +450,7 @@ const actions: Actions = {
     await deleteCrmExpense({ data: { id } });
     scheduleReload();
   },
-  updateExpense: async (id, row) => {
+  updateExpense: async (id, row, receipt) => {
     patchLocal("expenses", id, row);
     await updateCrmExpense({
       data: {
@@ -454,6 +464,8 @@ const actions: Actions = {
         opportunityId: row.opportunityId,
         activityId: row.activityId,
         receipt: row.receipt,
+        receiptPath: receipt?.path,
+        receiptName: receipt?.name,
       },
     });
     scheduleReload();
@@ -490,7 +502,7 @@ const actions: Actions = {
     await convertCrmLead({ data: { id } });
     scheduleReload();
   },
-  addExpense: async (row) => {
+  addExpense: async (row, receipt) => {
     await createCrmExpense({
       data: {
         managerId: row.managerId,
@@ -501,7 +513,9 @@ const actions: Actions = {
         companyId: row.companyId,
         opportunityId: row.opportunityId,
         activityId: row.activityId,
-        receipt: row.receipt,
+        receipt: true,
+        receiptPath: receipt.path,
+        receiptName: receipt.name,
       },
     });
     scheduleReload();
@@ -561,8 +575,12 @@ const actions: Actions = {
     });
     scheduleReload();
   },
-  setObjectiveTarget: async (id, target) => {
-    await setCrmObjectiveTarget({ data: { id, target } });
+  ensureObjectivesMonth: async (month) => {
+    await ensureCrmObjectivesMonth({ data: { month } });
+    scheduleReload();
+  },
+  setObjectiveTargets: async (month, items) => {
+    await setCrmObjectiveTargets({ data: { month, items } });
     scheduleReload();
   },
   addLibraryItem: async (row) => {
@@ -614,15 +632,9 @@ const actions: Actions = {
     await setCrmAccountPlan({ data: { companyId, plan } });
     scheduleReload();
   },
-  toggleWeekCheck: async (id) => {
-    const check = data.weekChecks.find((w) => w.id === id);
-    if (check) patchLocal("weekChecks", id, { done: !check.done });
-    await toggleCrmWeekCheck({ data: { id } });
-    scheduleReload();
-  },
   reset: async () => {
     setManagersCache([]);
-    data = createProspectionDemoSeed();
+    data = createEmptyProspectionData();
     pipelineReady = false;
     emit();
     await actions.reloadPipeline();
@@ -646,7 +658,7 @@ const exposedActions = Object.fromEntries(
   ]),
 ) as Actions;
 
-export function useProspectionDemoStore<T>(selector: (s: Store) => T): T {
+export function useProspectionStore<T>(selector: (s: Store) => T): T {
   const snap = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
   return selector({ ...snap, ...exposedActions });
 }

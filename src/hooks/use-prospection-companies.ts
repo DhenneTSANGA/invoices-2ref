@@ -3,8 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useRouteContext } from "@tanstack/react-router";
 import { listClientsForProspection } from "@/lib/data.functions";
 import { mergeProspectionCompanies } from "@/lib/prospection-facturation-clients";
-import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
-import type { Company } from "@/lib/prospection-demo";
+import { useProspectionStore } from "@/store/useProspectionStore";
+import type { Company } from "@/lib/prospection-model";
 
 export const prospectionClientsKey = ["prospection", "facturation-clients"] as const;
 
@@ -17,8 +17,8 @@ export function useProspectionCompanies(): {
   refetch: () => void;
 } {
   const { session } = useRouteContext({ from: "/prospection" });
-  const localCompanies = useProspectionDemoStore((s) => s.companies);
-  const overlays = useProspectionDemoStore((s) => s.clientOverlays);
+  const localCompanies = useProspectionStore((s) => s.companies);
+  const overlays = useProspectionStore((s) => s.clientOverlays);
   const defaultManagerId = session.staff.id;
 
   const query = useQuery({

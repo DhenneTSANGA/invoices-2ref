@@ -1,10 +1,8 @@
 import { createFileRoute, Link, useRouteContext } from "@tanstack/react-router";
 import { useState } from "react";
-import { toast } from "sonner";
 import {
   AlertTriangle,
   CalendarDays,
-  Check,
   Compass,
   Plus,
   Target,
@@ -29,15 +27,23 @@ import {
   ProgressMeter,
 } from "@/components/prospection/CrmCards";
 import { CRM_PRIMARY_BTN, CRM_SECONDARY_BTN } from "@/components/prospection/CrmUi";
+import { ObjectivesSummary } from "@/components/prospection/ObjectivesSummary";
 import {
-  OBJECTIVE_LABELS,
   computeKpis,
   managerName,
-  realizedForMetric,
-} from "@/lib/prospection-demo";
+} from "@/lib/prospection-model";
 import { currency, shortDate } from "@/lib/format";
 import { canSeeAllPortfolios, crmRoleFromStaff } from "@/lib/prospection-access";
-import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
+import { currentCrmMonth, monthLabelFr } from "@/lib/crm-month";
+import {
+  computeWeeklyAgenda,
+  computeWeeklyRoutine,
+  type AgendaItem,
+  type RoutineItem,
+  type RoutineStatus,
+} from "@/lib/crm-weekly-routine";
+import { ACTIVITY_LABELS, portfolioManagers, type Company } from "@/lib/prospection-model";
+import { useProspectionStore } from "@/store/useProspectionStore";
 import { useProspectionCompanies } from "@/hooks/use-prospection-companies";
 import { cn } from "@/lib/utils";
 
@@ -48,25 +54,24 @@ export const Route = createFileRoute("/prospection/")({
 
 function ProspectionHomePage() {
   const { session } = useRouteContext({ from: "/prospection" });
-  const crm = crmRoleFromStaff(session.staff.role);
-  const data = useProspectionDemoStore((s) => s);
+  const crm = crmRoleFromStaff(session.staff);
+  const data = useProspectionStore((s) => s);
   const managers = data.managers;
+  // Porteurs de portefeuille : managers désignés (sinon tous sauf la direction).
+  const portfolio = portfolioManagers(managers);
   const monthlyCap = data.budgetSettings.monthlyBudgetPerManager;
   const { companies } = useProspectionCompanies();
-  const toggleWeekCheck = useProspectionDemoStore((s) => s.toggleWeekCheck);
   const kpis = computeKpis({ ...data, companies });
   const first = session.staff.firstName || "Collaborateur";
   const pg = companies.filter((c) => c.site === "port_gentil" && c.strategic);
-  const weekDone = data.activities.filter((a) => a.status === "terminee").length;
-  const weekTodo = data.activities.filter(
-    (a) => a.status === "a_faire" || a.status === "planifiee",
-  ).length;
-  const weekChecksDone = data.weekChecks.filter((w) => w.done).length;
+  const agenda = computeWeeklyAgenda(data, session.staff.id);
+  const routineManagers = portfolio;
   const budgetPct = Math.round((kpis.spent / kpis.budgetCap) * 100);
   const focusManagerId = session.staff.id;
   const seeAll = canSeeAllPortfolios(crm);
+  const thisMonth = currentCrmMonth();
   const objectiveManagers = seeAll
-    ? managers
+    ? portfolio
     : managers.filter((m) => m.id === focusManagerId);
   const [leadOpen, setLeadOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
@@ -229,51 +234,42 @@ function ProspectionHomePage() {
             <div className="min-w-0 flex-1">
               <h2 className="font-display text-base font-semibold">Ma semaine commerciale</h2>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                {weekChecksDone}/{data.weekChecks.length} points de routine
+                Semaine du {shortDate(agenda.weekKey)} — votre agenda et les prochaines étapes de
+                vos opportunités
               </p>
             </div>
           </div>
           <div className="mt-4 grid grid-cols-3 gap-2">
-            <MetricTile label="Terminées" value={weekDone} accent />
-            <MetricTile label="Restantes" value={weekTodo} />
-            <MetricTile label="En retard" value={kpis.overdueActions.length} />
+            <MetricTile label="À faire" value={agenda.upcoming} accent />
+            <MetricTile label="En retard" value={agenda.overdue.length} />
+            <MetricTile label="Terminées" value={agenda.done} />
           </div>
-          <ul className="mt-4 space-y-2">
-            {data.weekChecks.map((item) => (
-              <li key={item.id}>
-                <label
-                  className={cn(
-                    "flex cursor-pointer items-start gap-3 rounded-2xl border px-3 py-2.5 text-sm transition-colors",
-                    item.done
-                      ? "border-emerald-500/20 bg-emerald-500/8 text-muted-foreground"
-                      : "border-border/50 bg-muted/30 hover:bg-muted/50",
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border",
-                      item.done
-                        ? "border-emerald-500 bg-emerald-500 text-white"
-                        : "border-border bg-background",
-                    )}
-                  >
-                    {item.done ? <Check className="h-3 w-3" /> : null}
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={item.done}
-                    onChange={() => {
-                      void toggleWeekCheck(item.id).catch((err) =>
-                        toast.error(err instanceof Error ? err.message : "Mise à jour impossible"),
-                      );
-                    }}
-                    className="sr-only"
-                  />
-                  <span className={cn("leading-snug", item.done && "line-through")}>{item.label}</span>
-                </label>
-              </li>
-            ))}
-          </ul>
+          {agenda.overdue.length === 0 && agenda.days.length === 0 ? (
+            <p className="mt-4 rounded-2xl bg-muted/45 px-3 py-2.5 text-sm text-muted-foreground">
+              Rien de prévu d’ici dimanche. Planifiez vos appels et RDV dans l’agenda, ou fixez la
+              prochaine étape de vos opportunités.
+            </p>
+          ) : (
+            <div className="mt-4 space-y-4">
+              {agenda.overdue.length > 0 ? (
+                <AgendaGroup
+                  title="En retard"
+                  tone="late"
+                  items={agenda.overdue}
+                  companies={companies}
+                  showDate
+                />
+              ) : null}
+              {agenda.days.map((d) => (
+                <AgendaGroup
+                  key={d.date}
+                  title={dayTitle(d.date, agenda.today)}
+                  items={d.items}
+                  companies={companies}
+                />
+              ))}
+            </div>
+          )}
         </CrmCard>
 
         <CrmCard className="h-full">
@@ -281,45 +277,95 @@ function ProspectionHomePage() {
             <div className="flex items-start gap-3">
               <IconMark icon={Target} tone="bg-violet-500/15 text-violet-700 dark:text-violet-300" />
               <div>
-                <h2 className="font-display text-base font-semibold">Objectifs 8 semaines</h2>
-                <p className="mt-0.5 text-xs text-muted-foreground">Réalisé calculé automatiquement</p>
+                <h2 className="font-display text-base font-semibold">Objectifs du mois</h2>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  <span className="capitalize">{monthLabelFr(thisMonth)}</span>
+                  {seeAll ? " · tous les managers" : " · vos indicateurs"}
+                </p>
               </div>
             </div>
             <Link to="/prospection/objectifs" className="text-xs font-semibold text-primary hover:underline">
               Voir tout
             </Link>
           </div>
-          <div className={cn("mt-4 space-y-4", objectiveManagers.length > 1 && "space-y-5")}>
-            {objectiveManagers.map((m) => (
-              <div key={m.id}>
-                {objectiveManagers.length > 1 ? (
-                  <div className="mb-2 flex items-center gap-2">
-                    <EntityMark name={m.name} size="sm" />
-                    <span className="text-sm font-semibold">{m.name}</span>
-                  </div>
-                ) : null}
-                <ul className="space-y-2">
-                  {data.objectives
-                    .filter((o) => o.managerId === m.id)
-                    .map((o) => {
-                      const done = realizedForMetric(data, o.metric, m.id);
-                      const pct = o.target === 0 ? 0 : Math.round((done / o.target) * 100);
-                      return (
-                        <li key={o.id} className="rounded-2xl bg-muted/45 px-3 py-2.5">
-                          <ProgressMeter
-                            value={pct}
-                            label={OBJECTIVE_LABELS[o.metric]}
-                            hint={`${done}/${o.target} · ${pct} %`}
-                          />
-                        </li>
-                      );
-                    })}
-                </ul>
-              </div>
-            ))}
+          <div className="mt-4">
+            <ObjectivesSummary
+              data={data}
+              managers={objectiveManagers}
+              month={thisMonth}
+              mode={seeAll ? "direction" : "self"}
+            />
           </div>
         </CrmCard>
       </div>
+
+      {seeAll ? (
+        <CrmCard className="mb-5">
+          <div className="flex items-start gap-3">
+            <IconMark icon={CalendarDays} tone="bg-primary/15 text-primary" />
+            <div className="min-w-0 flex-1">
+              <h2 className="font-display text-base font-semibold">Routine des managers</h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Semaine du {shortDate(agenda.weekKey)} — calculée depuis l’agenda, les opportunités et
+                les dépenses de chaque manager.
+              </p>
+            </div>
+          </div>
+          {routineManagers.length === 0 ? (
+            <p className="mt-4 rounded-2xl bg-muted/45 px-3 py-2.5 text-sm text-muted-foreground">
+              Aucun manager désigné : attribuez le profil « Manager de service » depuis la page
+              Équipe.
+            </p>
+          ) : (
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full min-w-[36rem] text-sm">
+                <thead className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+                  <tr>
+                    <th className="py-2 pr-3 font-semibold">Manager</th>
+                    <th className="px-2 py-2 font-semibold">À faire</th>
+                    <th className="px-2 py-2 font-semibold">En retard</th>
+                    {ROUTINE_KEYS.map((key) => (
+                      <th key={key} className="px-2 py-2 font-semibold">
+                        {ROUTINE_SHORT_LABELS[key]}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {routineManagers.map((m) => {
+                    const r = computeWeeklyRoutine(data, m.id);
+                    const a = computeWeeklyAgenda(data, m.id);
+                    return (
+                      <tr key={m.id} className="border-t border-border/50">
+                        <td className="py-2.5 pr-3">
+                          <div className="flex items-center gap-2">
+                            <EntityMark name={m.name} size="sm" />
+                            <span className="font-medium">{m.name}</span>
+                          </div>
+                        </td>
+                        <td className="px-2 py-2.5 tabular-nums">{a.upcoming}</td>
+                        <td
+                          className={cn(
+                            "px-2 py-2.5 tabular-nums",
+                            a.overdue.length > 0 && "font-semibold text-danger",
+                          )}
+                        >
+                          {a.overdue.length}
+                        </td>
+                        {r.map((i) => (
+                          <td key={i.key} className="px-2 py-2.5" title={i.detail}>
+                            <StatusDot status={i.status} />
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CrmCard>
+      ) : null}
 
       {crm !== "collaborateur" ? (
         <section className="mb-5">
@@ -366,7 +412,7 @@ function ProspectionHomePage() {
         <section>
           <h3 className="mb-3 font-display font-semibold">Performance managers</h3>
           <CrmCardGrid>
-            {managers.map((m, i) => {
+            {portfolio.map((m, i) => {
               const ops = data.opportunities.filter((o) => o.ownerId === m.id);
               const signed = ops.filter((o) => o.stage === "gagne");
               const signedCa = signed.reduce((s, o) => s + o.amount, 0);
@@ -420,5 +466,128 @@ function ProspectionHomePage() {
       <NewExpenseDialog open={expenseOpen} onOpenChange={setExpenseOpen} />
       <CompanyDialog open={prospectOpen} onOpenChange={setProspectOpen} kind="prospect" />
     </div>
+  );
+}
+
+const ROUTINE_KEYS: RoutineItem["key"][] = ["contacts", "reports", "proposals", "expenses"];
+
+const ROUTINE_SHORT_LABELS: Record<RoutineItem["key"], string> = {
+  contacts: "5 contacts · 2 RDV",
+  reports: "CR 48 h",
+  proposals: "Proposition 5 j",
+  expenses: "Dépenses",
+};
+
+const STATUS_STYLES: Record<RoutineStatus, { dot: string; label: string }> = {
+  ok: { dot: "bg-emerald-500", label: "Tenu" },
+  pending: { dot: "bg-amber-400", label: "En cours" },
+  late: { dot: "bg-danger", label: "En retard" },
+};
+
+function StatusDot({ status }: { status: RoutineStatus }) {
+  const s = STATUS_STYLES[status];
+  return (
+    <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+      <span className={cn("h-2.5 w-2.5 rounded-full", s.dot)} />
+      {s.label}
+    </span>
+  );
+}
+
+function dayTitle(date: string, today: string): string {
+  if (date === today) return "Aujourd’hui";
+  const tomorrow = new Date(`${today}T12:00:00.000Z`);
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  if (date === tomorrow.toISOString().slice(0, 10)) return "Demain";
+  const label = new Intl.DateTimeFormat("fr-FR", {
+    weekday: "long",
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  }).format(new Date(`${date}T12:00:00.000Z`));
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+/** Un jour de la semaine (ou le retard) : actions d’agenda et prochaines étapes d’opportunités. */
+function AgendaGroup({
+  title,
+  items,
+  companies,
+  tone,
+  showDate,
+}: {
+  title: string;
+  items: AgendaItem[];
+  companies: Company[];
+  tone?: "late";
+  showDate?: boolean;
+}) {
+  const companyName = (id: string) => companies.find((c) => c.id === id)?.name ?? "—";
+  return (
+    <section>
+      <h3
+        className={cn(
+          "mb-1.5 text-[11px] font-semibold uppercase tracking-wider",
+          tone === "late" ? "text-danger" : "text-muted-foreground",
+        )}
+      >
+        {title} · {items.length}
+      </h3>
+      <ul className="space-y-1.5">
+        {items.map((item) => {
+          const isActivity = item.source === "activity";
+          const key = isActivity ? `a-${item.activity.id}` : `o-${item.opportunity.id}`;
+          const company = companyName(
+            isActivity ? item.activity.companyId : item.opportunity.companyId,
+          );
+          const when = [showDate ? shortDate(item.date) : "", isActivity ? item.time : ""]
+            .filter(Boolean)
+            .join(" · ");
+          const row = cn(
+            "flex items-start gap-3 rounded-2xl border px-3 py-2 text-sm transition-colors",
+            tone === "late"
+              ? "border-danger/15 bg-danger/5 hover:bg-danger/10"
+              : "border-border/50 bg-muted/30 hover:bg-muted/50",
+          );
+          return (
+            <li key={key}>
+              {isActivity ? (
+                <Link to="/prospection/agenda" className={row}>
+                  <span className="mt-0.5 shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-primary">
+                    {ACTIVITY_LABELS[item.activity.kind]}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">{item.activity.title}</span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {company}
+                      {when ? ` · ${when}` : ""}
+                    </span>
+                  </span>
+                </Link>
+              ) : (
+                <Link
+                  to="/prospection/opportunites"
+                  search={{ focus: item.opportunity.id }}
+                  className={row}
+                >
+                  <span className="mt-0.5 shrink-0">
+                    <StageBadge stage={item.opportunity.stage} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">
+                      {item.opportunity.nextAction || "Prochaine étape à préciser"}
+                    </span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {company} · {item.opportunity.title}
+                      {when ? ` · ${when}` : ""}
+                    </span>
+                  </span>
+                </Link>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }

@@ -9,7 +9,6 @@ import type {
   CrmObjective,
   CrmOpportunity,
   CrmReferential,
-  CrmWeekCheck,
   Prisma,
 } from "@prisma/client";
 import type {
@@ -29,8 +28,7 @@ import type {
   Opportunity,
   ReferentialExtra,
   ServiceLine,
-  WeekCheck,
-} from "@/lib/prospection-demo";
+} from "@/lib/prospection-model";
 
 export type CrmCompanyRow = CrmCompany;
 export type CrmCompanyWithClientId = Pick<CrmCompany, "id" | "clientId">;
@@ -124,6 +122,7 @@ export function mapCrmLead(row: CrmLead, company?: CrmCompanyWithClientId | null
     comment: row.comment,
     ownerId: row.ownerId,
     author: row.author,
+    authorId: row.authorId ?? undefined,
     status: row.status,
     at: dateIso(row.at) || row.at.toISOString().slice(0, 10),
   };
@@ -149,6 +148,11 @@ export function mapCrmOpportunity(
     notes: row.notes,
     lostReason: row.lostReason ?? undefined,
     reviveOn: dateIso(row.reviveOn) || undefined,
+    createdAt: dateIso(row.createdAt),
+    qualifiedAt: dateIso(row.qualifiedAt) || undefined,
+    proposalAt: dateIso(row.proposalAt) || undefined,
+    wonAt: dateIso(row.wonAt) || undefined,
+    stageChangedAt: dateIso(row.stageChangedAt) || undefined,
   };
 }
 
@@ -186,7 +190,8 @@ export function mapCrmExpense(
     companyId: company ? uiCompanyId(company) : row.companyId ?? undefined,
     opportunityId: row.opportunityId ?? undefined,
     activityId: row.activityId ?? undefined,
-    receipt: row.receipt,
+    receipt: Boolean(row.receiptPath) || row.receipt,
+    receiptName: row.receiptName ?? undefined,
     approval: row.approval,
   };
 }
@@ -197,6 +202,7 @@ export function mapCrmObjective(row: CrmObjective): Objective {
     managerId: row.managerId,
     metric: row.metric,
     target: row.target,
+    month: row.month,
   };
 }
 
@@ -219,14 +225,6 @@ export function mapCrmReferential(row: CrmReferential): ReferentialExtra {
   };
 }
 
-export function mapCrmWeekCheck(row: CrmWeekCheck): WeekCheck {
-  return {
-    id: row.id,
-    label: row.label,
-    done: row.done,
-  };
-}
-
 export function mapCrmNotification(row: CrmNotification): UiCrmNotification {
   return {
     id: row.id,
@@ -238,23 +236,16 @@ export function mapCrmNotification(row: CrmNotification): UiCrmNotification {
   };
 }
 
-export const DEFAULT_WEEK_CHECKS: { key: string; label: string; sortOrder: number }[] = [
-  { key: "wk-1", label: "Lundi — revue pipeline (30 min)", sortOrder: 1 },
-  { key: "wk-2", label: "Semaine — 5 contacts min. · 2 RDV", sortOrder: 2 },
-  { key: "wk-3", label: "Après RDV — CR sous 48 h + prochaine action", sortOrder: 3 },
-  { key: "wk-4", label: "RDV concluant — proposition sous 5 jours", sortOrder: 4 },
-  { key: "wk-5", label: "Vendredi — dépenses à jour", sortOrder: 5 },
-];
-
 export const DEFAULT_OBJECTIVE_TARGETS: {
   metric: Objective["metric"];
   target: number;
 }[] = [
-  { metric: "qualifies", target: 60 },
-  { metric: "contacts", target: 40 },
-  { metric: "rdv", target: 15 },
-  { metric: "propositions", target: 6 },
-  { metric: "signatures", target: 2 },
+  // Cibles mensuelles par manager (≈ moitié des cibles 8 semaines du cahier des charges).
+  { metric: "qualifies", target: 30 },
+  { metric: "contacts", target: 20 },
+  { metric: "rdv", target: 8 },
+  { metric: "propositions", target: 3 },
+  { metric: "signatures", target: 1 },
 ];
 
 export type CrmPipelineSnapshot = {
@@ -274,5 +265,4 @@ export type CrmPipelineSnapshot = {
   notifications: UiCrmNotification[];
   libraryItems: LibraryItem[];
   referentials: ReferentialExtra[];
-  weekChecks: WeekCheck[];
 };

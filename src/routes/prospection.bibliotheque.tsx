@@ -13,8 +13,8 @@ import {
   LIBRARY_DOMAINS,
   type LibraryDomain,
   type LibraryItem,
-} from "@/lib/prospection-demo";
-import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
+} from "@/lib/prospection-model";
+import { useProspectionStore } from "@/store/useProspectionStore";
 
 export const Route = createFileRoute("/prospection/bibliotheque")({
   head: () => ({ meta: [{ title: "Bibliothèque — Prospection" }] }),
@@ -37,8 +37,8 @@ function copyText(item: { title: string; body: string; terms?: { term: string; d
 }
 
 function LibraryPage() {
-  const itemsAll = useProspectionDemoStore((s) => s.libraryItems);
-  const deleteLibraryItem = useProspectionDemoStore((s) => s.deleteLibraryItem);
+  const itemsAll = useProspectionStore((s) => s.libraryItems);
+  const deleteLibraryItem = useProspectionStore((s) => s.deleteLibraryItem);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<LibraryItem | null>(null);
   const [line, setLine] = useState<"all" | LibraryDomain>("all");

@@ -4,7 +4,7 @@ import type {
   Company,
   ServiceLine,
   Site,
-} from "@/lib/prospection-demo";
+} from "@/lib/prospection-model";
 import { parseClientPole, type ClientPole } from "@/lib/client-pole";
 
 export type { ClientCrmOverlay };

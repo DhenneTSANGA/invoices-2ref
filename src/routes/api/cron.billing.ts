@@ -4,6 +4,7 @@ import {
   runCrmOpportunityReminders,
   type CrmReminderJobResult,
 } from "@/lib/crm-reminder-jobs";
+import { runCrmWeeklyReport, type CrmWeeklyReportResult } from "@/lib/crm-weekly-report";
 
 function authorizeCron(request: Request): boolean {
   const secret = process.env.CRON_SECRET?.trim();
@@ -42,7 +43,16 @@ export const Route = createFileRoute("/api/cron/billing")({
             console.error("[cron/billing] crm reminders", err);
             crmReminders = { error: err instanceof Error ? err.message : "Erreur serveur" };
           }
-          return Response.json({ ok: true, ...result, crmReminders });
+          // Rapport hebdomadaire Prospection à la direction (lundi, idempotent).
+          let crmWeeklyReport: CrmWeeklyReportResult | { error: string };
+          try {
+            crmWeeklyReport = await runCrmWeeklyReport(refDate ? { refDate } : undefined);
+            console.info("[cron/billing] crm weekly report", JSON.stringify(crmWeeklyReport));
+          } catch (err) {
+            console.error("[cron/billing] crm weekly report", err);
+            crmWeeklyReport = { error: err instanceof Error ? err.message : "Erreur serveur" };
+          }
+          return Response.json({ ok: true, ...result, crmReminders, crmWeeklyReport });
         } catch (err) {
           console.error("[cron/billing]", err);
           return Response.json(

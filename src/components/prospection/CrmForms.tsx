@@ -28,6 +28,7 @@ import {
   LIBRARY_DOMAIN_LABELS,
   LIBRARY_DOMAINS,
   OBJECTIVE_LABELS,
+  portfolioManagers,
   SECTORS,
   SERVICE_LINE_LABELS,
   SERVICE_LINES,
@@ -51,6 +52,7 @@ import {
   type ExpenseCategory,
   type Lead,
   type LibraryItem,
+  type Objective,
   type Opportunity,
   type OpportunitySource,
   type PipelineStage,
@@ -59,9 +61,12 @@ import {
   type ReferentialKind,
   type ServiceLine,
   type Site,
-} from "@/lib/prospection-demo";
-import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
+} from "@/lib/prospection-model";
+import { useProspectionStore, type ReceiptUpload } from "@/store/useProspectionStore";
 import { useProspectionCompanies } from "@/hooks/use-prospection-companies";
+import { fileToBase64Payload } from "@/components/clients/ClientFicheUpload";
+import { uploadCrmReceipt } from "@/lib/prospection.functions";
+import { monthLabelFr } from "@/lib/crm-month";
 import { cn } from "@/lib/utils";
 import { CRM_FIELD, CrmDialog, CrmFormActions, CrmLabeledField, CrmSelect } from "./CrmUi";
 
@@ -105,10 +110,10 @@ export function CompanyDialog({
 }) {
   const { session } = useRouteContext({ from: "/prospection" });
   const selfId = session.staff.id;
-  const managers = useProspectionDemoStore((s) => s.managers);
-  const upsertCompany = useProspectionDemoStore((s) => s.upsertCompany);
-  const addContact = useProspectionDemoStore((s) => s.addContact);
-  const extraSectors = useProspectionDemoStore((s) => s.referentials)
+  const managers = useProspectionStore((s) => s.managers);
+  const upsertCompany = useProspectionStore((s) => s.upsertCompany);
+  const addContact = useProspectionStore((s) => s.addContact);
+  const extraSectors = useProspectionStore((s) => s.referentials)
     .filter((r) => r.kind === "sector")
     .map((r) => r.label);
   const sectorOptions = [...SECTORS, ...extraSectors.filter((label) => !SECTORS.includes(label))];
@@ -608,9 +613,9 @@ export function NewLeadDialog({
   const { session } = useRouteContext({ from: "/prospection" });
   const selfId = session.staff.id;
   const { companies } = useProspectionCompanies();
-  const managers = useProspectionDemoStore((s) => s.managers);
-  const addLead = useProspectionDemoStore((s) => s.addLead);
-  const updateLead = useProspectionDemoStore((s) => s.updateLead);
+  const managers = useProspectionStore((s) => s.managers);
+  const addLead = useProspectionStore((s) => s.addLead);
+  const updateLead = useProspectionStore((s) => s.updateLead);
   const [companyName, setCompanyName] = useState(defaultCompanyName);
   const [need, setNeed] = useState("");
   const [comment, setComment] = useState("");
@@ -768,6 +773,12 @@ export function NewLeadDialog({
   );
 }
 
+/** Téléverse le justificatif photo dans le bucket privé avant l’enregistrement. */
+async function uploadReceipt(file: File): Promise<ReceiptUpload> {
+  const payload = await fileToBase64Payload(file);
+  return uploadCrmReceipt({ data: payload });
+}
+
 export function NewExpenseDialog({
   open,
   onOpenChange,
@@ -782,14 +793,14 @@ export function NewExpenseDialog({
   const { session } = useRouteContext({ from: "/prospection" });
   const selfId = session.staff.id;
   const { companies } = useProspectionCompanies();
-  const managers = useProspectionDemoStore((s) => s.managers);
-  const approvalThreshold = useProspectionDemoStore(
+  const managers = useProspectionStore((s) => s.managers);
+  const approvalThreshold = useProspectionStore(
     (s) => s.budgetSettings.approvalThreshold,
   );
-  const activities = useProspectionDemoStore((s) => s.activities);
-  const opportunities = useProspectionDemoStore((s) => s.opportunities);
-  const addExpense = useProspectionDemoStore((s) => s.addExpense);
-  const updateExpense = useProspectionDemoStore((s) => s.updateExpense);
+  const activities = useProspectionStore((s) => s.activities);
+  const opportunities = useProspectionStore((s) => s.opportunities);
+  const addExpense = useProspectionStore((s) => s.addExpense);
+  const updateExpense = useProspectionStore((s) => s.updateExpense);
   const [managerId, setManagerId] = useState("");
   const [category, setCategory] = useState<ExpenseCategory | "">("");
   const [label, setLabel] = useState("");
@@ -798,7 +809,8 @@ export function NewExpenseDialog({
   const [companyId, setCompanyId] = useState(defaultCompanyId);
   const [activityId, setActivityId] = useState("");
   const [opportunityId, setOpportunityId] = useState("");
-  const [receipt, setReceipt] = useState(false);
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const linkedActivities = companyId
     ? activities.filter((a) => a.companyId === companyId)
@@ -818,7 +830,7 @@ export function NewExpenseDialog({
       setCompanyId(editing.companyId ?? "");
       setActivityId(editing.activityId ?? "");
       setOpportunityId(editing.opportunityId ?? "");
-      setReceipt(editing.receipt);
+      setReceiptFile(null);
       return;
     }
     setManagerId(selfId);
@@ -829,7 +841,7 @@ export function NewExpenseDialog({
     setCompanyId(defaultCompanyId);
     setActivityId("");
     setOpportunityId("");
-    setReceipt(false);
+    setReceiptFile(null);
   }, [open, editing, defaultCompanyId, selfId]);
 
   return (
@@ -857,30 +869,32 @@ export function NewExpenseDialog({
             toast.error("Rattachez la dépense à une action commerciale");
             return;
           }
-          if (!receipt) {
+          if (!receiptFile && !editing?.receipt) {
             toast.error("Justificatif photo obligatoire");
             return;
           }
           void (async () => {
+            setSaving(true);
             try {
+              const uploaded = receiptFile ? await uploadReceipt(receiptFile) : undefined;
               const row = {
                 managerId,
                 category,
                 label: label.trim(),
                 amount: Math.round(n),
                 at,
-                receipt,
+                receipt: true,
                 companyId: companyId || undefined,
                 activityId,
                 opportunityId: opportunityId || undefined,
               };
               if (editing) {
-                await updateExpense(editing.id, row);
+                await updateExpense(editing.id, row, uploaded);
                 toast.success("Dépense mise à jour");
                 onOpenChange(false);
                 return;
               }
-              await addExpense(row);
+              await addExpense(row, uploaded!);
               toast.success(
                 n > approvalThreshold
                   ? "Soumise à validation Direction"
@@ -889,6 +903,8 @@ export function NewExpenseDialog({
               onOpenChange(false);
             } catch (err) {
               toast.error(err instanceof Error ? err.message : "Enregistrement impossible");
+            } finally {
+              setSaving(false);
             }
           })();
         }}
@@ -973,11 +989,26 @@ export function NewExpenseDialog({
             options={linkedOpps.map((o) => ({ value: o.id, label: o.title }))}
           />
         </CrmLabeledField>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={receipt} onChange={(e) => setReceipt(e.target.checked)} />
-          Justificatif photo joint (obligatoire)
-        </label>
-        <CrmFormActions onCancel={() => onOpenChange(false)} submitLabel="Enregistrer" />
+        <CrmLabeledField label="Justificatif photo (obligatoire)">
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,application/pdf"
+            capture="environment"
+            onChange={(e) => setReceiptFile(e.target.files?.[0] ?? null)}
+            className={CRM_FIELD}
+          />
+          <p className="mt-1 text-xs text-muted-foreground">
+            {receiptFile
+              ? `${receiptFile.name} — sera joint à la dépense`
+              : editing?.receipt
+                ? `Actuel : ${editing.receiptName ?? "justificatif joint"} (choisir un fichier pour le remplacer)`
+                : "Photo du ticket ou de la facture (JPEG, PNG, WebP ou PDF, 6 Mo max)."}
+          </p>
+        </CrmLabeledField>
+        <CrmFormActions
+          onCancel={() => onOpenChange(false)}
+          submitLabel={saving ? "Envoi…" : "Enregistrer"}
+        />
       </form>
     </CrmDialog>
   );
@@ -1004,12 +1035,12 @@ export function NewActivityDialog({
   const { session } = useRouteContext({ from: "/prospection" });
   const selfId = session.staff.id;
   const { companies } = useProspectionCompanies();
-  const managers = useProspectionDemoStore((s) => s.managers);
-  const opportunities = useProspectionDemoStore((s) => s.opportunities);
-  const activities = useProspectionDemoStore((s) => s.activities);
-  const addActivity = useProspectionDemoStore((s) => s.addActivity);
-  const updateActivity = useProspectionDemoStore((s) => s.updateActivity);
-  const updateOpportunity = useProspectionDemoStore((s) => s.updateOpportunity);
+  const managers = useProspectionStore((s) => s.managers);
+  const opportunities = useProspectionStore((s) => s.opportunities);
+  const activities = useProspectionStore((s) => s.activities);
+  const addActivity = useProspectionStore((s) => s.addActivity);
+  const updateActivity = useProspectionStore((s) => s.updateActivity);
+  const updateOpportunity = useProspectionStore((s) => s.updateOpportunity);
   const completing = activities.find((a) => a.id === completeActivityId);
   const [companyId, setCompanyId] = useState(defaultCompanyId ?? "");
   const [opportunityId, setOpportunityId] = useState(defaultOpportunityId ?? "");
@@ -1282,10 +1313,10 @@ export function NewOpportunityDialog({
 }) {
   const { session } = useRouteContext({ from: "/prospection" });
   const selfId = session.staff.id;
-  const managers = useProspectionDemoStore((s) => s.managers);
+  const managers = useProspectionStore((s) => s.managers);
   const { companies } = useProspectionCompanies();
-  const addOpportunity = useProspectionDemoStore((s) => s.addOpportunity);
-  const updateOpportunity = useProspectionDemoStore((s) => s.updateOpportunity);
+  const addOpportunity = useProspectionStore((s) => s.addOpportunity);
+  const updateOpportunity = useProspectionStore((s) => s.updateOpportunity);
   const [companyId, setCompanyId] = useState("");
   const [title, setTitle] = useState("");
   const [line, setLine] = useState<ServiceLine | "">("");
@@ -1356,9 +1387,14 @@ export function NewOpportunityDialog({
             title: title.trim(),
             line,
             source,
-            stage: (editing?.stage ?? "qualification") as PipelineStage,
+            // Nouveau prospect : étape 1 (identification) ; client existant : étape 2 (§4).
+            stage: (editing?.stage ??
+              (source === "nouveau" ? "identification" : "qualification")) as PipelineStage,
             amount: Math.round(n),
-            probability: editing?.probability ?? STAGE_PROBABILITY.qualification ?? 20,
+            probability:
+              editing?.probability ??
+              STAGE_PROBABILITY[source === "nouveau" ? "identification" : "qualification"] ??
+              20,
             decisionOn,
             nextAction: nextAction.trim(),
             nextActionOn,
@@ -1494,8 +1530,8 @@ export function NewContactDialog({
   companyId: string;
   editing?: Contact | null;
 }) {
-  const addContact = useProspectionDemoStore((s) => s.addContact);
-  const updateContact = useProspectionDemoStore((s) => s.updateContact);
+  const addContact = useProspectionStore((s) => s.addContact);
+  const updateContact = useProspectionStore((s) => s.updateContact);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [role, setRole] = useState("");
@@ -1645,7 +1681,7 @@ export function AccountPlanDialog({
   onOpenChange: (open: boolean) => void;
   company: Company | null;
 }) {
-  const setAccountPlan = useProspectionDemoStore((s) => s.setAccountPlan);
+  const setAccountPlan = useProspectionStore((s) => s.setAccountPlan);
   const [plan, setPlan] = useState<AccountPlan>({
     stakes: "",
     objectives: "",
@@ -1743,20 +1779,30 @@ export function AccountPlanDialog({
 export function EditObjectivesDialog({
   open,
   onOpenChange,
+  month,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Mois des cibles (AAAA-MM). */
+  month: string;
 }) {
-  const managers = useProspectionDemoStore((s) => s.managers);
-  const objectives = useProspectionDemoStore((s) => s.objectives);
-  const setObjectiveTarget = useProspectionDemoStore((s) => s.setObjectiveTarget);
+  const managers = portfolioManagers(useProspectionStore((s) => s.managers));
+  const objectives = useProspectionStore((s) => s.objectives);
+  const setObjectiveTargets = useProspectionStore((s) => s.setObjectiveTargets);
   const [draft, setDraft] = useState<Record<string, string>>({});
+  const key = (managerId: string, metric: string) => `${managerId}:${metric}`;
 
   useEffect(() => {
     if (open) {
-      setDraft(Object.fromEntries(objectives.map((o) => [o.id, String(o.target)])));
+      setDraft(
+        Object.fromEntries(
+          objectives
+            .filter((o) => o.month === month)
+            .map((o) => [key(o.managerId, o.metric), String(o.target)]),
+        ),
+      );
     }
-  }, [open, objectives]);
+  }, [open, objectives, month]);
 
   return (
     <CrmDialog
@@ -1764,8 +1810,8 @@ export function EditObjectivesDialog({
       onOpenChange={onOpenChange}
       icon={Target}
       wide
-      title="Modifier les cibles 8 semaines"
-      description="Le réalisé reste calculé automatiquement."
+      title={`Cibles de ${monthLabelFr(month)}`}
+      description="Objectifs mensuels par manager. Le réalisé reste calculé automatiquement."
     >
       <form
         className="space-y-4 p-5 sm:p-6"
@@ -1773,10 +1819,15 @@ export function EditObjectivesDialog({
           e.preventDefault();
           void (async () => {
             try {
-              for (const o of objectives) {
-                const n = Number(draft[o.id]);
-                if (Number.isFinite(n) && n >= 0) await setObjectiveTarget(o.id, Math.round(n));
-              }
+              const items = managers.flatMap((m) =>
+                (Object.keys(OBJECTIVE_LABELS) as Objective["metric"][]).flatMap((metric) => {
+                  const n = Number(draft[key(m.id, metric)]);
+                  return Number.isFinite(n) && n >= 0 && draft[key(m.id, metric)] !== undefined
+                    ? [{ managerId: m.id, metric, target: Math.round(n) }]
+                    : [];
+                }),
+              );
+              await setObjectiveTargets(month, items);
               toast.success("Cibles mises à jour");
               onOpenChange(false);
             } catch (err) {
@@ -1789,18 +1840,19 @@ export function EditObjectivesDialog({
           <section key={m.id} className="space-y-2">
             <h3 className="text-sm font-semibold">{m.name}</h3>
             <div className="grid gap-2 sm:grid-cols-2">
-              {objectives
-                .filter((o) => o.managerId === m.id)
-                .map((o) => (
-                  <label key={o.id} className="space-y-1 text-sm">
-                    <span>{OBJECTIVE_LABELS[o.metric]}</span>
-                    <input
-                      value={draft[o.id] ?? ""}
-                      onChange={(e) => setDraft((d) => ({ ...d, [o.id]: e.target.value }))}
-                      className={CRM_FIELD}
-                    />
-                  </label>
-                ))}
+              {(Object.keys(OBJECTIVE_LABELS) as Objective["metric"][]).map((metric) => (
+                <label key={metric} className="space-y-1 text-sm">
+                  <span>{OBJECTIVE_LABELS[metric]}</span>
+                  <input
+                    inputMode="numeric"
+                    value={draft[key(m.id, metric)] ?? ""}
+                    onChange={(e) =>
+                      setDraft((d) => ({ ...d, [key(m.id, metric)]: e.target.value }))
+                    }
+                    className={CRM_FIELD}
+                  />
+                </label>
+              ))}
             </div>
           </section>
         ))}
@@ -1819,8 +1871,8 @@ export function NewLibraryDialog({
   onOpenChange: (open: boolean) => void;
   editing?: LibraryItem | null;
 }) {
-  const addLibraryItem = useProspectionDemoStore((s) => s.addLibraryItem);
-  const updateLibraryItem = useProspectionDemoStore((s) => s.updateLibraryItem);
+  const addLibraryItem = useProspectionStore((s) => s.addLibraryItem);
+  const updateLibraryItem = useProspectionStore((s) => s.updateLibraryItem);
   const [line, setLine] = useState<LibraryDomain | "">("");
   const [category, setCategory] = useState("");
   const [title, setTitle] = useState("");
@@ -1945,7 +1997,7 @@ export function EditNotificationDialog({
   onOpenChange: (open: boolean) => void;
   editing: CrmNotification | null;
 }) {
-  const updateNotification = useProspectionDemoStore((s) => s.updateNotification);
+  const updateNotification = useProspectionStore((s) => s.updateNotification);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [read, setRead] = useState(false);
@@ -2015,14 +2067,15 @@ export function AddReferentialDialog({
   onOpenChange: (open: boolean) => void;
   editing?: ReferentialExtra | null;
 }) {
-  const addReferential = useProspectionDemoStore((s) => s.addReferential);
-  const updateReferential = useProspectionDemoStore((s) => s.updateReferential);
+  const addReferential = useProspectionStore((s) => s.addReferential);
+  const updateReferential = useProspectionStore((s) => s.updateReferential);
   const [kind, setKind] = useState<ReferentialKind | "">("");
   const [label, setLabel] = useState("");
 
   useEffect(() => {
     if (!open) return;
-    setKind(editing?.kind ?? "");
+    // Seuls les secteurs sont extensibles ; les autres listes sont figées en base.
+    setKind(editing?.kind ?? "sector");
     setLabel(editing?.label ?? "");
   }, [open, editing]);
 
@@ -2072,7 +2125,7 @@ export function AddReferentialDialog({
             value={kind}
             onChange={(value) => setKind(value as ReferentialKind)}
             placeholder="Type de valeur"
-            options={(Object.keys(kindLabel) as ReferentialKind[]).map((k) => ({
+            options={(["sector"] as ReferentialKind[]).map((k) => ({
               value: k,
               label: kindLabel[k],
             }))}
@@ -2106,9 +2159,9 @@ export function StageChangeDialog({
   opportunityId: string | null;
   nextStage: PipelineStage | null;
 }) {
-  const opportunities = useProspectionDemoStore((s) => s.opportunities);
+  const opportunities = useProspectionStore((s) => s.opportunities);
   const { companies } = useProspectionCompanies();
-  const advanceStage = useProspectionDemoStore((s) => s.advanceStage);
+  const advanceStage = useProspectionStore((s) => s.advanceStage);
   const lastId = useRef(opportunityId);
   const lastStage = useRef(nextStage);
   if (opportunityId) lastId.current = opportunityId;
@@ -2139,7 +2192,8 @@ export function StageChangeDialog({
 
   const isOutcome = destination === "perdu" || destination === "reporte" || destination === "gagne";
   /** Qualification = étape d’entrée par défaut après conversion : pas de commentaire forcé. */
-  const isEntryQualification = currentStage === "qualification";
+  const isEntryQualification =
+    currentStage === "identification" || currentStage === "qualification";
   /** À partir de Premier contact : on note ce qui s’est passé à l’étape courante. */
   const commentRequired =
     !isEntryQualification && ((!isOutcome && currentStage !== null) || destination === "gagne");

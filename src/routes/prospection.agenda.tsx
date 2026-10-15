@@ -6,8 +6,8 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { NewActivityDialog } from "@/components/prospection/CrmForms";
 import { ActivityStatusBadge } from "@/components/prospection/ProspectionBadges";
 import { CRM_PRIMARY_BTN, CRM_SECONDARY_BTN, FilterChip, matchesSearch } from "@/components/prospection/CrmUi";
-import { ACTIVITY_LABELS, managerName, type Activity } from "@/lib/prospection-demo";
-import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
+import { ACTIVITY_LABELS, managerName, type Activity } from "@/lib/prospection-model";
+import { useProspectionStore } from "@/store/useProspectionStore";
 import { useProspectionCompanies } from "@/hooks/use-prospection-companies";
 import { cn } from "@/lib/utils";
 
@@ -51,9 +51,9 @@ function buildMonthCells(cursor: Date) {
 
 function AgendaPage() {
   const { companies } = useProspectionCompanies();
-  const activities = useProspectionDemoStore((s) => s.activities);
-  const setActivityStatus = useProspectionDemoStore((s) => s.setActivityStatus);
-  const deleteActivity = useProspectionDemoStore((s) => s.deleteActivity);
+  const activities = useProspectionStore((s) => s.activities);
+  const setActivityStatus = useProspectionStore((s) => s.setActivityStatus);
+  const deleteActivity = useProspectionStore((s) => s.deleteActivity);
   const [cursor, setCursor] = useState(() => startOfMonth(new Date()));
   const [selected, setSelected] = useState(() => isoDay(new Date()));
   const [query, setQuery] = useState("");

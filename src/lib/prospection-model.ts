@@ -15,7 +15,9 @@ export type OpportunitySource =
   | "client_formation"
   | "piste_interne";
 
+/** Canevas §4 : 1 Identification · 2 Qualification · 3 Premier contact · 4 RDV · 5 Proposition · 6 Négociation / décision. */
 export type PipelineStage =
+  | "identification"
   | "qualification"
   | "premier_contact"
   | "rendez_vous"
@@ -63,6 +65,8 @@ export type Manager = {
   id: string;
   name: string;
   lines: ServiceLine[];
+  /** Profil Prospection (manager, direction, administrateur…). */
+  role?: import("@/lib/prospection-access").CrmRole;
 };
 
 export type Contact = {
@@ -129,6 +133,16 @@ export type Opportunity = {
   notes: string;
   lostReason?: string;
   reviveOn?: string;
+  /** Date de création (AAAA-MM-JJ) — prospects qualifiés du mois. */
+  createdAt?: string;
+  /** Passage en qualification, étape 2 (AAAA-MM-JJ). */
+  qualifiedAt?: string;
+  /** Premier passage en proposition (AAAA-MM-JJ). */
+  proposalAt?: string;
+  /** Signature (AAAA-MM-JJ). */
+  wonAt?: string;
+  /** Dernier changement d’étape (AAAA-MM-JJ). */
+  stageChangedAt?: string;
 };
 
 export type Activity = {
@@ -155,6 +169,8 @@ export type Lead = {
   comment: string;
   ownerId: string;
   author: string;
+  /** Collaborateur ayant signalé la piste. */
+  authorId?: string;
   status: LeadStatus;
   at: string;
 };
@@ -170,6 +186,8 @@ export type Expense = {
   opportunityId?: string;
   activityId?: string;
   receipt: boolean;
+  /** Nom du justificatif photo téléversé (bucket privé). */
+  receiptName?: string;
   approval: ExpenseApproval;
 };
 
@@ -178,6 +196,8 @@ export type Objective = {
   managerId: string | "cabinet";
   metric: "qualifies" | "contacts" | "rdv" | "propositions" | "signatures";
   target: number;
+  /** Mois de l’objectif (AAAA-MM). */
+  month: string;
 };
 
 export type CrmNotification = {
@@ -212,12 +232,6 @@ export type ReferentialExtra = {
   id: string;
   kind: ReferentialKind;
   label: string;
-};
-
-export type WeekCheck = {
-  id: string;
-  label: string;
-  done: boolean;
 };
 
 export function isoDate(offsetDays = 0) {
@@ -343,6 +357,7 @@ export const SITE_LABELS: Record<Site, string> = {
 };
 
 export const STAGE_LABELS: Record<PipelineStage, string> = {
+  identification: "Identification",
   qualification: "Qualification",
   premier_contact: "Premier contact",
   rendez_vous: "Rendez-vous",
@@ -355,6 +370,7 @@ export const STAGE_LABELS: Record<PipelineStage, string> = {
 };
 
 export const ACTIVE_STAGES: PipelineStage[] = [
+  "identification",
   "qualification",
   "premier_contact",
   "rendez_vous",
@@ -364,6 +380,7 @@ export const ACTIVE_STAGES: PipelineStage[] = [
 ];
 
 export const STAGE_PROBABILITY: Partial<Record<PipelineStage, number>> = {
+  identification: 10,
   qualification: 20,
   premier_contact: 30,
   rendez_vous: 45,
@@ -376,6 +393,7 @@ export const STAGE_PROBABILITY: Partial<Record<PipelineStage, number>> = {
 };
 
 export const STAGE_ACTIVITY_KIND: Record<PipelineStage, ActivityKind> = {
+  identification: "appel",
   qualification: "appel",
   premier_contact: "email",
   rendez_vous: "rdv",
@@ -392,6 +410,7 @@ export const STAGE_ACTIVITY_KIND: Record<PipelineStage, ActivityKind> = {
  * ce qu’il faut faire pour avancer vers l’étape suivante (pas le travail déjà « contenu » dans l’étape actuelle).
  */
 export const STAGE_NEXT_PLACEHOLDER: Record<PipelineStage, string> = {
+  identification: "Qualifier le besoin et le décideur",
   qualification: "Établir le premier contact",
   premier_contact: "Planifier le rendez-vous de découverte",
   rendez_vous: "Envoyer la proposition",
@@ -460,8 +479,6 @@ export const MANAGERS: Manager[] = [];
 /** Résolution synchrone — cache rempli via `setManagersCache`. */
 let managersCache: Manager[] = [];
 
-const LEGACY_FAKE_MANAGER_IDS = new Set(["mgr-awa", "mgr-jean", "mgr-nadege"]);
-
 export function setManagersCache(list: Manager[]) {
   managersCache = list;
   MANAGERS.length = 0;
@@ -476,8 +493,17 @@ export function managerName(id: string) {
   if (!id?.trim()) return "—";
   const hit = managersCache.find((m) => m.id === id);
   if (hit) return hit.name;
-  if (LEGACY_FAKE_MANAGER_IDS.has(id)) return "Ancien manager (à réassigner)";
   return "Collaborateur";
+}
+
+/**
+ * Porteurs de portefeuille (objectifs, budget) : les managers désignés dans
+ * Équipe ; tant qu’aucun ne l’est, tous sauf la direction (super admins).
+ */
+export function portfolioManagers(managers: Manager[]): Manager[] {
+  const designated = managers.filter((m) => m.role === "manager");
+  if (designated.length > 0) return designated;
+  return managers.filter((m) => m.role !== "direction");
 }
 
 export function weightedAmount(o: { amount: number; probability: number }) {
@@ -518,21 +544,51 @@ export type ProspectionData = {
   notifications: CrmNotification[];
   libraryItems: LibraryItem[];
   referentials: ReferentialExtra[];
-  weekChecks: WeekCheck[];
 };
 
-export function computeKpis(data: ProspectionData) {
-  const { companies, opportunities, activities, expenses, leads } = data;
+export type KpiPeriod = { from?: string; to?: string };
+
+const CONTACT_KINDS: ActivityKind[] = ["appel", "email", "visite"];
+
+function ratio(num: number, den: number) {
+  return den > 0 ? num / den : 0;
+}
+
+/**
+ * Indicateurs du cahier des charges (§6). Avec une période (dates AAAA-MM-JJ
+ * incluses), l’effort, les résultats datés (qualification, proposition,
+ * signature) et les dépenses sont limités à cette période ; le pipeline en
+ * cours reste un instantané.
+ */
+export function computeKpis(data: ProspectionData, period: KpiPeriod = {}) {
+  const { companies, opportunities, leads } = data;
+  const inPeriod = (d?: string) =>
+    Boolean(d) && (!period.from || d! >= period.from) && (!period.to || d! <= period.to);
+  const dated = Boolean(period.from || period.to);
+  const activities = dated ? data.activities.filter((a) => inPeriod(a.at)) : data.activities;
+  const expenses = dated ? data.expenses.filter((e) => inPeriod(e.at)) : data.expenses;
+
   const clients = companies.filter((c) => c.kind === "client");
   const prospects = companies.filter((c) => c.kind === "prospect");
   const active = opportunities.filter((o) => ACTIVE_STAGES.includes(o.stage));
-  const won = opportunities.filter((o) => o.stage === "gagne");
+  const won = opportunities.filter(
+    (o) => o.stage === "gagne" && (!dated || inPeriod(o.wonAt)),
+  );
+  const proposals = opportunities.filter((o) =>
+    dated ? inPeriod(o.proposalAt) : Boolean(o.proposalAt),
+  );
+  const qualified = opportunities.filter((o) =>
+    dated ? inPeriod(o.qualifiedAt) : Boolean(o.qualifiedAt),
+  );
   const signedCa = won.reduce((s, o) => s + o.amount, 0);
   const pipeline = active.reduce((s, o) => s + o.amount, 0);
   const weighted = active.reduce((s, o) => s + weightedAmount(o), 0);
   const spent = expenses.reduce((s, e) => s + e.amount, 0);
-  const rdvDone = activities.filter((a) => a.kind === "rdv" && a.status === "terminee").length;
-  const newWon = won.filter((o) => o.source === "nouveau").length;
+  const done = activities.filter((a) => a.status === "terminee");
+  const rdvDone = done.filter((a) => a.kind === "rdv").length;
+  const contacts = new Set(
+    done.filter((a) => CONTACT_KINDS.includes(a.kind)).map((a) => a.companyId),
+  ).size;
   const extraWon = won.filter((o) => o.source !== "nouveau");
   const counselPipe = active.filter((o) => o.line !== "formation");
   const counselWon = won.filter((o) => o.line !== "formation");
@@ -541,13 +597,32 @@ export function computeKpis(data: ProspectionData) {
     clients.length === 0
       ? 0
       : clients.reduce((s, c) => s + c.servicesBought.length, 0) / clients.length;
+
+  // Revue du portefeuille : client dont les services achetés ou besoins visés sont renseignés.
+  const reviewed = clients.filter(
+    (c) => c.servicesBought.length > 0 || c.targetLines.length > 0,
+  ).length;
+
+  // Ventes croisées : clients formation ayant reçu une proposition hors formation.
+  const trainingClientIds = new Set(
+    companies
+      .filter((c) => c.servicesBought.includes("formation") || c.source === "client_formation")
+      .map((c) => c.id),
+  );
+  const crossProposals = proposals.filter(
+    (o) => o.line !== "formation" && trainingClientIds.has(o.companyId),
+  );
+  const crossWon = won.filter(
+    (o) => o.line !== "formation" && trainingClientIds.has(o.companyId),
+  );
+
   const today = new Date().toISOString().slice(0, 10);
   const overdueActions = opportunities.filter(
-    (o) => ACTIVE_STAGES.includes(o.stage) && o.nextActionOn < today,
+    (o) => ACTIVE_STAGES.includes(o.stage) && o.nextActionOn && o.nextActionOn < today,
   );
   const staleStrategic = clients.filter((c) => {
     if (!c.strategic) return false;
-    const last = activities
+    const last = data.activities
       .filter((a) => a.companyId === c.id)
       .map((a) => a.at)
       .sort()
@@ -568,39 +643,78 @@ export function computeKpis(data: ProspectionData) {
       .filter((o) => o.stage === "negotiation" || o.stage === "decision")
       .reduce((s, o) => s + o.amount, 0),
     signatures: won.length,
+    qualified: qualified.length,
+    contacts,
+    proposals: proposals.length,
+    proposalsAmount: proposals.reduce((s, o) => s + o.amount, 0),
     spent,
     budgetCap:
       (data.budgetSettings?.monthlyBudgetPerManager ?? DEFAULT_MONTHLY_BUDGET) *
-      Math.max(1, data.managers?.length || managersCache.length || 1),
+      Math.max(1, portfolioManagers(data.managers?.length ? data.managers : managersCache).length),
     rdvDone,
     calls: activities.filter((a) => a.kind === "appel").length,
     emails: activities.filter((a) => a.kind === "email").length,
     visits: activities.filter((a) => a.kind === "visite").length,
     events: activities.filter((a) => a.kind === "evenement").length,
-    costPerRdv: rdvDone ? spent / rdvDone : 0,
-    cac: newWon ? spent / newWon : 0,
-    roi: spent ? ((signedCa - spent) / spent) * 100 : 0,
-    counselPipeShare: pipeline
-      ? counselPipe.reduce((s, o) => s + o.amount, 0) / pipeline
-      : 0,
-    counselSignShare: won.length ? counselWon.length / won.length : 0,
+    /** Taux de transformation (§6). */
+    rdvPerContact: ratio(rdvDone, contacts),
+    proposalPerRdv: ratio(proposals.length, rdvDone),
+    signaturePerProposal: ratio(won.length, proposals.length),
+    costPerRdv: ratio(spent, rdvDone),
+    /** Coût d’acquisition = dépenses / missions signées. */
+    cac: ratio(spent, won.length),
+    /** Retour sur investissement = honoraires signés / dépenses (multiplicateur). */
+    roi: ratio(signedCa, spent),
+    counselPipeShare: ratio(
+      counselPipe.reduce((s, o) => s + o.amount, 0),
+      pipeline,
+    ),
+    counselSignShare: ratio(counselWon.length, won.length),
     extraSignedCa: extraWon.reduce((s, o) => s + o.amount, 0),
     avgLines,
+    reviewRate: ratio(reviewed, clients.length),
+    crossSellProposals: new Set(crossProposals.map((o) => o.companyId)).size,
+    crossSellWon: crossWon.length,
     pgCount: pg.length,
     leads: leads.length,
     leadsConverted: leads.filter((l) => l.status === "convertie").length,
     overdueActions,
     staleStrategic,
-    pendingApprovals: expenses.filter((e) => e.approval === "pending"),
+    pendingApprovals: data.expenses.filter((e) => e.approval === "pending"),
   };
 }
 
+/**
+ * Réalisé d’un objectif. Avec `month` (AAAA-MM) : réalisé du mois, daté par
+ * la création (qualifiés), les actions terminées (contacts, RDV), le passage
+ * en proposition et la signature.
+ */
 export function realizedForMetric(
   data: ProspectionData,
   metric: Objective["metric"],
   managerId?: string,
+  month?: string,
 ) {
   const ops = data.opportunities.filter((o) => !managerId || o.ownerId === managerId);
+  if (month) {
+    const inMonth = (d?: string) => Boolean(d && d.startsWith(month));
+    const acts = data.activities.filter(
+      (a) =>
+        a.status === "terminee" && inMonth(a.at) && (!managerId || a.ownerId === managerId),
+    );
+    // Prospects qualifiés = passés à l’étape 2 (qualification) dans le mois.
+    if (metric === "qualifies") return ops.filter((o) => inMonth(o.qualifiedAt)).length;
+    if (metric === "contacts") {
+      return new Set(
+        acts
+          .filter((a) => a.kind === "appel" || a.kind === "email" || a.kind === "visite")
+          .map((a) => a.companyId),
+      ).size;
+    }
+    if (metric === "rdv") return acts.filter((a) => a.kind === "rdv").length;
+    if (metric === "propositions") return ops.filter((o) => inMonth(o.proposalAt)).length;
+    return ops.filter((o) => inMonth(o.wonAt)).length;
+  }
   if (metric === "qualifies") {
     return ops.filter((o) => o.stage !== "perdu").length;
   }
@@ -627,7 +741,7 @@ export function realizedForMetric(
   return ops.filter((o) => o.stage === "gagne").length;
 }
 
-export function createProspectionDemoSeed(): ProspectionData {
+export function createEmptyProspectionData(): ProspectionData {
   /** État vide — hydraté depuis la BDD (objectifs / checklist seedés côté serveur). */
   return {
     companies: [],
@@ -643,7 +757,6 @@ export function createProspectionDemoSeed(): ProspectionData {
     notifications: [],
     libraryItems: [],
     referentials: [],
-    weekChecks: [],
   };
 }
 

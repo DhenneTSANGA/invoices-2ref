@@ -1,7 +1,8 @@
 import { Link, useNavigate, useRouteContext } from "@tanstack/react-router";
 import { Logo } from "@/components/common/Logo";
 import { SpaceSwitcher } from "./SpaceSwitcher";
-import { Bell, Moon, Search, Sun, Plus, ChevronDown } from "lucide-react";
+import { Bell, Moon, Search, Sun, Plus, ChevronDown, Megaphone } from "lucide-react";
+import { ReportLeadDialog } from "@/components/leads/ReportLeadDialog";
 import { useCallback, useRef, useState } from "react";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { CommandPalette } from "./CommandPalette";
@@ -24,6 +25,7 @@ export function AppTopbar() {
   const unreadList = notifications.filter((n) => !n.read);
   const unread = unreadList.length;
   const [openCmd, setOpenCmd] = useState(false);
+  const [leadOpen, setLeadOpen] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const bellRef = useRef<HTMLDivElement>(null);
@@ -72,6 +74,7 @@ export function AppTopbar() {
 
   return (
     <>
+      <ReportLeadDialog open={leadOpen} onOpenChange={setLeadOpen} />
       <header className="glass-topbar sticky top-0 z-30 flex h-16 min-w-0 items-center gap-2 overflow-x-clip px-3 sm:h-[4.5rem] sm:gap-3 sm:px-4 md:px-6">
         <MobileNav />
         <Logo
@@ -99,6 +102,17 @@ export function AppTopbar() {
           >
             <Plus className="h-4 w-4" /> Nouvelle facture
           </Link>
+
+          <button
+            type="button"
+            onClick={() => setLeadOpen(true)}
+            className="flex h-10 items-center justify-center gap-2 rounded-2xl border border-border/60 bg-surface/70 px-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+            aria-label="Signaler une piste commerciale"
+            title="Signaler une piste commerciale"
+          >
+            <Megaphone className="h-4 w-4" />
+            <span className="hidden xl:inline">Signaler une piste</span>
+          </button>
 
           <button
             type="button"

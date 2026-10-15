@@ -10,10 +10,10 @@ import {
   NextActionRow,
 } from "@/components/prospection/CrmCards";
 import { CRM_PRIMARY_BTN, FilterChip } from "@/components/prospection/CrmUi";
-import { SITE_LABELS, managerName } from "@/lib/prospection-demo";
+import { SITE_LABELS, managerName } from "@/lib/prospection-model";
 import { currency, shortDate } from "@/lib/format";
 import { LineBadge } from "@/components/prospection/ProspectionBadges";
-import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
+import { useProspectionStore } from "@/store/useProspectionStore";
 import { useProspectionCompanies } from "@/hooks/use-prospection-companies";
 
 export const Route = createFileRoute("/prospection/clients/")({
@@ -23,9 +23,9 @@ export const Route = createFileRoute("/prospection/clients/")({
 
 function CrmClientsPage() {
   const { companies, isLoading } = useProspectionCompanies();
-  const contacts = useProspectionDemoStore((s) => s.contacts);
-  const opportunities = useProspectionDemoStore((s) => s.opportunities);
-  const activities = useProspectionDemoStore((s) => s.activities);
+  const contacts = useProspectionStore((s) => s.contacts);
+  const opportunities = useProspectionStore((s) => s.opportunities);
+  const activities = useProspectionStore((s) => s.activities);
   const [q, setQ] = useState("");
   const [strategic, setStrategic] = useState(false);
 

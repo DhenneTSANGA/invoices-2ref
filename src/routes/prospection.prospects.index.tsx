@@ -21,8 +21,8 @@ import {
   managerName,
   type ServiceLine,
   type Site,
-} from "@/lib/prospection-demo";
-import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
+} from "@/lib/prospection-model";
+import { useProspectionStore } from "@/store/useProspectionStore";
 import { useProspectionCompanies } from "@/hooks/use-prospection-companies";
 
 export const Route = createFileRoute("/prospection/prospects/")({
@@ -32,10 +32,10 @@ export const Route = createFileRoute("/prospection/prospects/")({
 
 function ProspectsPage() {
   const { companies } = useProspectionCompanies();
-  const managers = useProspectionDemoStore((s) => s.managers);
-  const contacts = useProspectionDemoStore((s) => s.contacts);
-  const opportunities = useProspectionDemoStore((s) => s.opportunities);
-  const activities = useProspectionDemoStore((s) => s.activities);
+  const managers = useProspectionStore((s) => s.managers);
+  const contacts = useProspectionStore((s) => s.contacts);
+  const opportunities = useProspectionStore((s) => s.opportunities);
+  const activities = useProspectionStore((s) => s.activities);
   const [q, setQ] = useState("");
   const [siteFilter, setSiteFilter] = useState<"all" | Site>("all");
   const [managerFilter, setManagerFilter] = useState("all");

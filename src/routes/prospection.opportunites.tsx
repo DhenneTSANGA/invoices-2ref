@@ -30,10 +30,10 @@ import {
   weightedAmount,
   type Opportunity,
   type PipelineStage,
-} from "@/lib/prospection-demo";
+} from "@/lib/prospection-model";
 import { currency, shortDate } from "@/lib/format";
 import { readFocusSearch, useSpotlight } from "@/hooks/use-spotlight";
-import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
+import { useProspectionStore } from "@/store/useProspectionStore";
 import { useProspectionCompanies } from "@/hooks/use-prospection-companies";
 
 export const Route = createFileRoute("/prospection/opportunites")({
@@ -56,8 +56,8 @@ function OpportunitiesPage() {
     });
   });
   const { companies } = useProspectionCompanies();
-  const opportunities = useProspectionDemoStore((s) => s.opportunities);
-  const deleteOpportunity = useProspectionDemoStore((s) => s.deleteOpportunity);
+  const opportunities = useProspectionStore((s) => s.opportunities);
+  const deleteOpportunity = useProspectionStore((s) => s.deleteOpportunity);
   const [stage, setFilter] = useState<"all" | PipelineStage>("all");
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -176,7 +176,7 @@ function OpportunitiesPage() {
                       className={`${CRM_SECONDARY_BTN} !h-8 !px-3 !text-xs`}
                     >
                       <CheckCircle2 className="h-3.5 w-3.5" />
-                      {o.stage === "qualification"
+                      {o.stage === "identification" || o.stage === "qualification"
                         ? `Passer en ${STAGE_LABELS[next]}`
                         : `Valider ${STAGE_LABELS[o.stage]}`}
                     </button>

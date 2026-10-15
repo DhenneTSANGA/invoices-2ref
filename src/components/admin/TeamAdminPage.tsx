@@ -27,8 +27,16 @@ import {
   reviewAdminRequest,
   setStaffAdminRole,
   setStaffPole,
+  setStaffCrmProfile,
   setStaffSpacesAllowed,
 } from "@/lib/admin.functions";
+import {
+  CRM_PROFILE_LABELS,
+  CRM_PROFILES,
+  CRM_SERVICE_LINES,
+  type CrmProfile,
+} from "@/lib/prospection-access";
+import { SERVICE_LINE_LABELS, type ServiceLine } from "@/lib/prospection-model";
 import { createStaffWithPasswordSchema } from "@/lib/auth-schemas";
 import {
   canInviteStaff,
@@ -117,6 +125,22 @@ export function TeamAdminPage() {
         void qc.invalidateQueries({ queryKey: sessionKey });
       }
       toast.success("Espace mis à jour");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const setCrmProfile = useMutation({
+    mutationFn: (data: {
+      staffId: string;
+      crmProfile: CrmProfile | null;
+      crmLines: ServiceLine[];
+    }) => setStaffCrmProfile({ data }),
+    onSuccess: (_res, vars) => {
+      void qc.invalidateQueries({ queryKey: staffKey });
+      if (vars.staffId === session?.staff.id) {
+        void qc.invalidateQueries({ queryKey: sessionKey });
+      }
+      toast.success("Profil Prospection mis à jour");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -362,6 +386,19 @@ export function TeamAdminPage() {
                         <option value="both">{SPACES_ALLOWED_LABELS.both}</option>
                       </select>
                     )}
+                    {isSuper && s.role === "admin" && s.spacesAllowed !== "facturation" ? (
+                      <CrmProfileEditor
+                        name={`${s.firstName} ${s.lastName}`}
+                        profile={s.crmProfile ?? null}
+                        lines={s.crmLines ?? []}
+                        disabled={
+                          setCrmProfile.isPending && setCrmProfile.variables?.staffId === s.id
+                        }
+                        onChange={(crmProfile, crmLines) =>
+                          setCrmProfile.mutate({ staffId: s.id, crmProfile, crmLines })
+                        }
+                      />
+                    ) : null}
                   </td>
                   <td className="px-2 py-2.5">
                     {s.role === "super_admin" ||
@@ -482,6 +519,14 @@ export function TeamAdminPage() {
   );
 }
 
+/** Ce que chaque profil donne dans l’espace Prospection (cahier des charges §3). */
+const CRM_PROFILE_HINTS: Record<CrmProfile, string> = {
+  manager: "Saisit ses prospects, actions, RDV, propositions et dépenses ; ne voit que son portefeuille.",
+  chef_service: "Lit les opportunités de ses lignes de service et signale des pistes.",
+  direction: "Voit tout, fixe les objectifs et valide les dépenses ; reçoit le rapport du lundi.",
+  admin: "Paramétrage et accès complet à la Prospection.",
+};
+
 function CreateStaffCard() {
   const qc = useQueryClient();
   const [showPassword, setShowPassword] = useState(false);
@@ -505,6 +550,8 @@ function CreateStaffCard() {
     role: "member" as "member" | "admin",
     pole: DEFAULT_CLIENT_POLE as ClientPole,
     spacesAllowed: "facturation" as "facturation" | "prospection",
+    crmProfile: null as CrmProfile | null,
+    crmLines: [] as ServiceLine[],
     password: "",
     confirmPassword: "",
   });
@@ -544,6 +591,8 @@ function CreateStaffCard() {
         role: "member",
         pole: DEFAULT_CLIENT_POLE,
         spacesAllowed: "facturation",
+        crmProfile: null,
+        crmLines: [],
         password: "",
         confirmPassword: "",
       });
@@ -643,6 +692,8 @@ function CreateStaffCard() {
                   ...f,
                   spacesAllowed,
                   role: spacesAllowed === "prospection" ? "admin" : f.role,
+                  crmProfile: spacesAllowed === "prospection" ? f.crmProfile : null,
+                  crmLines: spacesAllowed === "prospection" ? f.crmLines : [],
                 }));
               }}
               className="w-full rounded-2xl border border-border/60 bg-surface/70 px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25"
@@ -683,10 +734,72 @@ function CreateStaffCard() {
               </p>
             </div>
           ) : (
-            <p className="sm:col-span-2 text-[11px] text-muted-foreground">
-              Compte Prospection : rôle Administrateur obligatoire. Redirection
-              directe vers le CRM après connexion — pas d’accès Facturation.
-            </p>
+            <div className="sm:col-span-2 space-y-3">
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Profil Prospection <span className="text-danger">*</span>
+                </span>
+                <select
+                  value={form.crmProfile ?? ""}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      crmProfile: (e.target.value || null) as CrmProfile | null,
+                    }))
+                  }
+                  className="w-full rounded-2xl border border-border/60 bg-surface/70 px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25"
+                >
+                  <option value="">Choisir…</option>
+                  {CRM_PROFILES.map((p) => (
+                    <option key={p} value={p}>
+                      {CRM_PROFILE_LABELS[p]}
+                    </option>
+                  ))}
+                </select>
+                <span className="mt-1 block text-[11px] text-muted-foreground">
+                  {form.crmProfile ? CRM_PROFILE_HINTS[form.crmProfile] : "Détermine ce que la personne voit et peut faire dans la Prospection."}
+                </span>
+              </label>
+              {form.crmProfile === "manager" || form.crmProfile === "chef_service" ? (
+                <div>
+                  <span className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Lignes de service couvertes <span className="text-danger">*</span>
+                  </span>
+                  <div className="flex flex-wrap gap-2" role="group" aria-label="Lignes de service couvertes">
+                    {CRM_SERVICE_LINES.map((line) => {
+                      const on = form.crmLines.includes(line);
+                      return (
+                        <button
+                          key={line}
+                          type="button"
+                          aria-pressed={on}
+                          onClick={() =>
+                            setForm((f) => ({
+                              ...f,
+                              crmLines: on
+                                ? f.crmLines.filter((l) => l !== line)
+                                : [...f.crmLines, line],
+                            }))
+                          }
+                          className={cn(
+                            "rounded-2xl border px-3 py-1.5 text-sm font-medium transition",
+                            on
+                              ? "border-primary/50 bg-primary/10 text-primary"
+                              : "border-border/60 bg-surface/70 text-muted-foreground hover:bg-muted",
+                          )}
+                        >
+                          {SERVICE_LINE_LABELS[line]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+              <p className="text-[11px] text-muted-foreground">
+                Compte Prospection : rôle Administrateur obligatoire. Redirection directe vers le
+                CRM après connexion — pas d’accès Facturation.
+              </p>
+            </div>
           )}
           <PasswordField
             label="Mot de passe"
@@ -1023,5 +1136,71 @@ function ActionButton({
       <Icon className="h-3.5 w-3.5" />
       {children}
     </button>
+  );
+}
+
+/** Profil Prospection (cahier des charges §3) + lignes couvertes par un manager / chef de service. */
+function CrmProfileEditor({
+  name,
+  profile,
+  lines,
+  disabled,
+  onChange,
+}: {
+  name: string;
+  profile: CrmProfile | null;
+  lines: ServiceLine[];
+  disabled?: boolean;
+  onChange: (profile: CrmProfile | null, lines: ServiceLine[]) => void;
+}) {
+  const withLines = profile === "manager" || profile === "chef_service";
+  return (
+    <div className="mt-1.5 space-y-1.5">
+      <select
+        aria-label={`Profil Prospection de ${name}`}
+        value={profile ?? ""}
+        disabled={disabled}
+        onChange={(e) =>
+          onChange((e.target.value || null) as CrmProfile | null, lines)
+        }
+        className="max-w-[11rem] rounded-xl border border-border/60 bg-surface px-2 py-1.5 text-xs font-medium focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+      >
+        <option value="">Profil : administrateur (défaut)</option>
+        {CRM_PROFILES.map((p) => (
+          <option key={p} value={p}>
+            {CRM_PROFILE_LABELS[p]}
+          </option>
+        ))}
+      </select>
+      {withLines ? (
+        <div className="flex max-w-[14rem] flex-wrap gap-1" aria-label={`Lignes de ${name}`}>
+          {CRM_SERVICE_LINES.map((line) => {
+            const on = lines.includes(line);
+            return (
+              <button
+                key={line}
+                type="button"
+                disabled={disabled}
+                aria-pressed={on}
+                onClick={() =>
+                  onChange(
+                    profile,
+                    on ? lines.filter((l) => l !== line) : [...lines, line],
+                  )
+                }
+                className={cn(
+                  "rounded-full border px-2 py-0.5 text-[10px] font-semibold transition",
+                  on
+                    ? "border-primary/40 bg-primary/10 text-primary"
+                    : "border-border/60 text-muted-foreground hover:bg-muted",
+                )}
+              >
+                {SERVICE_LINE_LABELS[line]}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
   );
 }

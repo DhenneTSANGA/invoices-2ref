@@ -46,10 +46,10 @@ import {
   type Lead,
   type Opportunity,
   type ServiceLine,
-} from "@/lib/prospection-demo";
+} from "@/lib/prospection-model";
 import { currency, shortDate } from "@/lib/format";
 import { readFocusSearch, useSpotlight } from "@/hooks/use-spotlight";
-import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
+import { useProspectionStore } from "@/store/useProspectionStore";
 import { useProspectionCompanies } from "@/hooks/use-prospection-companies";
 
 export const Route = createFileRoute("/prospection/clients/$id")({
@@ -71,11 +71,11 @@ function CrmClientDetailPage() {
     });
   });
   const { companies } = useProspectionCompanies();
-  const contacts = useProspectionDemoStore((s) => s.contacts);
-  const opportunities = useProspectionDemoStore((s) => s.opportunities);
-  const activities = useProspectionDemoStore((s) => s.activities);
-  const leads = useProspectionDemoStore((s) => s.leads);
-  const updateCompany = useProspectionDemoStore((s) => s.updateCompany);
+  const contacts = useProspectionStore((s) => s.contacts);
+  const opportunities = useProspectionStore((s) => s.opportunities);
+  const activities = useProspectionStore((s) => s.activities);
+  const leads = useProspectionStore((s) => s.leads);
+  const updateCompany = useProspectionStore((s) => s.updateCompany);
   const [editOpen, setEditOpen] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
   const [oppOpen, setOppOpen] = useState(false);

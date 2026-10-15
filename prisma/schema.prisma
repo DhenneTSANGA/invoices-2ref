@@ -170,6 +170,10 @@ model StaffMember {
   pole      ClientPole?
   /// Facturation / Prospection / les deux (super_admin = both).
   spacesAllowed StaffSpacesAllowed @default(facturation)
+  /// Profil espace Prospection : direction | manager | chef_service | admin (null = selon le rôle).
+  crmProfile    String?
+  /// Lignes de service couvertes (manager / chef de service).
+  crmLines      CrmServiceLine[] @default([])
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
@@ -678,6 +682,7 @@ enum CrmOpportunitySource {
 }
 
 enum CrmPipelineStage {
+  identification
   qualification
   premier_contact
   rendez_vous
@@ -793,6 +798,8 @@ model CrmLead {
   comment     String         @default("")
   ownerId     String
   author      String         @default("")
+  /// Collaborateur ayant signalé la piste (tout le cabinet peut en remonter).
+  authorId    String?
   status      CrmLeadStatus  @default(nouvelle)
   at          DateTime       @default(now())
   createdAt   DateTime       @default(now())
@@ -805,6 +812,7 @@ model CrmLead {
   @@index([ownerId])
   @@index([companyId])
   @@index([at])
+  @@index([authorId])
   @@map("crm_leads")
 }
 
@@ -827,6 +835,12 @@ model CrmOpportunity {
   reviveOn     DateTime?             @db.Date
   /// Dernier changement d'étape (rappels d'échéance J+2).
   stageChangedAt DateTime?
+  /// Passage en qualification (étape 2) — indicateur « prospects qualifiés ».
+  qualifiedAt  DateTime?
+  /// Premier passage en proposition (réalisé mensuel, rapport hebdo).
+  proposalAt   DateTime?
+  /// Date de signature (étape gagné).
+  wonAt        DateTime?
   createdAt    DateTime              @default(now())
   updatedAt    DateTime              @updatedAt
 
@@ -941,6 +955,9 @@ model CrmExpense {
   opportunityId String?
   activityId    String?
   receipt       Boolean            @default(false)
+  /// Chemin du justificatif photo dans le bucket privé « crm-receipts ».
+  receiptPath   String?
+  receiptName   String?
   approval      CrmExpenseApproval @default(none)
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
@@ -961,11 +978,14 @@ model CrmObjective {
   managerId String
   metric    CrmObjectiveMetric
   target    Int                @default(0)
+  /// Mois de l’objectif (AAAA-MM).
+  month     String
   createdAt DateTime           @default(now())
   updatedAt DateTime           @updatedAt
 
-  @@unique([managerId, metric])
+  @@unique([managerId, metric, month])
   @@index([managerId])
+  @@index([month])
   @@map("crm_objectives")
 }
 
@@ -995,18 +1015,15 @@ model CrmReferential {
   @@map("crm_referentials")
 }
 
-model CrmWeekCheck {
-  id        String   @id @default(cuid())
-  /// Clé stable (ex. wk-1) pour le seed / sync.
-  key       String   @unique
-  label     String
-  done      Boolean  @default(false)
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+/** Rapport de synthèse hebdomadaire envoyé à la direction (idempotence par semaine). */
+model CrmWeeklyReport {
+  id         String   @id @default(cuid())
+  /// Lundi de la semaine couverte (AAAA-MM-JJ).
+  weekKey    String   @unique
+  recipients String[] @default([])
+  sentAt     DateTime @default(now())
 
-  @@index([sortOrder])
-  @@map("crm_week_checks")
+  @@map("crm_weekly_reports")
 }
 
 /** Paramètres budget CRM (global, une seule ligne). */

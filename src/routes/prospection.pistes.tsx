@@ -13,10 +13,10 @@ import {
   managerName,
   type Lead,
   type LeadStatus,
-} from "@/lib/prospection-demo";
+} from "@/lib/prospection-model";
 import { canManagePipeline, crmRoleFromStaff } from "@/lib/prospection-access";
 import { shortDate } from "@/lib/format";
-import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
+import { useProspectionStore } from "@/store/useProspectionStore";
 
 export const Route = createFileRoute("/prospection/pistes")({
   head: () => ({ meta: [{ title: "Pistes internes — Prospection" }] }),
@@ -27,12 +27,12 @@ const MANAGER_STATUSES: LeadStatus[] = ["en_cours", "qualifiee", "rejetee", "rep
 
 function LeadsPage() {
   const { session } = useRouteContext({ from: "/prospection" });
-  const crm = crmRoleFromStaff(session.staff.role);
+  const crm = crmRoleFromStaff(session.staff);
   const canQualify = canManagePipeline(crm);
-  const leads = useProspectionDemoStore((s) => s.leads);
-  const setLeadStatus = useProspectionDemoStore((s) => s.setLeadStatus);
-  const convertLead = useProspectionDemoStore((s) => s.convertLead);
-  const deleteLead = useProspectionDemoStore((s) => s.deleteLead);
+  const leads = useProspectionStore((s) => s.leads);
+  const setLeadStatus = useProspectionStore((s) => s.setLeadStatus);
+  const convertLead = useProspectionStore((s) => s.convertLead);
+  const deleteLead = useProspectionStore((s) => s.deleteLead);
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Lead | null>(null);

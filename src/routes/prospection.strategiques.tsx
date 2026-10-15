@@ -6,9 +6,9 @@ import { AccountPlanDialog, NewActivityDialog, NewOpportunityDialog } from "@/co
 import { CrmCard, CrmCardGrid, EntityMark, MetricTile } from "@/components/prospection/CrmCards";
 import { CRM_PRIMARY_BTN, CRM_SECONDARY_BTN, CrmSearchEmpty, CrmSearchField, matchesSearch } from "@/components/prospection/CrmUi";
 import { LineBadge } from "@/components/prospection/ProspectionBadges";
-import { SERVICE_LINE_LABELS, managerName, type Company } from "@/lib/prospection-demo";
+import { SERVICE_LINE_LABELS, managerName, type Company } from "@/lib/prospection-model";
 import { currency } from "@/lib/format";
-import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
+import { useProspectionStore } from "@/store/useProspectionStore";
 import { useProspectionCompanies } from "@/hooks/use-prospection-companies";
 
 export const Route = createFileRoute("/prospection/strategiques")({

@@ -15,8 +15,8 @@ import {
   STAGE_LABELS,
   type ReferentialExtra,
   type ReferentialKind,
-} from "@/lib/prospection-demo";
-import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
+} from "@/lib/prospection-model";
+import { useProspectionStore } from "@/store/useProspectionStore";
 
 export const Route = createFileRoute("/prospection/admin")({
   head: () => ({ meta: [{ title: "Administration — Prospection" }] }),
@@ -24,8 +24,8 @@ export const Route = createFileRoute("/prospection/admin")({
 });
 
 function AdminPage() {
-  const extras = useProspectionDemoStore((s) => s.referentials);
-  const deleteReferential = useProspectionDemoStore((s) => s.deleteReferential);
+  const extras = useProspectionStore((s) => s.referentials);
+  const deleteReferential = useProspectionStore((s) => s.deleteReferential);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<ReferentialExtra | null>(null);
 
@@ -43,11 +43,11 @@ function AdminPage() {
     <div>
       <PageHeader
         title="Administration"
-        subtitle="Référentiels CRM — ajout en base. L’équipe se gère dans l’onglet Équipe."
+        subtitle="Référentiels CRM. Les secteurs sont personnalisables ; les autres listes suivent le cahier des charges. L’équipe se gère dans l’onglet Équipe."
         actions={
           <button type="button" onClick={() => setOpen(true)} className={CRM_PRIMARY_BTN}>
             <Plus className="h-4 w-4" />
-            Ajouter au référentiel
+            Ajouter un secteur
           </button>
         }
       />
@@ -57,36 +57,28 @@ function AdminPage() {
           icon={Briefcase}
           tone="bg-violet-500/15 text-violet-700 dark:text-violet-300"
           builtins={[...Object.values(SERVICE_LINE_LABELS)]}
-          extras={extrasOf("line")}
-          onRemove={removeExtra}
-          onEdit={setEditing}
+          fixed
         />
         <Block
           title="Étapes pipeline"
           icon={Columns3}
           tone="bg-sky-500/15 text-sky-800 dark:text-sky-300"
           builtins={[...Object.values(STAGE_LABELS)]}
-          extras={extrasOf("stage")}
-          onRemove={removeExtra}
-          onEdit={setEditing}
+          fixed
         />
         <Block
           title="Implantations"
           icon={MapPin}
           tone="bg-emerald-500/15 text-emerald-800 dark:text-emerald-300"
           builtins={[...Object.values(SITE_LABELS)]}
-          extras={extrasOf("site")}
-          onRemove={removeExtra}
-          onEdit={setEditing}
+          fixed
         />
         <Block
           title="Catégories de dépenses"
           icon={Wallet}
           tone="bg-amber-500/15 text-amber-800 dark:text-amber-300"
           builtins={[...Object.values(EXPENSE_LABELS)]}
-          extras={extrasOf("expense")}
-          onRemove={removeExtra}
-          onEdit={setEditing}
+          fixed
         />
         <Block
           title="Secteurs"
@@ -99,8 +91,8 @@ function AdminPage() {
         />
       </CrmCardGrid>
       <p className="mt-4 text-sm text-muted-foreground">
-        Prospection réservée aux administrateurs : super-admin → direction CRM,
-        admin → admin CRM (pipeline, budget, validations).
+        Prospection réservée aux administrateurs. Les profils (manager, chef de service,
+        direction, administrateur) et les lignes couvertes se règlent dans l’onglet Équipe.
       </p>
       <AddReferentialDialog open={open} onOpenChange={setOpen} />
       <AddReferentialDialog
@@ -117,19 +109,22 @@ function AdminPage() {
 function Block({
   title,
   builtins,
-  extras,
+  extras = [],
   icon,
   tone,
+  fixed,
   onRemove,
   onEdit,
 }: {
   title: string;
   builtins: string[];
-  extras: ReferentialExtra[];
+  extras?: ReferentialExtra[];
   icon: LucideIcon;
   tone: string;
-  onRemove: (id: string, label: string) => void;
-  onEdit: (row: ReferentialExtra) => void;
+  /** Liste figée en base : affichée sans ajout possible. */
+  fixed?: boolean;
+  onRemove?: (id: string, label: string) => void;
+  onEdit?: (row: ReferentialExtra) => void;
 }) {
   const total = builtins.length + extras.length;
   return (
@@ -138,7 +133,9 @@ function Block({
         <IconMark icon={icon} tone={tone} />
         <div>
           <h2 className="font-display text-base font-semibold">{title}</h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">{total} valeur(s)</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {total} valeur(s){fixed ? " · liste fixe" : ""}
+          </p>
         </div>
       </div>
       <ul className="mt-4 flex flex-wrap gap-1.5">
@@ -158,7 +155,7 @@ function Block({
             <button
               type="button"
               className="hover:underline"
-              onClick={() => onEdit(e)}
+              onClick={() => onEdit?.(e)}
               title="Modifier"
             >
               {e.label}
@@ -166,7 +163,7 @@ function Block({
             <button
               type="button"
               className="rounded-full px-1 text-[10px] text-muted-foreground hover:bg-danger/15 hover:text-danger"
-              onClick={() => onRemove(e.id, e.label)}
+              onClick={() => onRemove?.(e.id, e.label)}
               aria-label={`Retirer ${e.label}`}
             >
               ×

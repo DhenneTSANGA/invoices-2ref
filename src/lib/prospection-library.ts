@@ -1,4 +1,4 @@
-import type { LibraryDomain, LibraryTerm } from "@/lib/prospection-demo";
+import type { LibraryDomain, LibraryTerm } from "@/lib/prospection-model";
 
 export type HelpLibraryItem = {
   line: LibraryDomain;

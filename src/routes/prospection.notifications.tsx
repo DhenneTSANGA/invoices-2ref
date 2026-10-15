@@ -5,10 +5,10 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { CrmCard, CrmCardGrid } from "@/components/prospection/CrmCards";
 import { EditNotificationDialog } from "@/components/prospection/CrmForms";
-import type { CrmNotification } from "@/lib/prospection-demo";
+import type { CrmNotification } from "@/lib/prospection-model";
 import { CRM_PRIMARY_BTN, FilterChip } from "@/components/prospection/CrmUi";
 import { shortDate } from "@/lib/format";
-import { useProspectionDemoStore } from "@/store/useProspectionDemoStore";
+import { useProspectionStore } from "@/store/useProspectionStore";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/prospection/notifications")({
@@ -17,10 +17,10 @@ export const Route = createFileRoute("/prospection/notifications")({
 });
 
 function NotificationsPage() {
-  const notifications = useProspectionDemoStore((s) => s.notifications);
-  const mark = useProspectionDemoStore((s) => s.markNotificationRead);
-  const markAll = useProspectionDemoStore((s) => s.markAllNotificationsRead);
-  const deleteNotification = useProspectionDemoStore((s) => s.deleteNotification);
+  const notifications = useProspectionStore((s) => s.notifications);
+  const mark = useProspectionStore((s) => s.markNotificationRead);
+  const markAll = useProspectionStore((s) => s.markAllNotificationsRead);
+  const deleteNotification = useProspectionStore((s) => s.deleteNotification);
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [editing, setEditing] = useState<CrmNotification | null>(null);
   const list = unreadOnly ? notifications.filter((n) => !n.read) : notifications;
