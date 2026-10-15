@@ -77,31 +77,40 @@ export const Route = createFileRoute("/api/staff/sync")({
             );
           }
 
+          const existing = await prisma.staffMember.findUnique({
+            where: { id: parsed.data.id },
+          });
+
           // Mode invitation : pas de création libre via cet endpoint
-          if (!isPublicSelfSignupEnabled()) {
-            const existing = await prisma.staffMember.findUnique({
-              where: { id: parsed.data.id },
-            });
-            if (!existing && !isSuperAdminEmail(authUser.email)) {
-              return Response.json(
-                { error: INVITE_ONLY_LOGIN_HINT },
-                { status: 403 },
-              );
-            }
+          if (
+            !isPublicSelfSignupEnabled() &&
+            !existing &&
+            !isSuperAdminEmail(authUser.email)
+          ) {
+            return Response.json(
+              { error: INVITE_ONLY_LOGIN_HINT },
+              { status: 403 },
+            );
           }
 
-          // Empêche l’élévation de privilèges via le body
-          const role =
-            isSuperAdminEmail(authUser.email)
-              ? "super_admin"
-              : parsed.data.role === "super_admin"
-                ? "member"
-                : (parsed.data.role ?? "member");
+          // Le rôle n’est jamais lu dans le body (élévation de privilèges) :
+          // un collaborateur existant garde le rôle et le cabinet attribués
+          // par l’administrateur, sinon la connexion le rétrograde en membre.
+          const role = isSuperAdminEmail(authUser.email)
+            ? "super_admin"
+            : existing && existing.role !== "super_admin"
+              ? existing.role
+              : "member";
 
           const staff = await syncStaffMember({
             ...parsed.data,
             role,
-            cabinet: role === "super_admin" ? null : parsed.data.cabinet,
+            cabinet:
+              role === "super_admin"
+                ? null
+                : existing
+                  ? existing.cabinet
+                  : parsed.data.cabinet,
           });
           return Response.json({ ok: true, staff });
         } catch (err) {

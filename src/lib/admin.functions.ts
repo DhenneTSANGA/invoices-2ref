@@ -185,10 +185,10 @@ export const completeOnboarding = createServerFn({ method: "POST" })
       user = auth.user;
     }
 
+    const existing = await prisma.staffMember.findUnique({
+      where: { id: user.id },
+    });
     if (!isPublicSelfSignupEnabled() && !isSuperAdminEmail(user.email)) {
-      const existing = await prisma.staffMember.findUnique({
-        where: { id: user.id },
-      });
       if (!existing) {
         throw new Error(INVITE_ONLY_LOGIN_HINT);
       }
@@ -205,7 +205,12 @@ export const completeOnboarding = createServerFn({ method: "POST" })
       phone: data.phone?.trim() || null,
       avatarUrl: suggested.avatarUrl,
       cabinet: asSuperAdmin ? null : data.cabinet,
-      role: asSuperAdmin ? "super_admin" : "member",
+      // Ne rétrograde pas un admin déjà attribué par le super administrateur.
+      role: asSuperAdmin
+        ? "super_admin"
+        : existing?.role === "admin"
+          ? "admin"
+          : "member",
     });
 
     if (asSuperAdmin) {
