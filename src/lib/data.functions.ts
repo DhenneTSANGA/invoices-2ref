@@ -59,6 +59,11 @@ import {
   persistDeposit,
   withDeposit,
 } from "@/lib/document-deposit-db";
+import {
+  loadDocumentPeriods,
+  persistDocumentPeriod,
+  withDocumentPeriod,
+} from "@/lib/document-period-db";
 import { persistLineQuantityUnitsForDocument, loadLineQuantityUnits } from "@/lib/document-line-quantity-db";
 import {
   loadClientPoles,
@@ -583,7 +588,7 @@ export const deleteService = createServerFn({ method: "POST" })
 async function mappedDocuments(rows: Parameters<typeof mapDocument>[0][]) {
   const mapped = rows.map(mapDocument);
   const ids = mapped.map((d) => d.id);
-  const [flags, hideZeroFlags, roundingFlags, depositFlags, poles, clientPoles] =
+  const [flags, hideZeroFlags, roundingFlags, depositFlags, poles, clientPoles, periods] =
     await Promise.all([
       loadShowDueMonthOnLines(ids),
       loadHideZeroLineFigures(ids),
@@ -594,6 +599,7 @@ async function mappedDocuments(rows: Parameters<typeof mapDocument>[0][]) {
       }),
       loadDocumentPoles(ids),
       loadClientPoles([...new Set(mapped.map((d) => d.clientId))]),
+      loadDocumentPeriods(ids),
     ]);
   const units = await loadLineQuantityUnits(
     mapped.flatMap((d) => d.items.map((it) => it.id)),
@@ -617,12 +623,15 @@ async function mappedDocuments(rows: Parameters<typeof mapDocument>[0][]) {
   });
   return mapped.map((d) => {
     const withFlags = withClientPole(
-      withDeposit(
-        withTotalRounding(
-          withHideZeroFlag(withDueMonthFlag(d, flags), hideZeroFlags),
-          roundingFlags,
+      withDocumentPeriod(
+        withDeposit(
+          withTotalRounding(
+            withHideZeroFlag(withDueMonthFlag(d, flags), hideZeroFlags),
+            roundingFlags,
+          ),
+          depositFlags,
         ),
-        depositFlags,
+        periods,
       ),
       poles,
     );
@@ -1120,6 +1129,7 @@ async function upsertDocumentHandler(
           updated.id,
           Boolean(data.showDueMonthOnLines),
         );
+        await persistDocumentPeriod(updated.id, data.period);
       }
       if (existing.type === "invoice" || existing.type === "quotation") {
         await persistTotalRounding(updated.id, data.totalRounding ?? 0);
@@ -1227,6 +1237,7 @@ async function upsertDocumentHandler(
         created.id,
         Boolean(data.showDueMonthOnLines),
       );
+      await persistDocumentPeriod(created.id, data.period);
     }
     if (data.type === "invoice" || data.type === "quotation") {
       await persistTotalRounding(created.id, data.totalRounding ?? 0);

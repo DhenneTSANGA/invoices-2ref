@@ -204,6 +204,8 @@ export type Document = {
   totalRounding?: number;
   /** Acompte déjà versé (XAF), déduit du TTC — factures 2R Conseil. */
   deposit?: number;
+  /** Période optionnelle de la facture (« AAAA-MM », null = aucune). */
+  period?: string | null;
   mailMergeCampaignId?: string | null;
   /** Devis */
   validityDays?: number;
