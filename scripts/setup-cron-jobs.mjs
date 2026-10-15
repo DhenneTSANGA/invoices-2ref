@@ -1,8 +1,10 @@
 /**
  * Planifie les tâches automatiques via Supabase (pg_cron + pg_net), quel que
  * soit l’hébergeur de l’application :
- *   - chaque jour à 07:00 (Libreville) : /api/cron/billing
- *     → abonnements, relances de paiement, rappels CRM, rapport du lundi.
+ *   - chaque jour à 07:00 (Libreville) : /api/cron/prospection
+ *     → rappels CRM aux managers + rapport du lundi à la direction.
+ *   Les tâches Facturation (/api/cron/billing : factures d’abonnement et
+ *   relances de paiement aux clients) ne sont PAS planifiées ici.
  *
  * Usage :
  *   node scripts/setup-cron-jobs.mjs --url https://votre-app.exemple.com
@@ -19,7 +21,9 @@ const flag = (name) => {
   return i === -1 ? null : (args[i + 1] ?? null);
 };
 
-const JOB = "2rhub-cron-billing-daily";
+const JOB = "2rhub-cron-prospection-daily";
+/** Ancienne tâche (Facturation incluse) — retirée si elle existe encore. */
+const LEGACY_JOBS = ["2rhub-cron-billing-daily"];
 // 06:00 UTC = 07:00 à Libreville (UTC+1).
 const SCHEDULE = "0 6 * * *";
 
@@ -48,8 +52,11 @@ try {
     );
     console.table(runs.rows);
   } else if (args.includes("--remove")) {
-    await client.query(`SELECT cron.unschedule($1)`, [JOB]);
-    console.log(`Tâche « ${JOB} » supprimée.`);
+    await client.query(
+      `SELECT cron.unschedule(jobname) FROM cron.job WHERE jobname = ANY($1)`,
+      [[JOB, ...LEGACY_JOBS]],
+    );
+    console.log("Tâches planifiées 2R Hub supprimées.");
   } else {
     const url = flag("--url")?.replace(/\/$/, "");
     const secret = process.env.CRON_SECRET?.trim();
@@ -65,17 +72,17 @@ try {
     await client.query(`CREATE EXTENSION IF NOT EXISTS pg_cron`);
     await client.query(`CREATE EXTENSION IF NOT EXISTS pg_net`);
     await client.query(
-      `SELECT cron.unschedule(jobname) FROM cron.job WHERE jobname = $1`,
-      [JOB],
+      `SELECT cron.unschedule(jobname) FROM cron.job WHERE jobname = ANY($1)`,
+      [[JOB, ...LEGACY_JOBS]],
     );
     const command = `SELECT net.http_post(
-      url := ${pg.escapeLiteral(`${url}/api/cron/billing`)},
+      url := ${pg.escapeLiteral(`${url}/api/cron/prospection`)},
       headers := jsonb_build_object('Content-Type', 'application/json', 'x-cron-secret', ${pg.escapeLiteral(secret)}),
       body := '{}'::jsonb,
       timeout_milliseconds := 60000
     )`;
     await client.query(`SELECT cron.schedule($1, $2, $3)`, [JOB, SCHEDULE, command]);
-    console.log(`OK : « ${JOB} » planifiée (${SCHEDULE} UTC) → ${url}/api/cron/billing`);
+    console.log(`OK : « ${JOB} » planifiée (${SCHEDULE} UTC) → ${url}/api/cron/prospection`);
   }
 } catch (e) {
   console.error("FAILED:", e.message);
