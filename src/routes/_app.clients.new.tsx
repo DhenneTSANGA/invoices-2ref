@@ -48,6 +48,7 @@ const empty: Omit<
   cnamgs: "",
   activity: "",
   activityDetail: "",
+  civility: "",
   contactName: "",
   representativeTitle: "",
   email: "",
@@ -280,6 +281,13 @@ function NewClient() {
         </Section>
 
         <Section title="Représentant légal & contact">
+          <Select
+            label="Civilité (pour les e-mails)"
+            value={form.civility}
+            onChange={(v) => setForm({ ...form, civility: v })}
+            options={["Monsieur", "Madame"]}
+            placeholder="Sélectionner…"
+          />
           <Field
             label="Représentant légal"
             value={form.contactName}

@@ -59,6 +59,11 @@ import {
   persistDeposit,
   withDeposit,
 } from "@/lib/document-deposit-db";
+import {
+  loadDocumentPeriods,
+  persistDocumentPeriod,
+  withDocumentPeriod,
+} from "@/lib/document-period-db";
 import { persistLineQuantityUnitsForDocument, loadLineQuantityUnits } from "@/lib/document-line-quantity-db";
 import {
   loadClientPoles,
@@ -279,6 +284,10 @@ export const getClient = createServerFn({ method: "GET" })
     return mapped;
   });
 
+function normalizeCivility(value: string | undefined): string {
+  return value === "Monsieur" || value === "Madame" ? value : "";
+}
+
 export const createClient = createServerFn({ method: "POST" })
   .validator(clientInputSchema)
   .handler(async ({ data }) => {
@@ -297,6 +306,7 @@ export const createClient = createServerFn({ method: "POST" })
         cnamgs: data.cnamgs ?? "",
         activity: data.activity ?? "",
         activityDetail: data.activityDetail ?? "",
+        civility: normalizeCivility(data.civility),
         contactName: data.contactName,
         representativeTitle: data.representativeTitle ?? "",
         email: data.email,
@@ -351,6 +361,7 @@ export const updateClient = createServerFn({ method: "POST" })
         cnamgs: rest.cnamgs ?? "",
         activity: rest.activity ?? "",
         activityDetail: rest.activityDetail ?? "",
+        civility: normalizeCivility(rest.civility),
         contactName: rest.contactName,
         representativeTitle: rest.representativeTitle ?? "",
         email: rest.email,
@@ -577,7 +588,7 @@ export const deleteService = createServerFn({ method: "POST" })
 async function mappedDocuments(rows: Parameters<typeof mapDocument>[0][]) {
   const mapped = rows.map(mapDocument);
   const ids = mapped.map((d) => d.id);
-  const [flags, hideZeroFlags, roundingFlags, depositFlags, poles, clientPoles] =
+  const [flags, hideZeroFlags, roundingFlags, depositFlags, poles, clientPoles, periods] =
     await Promise.all([
       loadShowDueMonthOnLines(ids),
       loadHideZeroLineFigures(ids),
@@ -588,6 +599,7 @@ async function mappedDocuments(rows: Parameters<typeof mapDocument>[0][]) {
       }),
       loadDocumentPoles(ids),
       loadClientPoles([...new Set(mapped.map((d) => d.clientId))]),
+      loadDocumentPeriods(ids),
     ]);
   const units = await loadLineQuantityUnits(
     mapped.flatMap((d) => d.items.map((it) => it.id)),
@@ -611,12 +623,15 @@ async function mappedDocuments(rows: Parameters<typeof mapDocument>[0][]) {
   });
   return mapped.map((d) => {
     const withFlags = withClientPole(
-      withDeposit(
-        withTotalRounding(
-          withHideZeroFlag(withDueMonthFlag(d, flags), hideZeroFlags),
-          roundingFlags,
+      withDocumentPeriod(
+        withDeposit(
+          withTotalRounding(
+            withHideZeroFlag(withDueMonthFlag(d, flags), hideZeroFlags),
+            roundingFlags,
+          ),
+          depositFlags,
         ),
-        depositFlags,
+        periods,
       ),
       poles,
     );
@@ -1114,6 +1129,7 @@ async function upsertDocumentHandler(
           updated.id,
           Boolean(data.showDueMonthOnLines),
         );
+        await persistDocumentPeriod(updated.id, data.period);
       }
       if (existing.type === "invoice" || existing.type === "quotation") {
         await persistTotalRounding(updated.id, data.totalRounding ?? 0);
@@ -1136,6 +1152,14 @@ async function upsertDocumentHandler(
           await resolveDocumentPole(data.clientId, data.pole),
         ),
       );
+      await prisma.documentPdfTrace.create({
+        data: {
+          documentId: updated.id,
+          cabinet: updated.cabinet,
+          action: "edit",
+          staffId: staff.id,
+        },
+      });
       return mappedDocument(updated);
     }
 
@@ -1213,6 +1237,7 @@ async function upsertDocumentHandler(
         created.id,
         Boolean(data.showDueMonthOnLines),
       );
+      await persistDocumentPeriod(created.id, data.period);
     }
     if (data.type === "invoice" || data.type === "quotation") {
       await persistTotalRounding(created.id, data.totalRounding ?? 0);
@@ -1889,7 +1914,7 @@ export const listDocumentPdfTraces = createServerFn({ method: "GET" })
 
     return rows.map((r) => ({
       id: r.id,
-      action: r.action as "download" | "email",
+      action: r.action as "download" | "email" | "edit",
       fileName: r.fileName,
       fileUrl: r.fileUrl,
       createdAt: r.createdAt.toISOString(),

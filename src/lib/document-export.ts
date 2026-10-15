@@ -68,16 +68,20 @@ async function latestPdfTracesByDocument(
 ): Promise<Map<string, { fileUrl: string; fileName: string }>> {
   if (documentIds.length === 0) return new Map();
   const traces = await prisma.documentPdfTrace.findMany({
-    where: { documentId: { in: documentIds } },
+    where: {
+      documentId: { in: documentIds },
+      fileUrl: { not: null },
+      action: { in: ["download", "email"] },
+    },
     orderBy: { createdAt: "desc" },
     select: { documentId: true, fileUrl: true, fileName: true },
   });
   const map = new Map<string, { fileUrl: string; fileName: string }>();
   for (const trace of traces) {
-    if (!map.has(trace.documentId)) {
+    if (!map.has(trace.documentId) && trace.fileUrl) {
       map.set(trace.documentId, {
         fileUrl: trace.fileUrl,
-        fileName: trace.fileName,
+        fileName: trace.fileName ?? "document.pdf",
       });
     }
   }

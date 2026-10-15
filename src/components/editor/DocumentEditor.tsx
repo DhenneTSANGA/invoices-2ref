@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Plus, Minus, Trash2, Save, Send, Eye, Users, Check, PenLine, Stamp } from "lucide-react";
+import { Plus, Minus, Trash2, Save, Send, Eye, Users, Check, PenLine, Stamp, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   computeTotals,
@@ -24,6 +24,12 @@ import { memberVisibilityPole } from "@/lib/staff-pole";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 import { DocumentPdfButton } from "@/components/documents/DocumentPdfButton";
 import { number } from "@/lib/format";
+import {
+  PERIOD_MONTHS_FR,
+  documentPeriodParts,
+  formatDocumentPeriodValue,
+  parseDocumentPeriod,
+} from "@/lib/document-period";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { LoadingState } from "@/components/common/LoadingState";
@@ -206,7 +212,10 @@ export function DocumentEditor({ initial, type }: Props) {
   }, [commercial, isNew, peekedNumber?.number, sectionTitlesKey]);
 
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [busyAction, setBusyAction] = useState<
+    "save" | "send" | "sign" | "request" | null
+  >(null);
+  const saving = busyAction !== null;
   /** Choix avant saisie : lignes HT classiques, ou montant TTC global. */
   const [amountMode, setAmountMode] = useState<"ht" | "ttc">("ht");
   const [ttcInput, setTtcInput] = useState("");
@@ -583,6 +592,8 @@ export function DocumentEditor({ initial, type }: Props) {
     doc.status === "paid" ||
     doc.status === "accepted";
   const canOnlineSign = commercial && !alreadySigned;
+  /** Devis : tous les profils signent. Factures : admin / SA uniquement. */
+  const canSignDirectly = adminLike || type === "quotation";
 
   const buildPayload = (status: Document["status"] = "draft") => {
     // Ne pas écraser un statut « figé » (signé / envoyé / payé…) en brouillon
@@ -623,6 +634,7 @@ export function DocumentEditor({ initial, type }: Props) {
     showRib: merged.cabinet === "conseil" ? true : Boolean(merged.showRib),
     showDueMonthOnLines:
       type === "invoice" ? Boolean(merged.showDueMonthOnLines) : false,
+    period: type === "invoice" ? parseDocumentPeriod(merged.period) : null,
     hideZeroLineFigures: merged.hideZeroLineFigures !== false,
     totalRounding:
       type === "invoice" || type === "quotation"
@@ -723,7 +735,7 @@ export function DocumentEditor({ initial, type }: Props) {
       void navigate(detailPath(merged.id));
       return;
     }
-    setSaving(true);
+    setBusyAction(status === "sent" ? "send" : "save");
     try {
       const saved = await upsertMutation.mutateAsync(buildPayload(status));
       setDoc((d) => ({ ...d, ...saved, id: saved.id }));
@@ -763,12 +775,12 @@ export function DocumentEditor({ initial, type }: Props) {
     } catch (err) {
       toast.error(formatSaveError(err));
     } finally {
-      setSaving(false);
+      setBusyAction(null);
     }
   };
 
   const requestSignature = async () => {
-    setSaving(true);
+    setBusyAction("request");
     try {
       const saved = await persistDraft();
       if (!saved) return;
@@ -781,12 +793,12 @@ export function DocumentEditor({ initial, type }: Props) {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Demande impossible");
     } finally {
-      setSaving(false);
+      setBusyAction(null);
     }
   };
 
   const signNow = async () => {
-    setSaving(true);
+    setBusyAction("sign");
     try {
       const saved = await persistDraft();
       if (!saved) return;
@@ -798,7 +810,7 @@ export function DocumentEditor({ initial, type }: Props) {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Signature impossible");
     } finally {
-      setSaving(false);
+      setBusyAction(null);
     }
   };
 
@@ -916,6 +928,13 @@ export function DocumentEditor({ initial, type }: Props) {
                 </p>
               )}
             </div>
+          ) : null}
+          {type === "invoice" ? (
+            <PeriodPicker
+              value={doc.period}
+              issueDate={doc.issueDate}
+              onChange={(period) => setDoc({ ...doc, period })}
+            />
           ) : null}
           {type === "quotation" ? (
             <>
@@ -1790,30 +1809,46 @@ export function DocumentEditor({ initial, type }: Props) {
           disabled={saving || invoiceLockedForMember}
           onClick={() => void save("draft")}
         >
-          <Save className="h-4 w-4" /> Enregistrer
+          {busyAction === "save" ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" /> Enregistrement en cours…
+            </>
+          ) : (
+            <>
+              <Save className="h-4 w-4" /> Enregistrer
+            </>
+          )}
         </Button>
-        {canOnlineSign && !adminLike && (
+        {canOnlineSign && !canSignDirectly && (
           <Button
             type="button"
             className="rounded-xl bg-amber-600 text-white hover:bg-amber-600/90"
             disabled={saving || requestSignMutation.isPending}
             onClick={() => void requestSignature()}
           >
-            <PenLine className="h-4 w-4" />
-            {requestSignMutation.isPending
-              ? "Demande…"
+            {busyAction === "request" ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <PenLine className="h-4 w-4" />
+            )}
+            {busyAction === "request"
+              ? "Demande en cours…"
               : "Demander la signature"}
           </Button>
         )}
-        {canOnlineSign && adminLike && (
+        {canOnlineSign && canSignDirectly && (
           <Button
             type="button"
             className="rounded-xl bg-gradient-primary text-primary-foreground shadow-glow"
             disabled={saving || signMutation.isPending}
             onClick={() => void signNow()}
           >
-            <Stamp className="h-4 w-4" />
-            {signMutation.isPending ? "Signature…" : "Signer"}
+            {busyAction === "sign" ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Stamp className="h-4 w-4" />
+            )}
+            {busyAction === "sign" ? "Signature en cours…" : "Signer"}
           </Button>
         )}
         <Button
@@ -1822,7 +1857,15 @@ export function DocumentEditor({ initial, type }: Props) {
           disabled={saving || invoiceLockedForMember}
           onClick={() => void save("sent")}
         >
-          <Send className="h-4 w-4" /> Envoyer
+          {busyAction === "send" ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" /> Envoi en cours…
+            </>
+          ) : (
+            <>
+              <Send className="h-4 w-4" /> Envoyer
+            </>
+          )}
         </Button>
       </div>
 
@@ -1929,6 +1972,72 @@ function Select({
         ))}
       </select>
     </label>
+  );
+}
+
+/** Période optionnelle (mois + année) affichée sur la facture. */
+function PeriodPicker({
+  value,
+  issueDate,
+  onChange,
+}: {
+  value?: string | null;
+  issueDate: string;
+  onChange: (period: string | null) => void;
+}) {
+  const parts = documentPeriodParts(value);
+  const issueYear = Number(issueDate?.slice(0, 4)) || new Date().getFullYear();
+  const year = parts?.year ?? issueYear;
+  const years = [...new Set([issueYear - 1, issueYear, issueYear + 1, year])].sort();
+  const selectClass =
+    "w-full min-w-0 truncate rounded-xl border border-border/60 bg-surface px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition";
+
+  return (
+    <div className="block min-w-0">
+      <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        Période (optionnel)
+      </span>
+      <div
+        className={
+          parts
+            ? "mt-1 grid min-w-0 grid-cols-[minmax(0,1fr)_6.5rem] gap-2"
+            : "mt-1 grid min-w-0 grid-cols-1"
+        }
+      >
+        <select
+          aria-label="Mois de la période"
+          className={selectClass}
+          value={parts ? String(parts.month) : ""}
+          onChange={(e) => {
+            const month = Number(e.target.value);
+            onChange(month ? formatDocumentPeriodValue(year, month) : null);
+          }}
+        >
+          <option value="">Aucune période</option>
+          {PERIOD_MONTHS_FR.map((label, i) => (
+            <option key={label} value={String(i + 1)}>
+              {label}
+            </option>
+          ))}
+        </select>
+        {parts ? (
+          <select
+            aria-label="Année de la période"
+            className={selectClass}
+            value={String(year)}
+            onChange={(e) =>
+              onChange(formatDocumentPeriodValue(Number(e.target.value), parts.month))
+            }
+          >
+            {years.map((y) => (
+              <option key={y} value={String(y)}>
+                {y}
+              </option>
+            ))}
+          </select>
+        ) : null}
+      </div>
+    </div>
   );
 }
 

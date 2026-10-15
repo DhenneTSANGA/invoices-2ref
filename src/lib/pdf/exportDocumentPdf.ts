@@ -17,7 +17,36 @@ export type BuiltPdf = {
   bytes: Uint8Array;
   /** Base64 without data-URL prefix */
   base64: string;
+  /** Aperçu JPEG allégé (corps d’e-mail), base64 sans préfixe data-URL. */
+  previewBase64?: string;
 };
+
+const EMAIL_PREVIEW_WIDTH = 1000;
+
+/** Réduit la capture pleine résolution pour l’intégrer dans un e-mail (poids raisonnable). */
+async function buildEmailPreviewBase64(dataUrl: string): Promise<string | undefined> {
+  try {
+    const img = new Image();
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error("preview"));
+      img.src = dataUrl;
+    });
+    const scale = Math.min(1, EMAIL_PREVIEW_WIDTH / Math.max(1, img.naturalWidth));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(img.naturalWidth * scale);
+    canvas.height = Math.round(img.naturalHeight * scale);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return undefined;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL("image/jpeg", 0.85).split(",")[1];
+  } catch {
+    return undefined;
+  }
+}
 
 function uint8ToBase64(bytes: Uint8Array): string {
   let binary = "";
@@ -200,6 +229,7 @@ export async function buildDocumentPdf(
     fileName,
     bytes: uint8,
     base64: uint8ToBase64(uint8),
+    previewBase64: await buildEmailPreviewBase64(dataUrl),
   };
 }
 

@@ -76,6 +76,8 @@ enum MailDirection {
 enum DocumentPdfAction {
   download
   email
+  /// Enregistrement d'une modification du document (sans fichier PDF).
+  edit
 }
 
 enum DocumentExportStatus {
@@ -243,6 +245,8 @@ model Client {
   activity    String   @default("")
   /// Nature détaillée de l’activité.
   activityDetail String @default("")
+  /// Civilité du représentant (« Monsieur » / « Madame », vide si non renseignée).
+  civility    String   @default("")
   /// Représentant légal (nom).
   contactName String
   /// Qualité du représentant (ex. Gérant).
@@ -377,6 +381,8 @@ model Document {
   totalRounding        Int       @default(0)
   /** Acompte déjà versé (XAF), déduit du TTC — factures 2R Conseil. */
   deposit              Decimal   @default(0) @db.Decimal(18, 2)
+  /** Période optionnelle affichée sur la facture (« AAAA-MM », null = aucune). */
+  period               String?
   /** Campagne de publipostage (lettres groupées). */
   mailMergeCampaignId  String?
   createdAt         DateTime       @default(now())
@@ -572,8 +578,9 @@ model DocumentPdfTrace {
   documentId String
   cabinet    Cabinet
   action     DocumentPdfAction
-  fileName   String
-  fileUrl    String
+  /// Absent pour action « edit » (trace d'audit sans snapshot PDF).
+  fileName   String?
+  fileUrl    String?
   staffId    String
   createdAt  DateTime          @default(now())
 
@@ -818,6 +825,8 @@ model CrmOpportunity {
   notes        String                @default("")
   lostReason   String?
   reviveOn     DateTime?             @db.Date
+  /// Dernier changement d'étape (rappels d'échéance J+2).
+  stageChangedAt DateTime?
   createdAt    DateTime              @default(now())
   updatedAt    DateTime              @updatedAt
 
@@ -825,12 +834,31 @@ model CrmOpportunity {
   lead       CrmLead?      @relation(fields: [leadId], references: [id], onDelete: SetNull)
   activities CrmActivity[]
   expenses   CrmExpense[]
+  reminders  CrmReminderLog[]
 
   @@index([companyId])
   @@index([stage])
   @@index([ownerId])
   @@index([nextActionOn])
   @@map("crm_opportunities")
+}
+
+/// Rappels e-mail d'échéance de prochaine action (J-2 « before », J+2 « after »).
+model CrmReminderLog {
+  id            String           @id @default(cuid())
+  opportunityId String
+  kind          String
+  dueDate       DateTime         @db.Date
+  stage         CrmPipelineStage
+  staffId       String
+  toEmail       String
+  sentAt        DateTime         @default(now())
+
+  opportunity CrmOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+
+  @@unique([opportunityId, kind, dueDate])
+  @@index([sentAt])
+  @@map("crm_reminder_logs")
 }
 
 model CrmActivity {

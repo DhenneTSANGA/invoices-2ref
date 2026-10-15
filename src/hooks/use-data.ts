@@ -350,6 +350,7 @@ export function useUpsertDocument() {
       qc.invalidateQueries({ queryKey: notificationsKey });
       qc.invalidateQueries({ queryKey: ["peek-document-number"] });
       qc.invalidateQueries({ queryKey: ["peek-letter-number"] });
+      qc.invalidateQueries({ queryKey: documentPdfTracesKey(doc.id) });
     },
   });
 }
@@ -502,6 +503,7 @@ export function useSendDocumentEmail() {
           id: input.id,
           pdfBase64: built.base64,
           fileName: built.fileName,
+          previewImageBase64: built.previewBase64,
         },
       });
     },
@@ -535,7 +537,7 @@ export function useDownloadDocumentPdf() {
       includeSignature?: boolean;
     }) => downloadDocumentPdf(doc, { includeSignature }),
     onSuccess: (_res, vars) => {
-      if (vars.doc.id && !vars.includeSignature) {
+      if (vars.doc.id) {
         void qc.invalidateQueries({ queryKey: documentPdfTracesKey(vars.doc.id) });
       }
     },

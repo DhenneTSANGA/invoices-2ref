@@ -1,0 +1,2 @@
+ALTER TABLE "clients"
+  ADD COLUMN IF NOT EXISTS "civility" TEXT NOT NULL DEFAULT '';

@@ -196,6 +196,7 @@ export const clientInputSchema = z.object({
   cnamgs: z.string().default(""),
   activity: z.string().default(""),
   activityDetail: z.string().default(""),
+  civility: z.string().default(""),
   contactName: z.string().default(""),
   representativeTitle: z.string().default(""),
   email: z.string().default(""),
@@ -292,6 +293,11 @@ export const documentInputSchema = z.object({
   hideZeroLineFigures: z.boolean().optional().default(true),
   totalRounding: z.coerce.number().int().optional().default(0),
   deposit: z.coerce.number().min(0).optional().default(0),
+  period: z
+    .string()
+    .regex(/^\d{4}-(0[1-9]|1[0-2])$/)
+    .optional()
+    .nullable(),
   discountMode: z.enum(["percent", "amount"]).optional().default("percent"),
   discountFixed: z.coerce.number().min(0).optional().default(0),
   validityDays: z.number().optional().nullable(),

@@ -44,6 +44,7 @@ import {
   quantityColumnHeader,
   shouldHidePrintedZeros,
 } from "@/lib/line-quantity";
+import { documentPeriodLabel } from "@/lib/document-period";
 import { cn } from "@/lib/utils";
 import { signatoryDisplayName } from "@/lib/signatory";
 
@@ -91,6 +92,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
   const accentTo = isConseilDesign ? REF.accentTo : brandAccentTo;
 
   const niuLabel = niuLabelForCabinet(doc.cabinet);
+  const periodLabel = documentPeriodLabel(doc.period);
   const signatoryName = signatoryDisplayName(doc.signatoryTitle);
 
   const emitterLines = isConseilDesign
@@ -242,8 +244,17 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(function Invoice
         </>
       )}
 
-      {doc.dueDate?.trim() ? (
+      {periodLabel ? (
         <div className={cn("mt-2.5 text-[#475569]", DOC_TEXT.small)}>
+          Période :{" "}
+          <b className={cn("text-[#0F172A]", DOC_TEXT.base)}>
+            {isConseilDesign ? <TimesNum>{periodLabel}</TimesNum> : periodLabel}
+          </b>
+        </div>
+      ) : null}
+
+      {doc.dueDate?.trim() ? (
+        <div className={cn(periodLabel ? "mt-1" : "mt-2.5", "text-[#475569]", DOC_TEXT.small)}>
           Date d&apos;échéance :{" "}
           <b className={cn("text-[#0F172A]", DOC_TEXT.base)}>
             {isConseilDesign ? (

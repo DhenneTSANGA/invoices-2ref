@@ -7,10 +7,8 @@ import { companyForPreview } from "@/lib/company-defaults";
 import {
   DOCUMENT_COLORS,
   niuLabelForCabinet,
-  CONSEIL_CLOSING,
   CONSEIL_LEGAL_FOOTER,
   CONSEIL_PAPER_COLORS,
-  CONSEIL_BAR_FILL,
 } from "@/lib/cabinets";
 import { signatoryDisplayName } from "@/lib/signatory";
 import {
@@ -25,7 +23,7 @@ import {
   staffDisplayName,
 } from "@/lib/notify-document-status";
 import { documentTypeLabel } from "@/lib/document-status-labels";
-import { amountInWords, number as formatAmount } from "@/lib/format";
+import { number as formatAmount } from "@/lib/format";
 import { canWriteDocument, isAdmin, isSuperAdmin } from "@/lib/roles";
 import { recordAdminSignature } from "@/lib/letter-signature.functions";
 import { loadDocumentPoles } from "@/lib/client-pole-db";
@@ -36,7 +34,6 @@ import { logOutboundMail } from "@/lib/mail-log";
 import {
   clientLetterRecipientLines,
   clientDisplayName,
-  clientRepresentativeLine,
   clientDocumentLines,
   clientConseilDocumentLines,
 } from "@/lib/client-address";
@@ -45,23 +42,8 @@ import {
   richOrPlainToEmailHtml,
 } from "@/lib/rich-text";
 import { letterPlaceCityLabel } from "@/lib/letter-place-city";
-import {
-  dueMonthMention,
-  shouldAppendDueMonthToLines,
-} from "@/lib/subscription";
-import { loadShowDueMonthOnLines } from "@/lib/document-due-month-db";
 import { loadLineQuantityUnits } from "@/lib/document-line-quantity-db";
-import {
-  formatLineQuantity,
-  formatPrintedFigure,
-  hasMixedQuantityUnits,
-  lineQuantityForTotal,
-  parseLineQuantityUnit,
-  quantityColumnHeader,
-  shouldHidePrintedZeros,
-  type LineQuantityUnit,
-} from "@/lib/line-quantity";
-import { loadLineHideZeroFigures } from "@/lib/document-line-hide-zero-db";
+import { parseLineQuantityUnit } from "@/lib/line-quantity";
 import { loadTotalRounding } from "@/lib/document-total-rounding-db";
 import { loadDeposits } from "@/lib/document-deposit-db";
 import { remainingDue, normalizedDeposit, computeDocumentTotals } from "@/lib/document-math";
@@ -189,350 +171,121 @@ function emailShell(params: {
 </html>`.trim();
 }
 
+/** « Bonjour Monsieur Dupont, » — civilité renseignée sur la fiche client. */
+function emailGreeting(civility: string | null | undefined, contactName: string): string {
+  const civ = civility === "Monsieur" || civility === "Madame" ? civility : "";
+  const name = contactName.trim();
+  if (civ && name) return `Bonjour ${civ} ${name},`;
+  if (civ) return `Bonjour ${civ},`;
+  if (name) return `Bonjour ${name},`;
+  return "Bonjour Madame, Monsieur,";
+}
+
+export const DOCUMENT_PREVIEW_CID = "document-preview";
+
 function buildCommercialEmailHtml(params: {
   company: CompanyInfo;
   type: "invoice" | "quotation";
   typeLabel: string;
   number: string;
-  clientName: string;
-  contactName: string;
-  clientLines: string[];
-  clientNif?: string;
-  clientPhone?: string;
-  clientRccm?: string;
-  clientCnss?: string;
-  clientCnamgs?: string;
+  greeting: string;
   issueDate: string;
   dueDate?: string | null;
   currency: string;
-  lines: {
-    description: string;
-    quantity: number;
-    quantityUnit?: LineQuantityUnit;
-    hideZeroFigures?: boolean;
-    unitPrice: number;
-    total: number;
-  }[];
-  dueMonthLine?: string | null;
-  /** Présent quand une ligne de fonds de procédures existe. */
-  fundsBreakdown?: {
-    grossSubtotal: number;
-    serviceBase: number;
-    discountAmount: number;
-    discountLabel: string;
-    taxable: number;
-  } | null;
-  subtotal: number;
-  tps: number;
-  css: number;
-  vat: number;
-  rounding?: number;
   total: number;
   deposit?: number;
-  paymentTerms?: string | null;
-  showRib?: boolean;
-  executionTerms?: string | null;
-  niuLabel: string;
   cabinet?: "conseil" | "expertise_fiscale";
+  /** Image de la facture intégrée au corps (cid). */
+  hasPreviewImage: boolean;
+  /** Lien public du PDF (téléchargement ultérieur). */
+  pdfUrl?: string | null;
 }): string {
   const isConseil = params.cabinet === "conseil";
-  const colors = isConseil
-    ? { accent: CONSEIL_PAPER_COLORS.accent, accentTo: CONSEIL_PAPER_COLORS.accentTo }
-    : DOCUMENT_COLORS[params.type];
-  const { accent, accentTo } = colors;
-  const timesFace = "font-family:Georgia,'Times New Roman',serif;";
-  const barFill = isConseil
-    ? CONSEIL_BAR_FILL
-    : `linear-gradient(90deg, ${accent}, ${accentTo})`;
-  const cardBg = isConseil ? CONSEIL_PAPER_COLORS.paymentBg : "#F1F5F9";
-  const execCardBg = isConseil ? CONSEIL_PAPER_COLORS.paymentBg : "#F8FAFC";
-
-  const qtyHeader = quantityColumnHeader(params.lines);
-  const showQty = qtyHeader != null;
-  const mixedQty = hasMixedQuantityUnits(params.lines);
-  const lineColspan = showQty ? 4 : 3;
-
-  const dueMonthRow = params.dueMonthLine
-    ? `
-      <tr style="background:${params.lines.length % 2 === 0 ? "#FFFFFF" : "#F8FAFC"};">
-        <td colspan="${lineColspan}" style="padding:10px 12px;border-bottom:1px solid #E2E8F0;font-size:13px;font-weight:700;color:#0F172A;">${escapeHtml(params.dueMonthLine)}</td>
-      </tr>`
-    : "";
-
-  const rows = params.lines
-    .map((l, i) => {
-      const hideZero = shouldHidePrintedZeros(l, params.cabinet);
-      const qtyLabel = formatLineQuantity(l, { mixed: mixedQty });
-      const unitPriceLabel = formatPrintedFigure(
-        l.unitPrice,
-        money(l.unitPrice),
-        hideZero,
-      );
-      const totalLabel = formatPrintedFigure(
-        l.total,
-        money(l.total),
-        hideZero,
-      );
-      const qtyCell = showQty
-        ? `<td style="padding:10px 12px;border-bottom:1px solid #E2E8F0;text-align:right;font-size:13px;color:#475569;${isConseil ? timesFace : ""}">${escapeHtml(qtyLabel)}</td>`
-        : "";
-      return `
-      <tr style="background:${i % 2 === 0 ? "#FFFFFF" : "#F8FAFC"};">
-        <td style="padding:10px 12px;border-bottom:1px solid #E2E8F0;font-size:13px;color:#0F172A;">${escapeHtml(l.description)}</td>
-        ${qtyCell}
-        <td style="padding:10px 12px;border-bottom:1px solid #E2E8F0;text-align:right;font-size:13px;color:#475569;${isConseil ? timesFace : ""}">${escapeHtml(unitPriceLabel)}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid #E2E8F0;text-align:right;font-size:13px;font-weight:600;color:#0F172A;${isConseil ? timesFace : ""}">${escapeHtml(totalLabel)}</td>
-      </tr>`;
-    })
-    .join("") + dueMonthRow;
-
-  const taxRows = [
-    params.tps > 0
-      ? `<tr><td style="padding:6px 12px;color:#64748B;font-size:13px;">TPS</td><td style="padding:6px 12px;text-align:right;font-size:13px;${isConseil ? timesFace : ""}">${escapeHtml(money(params.tps))}</td></tr>`
-      : "",
-    params.css > 0
-      ? `<tr><td style="padding:6px 12px;color:#64748B;font-size:13px;">CSS</td><td style="padding:6px 12px;text-align:right;font-size:13px;${isConseil ? timesFace : ""}">${escapeHtml(money(params.css))}</td></tr>`
-      : "",
-    params.tps <= 0
-      ? `<tr><td style="padding:6px 12px;color:#64748B;font-size:13px;">TVA</td><td style="padding:6px 12px;text-align:right;font-size:13px;${isConseil ? timesFace : ""}">${escapeHtml(money(params.vat))}</td></tr>`
-      : "",
-  ].join("");
+  const accent = isConseil
+    ? CONSEIL_PAPER_COLORS.accent
+    : DOCUMENT_COLORS[params.type].accent;
+  const typeLower = params.typeLabel.toLowerCase();
+  const c = params.company;
 
   const deposit = normalizedDeposit(params.deposit);
   const due = remainingDue(params.total, deposit);
-  const depositRows =
-    deposit > 0 && (params.type === "invoice" || params.type === "quotation")
-      ? `<tr>
-              <td style="padding:8px 12px;color:#64748B;font-size:13px;background:#FFFFFF;">Acompte</td>
-              <td style="padding:8px 12px;text-align:right;font-size:13px;background:#FFFFFF;${timesFace}">${escapeHtml(money(-deposit))}</td>
-            </tr>
-            <tr>
-              <td style="padding:12px;font-size:13px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#FFFFFF;background:${barFill};">Reste à payer</td>
-              <td style="padding:12px;text-align:right;font-size:14px;font-weight:700;color:#FFFFFF;background:${barFill};${timesFace}">${escapeHtml(money(due))}</td>
-            </tr>`
-      : "";
+  const summaryRow = (label: string, value: string, strong = false) =>
+    `<tr><td style="padding:6px 0;font-size:13px;color:#64748B;">${escapeHtml(label)}</td><td style="padding:6px 0;text-align:right;font-size:13px;${strong ? "font-weight:700;color:#0F172A;" : "color:#0F172A;"}">${escapeHtml(value)}</td></tr>`;
 
-  const emitterLines = isConseil
-    ? [
-        params.company.address,
-        params.company.city,
-        params.company.phone,
-        params.company.email,
-        params.company.website,
-      ].filter(Boolean)
+  const previewHtml = params.hasPreviewImage
+    ? `<div style="margin-top:8px;">
+        <img src="cid:${DOCUMENT_PREVIEW_CID}" alt="${escapeHtml(`${params.typeLabel} n° ${params.number}`)}" width="584" style="display:block;width:100%;max-width:584px;height:auto;border:1px solid #E2E8F0;border-radius:6px;" />
+      </div>`
+    : `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px;border-top:1px solid #E2E8F0;border-bottom:1px solid #E2E8F0;">
+        ${summaryRow("Date", params.issueDate)}
+        ${params.dueDate ? summaryRow("Date d'échéance", params.dueDate) : ""}
+        ${summaryRow("Montant TTC", `${money(params.total)} ${params.currency}`, deposit <= 0)}
+        ${deposit > 0 ? summaryRow("Reste à payer", `${money(due)} ${params.currency}`, true) : ""}
+      </table>`;
+
+  const pdfLinkHtml = params.pdfUrl
+    ? `<p style="margin:20px 0 0;">
+        <a href="${escapeHtml(params.pdfUrl)}" style="display:inline-block;padding:10px 18px;border-radius:8px;background:${accent};color:#FFFFFF;font-size:13px;font-weight:600;text-decoration:none;">Télécharger le PDF</a>
+      </p>`
+    : "";
+
+  const legal = isConseil
+    ? CONSEIL_LEGAL_FOOTER
     : [
-        params.company.capital,
-        params.company.address,
-        params.company.city,
-        [params.company.phone, params.company.email].filter(Boolean).join(" · "),
-      ].filter(Boolean);
+        c.capital?.trim() || c.tagline,
+        [c.address, c.city].filter(Boolean).join(", "),
+        c.rccm && c.rccm !== "—" ? `RCCM : ${c.rccm}` : "",
+        c.nif && c.nif !== "—" ? `NIF : ${c.nif}` : "",
+      ]
+        .filter(Boolean)
+        .join(" · ");
 
-  const emitterLegalBits = isConseil
-    ? []
-    : [
-        params.company.nif && params.company.nif !== "—"
-          ? `NIF : ${params.company.nif}`
-          : "",
-        params.company.niu && params.company.niu !== "—"
-          ? `${params.niuLabel} : ${params.company.niu}`
-          : "",
-        params.company.rccm && params.company.rccm !== "—"
-          ? `RCCM : ${params.company.rccm}`
-          : "",
-      ].filter(Boolean);
+  return `
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+<body style="margin:0;padding:0;background:#FFFFFF;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;color:#0F172A;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:24px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="640" cellpadding="0" cellspacing="0" style="max-width:640px;width:100%;">
+          <tr>
+            <td style="padding:0 28px;font-size:14px;line-height:1.7;color:#334155;">
+              <p style="margin:0 0 14px;">${escapeHtml(params.greeting)}</p>
+              <p style="margin:0 0 20px;">
+                Veuillez trouver ci-dessous le détail de votre
+                <strong style="color:#0F172A;">${escapeHtml(typeLower)}</strong>
+                n° <strong style="color:#0F172A;">${escapeHtml(params.number)}</strong> (PDF joint).
+              </p>
 
-  const clientLines = params.clientLines;
+              ${previewHtml}
+              ${pdfLinkHtml}
 
-  const clientLegalBits = [
-    params.clientNif
-      ? isConseil
-        ? `<strong>NIF : ${escapeHtml(params.clientNif)}</strong>`
-        : `NIF : ${escapeHtml(params.clientNif)}`
-      : "",
-    isConseil && !params.clientNif && params.clientPhone
-      ? `<span style="${timesFace}">${escapeHtml(params.clientPhone)}</span>`
-      : "",
-    !isConseil && params.clientRccm ? `RCCM : ${escapeHtml(params.clientRccm)}` : "",
-    params.clientCnss ? `CNSS : ${escapeHtml(params.clientCnss)}` : "",
-    params.clientCnamgs ? `CNAMGS : ${escapeHtml(params.clientCnamgs)}` : "",
-  ].filter(Boolean);
-
-  const thanksHtml = `<div style="margin-top:24px;text-align:center;font-family:'Times New Roman',Times,serif;font-size:13px;font-style:italic;font-weight:700;line-height:1.4;color:${CONSEIL_CLOSING.thanksColor};">${escapeHtml(CONSEIL_CLOSING.thanks)}</div>`;
-
-  const bodyHtml = `
-    <p style="margin:0 0 14px;font-size:14px;line-height:1.7;color:#334155;">
-      Bonjour <strong style="color:#0F172A;">${escapeHtml(params.contactName || params.clientName)}</strong>,
-    </p>
-    <p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#334155;">
-      Veuillez trouver ci-dessous le détail de votre
-      <strong style="color:#0F172A;">${escapeHtml(params.typeLabel.toLowerCase())}</strong>
-      n° <strong style="color:#0F172A;">${escapeHtml(params.number)}</strong>
-      ${params.type === "invoice" ? "(PDF joint)." : "— valable selon les conditions indiquées (PDF joint)."}
-    </p>
-
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
-      <tr>
-        <td width="48%" valign="top" style="padding-right:8px;">
-          <div style="background:#F1F5F9;border-radius:10px;padding:14px 16px;">
-            <div style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#64748B;">Émetteur</div>
-            <div style="margin-top:6px;font-size:14px;font-weight:600;color:#0F172A;">${escapeHtml(params.company.name)}</div>
-            ${emitterLines
-              .map(
-                (l) =>
-                  `<div style="font-size:12px;line-height:1.45;color:#475569;">${escapeHtml(l)}</div>`,
-              )
-              .join("")}
-            ${
-              emitterLegalBits.length
-                ? `<div style="margin-top:8px;font-size:11px;line-height:1.45;color:#64748B;">${escapeHtml(emitterLegalBits.join(" · "))}</div>`
-                : ""
-            }
-          </div>
-        </td>
-        <td width="52%" valign="top" style="padding-left:8px;">
-          <div style="background:#F1F5F9;border-radius:10px;padding:14px 16px;">
-            <div style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#64748B;">Client</div>
-            <div style="margin-top:6px;font-size:14px;font-weight:600;color:#0F172A;">${escapeHtml(params.clientName)}</div>
-            ${clientLines
-              .map(
-                (l) =>
-                  `<div style="font-size:12px;line-height:1.45;color:#475569;">${escapeHtml(l)}</div>`,
-              )
-              .join("")}
-            ${clientLegalBits
-              .map(
-                (l) =>
-                  `<div style="font-size:11px;line-height:1.45;color:#64748B;">${l}</div>`,
-              )
-              .join("")}
-          </div>
-        </td>
-      </tr>
-    </table>
-
-    ${
-      params.dueDate
-        ? `<div style="margin-bottom:16px;font-size:12px;color:#475569;">
-      <span>Date d'échéance : <strong style="color:#0F172A;">${escapeHtml(params.dueDate)}</strong></span>
-    </div>`
-        : ""
-    }
-
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border-radius:10px;overflow:hidden;border:1px solid #E2E8F0;">
-      <thead>
-        <tr style="background:${barFill};color:#FFFFFF;">
-          <th style="text-align:left;padding:11px 12px;font-size:12px;font-weight:600;letter-spacing:0.03em;">Description</th>
-          ${showQty ? `<th style="text-align:right;padding:11px 12px;font-size:12px;font-weight:600;">${escapeHtml(qtyHeader ?? "Qté")}</th>` : ""}
-          <th style="text-align:right;padding:11px 12px;font-size:12px;font-weight:600;">P.U.</th>
-          <th style="text-align:right;padding:11px 12px;font-size:12px;font-weight:600;">Total</th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>
-
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;">
-      <tr>
-        <td></td>
-        <td width="280" valign="top">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E2E8F0;border-radius:10px;overflow:hidden;">
-            ${
-              params.fundsBreakdown
-                ? `<tr>
-              <td style="padding:8px 12px;color:#64748B;font-size:13px;background:#FFFFFF;">Sous-total 1</td>
-              <td style="padding:8px 12px;text-align:right;font-size:13px;background:#FFFFFF;${isConseil ? timesFace : ""}">${escapeHtml(money(params.fundsBreakdown.grossSubtotal))}</td>
-            </tr>
-            <tr>
-              <td style="padding:8px 12px;color:#64748B;font-size:13px;background:#FFFFFF;">Base TVA/CSS</td>
-              <td style="padding:8px 12px;text-align:right;font-size:13px;background:#FFFFFF;${isConseil ? timesFace : ""}">${escapeHtml(money(params.fundsBreakdown.serviceBase))}</td>
-            </tr>
-            ${
-              params.fundsBreakdown.discountAmount > 0
-                ? `<tr>
-              <td style="padding:8px 12px;color:#64748B;font-size:13px;background:#FFFFFF;">${escapeHtml(params.fundsBreakdown.discountLabel)}</td>
-              <td style="padding:8px 12px;text-align:right;font-size:13px;background:#FFFFFF;${isConseil ? timesFace : ""}">${escapeHtml(money(-params.fundsBreakdown.discountAmount))}</td>
-            </tr>`
-                : ""
-            }
-            <tr>
-              <td style="padding:8px 12px;color:#64748B;font-size:13px;background:#FFFFFF;">Sous-total 2</td>
-              <td style="padding:8px 12px;text-align:right;font-size:13px;background:#FFFFFF;${isConseil ? timesFace : ""}">${escapeHtml(money(params.fundsBreakdown.taxable))}</td>
-            </tr>`
-                : `<tr>
-              <td style="padding:8px 12px;color:#64748B;font-size:13px;background:#FFFFFF;">Sous-total</td>
-              <td style="padding:8px 12px;text-align:right;font-size:13px;background:#FFFFFF;${isConseil ? timesFace : ""}">${escapeHtml(money(params.subtotal))}</td>
-            </tr>`
-            }
-            ${taxRows}
-            <tr>
-              <td style="padding:${depositRows ? "8px" : "12px"} 12px;font-size:13px;${depositRows ? "color:#64748B;background:#FFFFFF;" : `font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#FFFFFF;background:${barFill};`}">${params.fundsBreakdown ? "Net à payer" : "Total TTC"}</td>
-              <td style="padding:${depositRows ? "8px" : "12px"} 12px;text-align:right;font-size:${depositRows ? "13px" : "14px"};${depositRows ? `color:#0F172A;background:#FFFFFF;${isConseil ? timesFace : ""}` : `font-weight:700;color:#FFFFFF;background:${barFill};${isConseil ? timesFace : ""}`}">${escapeHtml(money(params.total))}</td>
-            </tr>
-            ${depositRows}
-          </table>
-        </td>
-      </tr>
-    </table>
-
-    <p style="margin:14px 0 0;text-align:center;font-size:13px;line-height:1.45;color:#0F172A;${isConseil ? timesFace : ""}">
-      ${
-        params.type === "quotation"
-          ? "Arrêtée le présent devis à la somme de"
-          : "Arrêtée la présente facture à la somme de"
-      }
-      <strong>${escapeHtml(amountInWords(params.total, params.currency))}</strong>
-    </p>
-
-    ${
-      params.paymentTerms?.trim()
-        ? `<div style="margin-top:20px;background:${cardBg};border-radius:10px;padding:12px 14px;font-size:12px;color:#475569;">
-            <strong style="color:#0F172A;">Modalité de paiement</strong>
-            <div style="margin-top:4px;">${escapeHtml(params.paymentTerms.trim())}</div>
-          </div>`
-        : ""
-    }
-
-    ${
-      params.type === "invoice" &&
-      (isConseil || params.showRib) &&
-      (isConseil || params.company.bankName || params.company.bankAccount)
-        ? `<div style="margin-top:20px;background:${cardBg};border-radius:10px;padding:12px 14px;font-size:12px;color:#475569;">
-            <strong style="color:#0F172A;">RIB pour le règlement</strong>
-            <div style="margin-top:4px;">Règlement par virement bancaire ou par chèque.</div>
-            ${params.company.bankName ? `<div style="margin-top:4px;">Banque : ${escapeHtml(params.company.bankName)}</div>` : ""}
-            ${params.company.bankAccount ? `<div>RIB : <span style="${isConseil ? timesFace : ""}">${escapeHtml(params.company.bankAccount)}</span></div>` : ""}
-            ${isConseil ? `<div style="margin-top:4px;">${escapeHtml(CONSEIL_CLOSING.cheque)}</div>` : ""}
-          </div>`
-        : ""
-    }
-
-    ${
-      params.executionTerms?.trim() || (isConseil && params.type !== "invoice")
-        ? `<div style="margin-top:20px;background:${execCardBg};border-radius:10px;padding:12px 14px;font-size:13px;color:#475569;">
-            <strong style="color:#0F172A;">Conditions de réalisation :</strong>
-            ${params.executionTerms?.trim() ? `<div style="margin-top:4px;">${escapeHtml(params.executionTerms.trim())}</div>` : ""}
-            ${isConseil && params.type !== "invoice" ? `<div style="margin-top:4px;">${escapeHtml(CONSEIL_CLOSING.cheque)}</div>` : ""}
-          </div>`
-        : ""
-    }
-
-    ${isConseil ? thanksHtml : ""}
-
-    <p style="margin:28px 0 0;font-size:14px;line-height:1.7;color:#334155;">
-      Cordialement,<br/>
-      <strong style="color:${accent};">${escapeHtml(params.company.name)}</strong>
-    </p>
-  `;
-
-  return emailShell({
-    accent: colors,
-    company: params.company,
-    typeTitle: params.typeLabel,
-    number: params.number,
-    issueDate: params.issueDate,
-    bodyHtml,
-    niuLabel: params.niuLabel,
-    legalText: isConseil ? CONSEIL_LEGAL_FOOTER : undefined,
-  });
+              <p style="margin:24px 0 0;">
+                Pour toute question, il vous suffit de répondre directement à cet e-mail.
+              </p>
+              <p style="margin:16px 0 0;">
+                Cordialement,<br/>
+                <strong style="color:${accent};">${escapeHtml(c.name)}</strong>
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px 28px 0;">
+              <div style="border-top:1px solid #E2E8F0;padding-top:12px;font-size:11px;line-height:1.55;color:#94A3B8;text-align:center;">
+                ${escapeHtml(legal)}
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`.trim();
 }
 
 function buildLetterEmailHtml(params: {
@@ -634,10 +387,6 @@ ${richOrPlainToEmailHtml(params.body)}
   });
 }
 
-function lineAmount(quantity: number, unitPrice: number, discount: number) {
-  return quantity * unitPrice * (1 - (discount || 0) / 100);
-}
-
 type MailStaff = {
   id: string;
   role: "member" | "admin" | "super_admin";
@@ -653,6 +402,8 @@ export async function sendDocumentEmailInternal(params: {
   staff: MailStaff;
   pdfBase64?: string;
   fileName?: string;
+  /** Aperçu JPEG de la facture / du devis, intégré au corps du mail. */
+  previewImageBase64?: string;
   skipAccessCheck?: boolean;
   activeCabinet?: "conseil" | "expertise_fiscale";
 }) {
@@ -741,6 +492,50 @@ export async function sendDocumentEmailInternal(params: {
     const managerCc = resolveManagerCc(company, to);
     const niuLabel = niuLabelForCabinet(doc.cabinet);
 
+  const pdfFileName =
+    params.fileName?.trim() ||
+    `${doc.number.replace(/[^\w.\-]+/g, "_")}.pdf`;
+  let pdfTraceUrl: string | null = null;
+
+  if (params.pdfBase64) {
+    try {
+      const raw = Buffer.from(params.pdfBase64, "base64");
+      if (raw.byteLength <= 12 * 1024 * 1024) {
+        const { uploadDocumentPdfBytes } = await import(
+          "@/lib/document-pdf-storage"
+        );
+        const uploaded = await uploadDocumentPdfBytes({
+          cabinet: doc.cabinet,
+          documentId: doc.id,
+          action: "email",
+          fileName: pdfFileName,
+          bytes: raw,
+        });
+        await prisma.documentPdfTrace.create({
+          data: {
+            documentId: doc.id,
+            cabinet: doc.cabinet,
+            action: "email",
+            fileName: pdfFileName,
+            fileUrl: uploaded.fileUrl,
+            staffId: params.staff.id,
+          },
+        });
+        pdfTraceUrl = uploaded.fileUrl;
+      }
+    } catch (err) {
+      console.warn("[sendDocumentEmail] trace PDF", err);
+    }
+  }
+
+  const previewImage =
+    doc.type !== "letter" && params.previewImageBase64
+      ? Buffer.from(params.previewImageBase64, "base64")
+      : null;
+  const hasPreviewImage = Boolean(
+    previewImage && previewImage.byteLength > 0 && previewImage.byteLength <= 3 * 1024 * 1024,
+  );
+
     let subject: string;
     let html: string;
 
@@ -768,38 +563,14 @@ export async function sendDocumentEmailInternal(params: {
       });
     } else {
       const currency = doc.currency || "XAF";
-      const dueMonthFlags = await loadShowDueMonthOnLines([doc.id]);
       const roundingFlags = await loadTotalRounding([doc.id]);
       const rounding = roundingFlags.get(doc.id) ?? 0;
       const depositFlags = await loadDeposits([doc.id]);
       const deposit = depositFlags.get(doc.id) ?? 0;
       const quantityUnits = await loadLineQuantityUnits(doc.lines.map((l) => l.id));
-      const hideZeroFlags = await loadLineHideZeroFigures(doc.lines.map((l) => l.id));
       const billingKinds = await loadLineBillingKinds(doc.lines.map((l) => l.id));
       const discountChoices = await loadDiscountChoices([doc.id]);
       const discountChoice = discountChoices.get(doc.id);
-      const showDueMonth = shouldAppendDueMonthToLines({
-        type: doc.type,
-        showDueMonthOnLines: dueMonthFlags.get(doc.id) ?? false,
-      });
-      const lines = doc.lines.map((l) => {
-        const quantity = Number(l.quantity);
-        const unitPrice = Number(l.unitPrice);
-        const discount = Number(l.discount);
-        const quantityUnit = parseLineQuantityUnit(quantityUnits.get(l.id));
-        return {
-          description: l.description,
-          quantity,
-          quantityUnit,
-          hideZeroFigures: hideZeroFlags.get(l.id) ?? true,
-          unitPrice,
-          total: lineAmount(
-            lineQuantityForTotal({ quantity, quantityUnit }),
-            unitPrice,
-            discount,
-          ),
-        };
-      });
       const mathItems: LineItem[] = doc.lines.map((l) => ({
         id: l.id,
         description: l.description,
@@ -819,103 +590,47 @@ export async function sendDocumentEmailInternal(params: {
         rounding,
       });
       const useComputed = totals.hasFunds || discountChoice?.mode === "amount";
-      const fundsBreakdown = totals.hasFunds
-        ? {
-            grossSubtotal: totals.grossSubtotal,
-            serviceBase: totals.serviceBase,
-            discountAmount: totals.discountAmount,
-            discountLabel:
-              discountChoice?.mode === "amount"
-                ? "Réduction"
-                : `Réduction (${Number(doc.discount)} %)`,
-            taxable: totals.subtotal,
-          }
-        : null;
       subject = `${typeLabel} ${doc.number} — ${company.name}`;
       html = buildCommercialEmailHtml({
         company,
         type: doc.type as "invoice" | "quotation",
         typeLabel,
         number: doc.number,
-        clientName: clientDisplayName(doc.client),
-        contactName: clientRepresentativeLine(doc.client) || doc.client.contactName,
-        clientLines:
-          doc.cabinet === "conseil"
-            ? clientConseilDocumentLines(doc.client)
-            : clientDocumentLines(doc.client),
-        clientNif: doc.client.nif || undefined,
-        clientPhone: doc.client.phone || undefined,
-        clientRccm: doc.client.rccm || undefined,
-        clientCnss: doc.client.cnss || undefined,
-        clientCnamgs: doc.client.cnamgs || undefined,
+        greeting: emailGreeting(doc.client.civility, doc.client.contactName),
         issueDate: formatDate(doc.issueDate),
         dueDate: doc.dueDate ? formatDate(doc.dueDate) : null,
         currency,
-        lines,
-        dueMonthLine: showDueMonth ? dueMonthMention(doc.issueDate) : null,
-        fundsBreakdown,
-        subtotal: useComputed ? totals.subtotal : Number(doc.subtotal),
-        tps: useComputed ? totals.tps : Number(doc.tps),
-        css: useComputed ? totals.css : Number(doc.css),
-        vat: useComputed ? totals.vat : Number(doc.vat),
-        rounding,
         total: useComputed ? totals.total : Math.max(0, Number(doc.total)),
         deposit,
-        paymentTerms: doc.paymentTerms,
-        showRib: doc.cabinet === "conseil" ? true : Boolean(doc.showRib),
-        executionTerms: doc.executionTerms,
-        niuLabel,
         cabinet: doc.cabinet,
+        hasPreviewImage,
+        pdfUrl: pdfTraceUrl,
       });
     }
 
-  const pdfFileName =
-    params.fileName?.trim() ||
-    `${doc.number.replace(/[^\w.\-]+/g, "_")}.pdf`;
-    let pdfTraceUrl: string | null = null;
-
-  if (params.pdfBase64) {
-    try {
-      const raw = Buffer.from(params.pdfBase64, "base64");
-        if (raw.byteLength <= 12 * 1024 * 1024) {
-          const { uploadDocumentPdfBytes } = await import(
-            "@/lib/document-pdf-storage"
-          );
-          const uploaded = await uploadDocumentPdfBytes({
-            cabinet: doc.cabinet,
-            documentId: doc.id,
-            action: "email",
-            fileName: pdfFileName,
-            bytes: raw,
-          });
-          await prisma.documentPdfTrace.create({
-            data: {
-              documentId: doc.id,
-              cabinet: doc.cabinet,
-              action: "email",
-              fileName: pdfFileName,
-              fileUrl: uploaded.fileUrl,
-              staffId: params.staff.id,
-            },
-          });
-          pdfTraceUrl = uploaded.fileUrl;
-        }
-    } catch (err) {
-      console.warn("[sendDocumentEmail] trace PDF", err);
-    }
-  }
-
   const resend = getResend();
-  const attachments = params.pdfBase64
-    ? [
-        {
-          filename: pdfFileName.endsWith(".pdf")
-            ? pdfFileName
-            : `${pdfFileName}.pdf`,
-          content: Buffer.from(params.pdfBase64, "base64"),
-        },
-      ]
-    : undefined;
+  const attachments = [
+    ...(params.pdfBase64
+      ? [
+          {
+            filename: pdfFileName.endsWith(".pdf")
+              ? pdfFileName
+              : `${pdfFileName}.pdf`,
+            content: Buffer.from(params.pdfBase64, "base64"),
+          },
+        ]
+      : []),
+    ...(hasPreviewImage && previewImage
+      ? [
+          {
+            filename: `apercu-${pdfFileName.replace(/\.pdf$/i, "")}.jpg`,
+            content: previewImage,
+            contentType: "image/jpeg",
+            contentId: DOCUMENT_PREVIEW_CID,
+          },
+        ]
+      : []),
+  ];
 
   const { data: sent, error } = await resend.emails.send({
       from,
@@ -924,7 +639,7 @@ export async function sendDocumentEmailInternal(params: {
       subject,
       html,
       ...(replyTo ? { replyTo: [replyTo] } : {}),
-      ...(attachments ? { attachments } : {}),
+      ...(attachments.length ? { attachments } : {}),
     });
 
   if (error) {
@@ -939,7 +654,10 @@ export async function sendDocumentEmailInternal(params: {
     toEmail: to,
     ccEmail: managerCc ?? null,
     subject,
-    html,
+    html: html.replace(
+      new RegExp(`<img src="cid:${DOCUMENT_PREVIEW_CID}"[^>]*/>`),
+      `<p style="font-size:12px;font-style:italic;color:#64748B;">[Aperçu du document intégré au mail]</p>`,
+    ),
     documentId: doc.id,
     clientId: doc.clientId,
     staffId: params.staff.id,
@@ -990,6 +708,7 @@ export const sendDocumentEmail = createServerFn({ method: "POST" })
       id: z.string(),
       pdfBase64: z.string().optional(),
       fileName: z.string().optional(),
+      previewImageBase64: z.string().optional(),
     }),
   )
   .handler(async ({ data }) => {
@@ -999,6 +718,7 @@ export const sendDocumentEmail = createServerFn({ method: "POST" })
       staff: session.staff,
       pdfBase64: data.pdfBase64,
       fileName: data.fileName,
+      previewImageBase64: data.previewImageBase64,
       activeCabinet: session.activeCabinet,
     });
   });

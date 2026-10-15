@@ -14,10 +14,20 @@ type Props = {
   appearance?: "button" | "header";
 };
 
+function documentIsElectronicallySigned(doc: Document): boolean {
+  return (
+    doc.status === "signed" ||
+    doc.status === "sent" ||
+    doc.status === "paid" ||
+    doc.status === "accepted"
+  );
+}
+
 /**
- * Téléchargement PDF pour impression : jamais de tampon électronique,
- * zone vide pour paraphe manuscrit. La signature reste sur l’e-mail.
- * Les admins voient un bouton discret pour un PDF avec tampon (aperçu physique).
+ * Téléchargement PDF.
+ * - Document déjà signé / envoyé / payé : PDF avec signature électronique.
+ * - Brouillon : PDF sans tampon (espace pour paraphe manuscrit).
+ * Les admins peuvent aussi prévisualiser le PDF signé sur un brouillon.
  */
 export function DocumentPdfButton({
   doc,
@@ -28,7 +38,9 @@ export function DocumentPdfButton({
   const { data: session } = useSession();
   const downloadPdfMutation = useDownloadDocumentPdf();
   const busy = downloadPdfMutation.isPending;
-  const showSignedPreview = Boolean(session && isAdmin(session.staff.role));
+  const alreadySigned = documentIsElectronicallySigned(doc);
+  const showDraftSignedPreview =
+    Boolean(session && isAdmin(session.staff.role)) && !alreadySigned;
 
   const run = (includeSignature: boolean) => {
     const toastId = toast.loading(
@@ -60,7 +72,7 @@ export function DocumentPdfButton({
   const label = (
     <>
       {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-      PDF
+      {busy ? "Impression en cours…" : alreadySigned ? "PDF signé" : "PDF"}
     </>
   );
 
@@ -71,7 +83,7 @@ export function DocumentPdfButton({
       ) : (
         <PenLine className="h-3.5 w-3.5" />
       )}
-      PDF signé
+      {busy ? "Impression en cours…" : "PDF signé"}
     </>
   );
 
@@ -81,7 +93,7 @@ export function DocumentPdfButton({
         <button
           type="button"
           disabled={busy}
-          onClick={() => run(false)}
+          onClick={() => run(alreadySigned)}
           className={cn(
             "inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60",
             className,
@@ -89,7 +101,7 @@ export function DocumentPdfButton({
         >
           {label}
         </button>
-        {showSignedPreview ? (
+        {showDraftSignedPreview ? (
           <button
             type="button"
             disabled={busy}
@@ -112,11 +124,11 @@ export function DocumentPdfButton({
         size={size}
         className={cn("rounded-xl", className)}
         disabled={busy}
-        onClick={() => run(false)}
+        onClick={() => run(alreadySigned)}
       >
         {label}
       </Button>
-      {showSignedPreview ? (
+      {showDraftSignedPreview ? (
         <Button
           type="button"
           variant="ghost"
