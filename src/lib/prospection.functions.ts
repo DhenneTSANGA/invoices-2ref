@@ -27,8 +27,6 @@ import {
   uploadCrmReceiptFile,
 } from "@/lib/crm-receipts-storage";
 import { resolveCabinet } from "@/lib/roles";
-import { resolveStaffWritePole } from "@/lib/staff-pole";
-import { withLoadedStaffPoles } from "@/lib/staff-pole-db";
 import {
   DEFAULT_BUDGET_SETTINGS,
   STAGE_LABELS,
@@ -269,7 +267,7 @@ async function loadCrmManagers(): Promise<Manager[]> {
   const rows = await prisma.staffMember.findMany({
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
   });
-  const staff = await withLoadedStaffPoles(rows.map(mapStaff));
+  const staff = rows.map(mapStaff);
   return staff
     .filter(
       (s) =>
@@ -836,13 +834,8 @@ export const convertCrmProspect = createServerFn({ method: "POST" })
     }
 
     const cabinet = data.cabinet ?? resolveCabinet(staff.role, staff.cabinet, activeCabinet);
-    const pole = resolveStaffWritePole(
-      staff,
-      poleFromCrmLines([
-        ...existing.servicesBought,
-        ...existing.targetLines,
-      ]),
-    );
+    // Pôle de la fiche client Facturation (attribut du client), déduit des lignes de service.
+    const pole = poleFromCrmLines([...existing.servicesBought, ...existing.targetLines]);
 
     const row = await prisma.$transaction(async (tx) => {
       const client = await tx.client.create({

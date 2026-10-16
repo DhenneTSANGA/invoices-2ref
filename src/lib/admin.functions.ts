@@ -291,7 +291,11 @@ export const createStaffWithPassword = createServerFn({ method: "POST" })
         spacesAllowed: data.spacesAllowed,
       });
 
-      await persistStaffPole(staff.id, parseClientPole(data.pole));
+      // Le pôle est une notion Facturation : aucun pour un compte Prospection.
+      await persistStaffPole(
+        staff.id,
+        data.spacesAllowed === "prospection" ? null : parseClientPole(data.pole),
+      );
       await persistCreatedCrmProfile(staff.id, data);
       await clearRevokedAccount(email);
 
@@ -402,7 +406,11 @@ export const inviteStaffMember = createServerFn({ method: "POST" })
         spacesAllowed: data.spacesAllowed,
       });
 
-      await persistStaffPole(staff.id, parseClientPole(data.pole));
+      // Le pôle est une notion Facturation : aucun pour un compte Prospection.
+      await persistStaffPole(
+        staff.id,
+        data.spacesAllowed === "prospection" ? null : parseClientPole(data.pole),
+      );
       await persistCreatedCrmProfile(staff.id, data);
       await clearRevokedAccount(email);
 

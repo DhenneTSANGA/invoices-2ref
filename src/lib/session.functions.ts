@@ -143,7 +143,7 @@ async function buildAppSession(user: User): Promise<AppSession> {
   }
 
   let staff = await withLoadedStaffPole(mapStaff(staffRow));
-  if (staff.role !== "super_admin" && !staff.pole) {
+  if (staff.role !== "super_admin" && !staff.pole && staff.spacesAllowed !== "prospection") {
     await persistStaffPole(staff.id, DEFAULT_CLIENT_POLE);
     staff = { ...staff, pole: DEFAULT_CLIENT_POLE };
   }

@@ -1,21 +1,7 @@
-import type { ClientPole } from "@/lib/client-pole";
-import { isClientPole } from "@/lib/client-pole";
 import type { Manager, ServiceLine } from "@/lib/prospection-model";
 import { canAccessSpace, type StaffSpacesAllowed } from "@/lib/app-space";
 import type { AppRole } from "@/lib/roles";
 import { crmRoleFromStaff } from "@/lib/prospection-access";
-
-const POLE_TO_LINES: Record<ClientPole, ServiceLine[]> = {
-  formation: ["formation"],
-  audit: ["conseil"],
-  juridique: ["conseil"],
-  comptabilite: ["comptabilite"],
-};
-
-export function linesFromStaffPole(pole: unknown): ServiceLine[] {
-  if (!isClientPole(pole)) return [];
-  return POLE_TO_LINES[pole] ?? [];
-}
 
 export function staffDisplayName(staff: {
   firstName?: string | null;
@@ -31,7 +17,6 @@ export function staffToCrmManager(staff: {
   firstName?: string | null;
   lastName?: string | null;
   email?: string | null;
-  pole?: unknown;
   crmLines?: ServiceLine[] | null;
   role?: AppRole;
   crmProfile?: string | null;
@@ -39,7 +24,8 @@ export function staffToCrmManager(staff: {
   return {
     id: staff.id,
     name: staffDisplayName(staff),
-    lines: staff.crmLines?.length ? staff.crmLines : linesFromStaffPole(staff.pole),
+    // L’espace Prospection n’a pas de pôle : seules les lignes de service comptent.
+    lines: staff.crmLines ?? [],
     ...(staff.role ? { role: crmRoleFromStaff({ role: staff.role, crmProfile: staff.crmProfile }) } : {}),
   };
 }
