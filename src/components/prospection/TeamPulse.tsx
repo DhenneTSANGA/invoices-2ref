@@ -1,7 +1,20 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { ArrowDownRight, ArrowUpRight, CheckCircle2, Minus, Users } from "lucide-react";
+import {
+  Activity,
+  ArrowDownRight,
+  ArrowUpRight,
+  BadgeCheck,
+  CalendarCheck,
+  CheckCircle2,
+  FileText,
+  Minus,
+  PhoneCall,
+  Target,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
 import { useEffect, useState } from "react";
-import { CrmCard, EntityMark, IconMark } from "@/components/prospection/CrmCards";
+import { CrmCard, EntityMark, IconMark, personAccent } from "@/components/prospection/CrmCards";
 import { TeamTrend } from "@/components/prospection/TeamTrend";
 import { getCrmTeamPulse } from "@/lib/prospection.functions";
 import type {
@@ -29,6 +42,48 @@ const METRICS: { key: Metric; label: string; short: string }[] = [
   { key: "contacts", label: "Premiers contacts", short: "Contacts" },
   { key: "qualified", label: "Prospects qualifiés", short: "Prospects" },
 ];
+
+/** Couleur et icône de chaque compteur (cartes et cumul d’équipe). */
+const STAT_STYLE: Record<Metric | "actions", { icon: LucideIcon; tile: string; text: string }> = {
+  signatures: {
+    icon: BadgeCheck,
+    tile: "bg-emerald-500/10 ring-emerald-500/20",
+    text: "text-emerald-700 dark:text-emerald-300",
+  },
+  proposals: {
+    icon: FileText,
+    tile: "bg-amber-500/10 ring-amber-500/20",
+    text: "text-amber-700 dark:text-amber-300",
+  },
+  rdv: {
+    icon: CalendarCheck,
+    tile: "bg-violet-500/10 ring-violet-500/20",
+    text: "text-violet-700 dark:text-violet-300",
+  },
+  contacts: {
+    icon: PhoneCall,
+    tile: "bg-sky-500/10 ring-sky-500/20",
+    text: "text-sky-700 dark:text-sky-300",
+  },
+  qualified: {
+    icon: Target,
+    tile: "bg-indigo-500/10 ring-indigo-500/20",
+    text: "text-indigo-700 dark:text-indigo-300",
+  },
+  actions: {
+    icon: Activity,
+    tile: "bg-slate-500/10 ring-slate-500/20",
+    text: "text-slate-700 dark:text-slate-300",
+  },
+};
+
+/** Couleur de l’atteinte des objectifs : en retard, en route, atteint. */
+function scoreTone(score: number) {
+  if (score >= 100) return { bar: "from-emerald-500 to-teal-400", text: "text-emerald-700 dark:text-emerald-300" };
+  if (score >= 50) return { bar: "from-blue-600 to-sky-400", text: "text-primary" };
+  if (score > 0) return { bar: "from-amber-500 to-orange-400", text: "text-amber-700 dark:text-amber-300" };
+  return { bar: "from-slate-300 to-slate-300", text: "text-muted-foreground" };
+}
 
 const PERIOD_COPY: Record<TeamPulsePeriod, { tab: string; of: string; previous: string }> = {
   week: { tab: "Cette semaine", of: "de la semaine", previous: "la semaine dernière à la même heure" },
@@ -264,13 +319,21 @@ export function TeamPulse({ refreshKey }: { refreshKey: string }) {
             </div>
           </div>
 
-          <div className="mt-4 rounded-2xl bg-muted/45 px-4 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <div className="relative mt-4 overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-blue-500 to-sky-400 px-4 py-3 text-white shadow-glow">
+            <div
+              className="pointer-events-none absolute -right-10 -top-12 h-36 w-36 rounded-full bg-white/20 blur-2xl"
+              aria-hidden
+            />
+            <div
+              className="pointer-events-none absolute -bottom-16 left-1/3 h-32 w-48 rounded-full bg-emerald-300/25 blur-3xl"
+              aria-hidden
+            />
+            <p className="relative text-[11px] font-semibold uppercase tracking-wider text-white/80">
               CA signé par l’équipe {copy.of}
             </p>
-            <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <div className="relative mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <span className="font-sans text-2xl font-semibold">{currency(team.signedAmount)}</span>
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-white/85">
                 {team.signatures} mission(s) · {team.proposals} offre(s) · {team.rdv} RDV
               </span>
             </div>
@@ -295,21 +358,31 @@ export function TeamPulse({ refreshKey }: { refreshKey: string }) {
                 ))}
               </ul>
               {ranked.length > 1 ? (
-                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-2xl border border-border/60 px-4 py-2.5 text-xs">
-                  <span className="font-semibold uppercase tracking-wider text-muted-foreground">
+                <div className="mt-3 flex flex-wrap items-center gap-2 rounded-2xl border border-border/60 bg-surface/60 px-4 py-2.5 text-xs">
+                  <span className="mr-1 font-semibold uppercase tracking-wider text-muted-foreground">
                     Équipe (cumul)
                   </span>
-                  {METRICS.map((metric) => (
-                    <span key={metric.key} className="text-muted-foreground">
-                      {metric.short}{" "}
-                      <span className="font-semibold tabular-nums text-foreground">{team[metric.key]}</span>
+                  {[
+                    ...METRICS.map((metric) => ({ key: metric.key, label: metric.short, value: team[metric.key] })),
+                    { key: "actions" as const, label: "Actions", value: team.actions },
+                  ].map((st) => {
+                    const style = STAT_STYLE[st.key];
+                    return (
+                      <span
+                        key={st.key}
+                        className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 ring-1", style.tile)}
+                      >
+                        <style.icon className={cn("h-3 w-3", style.text)} aria-hidden />
+                        <span className="text-muted-foreground">{st.label}</span>
+                        <span className={cn("font-semibold tabular-nums", style.text)}>{st.value}</span>
+                      </span>
+                    );
+                  })}
+                  <span className="ml-auto inline-flex items-center gap-1 text-muted-foreground">
+                    Objectifs
+                    <span className={cn("font-semibold tabular-nums", scoreTone(teamScore).text)}>
+                      {teamScore} %
                     </span>
-                  ))}
-                  <span className="text-muted-foreground">
-                    Actions <span className="font-semibold tabular-nums text-foreground">{team.actions}</span>
-                  </span>
-                  <span className="text-muted-foreground">
-                    Objectifs <span className="font-semibold tabular-nums text-foreground">{teamScore} %</span>
                   </span>
                 </div>
               ) : null}
@@ -345,7 +418,9 @@ function ManagerCard({
   periodOf: string;
   previousLabel: string;
 }) {
-  const stats: { key: string; label: string; value: number; title: string }[] = [
+  const accent = personAccent(m.name);
+  const tone = scoreTone(m.score);
+  const stats: { key: Metric | "actions"; label: string; value: number; title: string }[] = [
     ...METRICS.map((metric) => ({
       key: metric.key,
       label: metric.short,
@@ -353,7 +428,7 @@ function ManagerCard({
       title: `${metric.label} : ${m.current[metric.key]} (cible ${fmt(m.targets[metric.key])}) · ${share(m.current[metric.key], team[metric.key])} % de l’équipe · ${previousLabel} : ${m.previous[metric.key]}`,
     })),
     {
-      key: "actions",
+      key: "actions" as const,
       label: "Actions",
       value: m.current.actions,
       title: `Actions terminées : ${m.current.actions} · ${previousLabel} : ${m.previous.actions}`,
@@ -362,11 +437,16 @@ function ManagerCard({
   return (
     <li
       className={cn(
-        "flex flex-col rounded-2xl border p-4",
-        isSelf ? "border-primary/40 bg-primary/[0.05]" : "border-border/60 bg-surface/60",
+        "relative flex flex-col overflow-hidden rounded-2xl border bg-surface/70 p-4 pt-5 shadow-soft",
+        isSelf ? cn(accent.ring, "ring-2 ring-primary/25") : accent.ring,
       )}
     >
-      <div className="flex items-center gap-2">
+      <span className={cn("absolute inset-x-0 top-0 h-1 bg-gradient-to-r", accent.bar)} aria-hidden />
+      <div
+        className={cn("pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full blur-3xl", accent.glow)}
+        aria-hidden
+      />
+      <div className="relative flex items-center gap-2">
         <EntityMark name={m.name} size="sm" />
         <span className="min-w-0 flex-1 truncate font-medium" title={m.name}>
           {m.name}
@@ -378,7 +458,7 @@ function ManagerCard({
         ) : null}
       </div>
 
-      <div className="mt-3" title={`${m.revenueShare} % du CA signé par l’équipe ${periodOf}`}>
+      <div className="relative mt-3" title={`${m.revenueShare} % du CA signé par l’équipe ${periodOf}`}>
         <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
           CA signé · part
         </p>
@@ -395,35 +475,41 @@ function ManagerCard({
             {m.revenueShare} %
           </span>
         </div>
-        <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-muted">
+        <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
           <div
-            className="h-full rounded-full bg-primary"
+            className={cn("h-full rounded-full bg-gradient-to-r", accent.bar)}
             style={{ width: `${Math.max(m.revenueShare, m.revenueShare > 0 ? 3 : 0)}%` }}
           />
         </div>
       </div>
 
-      <dl className="mt-3 grid grid-cols-3 gap-2">
-        {stats.map((st) => (
-          <div key={st.key} title={st.title} className="rounded-lg bg-muted/45 px-2 py-1.5">
-            <dt className="truncate text-[10px] text-muted-foreground">{st.label}</dt>
-            <dd
-              className={cn(
-                "text-sm tabular-nums",
-                st.value === 0 ? "text-muted-foreground" : "font-semibold",
-              )}
-            >
-              {st.value}
-            </dd>
-          </div>
-        ))}
+      <dl className="relative mt-3 grid grid-cols-3 gap-2">
+        {stats.map((st) => {
+          const style = STAT_STYLE[st.key];
+          return (
+            <div key={st.key} title={st.title} className={cn("rounded-lg px-2 py-1.5 ring-1", style.tile)}>
+              <dt className="flex items-center gap-1 truncate text-[10px] text-muted-foreground">
+                <style.icon className={cn("h-3 w-3 shrink-0", style.text)} aria-hidden />
+                {st.label}
+              </dt>
+              <dd
+                className={cn(
+                  "text-sm tabular-nums",
+                  st.value === 0 ? "text-muted-foreground" : cn("font-semibold", style.text),
+                )}
+              >
+                {st.value}
+              </dd>
+            </div>
+          );
+        })}
       </dl>
 
-      <div className="mt-3 border-t border-border/50 pt-3">
+      <div className="relative mt-3 border-t border-border/50 pt-3">
         <div className="flex items-center justify-between gap-2 text-xs">
           <span className="text-muted-foreground">Objectifs</span>
           <span className="inline-flex items-center gap-2">
-            <span className="font-semibold tabular-nums">{m.score} %</span>
+            <span className={cn("font-semibold tabular-nums", tone.text)}>{m.score} %</span>
             <Delta value={m.score - m.previousScore} unit=" pts" />
           </span>
         </div>
@@ -436,8 +522,8 @@ function ManagerCard({
           aria-label={`Objectifs de ${m.name}`}
         >
           <div
-            className={cn("h-full rounded-full", m.score >= 100 ? "bg-emerald-500" : "bg-primary")}
-            style={{ width: `${Math.max(m.score, m.score > 0 ? 4 : 0)}%` }}
+            className={cn("h-full rounded-full bg-gradient-to-r", tone.bar)}
+            style={{ width: `${Math.min(100, Math.max(m.score, m.score > 0 ? 4 : 0))}%` }}
           />
         </div>
       </div>

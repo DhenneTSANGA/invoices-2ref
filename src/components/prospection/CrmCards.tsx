@@ -71,10 +71,29 @@ export function initialsFrom(name: string) {
   return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 }
 
-function toneFor(name: string) {
+/** Accents assortis aux avatars (même index), pour colorer la carte d’une personne. */
+const PERSON_ACCENTS = [
+  { bar: "from-blue-600 to-sky-400", glow: "bg-blue-500/20", ring: "border-blue-500/30" },
+  { bar: "from-sky-600 to-cyan-400", glow: "bg-sky-500/20", ring: "border-sky-500/30" },
+  { bar: "from-violet-600 to-fuchsia-400", glow: "bg-violet-500/20", ring: "border-violet-500/30" },
+  { bar: "from-amber-500 to-orange-400", glow: "bg-amber-500/20", ring: "border-amber-500/30" },
+  { bar: "from-emerald-600 to-teal-400", glow: "bg-emerald-500/20", ring: "border-emerald-500/30" },
+  { bar: "from-fuchsia-600 to-pink-400", glow: "bg-fuchsia-500/20", ring: "border-fuchsia-500/30" },
+  { bar: "from-indigo-600 to-blue-400", glow: "bg-indigo-500/20", ring: "border-indigo-500/30" },
+];
+
+function toneIndex(name: string) {
   let hash = 0;
   for (const ch of name) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
-  return AVATAR_TONES[hash % AVATAR_TONES.length];
+  return hash % AVATAR_TONES.length;
+}
+
+function toneFor(name: string) {
+  return AVATAR_TONES[toneIndex(name)];
+}
+
+export function personAccent(name: string) {
+  return PERSON_ACCENTS[toneIndex(name)];
 }
 
 export function CrmCardGrid({
