@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { runCrmOpportunityReminders } from "@/lib/crm-reminder-jobs";
 import { runCrmWeeklyReport, type CrmWeeklyReportResult } from "@/lib/crm-weekly-report";
+import { runCrmDailyDigest, type CrmDailyDigestResult } from "@/lib/crm-daily-digest";
 
 function authorizeCron(request: Request): boolean {
   const secret = process.env.CRON_SECRET?.trim();
@@ -41,7 +42,15 @@ export const Route = createFileRoute("/api/cron/prospection")({
             console.error("[cron/prospection] weekly report", err);
             weeklyReport = { error: err instanceof Error ? err.message : "Erreur serveur" };
           }
-          return Response.json({ ok: true, ...result, weeklyReport });
+          let dailyDigest: CrmDailyDigestResult | { error: string };
+          try {
+            dailyDigest = await runCrmDailyDigest(refDate ? { refDate } : undefined);
+            console.info("[cron/prospection] daily digest", JSON.stringify(dailyDigest));
+          } catch (err) {
+            console.error("[cron/prospection] daily digest", err);
+            dailyDigest = { error: err instanceof Error ? err.message : "Erreur serveur" };
+          }
+          return Response.json({ ok: true, ...result, weeklyReport, dailyDigest });
         } catch (err) {
           console.error("[cron/prospection]", err);
           return Response.json(

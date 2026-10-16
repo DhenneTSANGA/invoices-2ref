@@ -13,6 +13,7 @@ import {
 import { crmRoleFromStaff } from "@/lib/prospection-access";
 import { ACTIVE_STAGES, type PipelineStage } from "@/lib/prospection-model";
 import { CABINETS, CABINET_LABELS, type Cabinet } from "@/lib/cabinets";
+import { computeManagerDigest, ESCALATION_DAYS, type DigestItem } from "@/lib/crm-daily-digest";
 
 /**
  * Rapport de synthèse hebdomadaire envoyé à la direction chaque lundi matin
@@ -30,6 +31,9 @@ export type CrmWeeklyReportResult =
 const DAY_MS = 86_400_000;
 /** Rattrapage si le cron du lundi n’a pas tourné (lundi → mercredi). */
 const CATCH_UP_WEEKDAYS = new Set([1, 2, 3]);
+
+/** Retards de plus de ESCALATION_DAYS jours d’un manager (escalade vers la direction). */
+type EscalationRow = { name: string; items: DigestItem[] };
 
 type ManagerRow = {
   name: string;
@@ -213,8 +217,23 @@ async function sendCabinetReport(
   const counselShare = pipeline > 0 ? Math.round((counselPipe / pipeline) * 100) : 0;
   const budgetCap = monthlyCap * Math.max(1, managers.length);
 
+  // Escalade : tâches et oublis de la routine en souffrance depuis plus de 7 jours.
+  const escalationLimit = new Date(weekEnd.getTime() - ESCALATION_DAYS * DAY_MS);
+  const escalations: EscalationRow[] = (
+    await Promise.all(
+      managers.map(async (m) => {
+        const d = await computeManagerDigest(m.id, cabinet, weekEnd);
+        const items = [...d.overdue, ...d.missingReports, ...d.lateProposals, ...d.idleLeads].filter(
+          (i) => i.date && i.date < escalationLimit,
+        );
+        return { name: staffDisplayName(m), items };
+      }),
+    )
+  ).filter((e) => e.items.length > 0);
+
   const period = `du ${frDate(weekStart)} au ${frDate(new Date(weekEnd.getTime() - DAY_MS))}`;
   const html = weeklyReportHtml({
+    escalations,
     cabinetLabel: CABINET_LABELS[cabinet],
     period,
     rows,
@@ -251,6 +270,7 @@ async function sendCabinetReport(
 }
 
 function weeklyReportHtml(input: {
+  escalations: EscalationRow[];
   cabinetLabel: string;
   period: string;
   rows: ManagerRow[];
@@ -301,6 +321,22 @@ function weeklyReportHtml(input: {
         <tr><td style="padding:6px 0;color:#6b7280;width:55%">Pipeline pondéré (en cours)</td><td style="padding:6px 0;font-weight:bold">${fcfa(input.weighted)}</td></tr>
         <tr><td style="padding:6px 0;color:#6b7280">Part hors formation dans le pipeline</td><td style="padding:6px 0;font-weight:bold">${input.counselShare} %</td></tr>
       </table>
+      ${
+        input.escalations.length > 0
+          ? `<div style="margin-bottom:24px;padding:14px 16px;border:1px solid #fecaca;background:#fef2f2;border-radius:8px">
+        <div style="font-size:13px;font-weight:bold;color:#b91c1c;text-transform:uppercase;letter-spacing:.04em">Retards de plus de ${ESCALATION_DAYS} jours</div>
+        ${input.escalations
+          .map(
+            (e) => `<div style="margin-top:10px;font-size:14px"><strong>${escapeHtml(e.name)}</strong> — ${e.items.length} point(s)
+            <ul style="margin:4px 0 0;padding-left:18px;font-size:12px;color:#4b5563">${e.items
+              .slice(0, 5)
+              .map((i) => `<li>${escapeHtml(i.title)} · ${escapeHtml(i.detail)}</li>`)
+              .join("")}${e.items.length > 5 ? `<li>… et ${e.items.length - 5} autre(s)</li>` : ""}</ul></div>`,
+          )
+          .join("")}
+      </div>`
+          : ""
+      }
       <a href="${escapeHtml(input.link)}" style="display:inline-block;background:#1e3a8a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:bold">Ouvrir le pilotage</a>
     </div>
   </div>

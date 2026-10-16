@@ -1054,6 +1054,22 @@ model CrmWeeklyReport {
   @@map("crm_weekly_reports")
 }
 
+/// Récapitulatif quotidien envoyé à un manager (un par jour et par cabinet).
+model CrmDailyDigest {
+  id      String   @id @default(cuid())
+  cabinet Cabinet  @default(conseil)
+  staffId String
+  /// Jour couvert (AAAA-MM-JJ, heure de Libreville).
+  day     String
+  toEmail String
+  items   Int      @default(0)
+  sentAt  DateTime @default(now())
+
+  @@unique([staffId, day, cabinet])
+  @@index([sentAt])
+  @@map("crm_daily_digests")
+}
+
 /** Paramètres budget CRM (global, une seule ligne). */
 model CrmBudgetSettings {
   id                      String   @id @default("default")
