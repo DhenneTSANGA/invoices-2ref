@@ -2044,10 +2044,16 @@ export const getCrmReceiptUrl = createServerFn({ method: "POST" })
 
 /**
  * Émulation entre managers (tableau de bord Prospection) : chaque profil voit
- * ses chiffres et ceux des autres managers pour la semaine en cours, en
- * compteurs agrégés — sans accès aux fiches, affaires ou montants des autres.
+ * ses chiffres et ceux des autres managers pour la semaine ou le mois en cours,
+ * en compteurs et CA signé — sans accès aux fiches ni au détail des affaires des autres.
  */
-export const getCrmTeamPulse = createServerFn({ method: "GET" }).handler(async () => {
-  const ctx = await requireCrm();
-  return computeTeamPulse(portfolioManagers(await loadCrmManagers()), ctx.staff.id);
-});
+export const getCrmTeamPulse = createServerFn({ method: "GET" })
+  .validator(z.object({ period: z.enum(["week", "month"]).default("week") }))
+  .handler(async ({ data }) => {
+    const ctx = await requireCrm();
+    return computeTeamPulse(
+      portfolioManagers(await loadCrmManagers()),
+      ctx.staff.id,
+      data.period,
+    );
+  });

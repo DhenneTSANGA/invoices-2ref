@@ -1,7 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { addDaysIso, crmTodayIso, crmWeekStart, currentCrmMonth } from "@/lib/crm-month";
 import type { Manager } from "@/lib/prospection-model";
-/** Indicateurs comparés entre managers (compteurs uniquement, jamais de client ni de montant). */
+
+export type TeamPulsePeriod = "week" | "month";
+
+/** Indicateurs comparés entre managers (jamais de client ni de détail d’affaire). */
 export type TeamPulseCounts = {
   qualified: number;
   contacts: number;
@@ -9,21 +12,30 @@ export type TeamPulseCounts = {
   proposals: number;
   signatures: number;
   actions: number;
+  /** Honoraires des missions signées sur la période (FCFA). */
+  signedAmount: number;
 };
+
+export type TeamPulseTargets = Pick<
+  TeamPulseCounts,
+  "qualified" | "contacts" | "rdv" | "proposals" | "signatures"
+>;
 
 export type TeamPulseManager = {
   id: string;
   name: string;
-  /** Semaine en cours, de lundi 00:00 à maintenant (heure de Libreville). */
+  /** Période en cours, de son début à maintenant (heure de Libreville). */
   current: TeamPulseCounts;
-  /** Semaine dernière, sur la même durée écoulée (évolution à heure égale). */
+  /** Période précédente, sur la même durée écoulée (évolution à heure égale). */
   previous: TeamPulseCounts;
-  /** Cibles de la semaine = objectif du mois × 7 / nombre de jours du mois. */
-  weeklyTargets: Omit<TeamPulseCounts, "actions">;
+  /** Cibles de la période : objectif du mois (mois) ou objectif × 7 / jours du mois (semaine). */
+  targets: TeamPulseTargets;
 };
 
 export type TeamPulse = {
-  weekKey: string;
+  period: TeamPulsePeriod;
+  /** Premier jour de la période (AAAA-MM-JJ). */
+  periodStart: string;
   generatedAt: string;
   selfId: string;
   managers: TeamPulseManager[];
@@ -31,28 +43,62 @@ export type TeamPulse = {
 
 const PULSE_CONTACT_KINDS = new Set(["appel", "email", "visite"]);
 
+function daysInMonth(year: number, month1: number) {
+  return new Date(Date.UTC(year, month1, 0)).getUTCDate();
+}
+
 /**
- * Compteurs de la semaine en cours (et de la semaine dernière à durée égale)
+ * Bornes de la période en cours et de la période précédente à durée écoulée égale
+ * (semaine : lundi 00:00 ; mois : le 1er à 00:00 — heure de Libreville, UTC+1).
+ */
+function periodBounds(period: TeamPulsePeriod, now: Date) {
+  const DAY = 86_400_000;
+  const today = crmTodayIso(now);
+  if (period === "week") {
+    const startIso = crmWeekStart(now);
+    const start = new Date(`${startIso}T00:00:00.000+01:00`);
+    return {
+      startIso,
+      today,
+      start,
+      prevStartIso: addDaysIso(startIso, -7),
+      prevToday: addDaysIso(today, -7),
+      prevStart: new Date(start.getTime() - 7 * DAY),
+      prevNow: new Date(now.getTime() - 7 * DAY),
+    };
+  }
+  const month = currentCrmMonth(now);
+  const [y, m] = month.split("-").map(Number);
+  const startIso = `${month}-01`;
+  const start = new Date(`${startIso}T00:00:00.000+01:00`);
+  const prevY = m === 1 ? y - 1 : y;
+  const prevM = m === 1 ? 12 : m - 1;
+  const prevMonth = `${prevY}-${String(prevM).padStart(2, "0")}`;
+  const prevStartIso = `${prevMonth}-01`;
+  const prevStart = new Date(`${prevStartIso}T00:00:00.000+01:00`);
+  // Même jour du mois précédent (plafonné à sa longueur), même heure.
+  const day = Math.min(Number(today.slice(8, 10)), daysInMonth(prevY, prevM));
+  const prevToday = `${prevMonth}-${String(day).padStart(2, "0")}`;
+  const elapsed = now.getTime() - new Date(`${today}T00:00:00.000+01:00`).getTime();
+  const prevNow = new Date(new Date(`${prevToday}T00:00:00.000+01:00`).getTime() + elapsed);
+  return { startIso, today, start, prevStartIso, prevToday, prevStart, prevNow };
+}
+
+/**
+ * Compteurs et CA signé de la période en cours (et de la précédente à durée égale)
  * pour chaque porteur de portefeuille.
  */
 export async function computeTeamPulse(
   managers: Manager[],
   selfId: string,
+  period: TeamPulsePeriod = "week",
   now = new Date(),
 ): Promise<TeamPulse> {
   const ids = managers.map((m) => m.id);
-  const DAY = 86_400_000;
-  const weekKey = crmWeekStart(now);
-  const today = crmTodayIso(now);
-  const prevWeekKey = addDaysIso(weekKey, -7);
-  const prevToday = addDaysIso(today, -7);
-  // Lundi 00:00 à Libreville (UTC+1).
-  const weekStart = new Date(`${weekKey}T00:00:00.000+01:00`);
-  const prevStart = new Date(weekStart.getTime() - 7 * DAY);
-  const prevNow = new Date(now.getTime() - 7 * DAY);
+  const b = periodBounds(period, now);
   const month = currentCrmMonth(now);
   const [year, monthNum] = month.split("-").map(Number);
-  const daysInMonth = new Date(Date.UTC(year, monthNum, 0)).getUTCDate();
+  const monthDays = daysInMonth(year, monthNum);
 
   const [activities, opportunities, objectives] =
     ids.length === 0
@@ -63,8 +109,8 @@ export async function computeTeamPulse(
               ownerId: { in: ids },
               status: "terminee",
               at: {
-                gte: new Date(`${prevWeekKey}T00:00:00.000Z`),
-                lte: new Date(`${today}T23:59:59.999Z`),
+                gte: new Date(`${b.prevStartIso}T00:00:00.000Z`),
+                lte: new Date(`${b.today}T23:59:59.999Z`),
               },
             },
             select: { ownerId: true, kind: true, at: true, companyId: true },
@@ -73,12 +119,18 @@ export async function computeTeamPulse(
             where: {
               ownerId: { in: ids },
               OR: [
-                { qualifiedAt: { gte: prevStart } },
-                { proposalAt: { gte: prevStart } },
-                { wonAt: { gte: prevStart } },
+                { qualifiedAt: { gte: b.prevStart } },
+                { proposalAt: { gte: b.prevStart } },
+                { wonAt: { gte: b.prevStart } },
               ],
             },
-            select: { ownerId: true, qualifiedAt: true, proposalAt: true, wonAt: true },
+            select: {
+              ownerId: true,
+              qualifiedAt: true,
+              proposalAt: true,
+              wonAt: true,
+              amount: true,
+            },
           }),
           prisma.crmObjective.findMany({
             where: { managerId: { in: ids }, month },
@@ -100,39 +152,41 @@ export async function computeTeamPulse(
     });
     const opps = opportunities.filter((o) => o.ownerId === managerId);
     const inRange = (d: Date | null) => Boolean(d && d >= from && d <= to);
+    const won = opps.filter((o) => inRange(o.wonAt));
     return {
       qualified: opps.filter((o) => inRange(o.qualifiedAt)).length,
       contacts: new Set(acts.filter((a) => PULSE_CONTACT_KINDS.has(a.kind)).map((a) => a.companyId))
         .size,
       rdv: acts.filter((a) => a.kind === "rdv").length,
       proposals: opps.filter((o) => inRange(o.proposalAt)).length,
-      signatures: opps.filter((o) => inRange(o.wonAt)).length,
+      signatures: won.length,
       actions: acts.length,
+      signedAmount: won.reduce((s, o) => s + Number(o.amount), 0),
     };
   };
 
-  const weekly = (managerId: string, metric: string) => {
-    const monthly = objectives.find(
-      (o) => o.managerId === managerId && o.metric === metric,
-    )?.target;
-    return monthly ? Math.round(((monthly * 7) / daysInMonth) * 10) / 10 : 0;
+  const target = (managerId: string, metric: string) => {
+    const monthly = objectives.find((o) => o.managerId === managerId && o.metric === metric)?.target;
+    if (!monthly) return 0;
+    return period === "month" ? monthly : Math.round(((monthly * 7) / monthDays) * 10) / 10;
   };
 
   return {
-    weekKey,
+    period,
+    periodStart: b.startIso,
     generatedAt: now.toISOString(),
     selfId,
     managers: managers.map((m) => ({
       id: m.id,
       name: m.name,
-      current: count(m.id, weekKey, today, weekStart, now),
-      previous: count(m.id, prevWeekKey, prevToday, prevStart, prevNow),
-      weeklyTargets: {
-        qualified: weekly(m.id, "qualifies"),
-        contacts: weekly(m.id, "contacts"),
-        rdv: weekly(m.id, "rdv"),
-        proposals: weekly(m.id, "propositions"),
-        signatures: weekly(m.id, "signatures"),
+      current: count(m.id, b.startIso, b.today, b.start, now),
+      previous: count(m.id, b.prevStartIso, b.prevToday, b.prevStart, b.prevNow),
+      targets: {
+        qualified: target(m.id, "qualifies"),
+        contacts: target(m.id, "contacts"),
+        rdv: target(m.id, "rdv"),
+        proposals: target(m.id, "propositions"),
+        signatures: target(m.id, "signatures"),
       },
     })),
   };
