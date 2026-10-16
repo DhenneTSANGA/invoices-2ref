@@ -11,6 +11,7 @@ import {
   EyeOff,
   Lock,
   Shield,
+  Target,
   Trash2,
   UserPlus,
   UserRound,
@@ -429,21 +430,32 @@ export function TeamAdminPage() {
                     )}
                   </td>
                   <td className="px-2 py-2.5">
-                    <span
-                      className={cn(
-                        "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold",
-                        s.role === "super_admin"
-                          ? "bg-violet-500/15 text-violet-800 dark:text-violet-200"
-                          : s.role === "admin"
-                            ? "bg-primary/10 text-primary"
-                            : "bg-muted text-muted-foreground",
-                      )}
-                    >
-                      {(s.role === "admin" || s.role === "super_admin") && (
-                        <Shield className="h-3 w-3" />
-                      )}
-                      {roleLabel(s.role)}
-                    </span>
+                    {isProspectionOnly(s) ? (
+                      // Compte Prospection : son profil, pas le rôle technique « admin ».
+                      <span
+                        className="inline-flex items-center gap-1 rounded-full bg-emerald-500/12 px-2.5 py-1 text-[11px] font-semibold text-emerald-800 dark:text-emerald-200"
+                        title="Profil Prospection"
+                      >
+                        <Target className="h-3 w-3" />
+                        {prospectionProfileLabel(s)}
+                      </span>
+                    ) : (
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold",
+                          s.role === "super_admin"
+                            ? "bg-violet-500/15 text-violet-800 dark:text-violet-200"
+                            : s.role === "admin"
+                              ? "bg-primary/10 text-primary"
+                              : "bg-muted text-muted-foreground",
+                        )}
+                      >
+                        {(s.role === "admin" || s.role === "super_admin") && (
+                          <Shield className="h-3 w-3" />
+                        )}
+                        {roleLabel(s.role)}
+                      </span>
+                    )}
                   </td>
                   {isSuper && (
                     <td className="px-2 py-2.5">
@@ -468,7 +480,7 @@ export function TeamAdminPage() {
                               Vous
                             </span>
                           )
-                        ) : s.role === "admin" ? (
+                        ) : isProspectionOnly(s) ? null : s.role === "admin" ? (
                           <ActionButton
                             variant="muted"
                             icon={ArrowDownCircle}
@@ -517,6 +529,28 @@ export function TeamAdminPage() {
       </div>
     </div>
   );
+}
+
+/** Compte limité à la Prospection : son profil remplace le rôle technique « admin ». */
+function isProspectionOnly(s: { role: string; spacesAllowed?: string | null }) {
+  return s.role === "admin" && s.spacesAllowed === "prospection";
+}
+
+const PROFILE_SHORT: Record<CrmProfile, string> = {
+  manager: "Manager",
+  chef_service: "Chef de service",
+  direction: "Direction",
+  admin: "Administrateur",
+};
+
+/** « Manager · Formation », « Direction », « Administrateur »… */
+function prospectionProfileLabel(s: { crmProfile?: CrmProfile | null; crmLines?: ServiceLine[] }) {
+  const profile = s.crmProfile ?? "admin";
+  const lines =
+    profile === "manager" || profile === "chef_service"
+      ? (s.crmLines ?? []).map((l) => SERVICE_LINE_LABELS[l]).join(", ")
+      : "";
+  return lines ? `${PROFILE_SHORT[profile]} · ${lines}` : PROFILE_SHORT[profile];
 }
 
 /** Ce que chaque profil donne dans l’espace Prospection (cahier des charges §3). */
@@ -702,25 +736,27 @@ function CreateStaffCard() {
               <option value="prospection">{SPACES_ALLOWED_LABELS.prospection}</option>
             </select>
           </label>
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Rôle initial
-            </span>
-            <select
-              value={form.role}
-              disabled={form.spacesAllowed === "prospection"}
-              onChange={(e) =>
-                setForm((f) => ({
-                  ...f,
-                  role: e.target.value as "member" | "admin",
-                }))
-              }
-              className="w-full rounded-2xl border border-border/60 bg-surface/70 px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25 disabled:opacity-60"
-            >
-              <option value="member">Membre</option>
-              <option value="admin">Administrateur</option>
-            </select>
-          </label>
+          {/* Compte Prospection : rôle technique « admin » posé automatiquement, non affiché. */}
+          {form.spacesAllowed === "facturation" ? (
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Rôle initial
+              </span>
+              <select
+                value={form.role}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    role: e.target.value as "member" | "admin",
+                  }))
+                }
+                className="w-full rounded-2xl border border-border/60 bg-surface/70 px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25 disabled:opacity-60"
+              >
+                <option value="member">Membre</option>
+                <option value="admin">Administrateur</option>
+              </select>
+            </label>
+          ) : null}
           {form.spacesAllowed === "facturation" ? (
             <div className="sm:col-span-2">
               <ClientPolePicker
@@ -796,8 +832,8 @@ function CreateStaffCard() {
                 </div>
               ) : null}
               <p className="text-[11px] text-muted-foreground">
-                Compte Prospection : rôle Administrateur obligatoire. Redirection directe vers le
-                CRM après connexion — pas d’accès Facturation.
+                Compte Prospection : les droits dépendent du profil choisi. Redirection directe
+                vers la Prospection après connexion — pas d’accès Facturation.
               </p>
             </div>
           )}
