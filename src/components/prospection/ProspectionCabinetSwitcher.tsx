@@ -9,6 +9,10 @@ import { sessionKey } from "@/hooks/use-data";
 import { prospectionClientsKey } from "@/hooks/use-prospection-companies";
 import { useProspectionStore } from "@/store/useProspectionStore";
 import { cn } from "@/lib/utils";
+import {
+  CABINET_TRANSITION_STEPS,
+  CabinetTransitionOverlay,
+} from "@/components/prospection/CabinetTransitionOverlay";
 
 /**
  * Choix du cabinet dans l’espace Prospection — super admins uniquement, comme en
@@ -21,28 +25,37 @@ export function ProspectionCabinetSwitcher({ className }: { className?: string }
   const router = useRouter();
   const reloadPipeline = useProspectionStore((s) => s.reloadPipeline);
   const [switchingTo, setSwitchingTo] = useState<Cabinet | null>(null);
+  const [transition, setTransition] = useState<{ from: Cabinet; to: Cabinet } | null>(null);
+  const [step, setStep] = useState(0);
 
   if (session.staff.role !== "super_admin") return null;
 
   const switchTo = async (cabinet: Cabinet) => {
     if (cabinet === session.activeCabinet || switchingTo) return;
     setSwitchingTo(cabinet);
+    setTransition({ from: session.activeCabinet, to: cabinet });
+    setStep(0);
     try {
       await setActiveCabinet({ data: { cabinet } });
       await qc.invalidateQueries({ queryKey: sessionKey });
       // Nouveau contexte de session (cabinet actif), puis données du cabinet choisi.
       await router.invalidate();
+      setStep(1);
+      await Promise.all([reloadPipeline(), qc.invalidateQueries({ queryKey: prospectionClientsKey })]);
+      setStep(2);
       await Promise.all([
-        reloadPipeline(),
-        qc.invalidateQueries({ queryKey: prospectionClientsKey }),
         qc.invalidateQueries({ queryKey: ["crm-team-pulse"] }),
         qc.invalidateQueries({ queryKey: ["crm-team-trend"] }),
       ]);
+      setStep(CABINET_TRANSITION_STEPS.length);
+      // Laisse voir la dernière étape cochée avant de fermer.
+      await new Promise((r) => setTimeout(r, 450));
       toast.success(`Cabinet : ${CABINET_LABELS[cabinet]}`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Changement impossible");
     } finally {
       setSwitchingTo(null);
+      setTransition(null);
     }
   };
 
@@ -75,6 +88,7 @@ export function ProspectionCabinetSwitcher({ className }: { className?: string }
           );
         })}
       </div>
+      <CabinetTransitionOverlay transition={transition} step={step} />
     </div>
   );
 }
