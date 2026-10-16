@@ -191,3 +191,85 @@ export async function computeTeamPulse(
     })),
   };
 }
+
+/** Une semaine de l’évolution d’équipe (vue direction). */
+export type TeamTrendWeek = {
+  /** Lundi de la semaine (AAAA-MM-JJ). */
+  weekKey: string;
+  /** Semaine en cours, donc incomplète. */
+  partial: boolean;
+  signatures: number;
+  proposals: number;
+  rdv: number;
+  signedAmount: number;
+};
+
+/**
+ * Évolution semaine par semaine de l’équipe (cahier des charges §6, vue direction) :
+ * signatures, offres, RDV et CA signé des porteurs de portefeuille sur les
+ * `weeks` dernières semaines, semaine en cours comprise.
+ */
+export async function computeTeamTrend(
+  managers: Manager[],
+  weeks = 8,
+  now = new Date(),
+): Promise<TeamTrendWeek[]> {
+  const ids = managers.map((m) => m.id);
+  const currentKey = crmWeekStart(now);
+  const keys = Array.from({ length: weeks }, (_, i) => addDaysIso(currentKey, -7 * (weeks - 1 - i)));
+  const firstKey = keys[0];
+  const firstStart = new Date(`${firstKey}T00:00:00.000+01:00`);
+  const empty = keys.map((weekKey) => ({
+    weekKey,
+    partial: weekKey === currentKey,
+    signatures: 0,
+    proposals: 0,
+    rdv: 0,
+    signedAmount: 0,
+  }));
+  if (ids.length === 0) return empty;
+
+  const [rdvs, opportunities] = await Promise.all([
+    prisma.crmActivity.findMany({
+      where: {
+        ownerId: { in: ids },
+        kind: "rdv",
+        status: "terminee",
+        at: { gte: new Date(`${firstKey}T00:00:00.000Z`) },
+      },
+      select: { at: true },
+    }),
+    prisma.crmOpportunity.findMany({
+      where: {
+        ownerId: { in: ids },
+        OR: [{ proposalAt: { gte: firstStart } }, { wonAt: { gte: firstStart } }],
+      },
+      select: { proposalAt: true, wonAt: true, amount: true },
+    }),
+  ]);
+
+  /** Lundi (heure de Libreville) de la semaine d’un instant donné. */
+  const weekOfInstant = (d: Date) => crmWeekStart(d);
+  /** Lundi de la semaine d’une date stockée à midi UTC (actions). */
+  const weekOfDate = (d: Date) => crmWeekStart(new Date(`${d.toISOString().slice(0, 10)}T12:00:00.000Z`));
+  const byKey = new Map(empty.map((w) => [w.weekKey, w]));
+
+  for (const a of rdvs) {
+    const w = byKey.get(weekOfDate(a.at));
+    if (w) w.rdv += 1;
+  }
+  for (const o of opportunities) {
+    if (o.proposalAt) {
+      const w = byKey.get(weekOfInstant(o.proposalAt));
+      if (w) w.proposals += 1;
+    }
+    if (o.wonAt) {
+      const w = byKey.get(weekOfInstant(o.wonAt));
+      if (w) {
+        w.signatures += 1;
+        w.signedAmount += Number(o.amount);
+      }
+    }
+  }
+  return empty;
+}

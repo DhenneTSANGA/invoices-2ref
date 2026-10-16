@@ -15,13 +15,14 @@ import {
   canAdminReferentials,
   canApproveExpenses,
   canEditLibrary,
+  canSeeAllPortfolios,
   canWriteCrm,
   crmRoleFromStaff,
   type CrmRole,
 } from "@/lib/prospection-access";
 import { resolveLeadOwner } from "@/lib/crm-lead-routing";
 import { currentCrmMonth } from "@/lib/crm-month";
-import { computeTeamPulse } from "@/lib/crm-team-pulse";
+import { computeTeamPulse, computeTeamTrend } from "@/lib/crm-team-pulse";
 import {
   createReceiptSignedUrl,
   uploadCrmReceiptFile,
@@ -2058,3 +2059,13 @@ export const getCrmTeamPulse = createServerFn({ method: "GET" })
       data.period,
     );
   });
+
+/** Évolution semaine par semaine de l’équipe — vue direction (§6). */
+export const getCrmTeamTrend = createServerFn({ method: "GET" }).handler(async () => {
+  const ctx = await requireCrm();
+  assertCrmAllowed(
+    canSeeAllPortfolios(ctx.crm),
+    "Évolution de l’équipe réservée à la direction.",
+  );
+  return computeTeamTrend(portfolioManagers(await loadCrmManagers()));
+});

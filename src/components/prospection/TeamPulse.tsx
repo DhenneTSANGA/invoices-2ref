@@ -2,6 +2,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { ArrowDownRight, ArrowUpRight, CheckCircle2, Minus, Trophy, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { CrmCard, EntityMark, IconMark } from "@/components/prospection/CrmCards";
+import { TeamTrend } from "@/components/prospection/TeamTrend";
 import { getCrmTeamPulse } from "@/lib/prospection.functions";
 import type {
   TeamPulseCounts,
@@ -248,7 +249,9 @@ export function TeamPulse({ refreshKey }: { refreshKey: string }) {
     <section className="mb-5">
       {toolbar}
       <div className="grid gap-4 lg:grid-cols-5">
-        <CrmCard className="h-full lg:col-span-3">
+        {/* Manager : classement + « Mes objectifs ». Direction : classement pleine largeur
+            puis l’évolution semaine par semaine (les objectifs d’équipe doublonneraient le cumul). */}
+        <CrmCard className={cn("h-full", self ? "lg:col-span-3" : "lg:col-span-5")}>
           <div className="flex items-start gap-3">
             <div className="flex items-start gap-3">
               <IconMark icon={Users} tone="bg-primary/15 text-primary" />
@@ -431,8 +434,11 @@ export function TeamPulse({ refreshKey }: { refreshKey: string }) {
           </p>
         </CrmCard>
 
-        <ObjectivesChart self={self} team={ranked} updated={updated} period={data.period} />
+        {self ? (
+          <ObjectivesChart self={self} team={ranked} updated={updated} period={data.period} />
+        ) : null}
       </div>
+      {!self ? <TeamTrend /> : null}
     </section>
   );
 }
