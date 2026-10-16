@@ -20,7 +20,6 @@ import { cn } from "@/lib/utils";
  */
 
 type Metric = keyof TeamPulseTargets;
-type SortKey = "score" | "revenue";
 
 const METRICS: { key: Metric; label: string; short: string }[] = [
   { key: "signatures", label: "Missions signées", short: "Signatures" },
@@ -170,7 +169,6 @@ export function TeamPulse({ refreshKey }: { refreshKey: string }) {
       return "week";
     }
   });
-  const [sortKey, setSortKey] = useState<SortKey>("score");
   const { data, isPending, isError } = useQuery({
     queryKey: ["crm-team-pulse", period, refreshKey],
     queryFn: () => getCrmTeamPulse({ data: { period } }),
@@ -235,25 +233,23 @@ export function TeamPulse({ refreshKey }: { refreshKey: string }) {
       previousScore: periodScore(m.previous, m.targets),
       revenueShare: share(m.current.signedAmount, team.signedAmount),
     }))
-    .sort((a, b) =>
-      sortKey === "revenue"
-        ? b.current.signedAmount - a.current.signedAmount || b.score - a.score
-        : b.score - a.score ||
-          b.current.signedAmount - a.current.signedAmount ||
-          b.current.actions - a.current.actions,
+    // Classement : atteinte des objectifs, puis CA signé, puis volume d’actions.
+    .sort(
+      (a, b) =>
+        b.score - a.score ||
+        b.current.signedAmount - a.current.signedAmount ||
+        b.current.actions - a.current.actions,
     );
   const self = ranked.find((m) => m.id === data.selfId) ?? null;
   const updated = sinceLabel(data.generatedAt, now);
   const teamScore = periodScore(team, sumTargets(data.managers.map((m) => m.targets)));
-  const leaderValue = (m: (typeof ranked)[number]) =>
-    sortKey === "revenue" ? m.current.signedAmount : m.score;
 
   return (
     <section className="mb-5">
       {toolbar}
       <div className="grid gap-4 lg:grid-cols-5">
         <CrmCard className="h-full lg:col-span-3">
-          <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
             <div className="flex items-start gap-3">
               <IconMark icon={Users} tone="bg-primary/15 text-primary" />
               <div>
@@ -270,15 +266,6 @@ export function TeamPulse({ refreshKey }: { refreshKey: string }) {
                 </p>
               </div>
             </div>
-            <Segmented
-              label="Classer par"
-              value={sortKey}
-              onChange={setSortKey}
-              options={[
-                { value: "score", label: "Objectifs" },
-                { value: "revenue", label: "Chiffre d’affaires" },
-              ]}
-            />
           </div>
 
           <div className="mt-4 rounded-2xl bg-muted/45 px-4 py-3">
@@ -326,7 +313,7 @@ export function TeamPulse({ refreshKey }: { refreshKey: string }) {
                         className={cn("border-t border-border/50", isSelf && "bg-primary/[0.06]")}
                       >
                         <td className="py-2.5 pr-2 align-middle">
-                          {i === 0 && leaderValue(m) > 0 ? (
+                          {i === 0 && (m.score > 0 || m.current.signedAmount > 0) ? (
                             <Trophy className="h-4 w-4 text-amber-500" aria-label="1er" />
                           ) : (
                             <span className="text-xs font-semibold text-muted-foreground">{i + 1}</span>
