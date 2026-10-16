@@ -192,7 +192,7 @@ export function TeamAdminPage({ scope }: { scope?: "prospection" } = {}) {
         subtitle="Création d’accès, collaborateurs et demandes d’administration."
       />
 
-      {canCreate ? <CreateStaffCard /> : null}
+      {canCreate ? <CreateStaffCard prospectionOnly={scope === "prospection"} /> : null}
 
       <DeleteConfirmDialog
         open={Boolean(deleteTarget)}
@@ -339,7 +339,7 @@ export function TeamAdminPage({ scope }: { scope?: "prospection" } = {}) {
                 <th className="px-2 py-2 text-left">Nom</th>
                 <th className="px-2 py-2 text-left">Fonction</th>
                 <th className="px-2 py-2 text-left">Espace</th>
-                <th className="px-2 py-2 text-left">Pôle</th>
+                {scope !== "prospection" && <th className="px-2 py-2 text-left">Pôle</th>}
                 <th className="px-2 py-2 text-left">Rôle</th>
                 {isSuper && <th className="px-2 py-2 text-right">Actions</th>}
               </tr>
@@ -410,34 +410,36 @@ export function TeamAdminPage({ scope }: { scope?: "prospection" } = {}) {
                       />
                     ) : null}
                   </td>
-                  <td className="px-2 py-2.5">
-                    {s.role === "super_admin" ||
-                    s.spacesAllowed === "prospection" ? (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    ) : (
-                      <select
-                        aria-label={`Pôle de ${s.firstName} ${s.lastName}`}
-                        value={parseClientPole(s.pole)}
-                        disabled={
-                          setPole.isPending &&
-                          setPole.variables?.staffId === s.id
-                        }
-                        onChange={(e) =>
-                          setPole.mutate({
-                            staffId: s.id,
-                            pole: e.target.value as ClientPole,
-                          })
-                        }
-                        className="max-w-[11rem] rounded-xl border border-border/60 bg-surface px-2 py-1.5 text-xs font-medium focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                      >
-                        {CLIENT_POLES.map((pole) => (
-                          <option key={pole} value={pole}>
-                            {CLIENT_POLE_LABELS[pole]}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                  </td>
+                  {scope !== "prospection" ? (
+                    <td className="px-2 py-2.5">
+                      {s.role === "super_admin" ||
+                      s.spacesAllowed === "prospection" ? (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      ) : (
+                        <select
+                          aria-label={`Pôle de ${s.firstName} ${s.lastName}`}
+                          value={parseClientPole(s.pole)}
+                          disabled={
+                            setPole.isPending &&
+                            setPole.variables?.staffId === s.id
+                          }
+                          onChange={(e) =>
+                            setPole.mutate({
+                              staffId: s.id,
+                              pole: e.target.value as ClientPole,
+                            })
+                          }
+                          className="max-w-[11rem] rounded-xl border border-border/60 bg-surface px-2 py-1.5 text-xs font-medium focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        >
+                          {CLIENT_POLES.map((pole) => (
+                            <option key={pole} value={pole}>
+                              {CLIENT_POLE_LABELS[pole]}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </td>
+                  ) : null}
                   <td className="px-2 py-2.5">
                     {isProspectionOnly(s) ? (
                       // Compte Prospection : son profil, pas le rôle technique « admin ».
@@ -570,7 +572,8 @@ const CRM_PROFILE_HINTS: Record<CrmProfile, string> = {
   admin: "Paramétrage et accès complet à la Prospection.",
 };
 
-function CreateStaffCard() {
+/** `prospectionOnly` : page Équipe de la Prospection — l’espace est fixé sur Prospection. */
+function CreateStaffCard({ prospectionOnly = false }: { prospectionOnly?: boolean }) {
   const qc = useQueryClient();
   const [showPassword, setShowPassword] = useState(false);
   const [credentials, setCredentials] = useState<{
@@ -590,9 +593,11 @@ function CreateStaffCard() {
     phone: "",
     jobTitle: "" as string,
     cabinet: "" as string,
-    role: "member" as "member" | "admin",
+    role: (prospectionOnly ? "admin" : "member") as "member" | "admin",
     pole: DEFAULT_CLIENT_POLE as ClientPole,
-    spacesAllowed: "facturation" as "facturation" | "prospection",
+    spacesAllowed: (prospectionOnly ? "prospection" : "facturation") as
+      | "facturation"
+      | "prospection",
     crmProfile: null as CrmProfile | null,
     crmLines: [] as ServiceLine[],
     password: "",
@@ -631,9 +636,9 @@ function CreateStaffCard() {
         phone: "",
         jobTitle: "",
         cabinet: "",
-        role: "member",
+        role: prospectionOnly ? "admin" : "member",
         pole: DEFAULT_CLIENT_POLE,
-        spacesAllowed: "facturation",
+        spacesAllowed: prospectionOnly ? "prospection" : "facturation",
         crmProfile: null,
         crmLines: [],
         password: "",
@@ -656,8 +661,9 @@ function CreateStaffCard() {
           <div className="min-w-0 flex-1">
             <h3 className="font-display font-semibold">Créer un accès collaborateur</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              Aucun e-mail automatique. Choisissez l’espace (Facturation ou Prospection),
-              définissez e-mail et mot de passe, puis communiquez-les à l’utilisateur.
+              {prospectionOnly
+                ? "Compte de l’espace Prospection. Aucun e-mail automatique : choisissez le profil, définissez e-mail et mot de passe, puis communiquez-les à l’utilisateur."
+                : "Aucun e-mail automatique. Choisissez l’espace (Facturation ou Prospection), définissez e-mail et mot de passe, puis communiquez-les à l’utilisateur."}
             </p>
           </div>
         </div>
@@ -723,28 +729,30 @@ function CreateStaffCard() {
               ))}
             </select>
           </label>
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Espace
-            </span>
-            <select
-              value={form.spacesAllowed}
-              onChange={(e) => {
-                const spacesAllowed = e.target.value as "facturation" | "prospection";
-                setForm((f) => ({
-                  ...f,
-                  spacesAllowed,
-                  role: spacesAllowed === "prospection" ? "admin" : f.role,
-                  crmProfile: spacesAllowed === "prospection" ? f.crmProfile : null,
-                  crmLines: spacesAllowed === "prospection" ? f.crmLines : [],
-                }));
-              }}
-              className="w-full rounded-2xl border border-border/60 bg-surface/70 px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25"
-            >
-              <option value="facturation">{SPACES_ALLOWED_LABELS.facturation}</option>
-              <option value="prospection">{SPACES_ALLOWED_LABELS.prospection}</option>
-            </select>
-          </label>
+          {!prospectionOnly ? (
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Espace
+              </span>
+              <select
+                value={form.spacesAllowed}
+                onChange={(e) => {
+                  const spacesAllowed = e.target.value as "facturation" | "prospection";
+                  setForm((f) => ({
+                    ...f,
+                    spacesAllowed,
+                    role: spacesAllowed === "prospection" ? "admin" : f.role,
+                    crmProfile: spacesAllowed === "prospection" ? f.crmProfile : null,
+                    crmLines: spacesAllowed === "prospection" ? f.crmLines : [],
+                  }));
+                }}
+                className="w-full rounded-2xl border border-border/60 bg-surface/70 px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25"
+              >
+                <option value="facturation">{SPACES_ALLOWED_LABELS.facturation}</option>
+                <option value="prospection">{SPACES_ALLOWED_LABELS.prospection}</option>
+              </select>
+            </label>
+          ) : null}
           {/* Compte Prospection : rôle technique « admin » posé automatiquement, non affiché. */}
           {form.spacesAllowed === "facturation" ? (
             <label className="block">

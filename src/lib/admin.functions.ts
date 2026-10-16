@@ -448,10 +448,9 @@ export const listCabinetStaff = createServerFn({ method: "GET" })
     }
 
     const prospectionScope = data?.scope === "prospection";
+    // Prospection : uniquement les collaborateurs ayant accès à cet espace (super admins inclus).
     const where = prospectionScope
-      ? isSuperAdmin(session.staff.role)
-        ? {}
-        : { spacesAllowed: { in: ["prospection" as const, "both" as const] } }
+      ? { spacesAllowed: { in: ["prospection" as const, "both" as const] } }
       : isSuperAdmin(session.staff.role)
       ? {
           OR: [
