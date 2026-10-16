@@ -28,6 +28,7 @@ import {
 } from "@/components/prospection/CrmCards";
 import { CRM_PRIMARY_BTN, CRM_SECONDARY_BTN } from "@/components/prospection/CrmUi";
 import { ObjectivesSummary } from "@/components/prospection/ObjectivesSummary";
+import { TeamPulse } from "@/components/prospection/TeamPulse";
 import {
   computeKpis,
   managerName,
@@ -65,6 +66,10 @@ function ProspectionHomePage() {
   const first = session.staff.firstName || "Collaborateur";
   const pg = companies.filter((c) => c.site === "port_gentil" && c.strategic);
   const agenda = computeWeeklyAgenda(data, session.staff.id);
+  // Toute saisie (action, étape, opportunité) relance le calcul des stats d’équipe.
+  const pulseKey = `${data.activities.length}:${data.opportunities
+    .map((o) => `${o.id}:${o.stage}`)
+    .join(",")}`;
   const routineManagers = portfolio;
   const budgetPct = Math.round((kpis.spent / kpis.budgetCap) * 100);
   const focusManagerId = session.staff.id;
@@ -158,6 +163,9 @@ function ProspectionHomePage() {
           />
         </Link>
       </div>
+
+      {/* Émulation : chacun voit ses chiffres et ceux des autres managers (compteurs). */}
+      <TeamPulse refreshKey={pulseKey} />
 
       {hasAlerts ? (
         <CrmCard className="mb-5" accent="bg-danger" index={2}>

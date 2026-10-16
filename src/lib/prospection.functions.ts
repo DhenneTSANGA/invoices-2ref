@@ -21,6 +21,7 @@ import {
 } from "@/lib/prospection-access";
 import { resolveLeadOwner } from "@/lib/crm-lead-routing";
 import { currentCrmMonth } from "@/lib/crm-month";
+import { computeTeamPulse } from "@/lib/crm-team-pulse";
 import {
   createReceiptSignedUrl,
   uploadCrmReceiptFile,
@@ -2046,3 +2047,14 @@ export const getCrmReceiptUrl = createServerFn({ method: "POST" })
     return { url: await createReceiptSignedUrl(expense.receiptPath) };
   });
 
+
+
+/**
+ * Émulation entre managers (tableau de bord Prospection) : chaque profil voit
+ * ses chiffres et ceux des autres managers pour la semaine en cours, en
+ * compteurs agrégés — sans accès aux fiches, affaires ou montants des autres.
+ */
+export const getCrmTeamPulse = createServerFn({ method: "GET" }).handler(async () => {
+  const ctx = await requireCrm();
+  return computeTeamPulse(portfolioManagers(await loadCrmManagers()), ctx.staff.id);
+});
