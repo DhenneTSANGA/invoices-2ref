@@ -78,7 +78,14 @@ function ProspectionPipelineSync() {
       })
       .catch((err) => {
         console.error(err);
-        toast.error("Impossible de charger le pipeline CRM");
+        // La cause exacte aide au diagnostic ; après un déploiement, recharger la page suffit.
+        toast.error("Impossible de charger le pipeline CRM", {
+          description:
+            err instanceof Error && err.message
+              ? `${err.message} — rechargez la page si l’application vient d’être mise à jour.`
+              : "Rechargez la page si l’application vient d’être mise à jour.",
+          duration: 12_000,
+        });
       });
     return () => {
       cancelled = true;
