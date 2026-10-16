@@ -431,15 +431,28 @@ export const inviteStaffMember = createServerFn({ method: "POST" })
     }
   });
 
-export const listCabinetStaff = createServerFn({ method: "GET" }).handler(
-  async () => {
+export const listCabinetStaff = createServerFn({ method: "GET" })
+  .validator(
+    z
+      .object({
+        /** Page Équipe de la Prospection : pas de cabinet actif, les deux cabinets. */
+        scope: z.enum(["prospection"]).optional(),
+      })
+      .optional(),
+  )
+  .handler(async ({ data }) => {
     const session = await getCurrentSession();
     if (!session) throw new Error("Non authentifié");
     if (!canManageAdminRequests(session.staff.role)) {
       throw new Error("Accès réservé aux administrateurs");
     }
 
-    const where = isSuperAdmin(session.staff.role)
+    const prospectionScope = data?.scope === "prospection";
+    const where = prospectionScope
+      ? isSuperAdmin(session.staff.role)
+        ? {}
+        : { spacesAllowed: { in: ["prospection" as const, "both" as const] } }
+      : isSuperAdmin(session.staff.role)
       ? {
           OR: [
             { cabinet: session.activeCabinet },
@@ -460,8 +473,7 @@ export const listCabinetStaff = createServerFn({ method: "GET" }).handler(
       ...r,
       jobTitleLabel: jobTitleLabel(r.jobTitle),
     }));
-  },
-);
+  });
 
 /** Fiches des comptes créés — super admin uniquement, jamais le mot de passe. */
 export const listStaffDocumentation = createServerFn({ method: "GET" }).handler(

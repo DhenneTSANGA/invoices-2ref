@@ -62,7 +62,11 @@ const requestsKey = adminRequestsKey;
 const staffKey = cabinetStaffKey;
 
 /** Gestion d’équipe partagée Facturation (`/users`) et Prospection (`/prospection/equipe`). */
-export function TeamAdminPage() {
+/**
+ * Page Équipe. En Facturation : collaborateurs du cabinet actif. Avec
+ * `scope="prospection"` : les deux cabinets (la Prospection n’a pas de cabinet actif).
+ */
+export function TeamAdminPage({ scope }: { scope?: "prospection" } = {}) {
   const { data: session } = useSession();
   const qc = useQueryClient();
   const isSuper = session ? canPromoteOrDemoteAdmins(session.staff.role) : false;
@@ -74,8 +78,8 @@ export function TeamAdminPage() {
     staleTime: 60_000,
   });
   const { data: staff = [], isPending: loadingStaff } = useQuery({
-    queryKey: staffKey,
-    queryFn: () => listCabinetStaff(),
+    queryKey: scope ? [...staffKey, scope] : staffKey,
+    queryFn: () => listCabinetStaff(scope ? { data: { scope } } : undefined),
     staleTime: 60_000,
   });
 
@@ -353,6 +357,11 @@ export function TeamAdminPage() {
                           {s.firstName} {s.lastName}
                         </div>
                         <div className="text-xs text-muted-foreground">{s.email}</div>
+                        {scope === "prospection" && s.cabinet ? (
+                          <div className="text-[11px] text-muted-foreground">
+                            {CABINET_LABELS[s.cabinet]}
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                   </td>

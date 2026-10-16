@@ -10,5 +10,6 @@ export const Route = createFileRoute("/prospection/equipe")({
       throw redirect({ to: "/prospection" });
     }
   },
-  component: TeamAdminPage,
+  // Pas de cabinet actif en Prospection : la page liste les deux cabinets.
+  component: () => <TeamAdminPage scope="prospection" />,
 });
