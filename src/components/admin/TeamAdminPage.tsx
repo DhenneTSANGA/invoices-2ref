@@ -5,6 +5,7 @@ import {
   ArrowDownCircle,
   ArrowUpCircle,
   Check,
+  ChevronDown,
   CheckCircle2,
   Copy,
   Eye,
@@ -57,6 +58,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const requestsKey = adminRequestsKey;
 const staffKey = cabinetStaffKey;
@@ -385,7 +388,7 @@ export function TeamAdminPage({ scope }: { scope?: "prospection" } = {}) {
                             spacesAllowed: e.target.value as StaffSpacesAllowed,
                           })
                         }
-                        className="max-w-[11rem] rounded-xl border border-border/60 bg-surface px-2 py-1.5 text-xs font-medium focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        className={TEAM_CELL_SELECT}
                       >
                         <option value="facturation">
                           {SPACES_ALLOWED_LABELS.facturation}
@@ -1208,52 +1211,119 @@ function CrmProfileEditor({
 }) {
   const withLines = profile === "manager" || profile === "chef_service";
   return (
-    <div className="mt-1.5 space-y-1.5">
+    <div className="mt-1.5 flex flex-col gap-1.5">
       <select
         aria-label={`Profil Prospection de ${name}`}
-        value={profile ?? ""}
+        // « Administrateur » explicite et profil non choisi donnent les mêmes droits.
+        value={profile && profile !== "admin" ? profile : ""}
         disabled={disabled}
-        onChange={(e) =>
-          onChange((e.target.value || null) as CrmProfile | null, lines)
-        }
-        className="max-w-[11rem] rounded-xl border border-border/60 bg-surface px-2 py-1.5 text-xs font-medium focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+        onChange={(e) => onChange((e.target.value || null) as CrmProfile | null, lines)}
+        className={TEAM_CELL_SELECT}
       >
-        <option value="">Profil : administrateur (défaut)</option>
-        {CRM_PROFILES.map((p) => (
+        <option value="">Administrateur (défaut)</option>
+        {CRM_PROFILES.filter((p) => p !== "admin").map((p) => (
           <option key={p} value={p}>
             {CRM_PROFILE_LABELS[p]}
           </option>
         ))}
       </select>
       {withLines ? (
-        <div className="flex max-w-[14rem] flex-wrap gap-1" aria-label={`Lignes de ${name}`}>
-          {CRM_SERVICE_LINES.map((line) => {
-            const on = lines.includes(line);
-            return (
-              <button
-                key={line}
-                type="button"
-                disabled={disabled}
-                aria-pressed={on}
-                onClick={() =>
-                  onChange(
-                    profile,
-                    on ? lines.filter((l) => l !== line) : [...lines, line],
-                  )
-                }
-                className={cn(
-                  "rounded-full border px-2 py-0.5 text-[10px] font-semibold transition",
-                  on
-                    ? "border-primary/40 bg-primary/10 text-primary"
-                    : "border-border/60 text-muted-foreground hover:bg-muted",
-                )}
-              >
-                {SERVICE_LINE_LABELS[line]}
-              </button>
-            );
-          })}
-        </div>
+        <ServiceLinesPicker
+          name={name}
+          value={lines}
+          disabled={disabled}
+          onChange={(next) => onChange(profile, next)}
+        />
       ) : null}
     </div>
+  );
+}
+
+/** Champ compact partagé des cellules du tableau (espace, profil, lignes). */
+const TEAM_CELL_SELECT =
+  "w-44 rounded-xl border border-border/60 bg-surface px-2.5 py-1.5 text-xs font-medium focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60";
+
+/**
+ * Menu déroulant à cases à cocher pour les lignes de service : la sélection est
+ * enregistrée à la fermeture ; au moins une ligne reste toujours cochée.
+ */
+function ServiceLinesPicker({
+  name,
+  value,
+  disabled,
+  onChange,
+}: {
+  name: string;
+  value: ServiceLine[];
+  disabled?: boolean;
+  onChange: (lines: ServiceLine[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState<ServiceLine[]>(value);
+  const summary =
+    value.length === 0
+      ? "Choisir les lignes…"
+      : value.length === 1
+        ? SERVICE_LINE_LABELS[value[0]]
+        : `${value.length} lignes`;
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        if (next) setDraft(value);
+        else {
+          const changed =
+            draft.length !== value.length || draft.some((l) => !value.includes(l));
+          if (changed && draft.length > 0) onChange(draft);
+        }
+        setOpen(next);
+      }}
+    >
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          disabled={disabled}
+          aria-label={`Lignes de service de ${name}`}
+          title={value.map((l) => SERVICE_LINE_LABELS[l]).join(", ")}
+          className={cn(
+            TEAM_CELL_SELECT,
+            "flex items-center justify-between gap-2 text-left",
+            value.length === 0 && "border-amber-500/50 text-amber-700 dark:text-amber-300",
+          )}
+        >
+          <span className="truncate">{summary}</span>
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" aria-hidden />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-56 p-1.5">
+        <p className="px-2 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Lignes de service
+        </p>
+        {CRM_SERVICE_LINES.map((line) => {
+          const checked = draft.includes(line);
+          const lastOne = checked && draft.length === 1;
+          return (
+            <label
+              key={line}
+              className={cn(
+                "flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm hover:bg-muted",
+                lastOne && "cursor-not-allowed opacity-70",
+              )}
+              title={lastOne ? "Au moins une ligne est requise" : undefined}
+            >
+              <Checkbox
+                checked={checked}
+                disabled={lastOne}
+                onCheckedChange={(on) =>
+                  setDraft((d) => (on ? [...d, line] : d.filter((l) => l !== line)))
+                }
+              />
+              {SERVICE_LINE_LABELS[line]}
+            </label>
+          );
+        })}
+      </PopoverContent>
+    </Popover>
   );
 }
