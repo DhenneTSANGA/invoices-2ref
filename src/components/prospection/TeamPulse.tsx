@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { ArrowDownRight, ArrowUpRight, CheckCircle2, Minus, Trophy, Users } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, CheckCircle2, Minus, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { CrmCard, EntityMark, IconMark } from "@/components/prospection/CrmCards";
 import { TeamTrend } from "@/components/prospection/TeamTrend";
@@ -14,8 +14,8 @@ import { currency, shortDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /**
- * Émulation entre managers : classement (gauche) et progression vers les
- * objectifs (droite), sur la semaine ou le mois en cours. Compteurs et CA signé
+ * Émulation entre managers : une carte par manager (gauche) et progression vers
+ * les objectifs (droite), sur la semaine ou le mois en cours. Compteurs et CA signé
  * de chacun, avec sa part du total de l’équipe — jamais les clients ni le détail
  * des affaires.
  */
@@ -227,20 +227,13 @@ export function TeamPulse({ refreshKey }: { refreshKey: string }) {
 
   const copy = PERIOD_COPY[data.period];
   const team = sumCounts(data.managers.map((m) => m.current));
-  const ranked = data.managers
-    .map((m) => ({
-      ...m,
-      score: periodScore(m.current, m.targets),
-      previousScore: periodScore(m.previous, m.targets),
-      revenueShare: share(m.current.signedAmount, team.signedAmount),
-    }))
-    // Classement : atteinte des objectifs, puis CA signé, puis volume d’actions.
-    .sort(
-      (a, b) =>
-        b.score - a.score ||
-        b.current.signedAmount - a.current.signedAmount ||
-        b.current.actions - a.current.actions,
-    );
+  // Pas de classement : les managers gardent l’ordre alphabétique du serveur.
+  const ranked = data.managers.map((m) => ({
+    ...m,
+    score: periodScore(m.current, m.targets),
+    previousScore: periodScore(m.previous, m.targets),
+    revenueShare: share(m.current.signedAmount, team.signedAmount),
+  }));
   const self = ranked.find((m) => m.id === data.selfId) ?? null;
   const updated = sinceLabel(data.generatedAt, now);
   const teamScore = periodScore(team, sumTargets(data.managers.map((m) => m.targets)));
@@ -248,10 +241,10 @@ export function TeamPulse({ refreshKey }: { refreshKey: string }) {
   return (
     <section className="mb-5">
       {toolbar}
-      <div className="grid gap-4 lg:grid-cols-5">
-        {/* Manager : classement + « Mes objectifs ». Direction : classement pleine largeur
-            puis l’évolution semaine par semaine (les objectifs d’équipe doublonneraient le cumul). */}
-        <CrmCard className={cn("h-full", self ? "lg:col-span-3" : "lg:col-span-5")}>
+      <div className="grid gap-4">
+        {/* Cartes de l’équipe pleine largeur (une par manager, côte à côte), puis
+            « Mes objectifs » pour un manager, ou l’évolution semaine par semaine pour la direction. */}
+        <CrmCard>
           <div className="flex items-start gap-3">
             <div className="flex items-start gap-3">
               <IconMark icon={Users} tone="bg-primary/15 text-primary" />
@@ -288,144 +281,39 @@ export function TeamPulse({ refreshKey }: { refreshKey: string }) {
               Aucun manager désigné pour l’instant.
             </p>
           ) : (
-            <div className="-mx-1 mt-3 overflow-x-auto px-1">
-              <table className="w-full min-w-[44rem] text-sm">
-                <caption className="sr-only">
-                  Chiffre d’affaires signé, activité et atteinte des objectifs de chaque manager
-                </caption>
-                <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                  <tr>
-                    <th className="pb-2 pr-2 text-left font-semibold">#</th>
-                    <th className="pb-2 pr-2 text-left font-semibold">Manager</th>
-                    <th className="px-2 pb-2 text-left font-semibold">CA signé · part</th>
-                    {METRICS.map((m) => (
-                      <th key={m.key} className="px-1.5 pb-2 text-right font-semibold">
-                        {m.short}
-                      </th>
-                    ))}
-                    <th className="px-1.5 pb-2 text-right font-semibold">Actions</th>
-                    <th className="pb-2 pl-2 text-left font-semibold">Objectifs</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ranked.map((m, i) => {
-                    const isSelf = m.id === data.selfId;
-                    return (
-                      <tr
-                        key={m.id}
-                        className={cn("border-t border-border/50", isSelf && "bg-primary/[0.06]")}
-                      >
-                        <td className="py-2.5 pr-2 align-middle">
-                          {i === 0 && (m.score > 0 || m.current.signedAmount > 0) ? (
-                            <Trophy className="h-4 w-4 text-amber-500" aria-label="1er" />
-                          ) : (
-                            <span className="text-xs font-semibold text-muted-foreground">{i + 1}</span>
-                          )}
-                        </td>
-                        <td className="py-2.5 pr-2">
-                          <div className="flex items-center gap-2">
-                            <EntityMark name={m.name} size="sm" />
-                            <span className="max-w-[8rem] truncate font-medium" title={m.name}>
-                              {m.name}
-                            </span>
-                            {isSelf ? (
-                              <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
-                                Vous
-                              </span>
-                            ) : null}
-                          </div>
-                        </td>
-                        <td
-                          className="px-2 py-2.5"
-                          title={`${m.revenueShare} % du CA signé par l’équipe ${copy.of}`}
-                        >
-                          <div className="flex items-baseline justify-between gap-2">
-                            <span
-                              className={cn(
-                                "tabular-nums",
-                                m.current.signedAmount > 0 ? "font-semibold" : "text-muted-foreground",
-                              )}
-                            >
-                              {currency(m.current.signedAmount)}
-                            </span>
-                            <span className="text-[11px] font-semibold tabular-nums text-muted-foreground">
-                              {m.revenueShare} %
-                            </span>
-                          </div>
-                          <div className="mt-1 h-1 w-full min-w-[7rem] overflow-hidden rounded-full bg-muted">
-                            <div
-                              className="h-full rounded-full bg-primary"
-                              style={{
-                                width: `${Math.max(m.revenueShare, m.revenueShare > 0 ? 3 : 0)}%`,
-                              }}
-                            />
-                          </div>
-                        </td>
-                        {METRICS.map((metric) => (
-                          <td
-                            key={metric.key}
-                            className={cn(
-                              "px-1.5 py-2.5 text-right tabular-nums",
-                              m.current[metric.key] === 0 ? "text-muted-foreground" : "font-semibold",
-                            )}
-                            title={`${metric.label} : ${m.current[metric.key]} (cible ${fmt(m.targets[metric.key])}) · ${share(m.current[metric.key], team[metric.key])} % de l’équipe · ${copy.previous} : ${m.previous[metric.key]}`}
-                          >
-                            {m.current[metric.key]}
-                          </td>
-                        ))}
-                        <td className="px-1.5 py-2.5 text-right tabular-nums text-muted-foreground">
-                          {m.current.actions}
-                        </td>
-                        <td className="py-2.5 pl-2">
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="h-1.5 w-14 overflow-hidden rounded-full bg-muted"
-                              role="meter"
-                              aria-valuemin={0}
-                              aria-valuemax={100}
-                              aria-valuenow={m.score}
-                              aria-label={`Objectifs de ${m.name}`}
-                            >
-                              <div
-                                className={cn(
-                                  "h-full rounded-full",
-                                  m.score >= 100 ? "bg-emerald-500" : "bg-primary",
-                                )}
-                                style={{ width: `${Math.max(m.score, m.score > 0 ? 4 : 0)}%` }}
-                              />
-                            </div>
-                            <span className="w-9 text-xs font-semibold tabular-nums">{m.score} %</span>
-                            <Delta
-                              value={m.score - m.previousScore}
-                              unit=" pts"
-                              className="hidden xl:inline-flex"
-                            />
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-                {ranked.length > 1 ? (
-                  <tfoot>
-                    <tr className="border-t-2 border-border/70 font-semibold">
-                      <td className="py-2.5 pr-2" />
-                      <td className="py-2.5 pr-2 text-xs uppercase tracking-wider text-muted-foreground">
-                        Équipe (cumul)
-                      </td>
-                      <td className="px-2 py-2.5 tabular-nums">{currency(team.signedAmount)}</td>
-                      {METRICS.map((metric) => (
-                        <td key={metric.key} className="px-1.5 py-2.5 text-right tabular-nums">
-                          {team[metric.key]}
-                        </td>
-                      ))}
-                      <td className="px-1.5 py-2.5 text-right tabular-nums">{team.actions}</td>
-                      <td className="py-2.5 pl-2 text-xs tabular-nums">{teamScore} %</td>
-                    </tr>
-                  </tfoot>
-                ) : null}
-              </table>
-            </div>
+            <>
+              <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {ranked.map((m) => (
+                  <ManagerCard
+                    key={m.id}
+                    manager={m}
+                    team={team}
+                    isSelf={m.id === data.selfId}
+                    periodOf={copy.of}
+                    previousLabel={copy.previous}
+                  />
+                ))}
+              </ul>
+              {ranked.length > 1 ? (
+                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-2xl border border-border/60 px-4 py-2.5 text-xs">
+                  <span className="font-semibold uppercase tracking-wider text-muted-foreground">
+                    Équipe (cumul)
+                  </span>
+                  {METRICS.map((metric) => (
+                    <span key={metric.key} className="text-muted-foreground">
+                      {metric.short}{" "}
+                      <span className="font-semibold tabular-nums text-foreground">{team[metric.key]}</span>
+                    </span>
+                  ))}
+                  <span className="text-muted-foreground">
+                    Actions <span className="font-semibold tabular-nums text-foreground">{team.actions}</span>
+                  </span>
+                  <span className="text-muted-foreground">
+                    Objectifs <span className="font-semibold tabular-nums text-foreground">{teamScore} %</span>
+                  </span>
+                </div>
+              ) : null}
+            </>
           )}
           <p className="mt-3 text-[11px] text-muted-foreground">
             Chiffres {copy.of} en cours ; la part indique le poids de chacun dans le CA signé par
@@ -440,6 +328,120 @@ export function TeamPulse({ refreshKey }: { refreshKey: string }) {
       </div>
       {!self ? <TeamTrend /> : null}
     </section>
+  );
+}
+
+/** Carte d’un manager : CA signé et sa part, compteurs de la période, atteinte des objectifs. */
+function ManagerCard({
+  manager: m,
+  team,
+  isSelf,
+  periodOf,
+  previousLabel,
+}: {
+  manager: TeamPulseManager & { score: number; previousScore: number; revenueShare: number };
+  team: TeamPulseCounts;
+  isSelf: boolean;
+  periodOf: string;
+  previousLabel: string;
+}) {
+  const stats: { key: string; label: string; value: number; title: string }[] = [
+    ...METRICS.map((metric) => ({
+      key: metric.key,
+      label: metric.short,
+      value: m.current[metric.key],
+      title: `${metric.label} : ${m.current[metric.key]} (cible ${fmt(m.targets[metric.key])}) · ${share(m.current[metric.key], team[metric.key])} % de l’équipe · ${previousLabel} : ${m.previous[metric.key]}`,
+    })),
+    {
+      key: "actions",
+      label: "Actions",
+      value: m.current.actions,
+      title: `Actions terminées : ${m.current.actions} · ${previousLabel} : ${m.previous.actions}`,
+    },
+  ];
+  return (
+    <li
+      className={cn(
+        "flex flex-col rounded-2xl border p-4",
+        isSelf ? "border-primary/40 bg-primary/[0.05]" : "border-border/60 bg-surface/60",
+      )}
+    >
+      <div className="flex items-center gap-2">
+        <EntityMark name={m.name} size="sm" />
+        <span className="min-w-0 flex-1 truncate font-medium" title={m.name}>
+          {m.name}
+        </span>
+        {isSelf ? (
+          <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+            Vous
+          </span>
+        ) : null}
+      </div>
+
+      <div className="mt-3" title={`${m.revenueShare} % du CA signé par l’équipe ${periodOf}`}>
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          CA signé · part
+        </p>
+        <div className="mt-0.5 flex items-baseline justify-between gap-2">
+          <span
+            className={cn(
+              "text-lg tabular-nums",
+              m.current.signedAmount > 0 ? "font-semibold" : "text-muted-foreground",
+            )}
+          >
+            {currency(m.current.signedAmount)}
+          </span>
+          <span className="text-xs font-semibold tabular-nums text-muted-foreground">
+            {m.revenueShare} %
+          </span>
+        </div>
+        <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full rounded-full bg-primary"
+            style={{ width: `${Math.max(m.revenueShare, m.revenueShare > 0 ? 3 : 0)}%` }}
+          />
+        </div>
+      </div>
+
+      <dl className="mt-3 grid grid-cols-3 gap-2">
+        {stats.map((st) => (
+          <div key={st.key} title={st.title} className="rounded-lg bg-muted/45 px-2 py-1.5">
+            <dt className="truncate text-[10px] text-muted-foreground">{st.label}</dt>
+            <dd
+              className={cn(
+                "text-sm tabular-nums",
+                st.value === 0 ? "text-muted-foreground" : "font-semibold",
+              )}
+            >
+              {st.value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+
+      <div className="mt-3 border-t border-border/50 pt-3">
+        <div className="flex items-center justify-between gap-2 text-xs">
+          <span className="text-muted-foreground">Objectifs</span>
+          <span className="inline-flex items-center gap-2">
+            <span className="font-semibold tabular-nums">{m.score} %</span>
+            <Delta value={m.score - m.previousScore} unit=" pts" />
+          </span>
+        </div>
+        <div
+          className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted"
+          role="meter"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={m.score}
+          aria-label={`Objectifs de ${m.name}`}
+        >
+          <div
+            className={cn("h-full rounded-full", m.score >= 100 ? "bg-emerald-500" : "bg-primary")}
+            style={{ width: `${Math.max(m.score, m.score > 0 ? 4 : 0)}%` }}
+          />
+        </div>
+      </div>
+    </li>
   );
 }
 
@@ -489,7 +491,7 @@ function ObjectivesChart({
   const pos = (pct: number) => `${(Math.min(pct, scaleMax) / scaleMax) * 100}%`;
 
   return (
-    <CrmCard className="h-full lg:col-span-2">
+    <CrmCard>
       <div>
         <h3 className="font-display text-base font-semibold">
           {self ? `Mes objectifs ${copy.of}` : `Objectifs de l’équipe ${copy.of}`}
@@ -498,7 +500,7 @@ function ObjectivesChart({
       </div>
 
       <div className="mt-3 flex items-end gap-3">
-        <span className="font-sans text-5xl font-semibold leading-none">{score} %</span>
+        <span className="whitespace-nowrap font-sans text-5xl font-semibold leading-none">{score} %</span>
         <div className="pb-1">
           <Delta value={score - previousScore} unit=" pts" />
           <p className="text-[11px] text-muted-foreground">vs {copy.previous}</p>
@@ -516,7 +518,7 @@ function ObjectivesChart({
         </div>
       ) : null}
 
-      <ul className="mt-3 space-y-3">
+      <ul className="mt-3 grid gap-3 lg:grid-cols-2 lg:gap-x-10">
         {rows.map((r) => {
           const reached = r.target > 0 && r.pct >= 100;
           return (
