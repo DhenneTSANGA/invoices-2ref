@@ -240,12 +240,12 @@ export const DEFAULT_OBJECTIVE_TARGETS: {
   metric: Objective["metric"];
   target: number;
 }[] = [
-  // Cibles mensuelles par manager (≈ moitié des cibles 8 semaines du cahier des charges).
-  { metric: "qualifies", target: 30 },
-  { metric: "contacts", target: 20 },
-  { metric: "rdv", target: 8 },
-  { metric: "propositions", target: 3 },
-  { metric: "signatures", target: 1 },
+  // Cibles mensuelles par défaut, identiques pour chaque manager (modifiables par la direction).
+  { metric: "qualifies", target: 10 },
+  { metric: "contacts", target: 10 },
+  { metric: "rdv", target: 5 },
+  { metric: "propositions", target: 5 },
+  { metric: "signatures", target: 2 },
 ];
 
 export type CrmPipelineSnapshot = {
