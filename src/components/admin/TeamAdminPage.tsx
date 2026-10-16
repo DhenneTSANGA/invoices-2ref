@@ -1296,7 +1296,14 @@ function ServiceLinesPicker({
           <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" aria-hidden />
         </button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-56 p-1.5">
+      {/* role="group" : le rôle « dialog » par défaut de Radix déclenche le verrouillage
+          global du défilement (styles.css), qui décroche la barre latérale. */}
+      <PopoverContent
+        align="start"
+        role="group"
+        aria-label={`Lignes de service de ${name}`}
+        className="w-56 p-1.5"
+      >
         <p className="px-2 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
           Lignes de service
         </p>
