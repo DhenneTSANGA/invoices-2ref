@@ -1,6 +1,7 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { ArrowDownRight, ArrowUpRight, CheckCircle2, Minus, Users } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { animate, motion, useReducedMotion } from "framer-motion";
 import { CrmCard, EntityMark, IconMark, personAccent } from "@/components/prospection/CrmCards";
 import { TeamTrend } from "@/components/prospection/TeamTrend";
 import { getCrmTeamPulse } from "@/lib/prospection.functions";
@@ -49,19 +50,58 @@ function scoreTone(score: number) {
   return { stroke: "stroke-muted-foreground/30", bar: "bg-muted-foreground/30", text: "text-muted-foreground" };
 }
 
-/** Jauge circulaire d’atteinte des objectifs. */
+/** Nombre qui défile de 0 à sa valeur au chargement (et d’une valeur à l’autre ensuite). */
+function CountUp({
+  value,
+  format = (n: number) => Math.round(n).toLocaleString("fr-FR"),
+  delay = 0,
+}: {
+  value: number;
+  format?: (n: number) => string;
+  delay?: number;
+}) {
+  const reduceMotion = useReducedMotion();
+  const ref = useRef<HTMLSpanElement>(null);
+  const from = useRef(0);
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    if (reduceMotion) {
+      node.textContent = format(value);
+      from.current = value;
+      return;
+    }
+    const controls = animate(from.current, value, {
+      duration: 0.9,
+      delay,
+      ease: [0.22, 1, 0.36, 1],
+      onUpdate: (v) => {
+        node.textContent = format(v);
+      },
+    });
+    from.current = value;
+    return () => controls.stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, reduceMotion, delay]);
+  return <span ref={ref}>{format(reduceMotion ? value : from.current)}</span>;
+}
+
+/** Jauge circulaire d’atteinte des objectifs, qui se remplit au chargement. */
 function ScoreRing({
   score,
-  size = 52,
+  size = 64,
   label,
   onDark,
+  delay = 0,
 }: {
   score: number;
   size?: number;
   label: string;
   onDark?: boolean;
+  delay?: number;
 }) {
-  const stroke = 5;
+  const reduceMotion = useReducedMotion();
+  const stroke = 6;
   const r = (size - stroke) / 2;
   const circ = 2 * Math.PI * r;
   const pct = Math.min(100, Math.max(0, score));
@@ -85,7 +125,7 @@ function ScoreRing({
           strokeWidth={stroke}
           className={onDark ? "stroke-white/15" : "stroke-muted"}
         />
-        <circle
+        <motion.circle
           cx={size / 2}
           cy={size / 2}
           r={r}
@@ -93,19 +133,36 @@ function ScoreRing({
           strokeWidth={stroke}
           strokeLinecap="round"
           strokeDasharray={circ}
-          strokeDashoffset={circ * (1 - pct / 100)}
-          className={cn("transition-[stroke-dashoffset] duration-700", onDark && score > 0 && score < 100 ? "stroke-sky-300" : tone.stroke)}
+          initial={{ strokeDashoffset: reduceMotion ? circ * (1 - pct / 100) : circ }}
+          animate={{ strokeDashoffset: circ * (1 - pct / 100) }}
+          transition={{ duration: reduceMotion ? 0 : 1.1, delay, ease: [0.22, 1, 0.36, 1] }}
+          className={onDark && score > 0 && score < 100 ? "stroke-sky-300" : tone.stroke}
         />
       </svg>
       <span
         className={cn(
-          "absolute inset-0 flex items-center justify-center text-[11px] font-semibold tabular-nums",
+          "absolute inset-0 flex items-center justify-center text-sm font-semibold tabular-nums",
           onDark && "text-white",
         )}
       >
-        {score} %
+        <CountUp value={score} delay={delay} />
+        <span className="ml-0.5 text-xs">%</span>
       </span>
     </div>
+  );
+}
+
+/** Barre de progression qui s’allonge au chargement. */
+function GrowBar({ pct, className, delay = 0 }: { pct: number; className: string; delay?: number }) {
+  const reduceMotion = useReducedMotion();
+  const width = `${Math.min(100, pct > 0 ? Math.max(pct, 3) : 0)}%`;
+  return (
+    <motion.div
+      className={cn("h-full rounded-full", className)}
+      initial={{ width: reduceMotion ? width : 0 }}
+      animate={{ width }}
+      transition={{ duration: reduceMotion ? 0 : 0.9, delay, ease: [0.22, 1, 0.36, 1] }}
+    />
   );
 }
 
@@ -343,50 +400,67 @@ export function TeamPulse({ refreshKey }: { refreshKey: string }) {
             </div>
           </div>
 
-          <div className="mt-4 overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-blue-950 text-white shadow-float ring-1 ring-white/5">
-            <div className="flex flex-col gap-4 px-5 py-4 md:flex-row md:items-center">
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+            className="relative mt-5 overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900 to-blue-950 text-white shadow-float ring-1 ring-white/5"
+          >
+            <div
+              className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-blue-500/25 blur-3xl"
+              aria-hidden
+            />
+            <div
+              className="pointer-events-none absolute -bottom-24 left-1/4 h-48 w-72 rounded-full bg-sky-400/10 blur-3xl"
+              aria-hidden
+            />
+            <div className="relative flex flex-col gap-5 px-6 py-5 lg:flex-row lg:items-center">
               <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-white/60">
+                <p className="text-xs font-semibold uppercase tracking-wider text-white/60">
                   CA signé par l’équipe {copy.of}
                 </p>
-                <p className="mt-1 font-sans text-3xl font-semibold tabular-nums">
-                  {currency(team.signedAmount)}
+                <p className="mt-1.5 whitespace-nowrap font-sans text-3xl font-semibold tabular-nums sm:text-4xl">
+                  <CountUp value={team.signedAmount} format={(n) => currency(Math.round(n))} />
                 </p>
               </div>
-              <dl className="grid grid-cols-3 gap-x-5 gap-y-3 sm:grid-cols-6 md:border-l md:border-white/10 md:pl-5">
-                {[...FUNNEL].reverse().map((f) => (
-                  <div key={f.key} className="min-w-0">
-                    <dt className="truncate text-[10px] uppercase tracking-wider text-white/55">
-                      {METRICS.find((m) => m.key === f.key)?.short}
-                    </dt>
-                    <dd className="mt-0.5 text-lg font-semibold tabular-nums">{team[f.key]}</dd>
+              <dl className="grid grid-cols-3 gap-x-6 gap-y-4 sm:grid-cols-6 lg:border-l lg:border-white/10 lg:pl-6">
+                {[
+                  ...[...FUNNEL].reverse().map((f) => ({
+                    key: f.key as string,
+                    label: METRICS.find((m) => m.key === f.key)?.short ?? f.label,
+                    value: team[f.key],
+                  })),
+                  { key: "actions", label: "Actions", value: team.actions },
+                ].map((st, i) => (
+                  <div key={st.key} className="min-w-0">
+                    <dt className="truncate text-xs text-white/60">{st.label}</dt>
+                    <dd className="mt-1 text-2xl font-semibold tabular-nums">
+                      <CountUp value={st.value} delay={0.05 * i} />
+                    </dd>
                   </div>
                 ))}
-                <div className="min-w-0">
-                  <dt className="truncate text-[10px] uppercase tracking-wider text-white/55">Actions</dt>
-                  <dd className="mt-0.5 text-lg font-semibold tabular-nums">{team.actions}</dd>
-                </div>
               </dl>
-              <div className="flex items-center gap-3 md:border-l md:border-white/10 md:pl-5">
-                <ScoreRing score={teamScore} size={56} label="Objectifs de l’équipe" onDark />
-                <span className="text-[11px] leading-tight text-white/60">
+              <div className="flex items-center gap-3 lg:border-l lg:border-white/10 lg:pl-6">
+                <ScoreRing score={teamScore} size={72} label="Objectifs de l’équipe" onDark />
+                <span className="text-sm leading-snug text-white/70">
                   Objectifs
                   <br />
                   de l’équipe
                 </span>
               </div>
             </div>
-          </div>
+          </motion.div>
 
           {ranked.length === 0 ? (
             <p className="mt-4 rounded-2xl bg-muted/45 px-3 py-2.5 text-sm text-muted-foreground">
               Aucun manager désigné pour l’instant.
             </p>
           ) : (
-            <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {ranked.map((m) => (
+            <ul className="mt-5 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+              {ranked.map((m, i) => (
                 <ManagerCard
                   key={m.id}
+                  index={i}
                   manager={m}
                   team={team}
                   isSelf={m.id === data.selfId}
@@ -416,6 +490,7 @@ export function TeamPulse({ refreshKey }: { refreshKey: string }) {
 /** Carte d’un manager : CA signé et sa part, entonnoir réalisé / cible, atteinte des objectifs. */
 function ManagerCard({
   manager: m,
+  index,
   team,
   isSelf,
   periodOf,
@@ -423,82 +498,98 @@ function ManagerCard({
   periodShort,
 }: {
   manager: TeamPulseManager & { score: number; previousScore: number; revenueShare: number };
+  index: number;
   team: TeamPulseCounts;
   isSelf: boolean;
   periodOf: string;
   previousLabel: string;
   periodShort: string;
 }) {
+  const reduceMotion = useReducedMotion();
   const accent = personAccent(m.name);
+  // Les cartes arrivent l’une après l’autre ; leurs jauges et barres suivent.
+  const delay = 0.12 + index * 0.1;
   return (
-    <li
+    <motion.li
+      initial={reduceMotion ? false : { opacity: 0, y: 18, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.5, delay, ease: [0.22, 1, 0.36, 1] }}
+      whileHover={reduceMotion ? undefined : { y: -4 }}
       className={cn(
-        "relative flex flex-col overflow-hidden rounded-2xl border bg-surface/80 shadow-soft",
+        "group relative flex flex-col overflow-hidden rounded-3xl border bg-surface/90 shadow-soft transition-shadow hover:shadow-float",
         isSelf ? "border-primary/40 ring-2 ring-primary/15" : "border-border/60",
       )}
     >
-      <span className={cn("absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r", accent.bar)} aria-hidden />
+      <span className={cn("absolute inset-x-0 top-0 h-1 bg-gradient-to-r", accent.bar)} aria-hidden />
+      <div
+        className={cn(
+          "pointer-events-none absolute -right-14 -top-16 h-40 w-40 rounded-full opacity-70 blur-3xl transition-opacity group-hover:opacity-100",
+          accent.glow,
+        )}
+        aria-hidden
+      />
 
       {/* Identité + atteinte des objectifs */}
-      <div className="flex items-center gap-3 px-4 pb-3 pt-4">
-        <EntityMark name={m.name} size="sm" />
+      <div className="relative flex items-center gap-3.5 px-5 pb-4 pt-6">
+        <EntityMark name={m.name} />
         <div className="min-w-0 flex-1">
-          <div className="truncate font-semibold" title={m.name}>
+          <div className="line-clamp-2 break-words font-display text-lg font-semibold leading-tight" title={m.name}>
             {m.name}
           </div>
-          <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
             {isSelf ? (
-              <span className="shrink-0 rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+              <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-semibold text-primary">
                 Vous
               </span>
             ) : null}
-            Objectifs
-            <Delta value={m.score - m.previousScore} unit={` pts vs ${periodShort}`} className="whitespace-nowrap text-[11px]" />
+            <Delta
+              value={m.score - m.previousScore}
+              unit={` pts vs ${periodShort}`}
+              className="whitespace-nowrap text-sm"
+            />
           </div>
         </div>
-        <ScoreRing score={m.score} label={`Objectifs de ${m.name}`} />
+        <ScoreRing score={m.score} label={`Objectifs de ${m.name}`} delay={delay + 0.15} />
       </div>
 
       {/* CA signé */}
       <div
-        className="mx-4 rounded-xl bg-muted/45 px-3 py-2.5"
+        className="relative mx-5 rounded-2xl border border-border/50 bg-muted/40 px-4 py-3.5"
         title={`${m.revenueShare} % du CA signé par l’équipe ${periodOf}`}
       >
-        <div className="flex items-baseline justify-between gap-2">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             CA signé
           </span>
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Part équipe
+          <span className="rounded-full bg-background/80 px-2 py-0.5 text-xs font-semibold tabular-nums text-muted-foreground">
+            <CountUp value={m.revenueShare} delay={delay + 0.1} /> % de l’équipe
           </span>
         </div>
-        <div className="mt-0.5 flex items-baseline justify-between gap-2">
-          <span
-            className={cn(
-              "text-lg tabular-nums",
-              m.current.signedAmount > 0 ? "font-semibold" : "text-muted-foreground",
-            )}
-          >
-            {currency(m.current.signedAmount)}
-          </span>
-          <span className="text-sm font-semibold tabular-nums">{m.revenueShare} %</span>
-        </div>
-        <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-background/70">
-          <div
-            className={cn("h-full rounded-full bg-gradient-to-r", accent.bar)}
-            style={{ width: `${Math.max(m.revenueShare, m.revenueShare > 0 ? 3 : 0)}%` }}
+        <div
+          className={cn(
+            "mt-1 font-sans text-2xl tabular-nums",
+            m.current.signedAmount > 0 ? "font-semibold" : "text-muted-foreground",
+          )}
+        >
+          <CountUp
+            value={m.current.signedAmount}
+            format={(n) => currency(Math.round(n))}
+            delay={delay + 0.1}
           />
+        </div>
+        <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-background/80">
+          <GrowBar pct={m.revenueShare} className={cn("bg-gradient-to-r", accent.bar)} delay={delay + 0.2} />
         </div>
       </div>
 
       {/* Entonnoir : réalisé / cible par étape */}
-      <div className="px-4 pb-3 pt-3">
-        <div className="mb-1.5 flex items-baseline justify-between text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <div className="relative px-5 pb-4 pt-4">
+        <div className="mb-2.5 flex items-baseline justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           <span>Entonnoir</span>
           <span>Réalisé / cible</span>
         </div>
-        <ul className="space-y-1.5">
-          {FUNNEL.map((f) => {
+        <ul className="space-y-3">
+          {FUNNEL.map((f, i) => {
             const done = m.current[f.key];
             const target = m.targets[f.key];
             const pct = attainment(done, target);
@@ -508,29 +599,26 @@ function ManagerCard({
                 key={f.key}
                 title={`${f.label} : ${done} sur ${fmt(target)} · ${share(done, team[f.key])} % de l’équipe · ${previousLabel} : ${m.previous[f.key]}`}
               >
-                <div className="flex items-baseline justify-between gap-2 text-xs">
-                  <span className={cn(done > 0 ? "text-foreground" : "text-muted-foreground")}>
+                <div className="flex items-baseline justify-between gap-2 text-sm">
+                  <span className={cn(done > 0 ? "font-medium text-foreground" : "text-muted-foreground")}>
                     {f.label}
                   </span>
-                  <span className="tabular-nums text-muted-foreground">
-                    <span className={cn("font-semibold", done > 0 ? "text-foreground" : "")}>{done}</span>
-                    {" / "}
-                    {fmt(target)}
+                  <span className="inline-flex items-center gap-1 tabular-nums text-muted-foreground">
+                    <span className={cn("text-base font-semibold", done > 0 && "text-foreground")}>{done}</span>
+                    <span>/ {fmt(target)}</span>
                     {reached ? (
                       <CheckCircle2
-                        className="ml-1 inline h-3 w-3 -translate-y-px text-emerald-600 dark:text-emerald-400"
+                        className="h-4 w-4 text-emerald-600 dark:text-emerald-400"
                         aria-label="atteint"
                       />
                     ) : null}
                   </span>
                 </div>
-                <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-muted">
-                  <div
-                    className={cn(
-                      "h-full rounded-full transition-[width] duration-500",
-                      reached ? "bg-emerald-500" : "bg-primary/80",
-                    )}
-                    style={{ width: `${Math.min(100, pct > 0 ? Math.max(pct, 4) : 0)}%` }}
+                <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <GrowBar
+                    pct={pct}
+                    className={reached ? "bg-gradient-to-r from-emerald-500 to-teal-400" : "bg-gradient-to-r from-blue-600 to-sky-400"}
+                    delay={delay + 0.25 + i * 0.06}
                   />
                 </div>
               </li>
@@ -539,7 +627,7 @@ function ManagerCard({
         </ul>
       </div>
 
-      <div className="mt-auto flex items-center justify-between border-t border-border/50 px-4 py-2.5 text-[11px] text-muted-foreground">
+      <div className="relative mt-auto flex items-center justify-between border-t border-border/50 px-5 py-3.5 text-sm text-muted-foreground">
         <span>
           <span className="font-semibold tabular-nums text-foreground">{m.current.actions}</span> action(s)
           terminée(s)
@@ -548,7 +636,7 @@ function ManagerCard({
           {periodShort} : {m.previous.actions}
         </span>
       </div>
-    </li>
+    </motion.li>
   );
 }
 
