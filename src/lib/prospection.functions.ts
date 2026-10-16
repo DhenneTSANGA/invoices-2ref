@@ -21,13 +21,13 @@ import {
   type CrmRole,
 } from "@/lib/prospection-access";
 import { resolveLeadOwner } from "@/lib/crm-lead-routing";
+import type { Cabinet } from "@/lib/cabinets";
 import { currentCrmMonth } from "@/lib/crm-month";
 import { computeTeamPulse, computeTeamTrend } from "@/lib/crm-team-pulse";
 import {
   createReceiptSignedUrl,
   uploadCrmReceiptFile,
 } from "@/lib/crm-receipts-storage";
-import { resolveCabinet } from "@/lib/roles";
 import {
   DEFAULT_BUDGET_SETTINGS,
   STAGE_LABELS,
@@ -78,6 +78,11 @@ type CrmContext = {
   staff: NonNullable<AppSession>["staff"];
   crm: CrmRole;
   lines: ServiceLine[];
+  /**
+   * Cabinet actif, comme en Facturation : celui du collaborateur, ou celui choisi
+   * par un super admin dans le sélecteur. Toute la Prospection est cloisonnée dessus.
+   */
+  cabinet: Cabinet;
 };
 
 /** Session Prospection + profil CRM (cahier des charges §3). */
@@ -88,6 +93,7 @@ async function requireCrm(): Promise<CrmContext> {
     staff: session.staff,
     crm: crmRoleFromStaff(session.staff),
     lines: session.staff.crmLines ?? [],
+    cabinet: session.activeCabinet,
   };
 }
 
@@ -101,6 +107,30 @@ function assertCrmWriter(ctx: CrmContext) {
 
 function assertCrmAllowed(allowed: boolean, message: string) {
   if (!allowed) throw new Error(message);
+}
+
+/** Un élément d’un autre cabinet est traité comme introuvable (cloisonnement). */
+function assertInCabinet(ctx: CrmContext, cabinet: Cabinet | null | undefined, what = "Élément") {
+  if (cabinet && cabinet !== ctx.cabinet) {
+    throw new Error(`${what} introuvable dans ce cabinet`);
+  }
+}
+
+/** Action / opportunité rattachée à une dépense : du même cabinet. */
+async function assertRefsInCabinet(
+  ctx: CrmContext,
+  refs: { opportunityId?: string | null; activityId?: string | null },
+) {
+  const [opp, act] = await Promise.all([
+    refs.opportunityId
+      ? prisma.crmOpportunity.findUnique({ where: { id: refs.opportunityId }, select: { cabinet: true } })
+      : null,
+    refs.activityId
+      ? prisma.crmActivity.findUnique({ where: { id: refs.activityId }, select: { cabinet: true } })
+      : null,
+  ]);
+  assertInCabinet(ctx, opp?.cabinet, "Opportunité");
+  assertInCabinet(ctx, act?.cabinet, "Action");
 }
 
 /** Un manager n’écrit que sur son portefeuille (élément non attribué toléré). */
@@ -118,11 +148,11 @@ function ownerFor(ctx: CrmContext, requested?: string | null): string {
 }
 
 async function assertCompanyOwned(ctx: CrmContext, uiId: string) {
-  if (ctx.crm !== "manager") return;
   const company = await prisma.crmCompany.findFirst({
     where: { OR: [{ id: uiId }, { clientId: uiId }] },
-    select: { managerId: true },
+    select: { managerId: true, cabinet: true },
   });
+  assertInCabinet(ctx, company?.cabinet, "Entreprise");
   assertOwned(ctx, company?.managerId);
 }
 
@@ -236,15 +266,22 @@ const accountPlanSchema = accountPlanObjectSchema.optional();
  * Résout un id UI (crm id ou client Facturation) vers une fiche CrmCompany.
  * Crée un enrichissement CRM si l’id pointe vers un client Facturation inconnu du CRM.
  */
-async function resolveCrmCompanyId(uiId: string, staffId?: string): Promise<string> {
+async function resolveCrmCompanyId(ctx: CrmContext, uiId: string): Promise<string> {
   const byId = await prisma.crmCompany.findUnique({ where: { id: uiId } });
-  if (byId) return byId.id;
+  if (byId) {
+    assertInCabinet(ctx, byId.cabinet, "Entreprise");
+    return byId.id;
+  }
 
   const byClient = await prisma.crmCompany.findUnique({ where: { clientId: uiId } });
-  if (byClient) return byClient.id;
+  if (byClient) {
+    assertInCabinet(ctx, byClient.cabinet, "Entreprise");
+    return byClient.id;
+  }
 
   const client = await prisma.client.findUnique({ where: { id: uiId } });
-  if (!client) throw new Error("Entreprise introuvable");
+  // Client Facturation d’un autre cabinet : invisible ici.
+  if (!client || client.cabinet !== ctx.cabinet) throw new Error("Entreprise introuvable");
 
   const created = await prisma.crmCompany.create({
     data: {
@@ -258,13 +295,15 @@ async function resolveCrmCompanyId(uiId: string, staffId?: string): Promise<stri
       phone: client.phone || "",
       email: client.email || "",
       source: "client_existant",
-      createdById: staffId ?? null,
+      cabinet: ctx.cabinet,
+      createdById: ctx.staff.id,
     },
   });
   return created.id;
 }
 
-async function loadCrmManagers(): Promise<Manager[]> {
+/** Collaborateurs du cabinet ayant accès à la Prospection (super admins : dans chaque cabinet). */
+async function loadCrmManagers(cabinet: Cabinet): Promise<Manager[]> {
   const rows = await prisma.staffMember.findMany({
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
   });
@@ -273,7 +312,7 @@ async function loadCrmManagers(): Promise<Manager[]> {
     .filter(
       (s) =>
         isProspectionAssignableStaff(s) &&
-        (s.role === "admin" || s.role === "super_admin"),
+        (s.role === "super_admin" || (s.role === "admin" && s.cabinet === cabinet)),
     )
     .map(staffToCrmManager);
 }
@@ -282,10 +321,14 @@ async function loadCrmManagers(): Promise<Manager[]> {
  * Objectifs mensuels par manager : crée ceux du mois manquants en reprenant
  * la cible du dernier mois saisi (sinon la cible par défaut).
  */
-async function ensureObjectivesForManagers(managers: Manager[], month = currentCrmMonth()) {
+async function ensureObjectivesForManagers(
+  managers: Manager[],
+  cabinet: Cabinet,
+  month = currentCrmMonth(),
+) {
   if (managers.length === 0) return;
   const existing = await prisma.crmObjective.findMany({
-    where: { managerId: { in: managers.map((m) => m.id) }, month: { lte: month } },
+    where: { managerId: { in: managers.map((m) => m.id) }, month: { lte: month }, cabinet },
     select: { managerId: true, metric: true, month: true, target: true },
     orderBy: { month: "desc" },
   });
@@ -303,6 +346,7 @@ async function ensureObjectivesForManagers(managers: Manager[], month = currentC
         managerId: m.id,
         metric: t.metric,
         month,
+        cabinet,
         target: lastTarget.get(`${m.id}:${t.metric}`) ?? t.target,
       }),
     ),
@@ -312,11 +356,12 @@ async function ensureObjectivesForManagers(managers: Manager[], month = currentC
   }
 }
 
-async function ensureBudgetSettings(): Promise<BudgetSettings> {
+/** Un réglage de budget par cabinet (id = cabinet). */
+async function ensureBudgetSettings(cabinet: Cabinet): Promise<BudgetSettings> {
   const row = await prisma.crmBudgetSettings.upsert({
-    where: { id: "default" },
+    where: { id: cabinet },
     create: {
-      id: "default",
+      id: cabinet,
       monthlyBudgetPerManager: DEFAULT_BUDGET_SETTINGS.monthlyBudgetPerManager,
       alertRatio: DEFAULT_BUDGET_SETTINGS.alertRatio,
       approvalThreshold: DEFAULT_BUDGET_SETTINGS.approvalThreshold,
@@ -330,11 +375,13 @@ async function ensureBudgetSettings(): Promise<BudgetSettings> {
   };
 }
 
-async function ensureLibrarySeed() {
-  const count = await prisma.crmLibraryItem.count();
+/** Bibliothèque propre à chaque cabinet, amorcée avec le contenu par défaut. */
+async function ensureLibrarySeed(cabinet: Cabinet) {
+  const count = await prisma.crmLibraryItem.count({ where: { cabinet } });
   if (count > 0) return;
   await prisma.crmLibraryItem.createMany({
     data: HELP_LIBRARY.map((item) => ({
+      cabinet,
       line: item.line,
       category: item.category,
       title: item.title,
@@ -344,20 +391,20 @@ async function ensureLibrarySeed() {
   });
 }
 
-async function ensureCrmDefaults(managers: Manager[]) {
+async function ensureCrmDefaults(managers: Manager[], cabinet: Cabinet) {
   await Promise.all([
     // Objectifs : uniquement les porteurs de portefeuille (pas la direction).
-    ensureObjectivesForManagers(portfolioManagers(managers)),
-    ensureBudgetSettings(),
-    ensureLibrarySeed(),
+    ensureObjectivesForManagers(portfolioManagers(managers), cabinet),
+    ensureBudgetSettings(cabinet),
+    ensureLibrarySeed(cabinet),
   ]);
 }
 
-/** Valeurs par défaut déjà créées pour cet ensemble de managers (par process serveur). */
-let crmDefaultsSignature: string | null = null;
+/** Valeurs par défaut déjà créées, par cabinet et ensemble de managers (par process serveur). */
+const crmDefaultsSignatures = new Map<Cabinet, string>();
 
-async function readBudgetSettings(): Promise<BudgetSettings> {
-  const row = await prisma.crmBudgetSettings.findUnique({ where: { id: "default" } });
+async function readBudgetSettings(cabinet: Cabinet): Promise<BudgetSettings> {
+  const row = await prisma.crmBudgetSettings.findUnique({ where: { id: cabinet } });
   if (!row) return { ...DEFAULT_BUDGET_SETTINGS };
   return {
     monthlyBudgetPerManager: Number(row.monthlyBudgetPerManager),
@@ -367,10 +414,10 @@ async function readBudgetSettings(): Promise<BudgetSettings> {
 }
 
 /** Direction (super admins + profils direction) : validations, alertes budget. */
-async function loadDirectionIds(): Promise<string[]> {
+async function loadDirectionIds(cabinet: Cabinet): Promise<string[]> {
   const rows = await prisma.staffMember.findMany({
     where: {
-      OR: [{ role: "super_admin" }, { role: "admin", crmProfile: "direction" }],
+      OR: [{ role: "super_admin" }, { role: "admin", crmProfile: "direction", cabinet }],
     },
     select: { id: true },
   });
@@ -378,14 +425,24 @@ async function loadDirectionIds(): Promise<string[]> {
 }
 
 /** Alerte au manager et à la direction au franchissement du seuil (80 % par défaut). */
-async function notifyBudgetThreshold(managerId: string, at: Date, addedAmount: number) {
-  const budget = await readBudgetSettings();
+async function notifyBudgetThreshold(
+  ctx: CrmContext,
+  managerId: string,
+  at: Date,
+  addedAmount: number,
+) {
+  const budget = await readBudgetSettings(ctx.cabinet);
   const month = at.toISOString().slice(0, 7);
   const start = new Date(`${month}-01T00:00:00.000Z`);
   const end = new Date(start);
   end.setUTCMonth(end.getUTCMonth() + 1);
   const agg = await prisma.crmExpense.aggregate({
-    where: { managerId, at: { gte: start, lt: end }, approval: { not: "rejected" } },
+    where: {
+      managerId,
+      cabinet: ctx.cabinet,
+      at: { gte: start, lt: end },
+      approval: { not: "rejected" },
+    },
     _sum: { amount: true },
   });
   const spent = Number(agg._sum.amount ?? 0);
@@ -397,10 +454,11 @@ async function notifyBudgetThreshold(managerId: string, at: Date, addedAmount: n
   });
   const pct = Math.round((spent / budget.monthlyBudgetPerManager) * 100);
   await notifyCrmStaff(
+    ctx.cabinet,
     `Budget consommé à ${pct} %`,
     `${manager ? staffFullName(manager) : "Manager"} — ${spent.toLocaleString("fr-FR")} FCFA sur ${budget.monthlyBudgetPerManager.toLocaleString("fr-FR")} FCFA (${month}).`,
     "/prospection/budget",
-    [managerId, ...(await loadDirectionIds())],
+    [managerId, ...(await loadDirectionIds(ctx.cabinet))],
   );
 }
 
@@ -418,26 +476,32 @@ async function notifyConcerned(
   const ids = [...new Set(staffIds.filter((id): id is string => Boolean(id)))].filter(
     (id) => id !== ctx.staff.id,
   );
-  if (ids.length > 0) await notifyCrmStaff(title, body, href, ids);
+  if (ids.length > 0) await notifyCrmStaff(ctx.cabinet, title, body, href, ids);
 }
 
 /** Notifie les collaborateurs indiqués (aucune diffusion implicite à tous). */
-async function notifyCrmStaff(title: string, body: string, href: string, staffIds: string[]) {
+async function notifyCrmStaff(
+  cabinet: Cabinet,
+  title: string,
+  body: string,
+  href: string,
+  staffIds: string[],
+) {
   const ids = [...new Set(staffIds.filter(Boolean))];
   if (ids.length === 0) return;
   const at = new Date();
   await prisma.crmNotification.createMany({
-    data: ids.map((staffId) => ({ title, body, href, staffId, at })),
+    data: ids.map((staffId) => ({ title, body, href, staffId, at, cabinet })),
   });
 }
 
 async function loadPipelineSnapshot(ctx: CrmContext): Promise<CrmPipelineSnapshot> {
-  const sessionStaffId = ctx.staff.id;
-  const managersPromise = loadCrmManagers();
-  if (crmDefaultsSignature === null) {
+  const managersPromise = loadCrmManagers(ctx.cabinet);
+  const known = crmDefaultsSignatures.get(ctx.cabinet);
+  if (known === undefined) {
     const managers = await managersPromise;
-    await ensureCrmDefaults(managers);
-    crmDefaultsSignature = managerSignature(managers);
+    await ensureCrmDefaults(managers, ctx.cabinet);
+    crmDefaultsSignatures.set(ctx.cabinet, managerSignature(managers));
     return readPipelineData(ctx, managers);
   }
 
@@ -446,9 +510,9 @@ async function loadPipelineSnapshot(ctx: CrmContext): Promise<CrmPipelineSnapsho
     readPipelineData(ctx, []),
   ]);
   const signature = managerSignature(managers);
-  if (signature !== crmDefaultsSignature) {
-    await ensureCrmDefaults(managers);
-    crmDefaultsSignature = signature;
+  if (signature !== known) {
+    await ensureCrmDefaults(managers, ctx.cabinet);
+    crmDefaultsSignatures.set(ctx.cabinet, signature);
     return readPipelineData(ctx, managers);
   }
   return { ...snapshot, managers };
@@ -468,6 +532,7 @@ async function readPipelineData(
   managers: Manager[],
 ): Promise<CrmPipelineSnapshot> {
   const sessionStaffId = ctx.staff.id;
+  const cabinet = ctx.cabinet;
   const [
     budgetSettings,
     companies,
@@ -481,38 +546,47 @@ async function readPipelineData(
     libraryItems,
     referentials,
   ] = await Promise.all([
-    readBudgetSettings(),
-    prisma.crmCompany.findMany({ orderBy: { name: "asc" } }),
+    readBudgetSettings(cabinet),
+    prisma.crmCompany.findMany({ where: { cabinet }, orderBy: { name: "asc" } }),
     prisma.crmContact.findMany({
+      where: { company: { cabinet } },
       include: { company: { select: { id: true, clientId: true } } },
       orderBy: { lastName: "asc" },
     }),
     prisma.crmOpportunity.findMany({
+      where: { cabinet },
       include: { company: { select: { id: true, clientId: true } } },
       orderBy: { updatedAt: "desc" },
     }),
     prisma.crmActivity.findMany({
+      where: { cabinet },
       include: { company: { select: { id: true, clientId: true } } },
       orderBy: [{ at: "desc" }, { createdAt: "desc" }],
     }),
     prisma.crmLead.findMany({
+      where: { cabinet },
       include: { company: { select: { id: true, clientId: true } } },
       orderBy: { at: "desc" },
     }),
     prisma.crmExpense.findMany({
+      where: { cabinet },
       include: { company: { select: { id: true, clientId: true } } },
       orderBy: [{ at: "desc" }, { createdAt: "desc" }],
     }),
     prisma.crmObjective.findMany({
+      where: { cabinet },
       orderBy: [{ month: "asc" }, { managerId: "asc" }, { metric: "asc" }],
     }),
     prisma.crmNotification.findMany({
-      where: { staffId: sessionStaffId },
+      where: { staffId: sessionStaffId, cabinet },
       orderBy: { at: "desc" },
       take: 200,
     }),
-    prisma.crmLibraryItem.findMany({ orderBy: [{ line: "asc" }, { category: "asc" }, { title: "asc" }] }),
-    prisma.crmReferential.findMany({ orderBy: { createdAt: "desc" } }),
+    prisma.crmLibraryItem.findMany({
+      where: { cabinet },
+      orderBy: [{ line: "asc" }, { category: "asc" }, { title: "asc" }],
+    }),
+    prisma.crmReferential.findMany({ where: { cabinet }, orderBy: { createdAt: "desc" } }),
   ]);
 
   const scoped = scopeCrmRows(ctx, {
@@ -686,6 +760,7 @@ export const upsertCrmCompany = createServerFn({ method: "POST" })
         },
       });
       if (existing) {
+        assertInCabinet(ctx, existing.cabinet, "Entreprise");
         assertOwned(ctx, existing.managerId);
         const row = await prisma.crmCompany.update({
           where: { id: existing.id },
@@ -713,10 +788,18 @@ export const upsertCrmCompany = createServerFn({ method: "POST" })
       }
     }
 
+    if (payload.clientId) {
+      const client = await prisma.client.findUnique({
+        where: { id: payload.clientId },
+        select: { cabinet: true },
+      });
+      if (!client || client.cabinet !== ctx.cabinet) throw new Error("Client introuvable");
+    }
     const row = await prisma.crmCompany.create({
       data: {
         ...payload,
         clientId: payload.clientId ?? null,
+        cabinet: ctx.cabinet,
       },
     });
     return mapCrmCompany(row);
@@ -731,6 +814,7 @@ export const updateCrmCompany = createServerFn({ method: "POST" })
       where: { OR: [{ id: data.id }, { clientId: data.id }] },
     });
     if (!existing) throw new Error("Entreprise introuvable");
+    assertInCabinet(ctx, existing.cabinet, "Entreprise");
     assertOwned(ctx, existing.managerId);
 
     const row = await prisma.crmCompany.update({
@@ -784,7 +868,7 @@ export const setCrmClientOverlay = createServerFn({ method: "POST" })
     assertCrmWriter(ctx);
     await assertCompanyOwned(ctx, data.clientId);
     const { staff } = ctx;
-    const crmId = await resolveCrmCompanyId(data.clientId, staff.id);
+    const crmId = await resolveCrmCompanyId(ctx, data.clientId);
     const row = await prisma.crmCompany.update({
       where: { id: crmId },
       data: {
@@ -810,21 +894,16 @@ export const setCrmClientOverlay = createServerFn({ method: "POST" })
   });
 
 export const convertCrmProspect = createServerFn({ method: "POST" })
-  .validator(
-    z.object({
-      id: z.string(),
-      /** La Prospection couvre les deux cabinets : le client Facturation est créé dans celui choisi. */
-      cabinet: z.enum(["conseil", "expertise_fiscale"]).optional(),
-    }),
-  )
+  .validator(z.object({ id: z.string() }))
   .handler(async ({ data }) => {
     const ctx = await requireCrm();
     assertCrmWriter(ctx);
-    const { staff, activeCabinet } = ctx.session;
+    const { staff } = ctx;
     const existing = await prisma.crmCompany.findFirst({
       where: { OR: [{ id: data.id }, { clientId: data.id }] },
     });
     if (!existing) throw new Error("Prospect introuvable");
+    assertInCabinet(ctx, existing.cabinet, "Prospect");
     assertOwned(ctx, existing.managerId);
 
     if (existing.clientId) {
@@ -835,7 +914,8 @@ export const convertCrmProspect = createServerFn({ method: "POST" })
       return mapCrmCompany(row);
     }
 
-    const cabinet = data.cabinet ?? resolveCabinet(staff.role, staff.cabinet, activeCabinet);
+    // Le client Facturation est créé dans le cabinet de la Prospection.
+    const cabinet = existing.cabinet;
     // Pôle de la fiche client Facturation (attribut du client), déduit des lignes de service.
     const pole = poleFromCrmLines([...existing.servicesBought, ...existing.targetLines]);
 
@@ -889,7 +969,7 @@ export const convertCrmProspect = createServerFn({ method: "POST" })
       "Prospect converti",
       `${row.name} est maintenant un client Facturation (portefeuille live).`,
       `/prospection/clients/${row.clientId}`,
-      [row.managerId, ...(await loadDirectionIds())],
+      [row.managerId, ...(await loadDirectionIds(ctx.cabinet))],
     );
 
     return mapCrmCompany(row);
@@ -913,7 +993,7 @@ export const createCrmContact = createServerFn({ method: "POST" })
     assertCrmWriter(ctx);
     await assertCompanyOwned(ctx, data.companyId);
     const { staff } = ctx;
-    const companyId = await resolveCrmCompanyId(data.companyId, staff.id);
+    const companyId = await resolveCrmCompanyId(ctx, data.companyId);
     const row = await prisma.crmContact.create({
       data: {
         companyId,
@@ -935,9 +1015,14 @@ export const updateCrmContact = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const ctx = await requireCrm();
     assertCrmWriter(ctx);
+    const existingContact = await prisma.crmContact.findUnique({
+      where: { id: data.id },
+      select: { company: { select: { cabinet: true } } },
+    });
+    assertInCabinet(ctx, existingContact?.company.cabinet, "Contact");
     await assertCompanyOwned(ctx, data.companyId);
     const { staff } = ctx;
-    const companyId = await resolveCrmCompanyId(data.companyId, staff.id);
+    const companyId = await resolveCrmCompanyId(ctx, data.companyId);
     const row = await prisma.crmContact.update({
       where: { id: data.id },
       data: {
@@ -980,7 +1065,7 @@ export const upsertCrmOpportunity = createServerFn({ method: "POST" })
     assertCrmWriter(ctx);
     await assertCompanyOwned(ctx, data.companyId);
     const { staff } = ctx;
-    const companyId = await resolveCrmCompanyId(data.companyId, staff.id);
+    const companyId = await resolveCrmCompanyId(ctx, data.companyId);
     // Nouveau prospect : étape 1 (identification) ; client existant : directement étape 2 (§4).
     const stage = (data.stage ??
       (data.source === "nouveau" ? "identification" : "qualification")) as CrmPipelineStage;
@@ -1004,8 +1089,16 @@ export const upsertCrmOpportunity = createServerFn({ method: "POST" })
     if (data.id) {
       const previous = await prisma.crmOpportunity.findUnique({
         where: { id: data.id },
-        select: { stage: true, ownerId: true, qualifiedAt: true, proposalAt: true, wonAt: true },
+        select: {
+          stage: true,
+          ownerId: true,
+          qualifiedAt: true,
+          proposalAt: true,
+          wonAt: true,
+          cabinet: true,
+        },
       });
+      assertInCabinet(ctx, previous?.cabinet, "Opportunité");
       assertOwned(ctx, previous?.ownerId);
       const row = await prisma.crmOpportunity.update({
         where: { id: data.id },
@@ -1020,7 +1113,7 @@ export const upsertCrmOpportunity = createServerFn({ method: "POST" })
     }
 
     const row = await prisma.crmOpportunity.create({
-      data: { ...common, ...stageMilestones(stage) },
+      data: { ...common, ...stageMilestones(stage), cabinet: ctx.cabinet },
       include: { company: { select: { id: true, clientId: true } } },
     });
     return mapCrmOpportunity(row, row.company);
@@ -1048,6 +1141,7 @@ export const advanceCrmOpportunity = createServerFn({ method: "POST" })
       include: { company: true },
     });
     if (!current) throw new Error("Opportunité introuvable");
+    assertInCabinet(ctx, current.cabinet, "Opportunité");
     assertOwned(ctx, current.ownerId);
 
     const stage = data.stage as CrmPipelineStage;
@@ -1111,6 +1205,7 @@ export const advanceCrmOpportunity = createServerFn({ method: "POST" })
           nextActionOn: toDateInput(data.nextActionOn),
           ownerId: current.ownerId,
           status: "terminee",
+          cabinet: current.cabinet,
         },
         include: { company: { select: { id: true, clientId: true } } },
       });
@@ -1129,7 +1224,7 @@ export const advanceCrmOpportunity = createServerFn({ method: "POST" })
       "/prospection/opportunites",
       [
         current.ownerId,
-        ...(stage === "gagne" || stage === "perdu" ? await loadDirectionIds() : []),
+        ...(stage === "gagne" || stage === "perdu" ? await loadDirectionIds(ctx.cabinet) : []),
       ],
     );
 
@@ -1162,7 +1257,7 @@ export const upsertCrmActivity = createServerFn({ method: "POST" })
     assertCrmWriter(ctx);
     await assertCompanyOwned(ctx, data.companyId);
     const { staff } = ctx;
-    const companyId = await resolveCrmCompanyId(data.companyId, staff.id);
+    const companyId = await resolveCrmCompanyId(ctx, data.companyId);
     const common = {
       companyId,
       opportunityId: data.opportunityId || null,
@@ -1180,8 +1275,9 @@ export const upsertCrmActivity = createServerFn({ method: "POST" })
     if (data.id) {
       const previous = await prisma.crmActivity.findUnique({
         where: { id: data.id },
-        select: { ownerId: true },
+        select: { ownerId: true, cabinet: true },
       });
+      assertInCabinet(ctx, previous?.cabinet, "Action");
       assertOwned(ctx, previous?.ownerId);
       const row = await prisma.crmActivity.update({
         where: { id: data.id },
@@ -1189,8 +1285,8 @@ export const upsertCrmActivity = createServerFn({ method: "POST" })
         include: { company: { select: { id: true, clientId: true } } },
       });
       if (data.opportunityId && data.nextAction?.trim()) {
-        await prisma.crmOpportunity.update({
-          where: { id: data.opportunityId },
+        await prisma.crmOpportunity.updateMany({
+          where: { id: data.opportunityId, cabinet: ctx.cabinet },
           data: {
             nextAction: data.nextAction.trim(),
             nextActionOn: toDateInput(data.nextActionOn) ?? undefined,
@@ -1201,12 +1297,12 @@ export const upsertCrmActivity = createServerFn({ method: "POST" })
     }
 
     const row = await prisma.crmActivity.create({
-      data: common,
+      data: { ...common, cabinet: ctx.cabinet },
       include: { company: { select: { id: true, clientId: true } } },
     });
     if (data.opportunityId && data.nextAction?.trim()) {
-      await prisma.crmOpportunity.update({
-        where: { id: data.opportunityId },
+      await prisma.crmOpportunity.updateMany({
+        where: { id: data.opportunityId, cabinet: ctx.cabinet },
         data: {
           nextAction: data.nextAction.trim(),
           nextActionOn: toDateInput(data.nextActionOn) ?? undefined,
@@ -1223,8 +1319,9 @@ export const setCrmActivityStatus = createServerFn({ method: "POST" })
     assertCrmWriter(ctx);
     const previous = await prisma.crmActivity.findUnique({
       where: { id: data.id },
-      select: { ownerId: true },
+      select: { ownerId: true, cabinet: true },
     });
+    assertInCabinet(ctx, previous?.cabinet, "Action");
     assertOwned(ctx, previous?.ownerId);
     const row = await prisma.crmActivity.update({
       where: { id: data.id },
@@ -1255,9 +1352,10 @@ export const upsertCrmLead = createServerFn({ method: "POST" })
     if (data.id) {
       const previous = await prisma.crmLead.findUnique({
         where: { id: data.id },
-        select: { ownerId: true, authorId: true },
+        select: { ownerId: true, authorId: true, cabinet: true },
       });
       if (!previous) throw new Error("Piste introuvable");
+      assertInCabinet(ctx, previous.cabinet, "Piste");
       const mine = previous.authorId === staff.id || previous.ownerId === staff.id;
       assertCrmAllowed(
         mine || ctx.crm === "direction" || ctx.crm === "admin",
@@ -1266,7 +1364,7 @@ export const upsertCrmLead = createServerFn({ method: "POST" })
     }
     let companyId: string | null = null;
     if (data.companyId) {
-      companyId = await resolveCrmCompanyId(data.companyId, staff.id);
+      companyId = await resolveCrmCompanyId(ctx, data.companyId);
     }
     const routed = data.ownerId?.trim()
       ? null
@@ -1274,6 +1372,7 @@ export const upsertCrmLead = createServerFn({ method: "POST" })
           line: data.line as CrmServiceLine,
           companyName: data.companyName,
           clientId: data.companyId,
+          cabinet: ctx.cabinet,
         });
     const common = {
       companyName: data.companyName.trim(),
@@ -1295,11 +1394,12 @@ export const upsertCrmLead = createServerFn({ method: "POST" })
     }
 
     const row = await prisma.crmLead.create({
-      data: { ...common, author: staffFullName(staff), authorId: staff.id },
+      data: { ...common, author: staffFullName(staff), authorId: staff.id, cabinet: ctx.cabinet },
       include: { company: { select: { id: true, clientId: true } } },
     });
     if (row.ownerId !== staff.id) {
       await notifyCrmStaff(
+        ctx.cabinet,
         "Nouvelle piste",
         `${row.companyName} — ${row.need} (signalée par ${row.author})`,
         "/prospection/pistes",
@@ -1316,8 +1416,9 @@ export const setCrmLeadStatus = createServerFn({ method: "POST" })
     assertCrmWriter(ctx);
     const previous = await prisma.crmLead.findUnique({
       where: { id: data.id },
-      select: { ownerId: true },
+      select: { ownerId: true, cabinet: true },
     });
+    assertInCabinet(ctx, previous?.cabinet, "Piste");
     assertOwned(ctx, previous?.ownerId);
     const row = await prisma.crmLead.update({
       where: { id: data.id },
@@ -1335,16 +1436,22 @@ export const convertCrmLead = createServerFn({ method: "POST" })
     const { staff } = ctx;
     const lead = await prisma.crmLead.findUnique({ where: { id: data.id } });
     if (!lead) throw new Error("Piste introuvable");
+    assertInCabinet(ctx, lead.cabinet, "Piste");
     assertOwned(ctx, lead.ownerId);
     if (lead.status === "convertie") throw new Error("Piste déjà convertie");
 
     const name = lead.companyName.trim();
+    const linked = lead.companyId
+      ? await prisma.crmCompany.findUnique({ where: { id: lead.companyId } })
+      : null;
     let company =
-      (lead.companyId
-        ? await prisma.crmCompany.findUnique({ where: { id: lead.companyId } })
-        : null) ??
+      (linked && linked.cabinet === lead.cabinet ? linked : null) ??
       (await prisma.crmCompany.findFirst({
-        where: { name: { equals: name, mode: "insensitive" }, clientId: null },
+        where: {
+          name: { equals: name, mode: "insensitive" },
+          clientId: null,
+          cabinet: lead.cabinet,
+        },
       }));
 
     if (!company) {
@@ -1361,6 +1468,7 @@ export const convertCrmLead = createServerFn({ method: "POST" })
           source: "piste_interne",
           notes: lead.comment,
           createdById: staff.id,
+          cabinet: lead.cabinet,
         },
       });
     }
@@ -1383,6 +1491,7 @@ export const convertCrmLead = createServerFn({ method: "POST" })
           nextActionOn: toDateInput(new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10)),
           ownerId: lead.ownerId,
           notes: lead.comment,
+          cabinet: lead.cabinet,
         },
         include: { company: { select: { id: true, clientId: true } } },
       });
@@ -1419,8 +1528,8 @@ export const importCrmCompanies = createServerFn({ method: "POST" })
     const created: Company[] = [];
     // Pas de doublon : une entreprise déjà connue (CRM ou client Facturation) est ignorée.
     const [crmNames, clientNames] = await Promise.all([
-      prisma.crmCompany.findMany({ select: { name: true } }),
-      prisma.client.findMany({ select: { name: true } }),
+      prisma.crmCompany.findMany({ where: { cabinet: ctx.cabinet }, select: { name: true } }),
+      prisma.client.findMany({ where: { cabinet: ctx.cabinet }, select: { name: true } }),
     ]);
     const known = new Set(
       [...crmNames, ...clientNames].map((c) => c.name.trim().toLowerCase()),
@@ -1448,6 +1557,7 @@ export const importCrmCompanies = createServerFn({ method: "POST" })
           caSigned: row.caSigned ?? 0,
           notes: row.notes ?? "",
           createdById: ctx.staff.id,
+          cabinet: ctx.cabinet,
         },
       });
       created.push(mapCrmCompany(company));
@@ -1466,7 +1576,7 @@ export const setCrmAccountPlan = createServerFn({ method: "POST" })
     const ctx = await requireCrm();
     assertCrmWriter(ctx);
     await assertCompanyOwned(ctx, data.companyId);
-    const crmId = await resolveCrmCompanyId(data.companyId, ctx.staff.id);
+    const crmId = await resolveCrmCompanyId(ctx, data.companyId);
     const row = await prisma.crmCompany.update({
       where: { id: crmId },
       data: { plan: data.plan },
@@ -1527,9 +1637,10 @@ export const createCrmExpense = createServerFn({ method: "POST" })
     const receiptName = data.receiptName?.trim() || null;
     let companyId: string | null = null;
     if (data.companyId) {
-      companyId = await resolveCrmCompanyId(data.companyId, staff.id);
+      companyId = await resolveCrmCompanyId(ctx, data.companyId);
     }
-    const budget = await readBudgetSettings();
+    await assertRefsInCabinet(ctx, data);
+    const budget = await readBudgetSettings(ctx.cabinet);
     const approval =
       data.amount > budget.approvalThreshold ? ("pending" as const) : ("none" as const);
 
@@ -1547,19 +1658,21 @@ export const createCrmExpense = createServerFn({ method: "POST" })
         receiptPath,
         receiptName,
         approval,
+        cabinet: ctx.cabinet,
       },
       include: { company: { select: { id: true, clientId: true } } },
     });
 
     if (approval === "pending") {
       await notifyCrmStaff(
+        ctx.cabinet,
         "Budget à valider",
         `${row.label} — ${Number(row.amount).toLocaleString("fr-FR")} FCFA`,
         "/prospection/budget",
-        await loadDirectionIds(),
+        await loadDirectionIds(ctx.cabinet),
       );
     }
-    await notifyBudgetThreshold(managerId, row.at, Number(row.amount));
+    await notifyBudgetThreshold(ctx, managerId, row.at, Number(row.amount));
 
     return mapCrmExpense(row, row.company);
   });
@@ -1587,6 +1700,7 @@ export const updateCrmExpense = createServerFn({ method: "POST" })
     const { staff } = ctx;
     const current = await prisma.crmExpense.findUnique({ where: { id: data.id } });
     if (!current) throw new Error("Dépense introuvable");
+    assertInCabinet(ctx, current.cabinet, "Dépense");
     assertOwned(ctx, current.managerId);
     const managerId = ownerFor(ctx, data.managerId);
     const newReceipt = data.receiptPath?.trim();
@@ -1600,9 +1714,10 @@ export const updateCrmExpense = createServerFn({ method: "POST" })
       : current.receiptName;
     let companyId: string | null = null;
     if (data.companyId) {
-      companyId = await resolveCrmCompanyId(data.companyId, staff.id);
+      companyId = await resolveCrmCompanyId(ctx, data.companyId);
     }
-    const budget = await readBudgetSettings();
+    await assertRefsInCabinet(ctx, data);
+    const budget = await readBudgetSettings(ctx.cabinet);
     const overThreshold = data.amount > budget.approvalThreshold;
     const amountChanged = Number(current.amount) !== data.amount;
     let approval = current.approval;
@@ -1633,13 +1748,15 @@ export const updateCrmExpense = createServerFn({ method: "POST" })
 
     if (approval === "pending" && current.approval !== "pending") {
       await notifyCrmStaff(
+        ctx.cabinet,
         "Budget à valider",
         `${row.label} — ${Number(row.amount).toLocaleString("fr-FR")} FCFA`,
         "/prospection/budget",
-        await loadDirectionIds(),
+        await loadDirectionIds(ctx.cabinet),
       );
     }
     await notifyBudgetThreshold(
+      ctx,
       managerId,
       row.at,
       Math.max(0, Number(row.amount) - Number(current.amount)),
@@ -1656,6 +1773,12 @@ export const setCrmExpenseApproval = createServerFn({ method: "POST" })
       canApproveExpenses(ctx.crm),
       "La validation des dépenses est réservée à la direction.",
     );
+    const expense = await prisma.crmExpense.findUnique({
+      where: { id: data.id },
+      select: { cabinet: true },
+    });
+    if (!expense) throw new Error("Dépense introuvable");
+    assertInCabinet(ctx, expense.cabinet, "Dépense");
     const row = await prisma.crmExpense.update({
       where: { id: data.id },
       data: { approval: data.approval },
@@ -1676,8 +1799,12 @@ const objectiveMetricSchema = z.enum([
 export const ensureCrmObjectivesMonth = createServerFn({ method: "POST" })
   .validator(z.object({ month: monthSchema }))
   .handler(async ({ data }) => {
-    await requireCrm();
-    await ensureObjectivesForManagers(portfolioManagers(await loadCrmManagers()), data.month);
+    const ctx = await requireCrm();
+    await ensureObjectivesForManagers(
+      portfolioManagers(await loadCrmManagers(ctx.cabinet)),
+      ctx.cabinet,
+      data.month,
+    );
     return true;
   });
 
@@ -1705,13 +1832,14 @@ export const setCrmObjectiveTargets = createServerFn({ method: "POST" })
       data.items.map((item) =>
         prisma.crmObjective.upsert({
           where: {
-            managerId_metric_month: {
+            managerId_metric_month_cabinet: {
               managerId: item.managerId,
               metric: item.metric,
               month: data.month,
+              cabinet: ctx.cabinet,
             },
           },
-          create: { ...item, month: data.month },
+          create: { ...item, month: data.month, cabinet: ctx.cabinet },
           update: { target: item.target },
         }),
       ),
@@ -1736,6 +1864,7 @@ export const createCrmLibraryItem = createServerFn({ method: "POST" })
     assertCrmAllowed(canEditLibrary(ctx.crm), "Bibliothèque en lecture seule pour votre profil.");
     const row = await prisma.crmLibraryItem.create({
       data: {
+        cabinet: ctx.cabinet,
         line: data.line,
         category: data.category,
         title: data.title.trim(),
@@ -1760,6 +1889,12 @@ export const updateCrmLibraryItem = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const ctx = await requireCrm();
     assertCrmAllowed(canEditLibrary(ctx.crm), "Bibliothèque en lecture seule pour votre profil.");
+    const item = await prisma.crmLibraryItem.findUnique({
+      where: { id: data.id },
+      select: { cabinet: true },
+    });
+    if (!item) throw new Error("Fiche introuvable");
+    assertInCabinet(ctx, item.cabinet, "Fiche");
     const row = await prisma.crmLibraryItem.update({
       where: { id: data.id },
       data: {
@@ -1782,7 +1917,7 @@ export const createCrmReferential = createServerFn({ method: "POST" })
       "Paramétrage réservé à l’administrateur et à la direction.",
     );
     const row = await prisma.crmReferential.create({
-      data: { kind: data.kind, label: data.label.trim() },
+      data: { kind: data.kind, label: data.label.trim(), cabinet: ctx.cabinet },
     });
     return mapCrmReferential(row);
   });
@@ -1797,6 +1932,12 @@ export const updateCrmReferential = createServerFn({ method: "POST" })
       canAdminReferentials(ctx.crm),
       "Paramétrage réservé à l’administrateur et à la direction.",
     );
+    const ref = await prisma.crmReferential.findUnique({
+      where: { id: data.id },
+      select: { cabinet: true },
+    });
+    if (!ref) throw new Error("Valeur introuvable");
+    assertInCabinet(ctx, ref.cabinet, "Valeur");
     const row = await prisma.crmReferential.update({
       where: { id: data.id },
       data: { kind: data.kind, label: data.label.trim() },
@@ -1843,9 +1984,9 @@ export const updateCrmNotification = createServerFn({ method: "POST" })
 
 export const markAllCrmNotificationsRead = createServerFn({ method: "POST" }).handler(
   async () => {
-    const { staff } = await requireSession();
+    const { staff, activeCabinet } = await requireSession();
     await prisma.crmNotification.updateMany({
-      where: { staffId: staff.id, read: false },
+      where: { staffId: staff.id, read: false, cabinet: activeCabinet },
       data: { read: true },
     });
     return true;
@@ -1867,9 +2008,9 @@ export const setCrmBudgetSettings = createServerFn({ method: "POST" })
       "Paramétrage réservé à l’administrateur et à la direction.",
     );
     const row = await prisma.crmBudgetSettings.upsert({
-      where: { id: "default" },
+      where: { id: ctx.cabinet },
       create: {
-        id: "default",
+        id: ctx.cabinet,
         monthlyBudgetPerManager: data.monthlyBudgetPerManager,
         alertRatio: data.alertRatio,
         approvalThreshold: data.approvalThreshold,
@@ -1896,6 +2037,7 @@ export const deleteCrmCompany = createServerFn({ method: "POST" })
       where: { OR: [{ id: data.id }, { clientId: data.id }] },
     });
     if (!existing) return true;
+    assertInCabinet(ctx, existing.cabinet, "Entreprise");
     assertOwned(ctx, existing.managerId);
     // Supprime uniquement la fiche / overlay CRM — jamais le Client Facturation.
     await prisma.crmCompany.deleteMany({ where: { id: existing.id } });
@@ -1909,8 +2051,9 @@ export const deleteCrmContact = createServerFn({ method: "POST" })
     assertCrmWriter(ctx);
     const contact = await prisma.crmContact.findUnique({
       where: { id: data.id },
-      select: { company: { select: { managerId: true } } },
+      select: { company: { select: { managerId: true, cabinet: true } } },
     });
+    assertInCabinet(ctx, contact?.company.cabinet, "Contact");
     assertOwned(ctx, contact?.company.managerId);
     await prisma.crmContact.deleteMany({ where: { id: data.id } });
     return true;
@@ -1923,8 +2066,9 @@ export const deleteCrmOpportunity = createServerFn({ method: "POST" })
     assertCrmWriter(ctx);
     const opp = await prisma.crmOpportunity.findUnique({
       where: { id: data.id },
-      select: { ownerId: true },
+      select: { ownerId: true, cabinet: true },
     });
+    assertInCabinet(ctx, opp?.cabinet, "Opportunité");
     assertOwned(ctx, opp?.ownerId);
     await prisma.crmOpportunity.deleteMany({ where: { id: data.id } });
     return true;
@@ -1937,8 +2081,9 @@ export const deleteCrmActivity = createServerFn({ method: "POST" })
     assertCrmWriter(ctx);
     const activity = await prisma.crmActivity.findUnique({
       where: { id: data.id },
-      select: { ownerId: true },
+      select: { ownerId: true, cabinet: true },
     });
+    assertInCabinet(ctx, activity?.cabinet, "Action");
     assertOwned(ctx, activity?.ownerId);
     await prisma.crmActivity.deleteMany({ where: { id: data.id } });
     return true;
@@ -1950,9 +2095,10 @@ export const deleteCrmLead = createServerFn({ method: "POST" })
     const ctx = await requireCrm();
     const lead = await prisma.crmLead.findUnique({
       where: { id: data.id },
-      select: { ownerId: true, authorId: true },
+      select: { ownerId: true, authorId: true, cabinet: true },
     });
     if (!lead) return true;
+    assertInCabinet(ctx, lead.cabinet, "Piste");
     const mine = lead.authorId === ctx.staff.id || lead.ownerId === ctx.staff.id;
     assertCrmAllowed(
       mine || ctx.crm === "direction" || ctx.crm === "admin",
@@ -1969,8 +2115,9 @@ export const deleteCrmExpense = createServerFn({ method: "POST" })
     assertCrmWriter(ctx);
     const expense = await prisma.crmExpense.findUnique({
       where: { id: data.id },
-      select: { managerId: true },
+      select: { managerId: true, cabinet: true },
     });
+    assertInCabinet(ctx, expense?.cabinet, "Dépense");
     assertOwned(ctx, expense?.managerId);
     await prisma.crmExpense.deleteMany({ where: { id: data.id } });
     return true;
@@ -1981,7 +2128,7 @@ export const deleteCrmLibraryItem = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const ctx = await requireCrm();
     assertCrmAllowed(canEditLibrary(ctx.crm), "Bibliothèque en lecture seule pour votre profil.");
-    await prisma.crmLibraryItem.deleteMany({ where: { id: data.id } });
+    await prisma.crmLibraryItem.deleteMany({ where: { id: data.id, cabinet: ctx.cabinet } });
     return true;
   });
 
@@ -1993,7 +2140,7 @@ export const deleteCrmReferential = createServerFn({ method: "POST" })
       canAdminReferentials(ctx.crm),
       "Paramétrage réservé à l’administrateur et à la direction.",
     );
-    await prisma.crmReferential.deleteMany({ where: { id: data.id } });
+    await prisma.crmReferential.deleteMany({ where: { id: data.id, cabinet: ctx.cabinet } });
     return true;
   });
 
@@ -2031,9 +2178,10 @@ export const getCrmReceiptUrl = createServerFn({ method: "POST" })
     const ctx = await requireCrm();
     const expense = await prisma.crmExpense.findUnique({
       where: { id: data.expenseId },
-      select: { managerId: true, receiptPath: true },
+      select: { managerId: true, receiptPath: true, cabinet: true },
     });
     if (!expense) throw new Error("Dépense introuvable");
+    assertInCabinet(ctx, expense.cabinet, "Dépense");
     assertCrmAllowed(
       ctx.crm === "direction" || ctx.crm === "admin" || expense.managerId === ctx.staff.id,
       "Accès refusé à ce justificatif.",
@@ -2054,9 +2202,11 @@ export const getCrmTeamPulse = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const ctx = await requireCrm();
     return computeTeamPulse(
-      portfolioManagers(await loadCrmManagers()),
+      portfolioManagers(await loadCrmManagers(ctx.cabinet)),
       ctx.staff.id,
       data.period,
+      new Date(),
+      ctx.cabinet,
     );
   });
 
@@ -2067,5 +2217,10 @@ export const getCrmTeamTrend = createServerFn({ method: "GET" }).handler(async (
     canSeeAllPortfolios(ctx.crm),
     "Évolution de l’équipe réservée à la direction.",
   );
-  return computeTeamTrend(portfolioManagers(await loadCrmManagers()));
+  return computeTeamTrend(
+    portfolioManagers(await loadCrmManagers(ctx.cabinet)),
+    8,
+    new Date(),
+    ctx.cabinet,
+  );
 });

@@ -232,6 +232,7 @@ export async function runCrmOpportunityReminders(options?: {
 
       await prisma.crmNotification.create({
         data: {
+          cabinet: opp.cabinet,
           staffId: owner.id,
           title: kind === "before" ? "Échéance dans 2 jours" : "Tâche en retard",
           body: `${opp.company.name} — ${reminderBody(content)}`,

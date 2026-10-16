@@ -482,9 +482,13 @@ export const listCabinetStaff = createServerFn({ method: "GET" })
     }
 
     const prospectionScope = data?.scope === "prospection";
-    // Prospection : uniquement les collaborateurs ayant accès à cet espace (super admins inclus).
+    // Prospection : collaborateurs du cabinet actif ayant accès à cet espace, plus les
+    // super admins (présents dans les deux cabinets) — même cloisonnement qu’en Facturation.
     const where = prospectionScope
-      ? { spacesAllowed: { in: ["prospection" as const, "both" as const] } }
+      ? {
+          spacesAllowed: { in: ["prospection" as const, "both" as const] },
+          OR: [{ cabinet: session.activeCabinet }, { role: "super_admin" as const }],
+        }
       : isSuperAdmin(session.staff.role)
       ? {
           OR: [

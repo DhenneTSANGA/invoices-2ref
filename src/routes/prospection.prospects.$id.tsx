@@ -57,9 +57,6 @@ import {
   useProspectionCompanies,
 } from "@/hooks/use-prospection-companies";
 import { cn } from "@/lib/utils";
-import { CABINETS, CABINET_LABELS, type Cabinet } from "@/lib/cabinets";
-import { CrmDialog } from "@/components/prospection/CrmUi";
-import { Building2 as CabinetIcon } from "lucide-react";
 
 export const Route = createFileRoute("/prospection/prospects/$id")({
   component: ProspectDetailPage,
@@ -101,7 +98,6 @@ function ProspectDetailPage() {
   const [editOpp, setEditOpp] = useState<Opportunity | null>(null);
   const [editActivity, setEditActivity] = useState<Activity | null>(null);
   const [editLead, setEditLead] = useState<Lead | null>(null);
-  const [convertOpen, setConvertOpen] = useState(false);
 
   if (!company) {
     return (
@@ -134,13 +130,12 @@ function ProspectDetailPage() {
     setActivityKind(kind);
     setActivityOpen(true);
   };
-  const convert = (cabinet: Cabinet) => {
-    setConvertOpen(false);
+  const convert = () => {
     void (async () => {
       try {
-        const converted = await convertProspect(id, cabinet);
+        const converted = await convertProspect(id);
         void qc.invalidateQueries({ queryKey: prospectionClientsKey });
-        toast.success(`Client créé dans Facturation — ${CABINET_LABELS[cabinet]}`);
+        toast.success("Client créé dans Facturation");
         void navigate({
           to: "/prospection/clients/$id",
           params: { id: converted.id },
@@ -187,36 +182,12 @@ function ProspectDetailPage() {
       <Link to="/prospection/prospects" className="mb-4 inline-block text-sm text-primary hover:underline">
         Tous les prospects
       </Link>
-      <CrmDialog
-        open={convertOpen}
-        onOpenChange={setConvertOpen}
-        icon={CabinetIcon}
-        title="Convertir en client"
-        description="Dans quel cabinet créer la fiche client Facturation ?"
-      >
-        <div className="grid gap-2 p-5 sm:grid-cols-2 sm:p-6">
-          {CABINETS.map((cabinet) => (
-            <button
-              key={cabinet}
-              type="button"
-              onClick={() => convert(cabinet)}
-              className={CRM_SECONDARY_BTN + " !justify-center !py-3"}
-            >
-              {CABINET_LABELS[cabinet]}
-            </button>
-          ))}
-        </div>
-      </CrmDialog>
       <PageHeader
         title={company.name}
         subtitle={`${SITE_LABELS[company.site]} · ${company.sector} · ${managerName(company.managerId)}`}
         actions={
           <>
-            <button
-              type="button"
-              className={CRM_PRIMARY_BTN}
-              onClick={() => setConvertOpen(true)}
-            >
+            <button type="button" className={CRM_PRIMARY_BTN} onClick={convert}>
               Convertir en client
             </button>
             <button type="button" className={CRM_SECONDARY_BTN} onClick={() => openDeal()}>

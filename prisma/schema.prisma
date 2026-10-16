@@ -731,6 +731,8 @@ enum CrmContactInfluence {
 /** Fiche entreprise CRM (prospect local, ou enrichissement d’un client Facturation). */
 model CrmCompany {
   id             String                @id @default(cuid())
+  /// Cabinet (Prospection cloisonnée comme la Facturation).
+  cabinet   Cabinet  @default(conseil)
   /// Lien vers fiche Facturation (écrit à la conversion prospect → client).
   clientId       String?               @unique
   name           String
@@ -768,6 +770,7 @@ model CrmCompany {
   @@index([site])
   @@index([managerId])
   @@index([createdById])
+  @@index([cabinet])
   @@map("crm_companies")
 }
 
@@ -793,6 +796,8 @@ model CrmContact {
 
 model CrmLead {
   id          String         @id @default(cuid())
+  /// Cabinet (Prospection cloisonnée comme la Facturation).
+  cabinet   Cabinet  @default(conseil)
   companyName String
   companyId   String?
   line        CrmServiceLine
@@ -815,11 +820,14 @@ model CrmLead {
   @@index([companyId])
   @@index([at])
   @@index([authorId])
+  @@index([cabinet])
   @@map("crm_leads")
 }
 
 model CrmOpportunity {
   id           String                @id @default(cuid())
+  /// Cabinet (Prospection cloisonnée comme la Facturation).
+  cabinet   Cabinet  @default(conseil)
   companyId    String
   leadId       String?               @unique
   title        String
@@ -856,6 +864,7 @@ model CrmOpportunity {
   @@index([stage])
   @@index([ownerId])
   @@index([nextActionOn])
+  @@index([cabinet])
   @@map("crm_opportunities")
 }
 
@@ -879,6 +888,8 @@ model CrmReminderLog {
 
 model CrmActivity {
   id            String            @id @default(cuid())
+  /// Cabinet (Prospection cloisonnée comme la Facturation).
+  cabinet   Cabinet  @default(conseil)
   companyId     String
   opportunityId String?
   at            DateTime          @db.Date
@@ -902,6 +913,7 @@ model CrmActivity {
   @@index([at])
   @@index([ownerId])
   @@index([status])
+  @@index([cabinet])
   @@map("crm_activities")
 }
 
@@ -948,6 +960,8 @@ enum CrmReferentialKind {
 
 model CrmExpense {
   id            String             @id @default(cuid())
+  /// Cabinet (Prospection cloisonnée comme la Facturation).
+  cabinet   Cabinet  @default(conseil)
   managerId     String
   category      CrmExpenseCategory
   label         String
@@ -972,11 +986,14 @@ model CrmExpense {
   @@index([at])
   @@index([approval])
   @@index([companyId])
+  @@index([cabinet])
   @@map("crm_expenses")
 }
 
 model CrmObjective {
   id        String             @id @default(cuid())
+  /// Cabinet (Prospection cloisonnée comme la Facturation).
+  cabinet   Cabinet  @default(conseil)
   managerId String
   metric    CrmObjectiveMetric
   target    Int                @default(0)
@@ -985,7 +1002,7 @@ model CrmObjective {
   createdAt DateTime           @default(now())
   updatedAt DateTime           @updatedAt
 
-  @@unique([managerId, metric, month])
+  @@unique([managerId, metric, month, cabinet])
   @@index([managerId])
   @@index([month])
   @@map("crm_objectives")
@@ -993,6 +1010,8 @@ model CrmObjective {
 
 model CrmLibraryItem {
   id        String           @id @default(cuid())
+  /// Cabinet (Prospection cloisonnée comme la Facturation).
+  cabinet   Cabinet  @default(conseil)
   line      CrmLibraryDomain
   category  String
   title     String
@@ -1003,28 +1022,35 @@ model CrmLibraryItem {
 
   @@index([line])
   @@index([category])
+  @@index([cabinet])
   @@map("crm_library_items")
 }
 
 model CrmReferential {
   id        String             @id @default(cuid())
+  /// Cabinet (Prospection cloisonnée comme la Facturation).
+  cabinet   Cabinet  @default(conseil)
   kind      CrmReferentialKind
   label     String
   createdAt DateTime           @default(now())
   updatedAt DateTime           @updatedAt
 
   @@index([kind])
+  @@index([cabinet])
   @@map("crm_referentials")
 }
 
 /** Rapport de synthèse hebdomadaire envoyé à la direction (idempotence par semaine). */
 model CrmWeeklyReport {
   id         String   @id @default(cuid())
+  /// Cabinet (Prospection cloisonnée comme la Facturation).
+  cabinet   Cabinet  @default(conseil)
   /// Lundi de la semaine couverte (AAAA-MM-JJ).
-  weekKey    String   @unique
+  weekKey    String
   recipients String[] @default([])
   sentAt     DateTime @default(now())
 
+  @@unique([weekKey, cabinet])
   @@map("crm_weekly_reports")
 }
 
@@ -1042,6 +1068,8 @@ model CrmBudgetSettings {
 /** Notifications de l’espace Prospection (par collaborateur). */
 model CrmNotification {
   id        String   @id @default(cuid())
+  /// Cabinet (Prospection cloisonnée comme la Facturation).
+  cabinet   Cabinet  @default(conseil)
   /// Destinataire staff (espace Prospection).
   staffId   String
   title     String
@@ -1056,5 +1084,6 @@ model CrmNotification {
   @@index([staffId, at])
   @@index([read, at])
   @@index([at])
+  @@index([staffId, cabinet, at])
   @@map("crm_notifications")
 }

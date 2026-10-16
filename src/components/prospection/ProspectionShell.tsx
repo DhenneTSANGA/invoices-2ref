@@ -41,6 +41,7 @@ import {
   type CrmNavItem,
 } from "@/components/prospection/prospection-nav";
 import { CrmHubTabs } from "@/components/prospection/CrmHubTabs";
+import { ProspectionCabinetSwitcher } from "@/components/prospection/ProspectionCabinetSwitcher";
 
 function selectPathname(s: { location: { pathname: string } }) {
   return s.location.pathname;
@@ -140,6 +141,7 @@ function ProspectionSidebar() {
               <div className="mt-0.5 text-[11px] text-muted-foreground">
                 CRM commercial
               </div>
+              <ProspectionCabinetSwitcher className="mt-3" />
             </div>
           ) : (
             <div
@@ -361,6 +363,7 @@ function MobileProspectionNav() {
       >
         <SheetHeader className="border-b border-border/60 px-5 py-5 text-left">
           <SheetTitle className="font-display text-lg font-bold">Prospection</SheetTitle>
+          <ProspectionCabinetSwitcher className="mt-3" />
         </SheetHeader>
         <nav className="flex-1 overflow-y-auto px-3 py-4">
           {sections.map((section, i) => (

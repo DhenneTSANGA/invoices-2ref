@@ -258,9 +258,10 @@ export const listClientsForProspection = createServerFn({ method: "GET" }).handl
       throw new Error("Accès Prospection non autorisé");
     }
     assertProspectionStaff(session.staff.role);
+    // Prospection cloisonnée comme la Facturation : clients du cabinet actif.
     const rows = await prisma.client.findMany({
-      where: { isTransient: false },
-      orderBy: [{ cabinet: "asc" }, { name: "asc" }],
+      where: { isTransient: false, cabinet: session.activeCabinet },
+      orderBy: { name: "asc" },
     });
     const mapped = rows.map(mapClient);
     const poles = await loadClientPoles(mapped.map((c) => c.id));

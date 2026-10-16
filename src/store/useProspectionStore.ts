@@ -73,7 +73,7 @@ type Actions = {
   upsertCompany: (company: Company) => Promise<Company>;
   updateCompany: (id: string, patch: Partial<Company>) => Promise<void>;
   setClientOverlay: (id: string, patch: ClientCrmOverlay) => Promise<void>;
-  convertProspect: (id: string, cabinet: "conseil" | "expertise_fiscale") => Promise<Company>;
+  convertProspect: (id: string) => Promise<Company>;
   deleteCompany: (id: string) => Promise<void>;
   addContact: (row: Omit<Contact, "id">) => Promise<void>;
   deleteContact: (id: string) => Promise<void>;
@@ -301,8 +301,8 @@ const actions: Actions = {
     await setCrmClientOverlay({ data: { clientId: id, ...patch } });
     scheduleReload();
   },
-  convertProspect: async (id, cabinet) => {
-    const converted = await convertCrmProspect({ data: { id, cabinet } });
+  convertProspect: async (id) => {
+    const converted = await convertCrmProspect({ data: { id } });
     await actions.reloadPipeline();
     return converted;
   },

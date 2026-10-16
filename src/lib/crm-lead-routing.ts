@@ -1,4 +1,5 @@
 import type { CrmServiceLine } from "@prisma/client";
+import type { Cabinet } from "@/lib/cabinets";
 import { prisma } from "@/lib/prisma";
 import { mapStaff } from "@/lib/mappers";
 import { crmRoleFromStaff } from "@/lib/prospection-access";
@@ -14,15 +15,18 @@ export async function resolveLeadOwner(input: {
   line: CrmServiceLine;
   companyName: string;
   clientId?: string | null;
+  /** Cabinet de la piste : fiches et managers de ce cabinet uniquement. */
+  cabinet: Cabinet;
 }): Promise<{ ownerId: string | null; companyId: string | null }> {
   const name = input.companyName.trim();
+  const byClient = input.clientId
+    ? await prisma.crmCompany.findUnique({ where: { clientId: input.clientId } })
+    : null;
   const company =
-    (input.clientId
-      ? await prisma.crmCompany.findUnique({ where: { clientId: input.clientId } })
-      : null) ??
+    (byClient && byClient.cabinet === input.cabinet ? byClient : null) ??
     (name
       ? await prisma.crmCompany.findFirst({
-          where: { name: { equals: name, mode: "insensitive" } },
+          where: { name: { equals: name, mode: "insensitive" }, cabinet: input.cabinet },
           orderBy: { createdAt: "asc" },
         })
       : null);
@@ -30,7 +34,12 @@ export async function resolveLeadOwner(input: {
   const staff = (await prisma.staffMember.findMany({
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
   })).map(mapStaff);
-  const assignable = staff.filter(isProspectionAssignableStaff);
+  // Super admins : présents dans chaque cabinet ; les autres, dans le leur.
+  const assignable = staff.filter(
+    (s) =>
+      isProspectionAssignableStaff(s) &&
+      (s.role === "super_admin" || s.cabinet === input.cabinet),
+  );
   const assignableIds = new Set(assignable.map((s) => s.id));
 
   if (company?.managerId && assignableIds.has(company.managerId)) {

@@ -374,11 +374,6 @@ export function TeamAdminPage({ scope }: { scope?: "prospection" } = {}) {
                           {s.firstName} {s.lastName}
                         </div>
                         <div className="text-xs text-muted-foreground">{s.email}</div>
-                        {scope === "prospection" && s.cabinet ? (
-                          <div className="text-[11px] text-muted-foreground">
-                            {CABINET_LABELS[s.cabinet]}
-                          </div>
-                        ) : null}
                       </div>
                     </div>
                   </td>

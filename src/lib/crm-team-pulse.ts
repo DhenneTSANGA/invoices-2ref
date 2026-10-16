@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { addDaysIso, crmTodayIso, crmWeekStart, currentCrmMonth } from "@/lib/crm-month";
 import type { Manager } from "@/lib/prospection-model";
+import type { Cabinet } from "@/lib/cabinets";
 
 export type TeamPulsePeriod = "week" | "month";
 
@@ -93,6 +94,7 @@ export async function computeTeamPulse(
   selfId: string,
   period: TeamPulsePeriod = "week",
   now = new Date(),
+  cabinet: Cabinet = "conseil",
 ): Promise<TeamPulse> {
   const ids = managers.map((m) => m.id);
   const b = periodBounds(period, now);
@@ -107,6 +109,7 @@ export async function computeTeamPulse(
           prisma.crmActivity.findMany({
             where: {
               ownerId: { in: ids },
+              cabinet,
               status: "terminee",
               at: {
                 gte: new Date(`${b.prevStartIso}T00:00:00.000Z`),
@@ -118,6 +121,7 @@ export async function computeTeamPulse(
           prisma.crmOpportunity.findMany({
             where: {
               ownerId: { in: ids },
+              cabinet,
               OR: [
                 { qualifiedAt: { gte: b.prevStart } },
                 { proposalAt: { gte: b.prevStart } },
@@ -133,7 +137,7 @@ export async function computeTeamPulse(
             },
           }),
           prisma.crmObjective.findMany({
-            where: { managerId: { in: ids }, month },
+            where: { managerId: { in: ids }, month, cabinet },
             select: { managerId: true, metric: true, target: true },
           }),
         ]);
@@ -213,6 +217,7 @@ export async function computeTeamTrend(
   managers: Manager[],
   weeks = 8,
   now = new Date(),
+  cabinet: Cabinet = "conseil",
 ): Promise<TeamTrendWeek[]> {
   const ids = managers.map((m) => m.id);
   const currentKey = crmWeekStart(now);
@@ -233,6 +238,7 @@ export async function computeTeamTrend(
     prisma.crmActivity.findMany({
       where: {
         ownerId: { in: ids },
+        cabinet,
         kind: "rdv",
         status: "terminee",
         at: { gte: new Date(`${firstKey}T00:00:00.000Z`) },
@@ -242,6 +248,7 @@ export async function computeTeamTrend(
     prisma.crmOpportunity.findMany({
       where: {
         ownerId: { in: ids },
+        cabinet,
         OR: [{ proposalAt: { gte: firstStart } }, { wonAt: { gte: firstStart } }],
       },
       select: { proposalAt: true, wonAt: true, amount: true },

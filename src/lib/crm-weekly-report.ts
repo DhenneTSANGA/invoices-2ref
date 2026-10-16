@@ -12,14 +12,19 @@ import {
 } from "@/lib/prospection-managers";
 import { crmRoleFromStaff } from "@/lib/prospection-access";
 import { ACTIVE_STAGES, type PipelineStage } from "@/lib/prospection-model";
+import { CABINETS, CABINET_LABELS, type Cabinet } from "@/lib/cabinets";
 
 /**
  * Rapport de synthèse hebdomadaire envoyé à la direction chaque lundi matin
  * (cahier des charges §6) : semaine écoulée, par manager et pour le cabinet.
  */
 
-export type CrmWeeklyReportResult =
+type CabinetReportResult =
   | { status: "sent"; weekKey: string; recipients: number }
+  | { status: "skipped"; reason: string };
+
+export type CrmWeeklyReportResult =
+  | { status: "done"; weekKey: string; cabinets: Partial<Record<Cabinet, CabinetReportResult>> }
   | { status: "skipped"; reason: string };
 
 const DAY_MS = 86_400_000;
@@ -79,23 +84,44 @@ export async function runCrmWeeklyReport(options?: {
   const weekEnd = thisMonday; // exclusif
   const weekKey = isoDay(weekStart);
 
-  if (await prisma.crmWeeklyReport.findUnique({ where: { weekKey } })) {
+  // Un rapport par cabinet (Prospection cloisonnée comme la Facturation).
+  const cabinets: Partial<Record<Cabinet, CabinetReportResult>> = {};
+  for (const cabinet of CABINETS) {
+    cabinets[cabinet] = await sendCabinetReport(cabinet, weekKey, weekStart, weekEnd);
+  }
+  return { status: "done", weekKey, cabinets };
+}
+
+async function sendCabinetReport(
+  cabinet: Cabinet,
+  weekKey: string,
+  weekStart: Date,
+  weekEnd: Date,
+): Promise<CabinetReportResult> {
+  if (
+    await prisma.crmWeeklyReport.findUnique({
+      where: { weekKey_cabinet: { weekKey, cabinet } },
+    })
+  ) {
     return { status: "skipped", reason: `rapport déjà envoyé (${weekKey})` };
   }
 
   const staff = (await prisma.staffMember.findMany()).map(mapStaff);
+  // Destinataires : super admins (les deux cabinets) et la direction de ce cabinet.
   const directionEmails = staff
     .filter(
       (s) =>
         s.role === "super_admin" ||
-        (s.role === "admin" && crmRoleFromStaff(s) === "direction"),
+        (s.role === "admin" && s.cabinet === cabinet && crmRoleFromStaff(s) === "direction"),
     )
     .map((s) => s.email.trim())
     .filter(Boolean);
   if (directionEmails.length === 0) {
     return { status: "skipped", reason: "aucun destinataire direction" };
   }
-  const assignable = staff.filter(isProspectionAssignableStaff);
+  const assignable = staff.filter(
+    (s) => isProspectionAssignableStaff(s) && (s.role === "super_admin" || s.cabinet === cabinet),
+  );
   const designated = assignable.filter(carriesPortfolio);
   const managers =
     designated.length > 0
@@ -108,27 +134,30 @@ export async function runCrmWeeklyReport(options?: {
   const inWeek = { gte: weekStart, lt: weekEnd };
   const [activities, created, proposals, won, expenses, active, budget] = await Promise.all([
     prisma.crmActivity.findMany({
-      where: { at: inWeek, status: "terminee" },
+      where: { cabinet, at: inWeek, status: "terminee" },
       select: { ownerId: true, kind: true },
     }),
-    prisma.crmOpportunity.findMany({ where: { qualifiedAt: inWeek }, select: { ownerId: true } }),
     prisma.crmOpportunity.findMany({
-      where: { proposalAt: inWeek },
+      where: { cabinet, qualifiedAt: inWeek },
+      select: { ownerId: true },
+    }),
+    prisma.crmOpportunity.findMany({
+      where: { cabinet, proposalAt: inWeek },
       select: { ownerId: true, amount: true },
     }),
     prisma.crmOpportunity.findMany({
-      where: { wonAt: inWeek },
+      where: { cabinet, wonAt: inWeek },
       select: { ownerId: true, amount: true, line: true },
     }),
     prisma.crmExpense.findMany({
-      where: { at: { gte: monthStart, lt: weekEnd }, approval: { not: "rejected" } },
+      where: { cabinet, at: { gte: monthStart, lt: weekEnd }, approval: { not: "rejected" } },
       select: { managerId: true, amount: true },
     }),
     prisma.crmOpportunity.findMany({
-      where: { stage: { in: ACTIVE_STAGES as PipelineStage[] } },
+      where: { cabinet, stage: { in: ACTIVE_STAGES as PipelineStage[] } },
       select: { amount: true, probability: true, line: true },
     }),
-    prisma.crmBudgetSettings.findUnique({ where: { id: "default" } }),
+    prisma.crmBudgetSettings.findUnique({ where: { id: cabinet } }),
   ]);
   const monthlyCap = Number(budget?.monthlyBudgetPerManager ?? 500000);
 
@@ -186,6 +215,7 @@ export async function runCrmWeeklyReport(options?: {
 
   const period = `du ${frDate(weekStart)} au ${frDate(new Date(weekEnd.getTime() - DAY_MS))}`;
   const html = weeklyReportHtml({
+    cabinetLabel: CABINET_LABELS[cabinet],
     period,
     rows,
     total,
@@ -198,7 +228,7 @@ export async function runCrmWeeklyReport(options?: {
 
   requireResendApiKey();
   const log = await prisma.crmWeeklyReport
-    .create({ data: { weekKey, recipients: directionEmails } })
+    .create({ data: { weekKey, cabinet, recipients: directionEmails } })
     .catch(() => null);
   if (!log) return { status: "skipped", reason: `rapport déjà envoyé (${weekKey})` };
 
@@ -207,7 +237,7 @@ export async function runCrmWeeklyReport(options?: {
     const { error } = await getResend().emails.send({
       from: sender.from,
       to: directionEmails,
-      subject: `Prospection — synthèse de la semaine ${period}`,
+      subject: `Prospection ${CABINET_LABELS[cabinet]} — synthèse de la semaine ${period}`,
       html,
       ...(sender.replyTo ? { replyTo: [sender.replyTo] } : {}),
     });
@@ -221,6 +251,7 @@ export async function runCrmWeeklyReport(options?: {
 }
 
 function weeklyReportHtml(input: {
+  cabinetLabel: string;
   period: string;
   rows: ManagerRow[];
   total: Omit<ManagerRow, "name">;
@@ -254,7 +285,7 @@ function weeklyReportHtml(input: {
 <html lang="fr"><body style="margin:0;padding:24px;background:#f4f5f7;font-family:Arial,Helvetica,sans-serif;color:#1f2937">
   <div style="max-width:720px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb">
     <div style="padding:20px 24px;background:#1e3a8a;color:#ffffff">
-      <div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;opacity:.85">Prospection — rapport hebdomadaire</div>
+      <div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;opacity:.85">Prospection ${escapeHtml(input.cabinetLabel)} — rapport hebdomadaire</div>
       <div style="font-size:20px;font-weight:bold;margin-top:4px">Semaine ${escapeHtml(input.period)}</div>
     </div>
     <div style="padding:24px">
