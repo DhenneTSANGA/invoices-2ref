@@ -272,19 +272,27 @@ export function CrmFormActions({
   onCancel,
   submitLabel,
   className,
+  pending,
 }: {
   onCancel: () => void;
   submitLabel: string;
   className?: string;
+  /** Enregistrement en cours : bouton désactivé (pas de double soumission). */
+  pending?: boolean;
 }) {
   return (
     <div className={cn("flex flex-col-reverse gap-2 border-t border-border/60 pt-4 sm:flex-row sm:justify-end", className)}>
       <button type="button" onClick={onCancel} className={CRM_SECONDARY_BTN}>
         Annuler
       </button>
-      <button type="submit" className={CRM_PRIMARY_BTN}>
+      <button
+        type="submit"
+        disabled={pending}
+        aria-busy={pending}
+        className={cn(CRM_PRIMARY_BTN, "disabled:cursor-wait disabled:opacity-60")}
+      >
         <Plus className="h-4 w-4" />
-        {submitLabel}
+        {pending ? "Enregistrement…" : submitLabel}
       </button>
     </div>
   );

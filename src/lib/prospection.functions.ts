@@ -1055,6 +1055,22 @@ export const advanceCrmOpportunity = createServerFn({ method: "POST" })
     assertOwned(ctx, current.ownerId);
 
     const stage = data.stage as CrmPipelineStage;
+    // Double envoi (double clic, réseau) : l’étape est déjà appliquée — rien n’est recréé.
+    if (current.stage === stage) {
+      const [company, last] = await Promise.all([
+        prisma.crmCompany.findUniqueOrThrow({ where: { id: current.companyId } }),
+        prisma.crmActivity.findFirst({
+          where: { opportunityId: current.id },
+          orderBy: { createdAt: "desc" },
+          include: { company: { select: { id: true, clientId: true } } },
+        }),
+      ]);
+      return {
+        opportunity: mapCrmOpportunity(current, current.company),
+        activity: last ? mapCrmActivity(last, last.company) : null,
+        company: mapCrmCompany(company),
+      };
+    }
     const probability = STAGE_PROBABILITY[stage as PipelineStage] ?? current.probability;
 
     const [opportunity, activity] = await prisma.$transaction(async (tx) => {

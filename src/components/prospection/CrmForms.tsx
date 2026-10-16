@@ -2177,9 +2177,14 @@ export function StageChangeDialog({
   const [nextAction, setNextAction] = useState("");
   const [nextActionOn, setNextActionOn] = useState(isoDate(2));
   const [lostReason, setLostReason] = useState("");
+  // Verrou synchrone : un double clic est bloqué avant même le nouveau rendu.
+  const savingRef = useRef(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open || !destination || !currentStage) return;
+    savingRef.current = false;
+    setSaving(false);
     setKind(STAGE_ACTIVITY_KIND[currentStage]);
     setSummary("");
     setNextAction(STAGE_NEXT_PLACEHOLDER[destination]);
@@ -2281,6 +2286,9 @@ export function StageChangeDialog({
                 (isEntryQualification
                   ? `Entrée pipeline → ${label}`
                   : `Validation ${fromLabel ?? "étape"} → ${label}`);
+          if (savingRef.current) return;
+          savingRef.current = true;
+          setSaving(true);
           void (async () => {
             try {
               await advanceStage(opportunity.id, destination, {
@@ -2306,6 +2314,9 @@ export function StageChangeDialog({
               onOpenChange(false);
             } catch (err) {
               toast.error(err instanceof Error ? err.message : "Enregistrement impossible");
+            } finally {
+              savingRef.current = false;
+              setSaving(false);
             }
           })();
         }}
@@ -2392,6 +2403,7 @@ export function StageChangeDialog({
 
         <CrmFormActions
           onCancel={() => onOpenChange(false)}
+          pending={saving}
           submitLabel={
             destination === "perdu"
               ? "Confirmer la perte"
