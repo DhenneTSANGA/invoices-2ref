@@ -454,9 +454,10 @@ async function loadPipelineSnapshot(ctx: CrmContext): Promise<CrmPipelineSnapsho
 }
 
 function managerSignature(managers: Manager[]) {
-  // Le mois fait partie de la signature : les objectifs du nouveau mois sont créés au 1er.
+  // Mois + porteurs de portefeuille : les objectifs sont créés au 1er du mois et dès
+  // qu’un collaborateur devient manager.
   return `${currentCrmMonth()}|${managers
-    .map((m) => m.id)
+    .map((m) => `${m.id}${m.portfolio ? "*" : ""}`)
     .sort()
     .join(",")}`;
 }

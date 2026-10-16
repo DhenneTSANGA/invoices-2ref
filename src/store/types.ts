@@ -18,6 +18,8 @@ export type StaffMember = {
   crmProfile?: import("@/lib/prospection-access").CrmProfile | null;
   /** Lignes de service couvertes (manager / chef de service). */
   crmLines?: import("@/lib/prospection-model").ServiceLine[];
+  /** Super admin qui compte aussi comme manager (portefeuille) en Prospection. */
+  crmPortfolio?: boolean;
 };
 
 export type Cabinet = "conseil" | "expertise_fiscale";

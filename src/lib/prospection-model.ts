@@ -67,6 +67,8 @@ export type Manager = {
   lines: ServiceLine[];
   /** Profil Prospection (manager, direction, administrateur…). */
   role?: import("@/lib/prospection-access").CrmRole;
+  /** Porte un portefeuille : manager, ou super admin désigné aussi comme manager. */
+  portfolio?: boolean;
 };
 
 export type Contact = {
@@ -501,7 +503,7 @@ export function managerName(id: string) {
  * Équipe ; tant qu’aucun ne l’est, tous sauf la direction (super admins).
  */
 export function portfolioManagers(managers: Manager[]): Manager[] {
-  const designated = managers.filter((m) => m.role === "manager");
+  const designated = managers.filter((m) => m.role === "manager" || m.portfolio);
   if (designated.length > 0) return designated;
   return managers.filter((m) => m.role !== "direction");
 }

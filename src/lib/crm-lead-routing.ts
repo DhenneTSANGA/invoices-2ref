@@ -2,7 +2,7 @@ import type { CrmServiceLine } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { mapStaff } from "@/lib/mappers";
 import { crmRoleFromStaff } from "@/lib/prospection-access";
-import { isProspectionAssignableStaff } from "@/lib/prospection-managers";
+import { carriesPortfolio, isProspectionAssignableStaff } from "@/lib/prospection-managers";
 
 /**
  * Manager référent d’une piste (cahier des charges §4–5) :
@@ -38,7 +38,7 @@ export async function resolveLeadOwner(input: {
   }
 
   const lineManager = assignable.find(
-    (s) => crmRoleFromStaff(s) === "manager" && (s.crmLines ?? []).includes(input.line),
+    (s) => carriesPortfolio(s) && (s.crmLines ?? []).includes(input.line),
   );
   const direction =
     assignable.find((s) => s.role === "admin" && crmRoleFromStaff(s) === "direction") ??

@@ -20,14 +20,32 @@ export function staffToCrmManager(staff: {
   crmLines?: ServiceLine[] | null;
   role?: AppRole;
   crmProfile?: string | null;
+  crmPortfolio?: boolean | null;
 }): Manager {
+  const role = staff.role
+    ? crmRoleFromStaff({ role: staff.role, crmProfile: staff.crmProfile })
+    : undefined;
   return {
     id: staff.id,
     name: staffDisplayName(staff),
     // L’espace Prospection n’a pas de pôle : seules les lignes de service comptent.
     lines: staff.crmLines ?? [],
-    ...(staff.role ? { role: crmRoleFromStaff({ role: staff.role, crmProfile: staff.crmProfile }) } : {}),
+    ...(role ? { role } : {}),
+    // Manager, ou super admin qui porte aussi un portefeuille (droits de direction conservés).
+    portfolio: role === "manager" || (staff.role === "super_admin" && Boolean(staff.crmPortfolio)),
   };
+}
+
+/** Porte un portefeuille de manager (objectifs, classement, routage, budget). */
+export function carriesPortfolio(staff: {
+  role: AppRole;
+  crmProfile?: string | null;
+  crmPortfolio?: boolean | null;
+}): boolean {
+  return (
+    crmRoleFromStaff(staff) === "manager" ||
+    (staff.role === "super_admin" && Boolean(staff.crmPortfolio))
+  );
 }
 
 export function isProspectionAssignableStaff(staff: {

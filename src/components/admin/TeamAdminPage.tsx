@@ -29,6 +29,7 @@ import {
   reviewAdminRequest,
   setStaffAdminRole,
   setStaffPole,
+  setStaffCrmPortfolio,
   setStaffCrmProfile,
   setStaffSpacesAllowed,
 } from "@/lib/admin.functions";
@@ -149,6 +150,19 @@ export function TeamAdminPage({ scope }: { scope?: "prospection" } = {}) {
         void qc.invalidateQueries({ queryKey: sessionKey });
       }
       toast.success("Profil Prospection mis à jour");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const setCrmPortfolio = useMutation({
+    mutationFn: (data: { staffId: string; portfolio: boolean; crmLines: ServiceLine[] }) =>
+      setStaffCrmPortfolio({ data }),
+    onSuccess: (res, vars) => {
+      void qc.invalidateQueries({ queryKey: staffKey });
+      if (vars.staffId === session?.staff.id) {
+        void qc.invalidateQueries({ queryKey: sessionKey });
+      }
+      toast.success(res.portfolio ? "Compte aussi comme manager" : "Ne compte plus comme manager");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -399,6 +413,19 @@ export function TeamAdminPage({ scope }: { scope?: "prospection" } = {}) {
                         <option value="both">{SPACES_ALLOWED_LABELS.both}</option>
                       </select>
                     )}
+                    {isSuper && s.role === "super_admin" ? (
+                      <SuperAdminPortfolioEditor
+                        name={`${s.firstName} ${s.lastName}`}
+                        portfolio={Boolean(s.crmPortfolio)}
+                        lines={s.crmLines ?? []}
+                        disabled={
+                          setCrmPortfolio.isPending && setCrmPortfolio.variables?.staffId === s.id
+                        }
+                        onChange={(portfolio, crmLines) =>
+                          setCrmPortfolio.mutate({ staffId: s.id, portfolio, crmLines })
+                        }
+                      />
+                    ) : null}
                     {isSuper && s.role === "admin" && s.spacesAllowed !== "facturation" ? (
                       <CrmProfileEditor
                         name={`${s.firstName} ${s.lastName}`}
@@ -1233,6 +1260,46 @@ function CrmProfileEditor({
           value={lines}
           disabled={disabled}
           onChange={(next) => onChange(profile, next)}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Super admin : garde ses droits de direction et peut aussi compter comme manager
+ * (objectifs, classement, routage des pistes de ses lignes, budget).
+ */
+function SuperAdminPortfolioEditor({
+  name,
+  portfolio,
+  lines,
+  disabled,
+  onChange,
+}: {
+  name: string;
+  portfolio: boolean;
+  lines: ServiceLine[];
+  disabled?: boolean;
+  onChange: (portfolio: boolean, lines: ServiceLine[]) => void;
+}) {
+  return (
+    <div className="mt-1.5 flex flex-col gap-1.5">
+      <label className="inline-flex w-44 cursor-pointer items-center gap-2 text-xs font-medium">
+        <Checkbox
+          checked={portfolio}
+          disabled={disabled}
+          onCheckedChange={(on) => onChange(Boolean(on), lines)}
+          aria-label={`${name} compte aussi comme manager`}
+        />
+        Compte aussi comme manager
+      </label>
+      {portfolio ? (
+        <ServiceLinesPicker
+          name={name}
+          value={lines}
+          disabled={disabled}
+          onChange={(next) => onChange(true, next)}
         />
       ) : null}
     </div>

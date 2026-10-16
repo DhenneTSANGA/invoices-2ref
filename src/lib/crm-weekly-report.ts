@@ -5,7 +5,11 @@ import { escapeHtml, requireResendApiKey, resendErrorMessage } from "@/lib/email
 import { absoluteAppUrl } from "@/lib/app-url";
 import { mapStaff } from "@/lib/mappers";
 import { resolveProspectionSender } from "@/lib/crm-reminder-jobs";
-import { isProspectionAssignableStaff, staffDisplayName } from "@/lib/prospection-managers";
+import {
+  carriesPortfolio,
+  isProspectionAssignableStaff,
+  staffDisplayName,
+} from "@/lib/prospection-managers";
 import { crmRoleFromStaff } from "@/lib/prospection-access";
 import { ACTIVE_STAGES, type PipelineStage } from "@/lib/prospection-model";
 
@@ -91,7 +95,12 @@ export async function runCrmWeeklyReport(options?: {
   if (directionEmails.length === 0) {
     return { status: "skipped", reason: "aucun destinataire direction" };
   }
-  const managers = staff.filter(isProspectionAssignableStaff);
+  const assignable = staff.filter(isProspectionAssignableStaff);
+  const designated = assignable.filter(carriesPortfolio);
+  const managers =
+    designated.length > 0
+      ? designated
+      : assignable.filter((s) => crmRoleFromStaff(s) !== "direction");
 
   // Budget du mois auquel appartient le dimanche de la semaine écoulée.
   const lastDay = new Date(weekEnd.getTime() - DAY_MS);

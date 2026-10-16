@@ -316,6 +316,40 @@ export const createStaffWithPassword = createServerFn({ method: "POST" })
     }
   });
 
+/**
+ * Super admin qui compte aussi comme manager en Prospection (objectifs, classement,
+ * routage des pistes, budget) tout en gardant ses droits de direction.
+ */
+export const setStaffCrmPortfolio = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      staffId: z.string(),
+      portfolio: z.boolean(),
+      crmLines: z
+        .array(z.enum(["rh", "comptabilite", "conseil", "fiscalite", "formation"]))
+        .default([]),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const session = await getCurrentSession();
+    if (!session) throw new Error("Non authentifié");
+    if (!canPromoteOrDemoteAdmins(session.staff.role)) {
+      throw new Error("Réservé au super administrateur");
+    }
+    const target = await prisma.staffMember.findUnique({ where: { id: data.staffId } });
+    if (!target) throw new Error("Collaborateur introuvable");
+    if (target.role !== "super_admin") {
+      throw new Error("Réservé aux super administrateurs — les autres comptes utilisent le profil Prospection");
+    }
+    const crmLines = data.portfolio ? [...new Set(data.crmLines)] : [];
+    await prisma.staffMember.update({
+      where: { id: data.staffId },
+      data: { crmPortfolio: data.portfolio, crmLines },
+    });
+    clearSessionMemo(target.id);
+    return { ok: true as const, portfolio: data.portfolio, crmLines };
+  });
+
 /** Profil Prospection choisi dans le formulaire de création (comptes Prospection uniquement). */
 async function persistCreatedCrmProfile(
   staffId: string,

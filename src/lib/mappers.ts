@@ -33,6 +33,7 @@ export function mapStaff(row: {
   spacesAllowed?: "facturation" | "prospection" | "both" | null;
   crmProfile?: string | null;
   crmLines?: string[] | null;
+  crmPortfolio?: boolean | null;
 }): StaffMember {
   const spacesAllowed =
     row.role === "super_admin"
@@ -56,6 +57,7 @@ export function mapStaff(row: {
     spacesAllowed,
     crmProfile: row.role === "super_admin" ? "direction" : parseCrmProfile(row.crmProfile),
     crmLines: parseServiceLines(row.crmLines),
+    crmPortfolio: row.role === "super_admin" && Boolean(row.crmPortfolio),
   };
 }
 
