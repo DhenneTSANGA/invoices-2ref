@@ -27,6 +27,7 @@ import {
   ProgressMeter,
 } from "@/components/prospection/CrmCards";
 import { CRM_PRIMARY_BTN, CRM_SECONDARY_BTN } from "@/components/prospection/CrmUi";
+import { useObjectivesBoard } from "@/hooks/use-objectives-board";
 import { ObjectivesSummary } from "@/components/prospection/ObjectivesSummary";
 import { TeamPulse } from "@/components/prospection/TeamPulse";
 import {
@@ -75,15 +76,17 @@ function ProspectionHomePage() {
   const focusManagerId = session.staff.id;
   const seeAll = canSeeAllPortfolios(crm);
   const thisMonth = currentCrmMonth();
-  const objectiveManagers = seeAll
-    ? portfolio
-    : managers.filter((m) => m.id === focusManagerId);
+  // Objectifs de toute l’équipe, visibles par tous les managers (même longueur d’onde).
+  const objectivesBoard = useObjectivesBoard(thisMonth);
   const [leadOpen, setLeadOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
   const [expenseOpen, setExpenseOpen] = useState(false);
   const [prospectOpen, setProspectOpen] = useState(false);
   const hasAlerts =
-    kpis.overdueActions.length > 0 || kpis.staleStrategic.length > 0 || kpis.pendingApprovals.length > 0;
+    kpis.overdueActions.length > 0 ||
+    kpis.staleStrategic.length > 0 ||
+    kpis.pendingApprovals.length > 0 ||
+    kpis.reviveDue.length > 0;
 
   return (
     <div>
@@ -174,7 +177,11 @@ function ProspectionHomePage() {
             <div>
               <h2 className="font-display text-base font-semibold">Alertes</h2>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                {kpis.overdueActions.length + kpis.staleStrategic.length + kpis.pendingApprovals.length} point(s)
+                {kpis.overdueActions.length +
+                  kpis.staleStrategic.length +
+                  kpis.pendingApprovals.length +
+                  kpis.reviveDue.length}{" "}
+                point(s)
                 à traiter
               </p>
             </div>
@@ -196,6 +203,28 @@ function ProspectionHomePage() {
                       {co?.name} · {o.nextAction}
                     </div>
                     <div className="text-xs text-muted-foreground">{shortDate(o.nextActionOn)}</div>
+                  </Link>
+                </li>
+              );
+            })}
+            {kpis.reviveDue.slice(0, 4).map((o) => {
+              const co = companies.find((c) => c.id === o.companyId);
+              return (
+                <li key={o.id}>
+                  <Link
+                    to="/prospection/opportunites"
+                    search={{ focus: o.id }}
+                    className="block rounded-2xl border border-emerald-500/20 bg-emerald-500/8 px-3 py-2.5 text-sm hover:bg-emerald-500/12"
+                  >
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+                      Affaire à relancer
+                    </span>
+                    <div className="mt-0.5 font-medium">
+                      {co?.name} · {o.title}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {o.stage === "perdu" ? "Perdue" : "Reportée"} · relance prévue le {o.reviveOn ? shortDate(o.reviveOn) : "—"}
+                    </div>
                   </Link>
                 </li>
               );
@@ -288,7 +317,7 @@ function ProspectionHomePage() {
                 <h2 className="font-display text-base font-semibold">Objectifs du mois</h2>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   <span className="capitalize">{monthLabelFr(thisMonth)}</span>
-                  {seeAll ? " · tous les managers" : " · vos indicateurs"}
+                  {" · toute l’équipe"}
                 </p>
               </div>
             </div>
@@ -298,10 +327,9 @@ function ProspectionHomePage() {
           </div>
           <div className="mt-4">
             <ObjectivesSummary
-              data={data}
-              managers={objectiveManagers}
-              month={thisMonth}
-              mode={seeAll ? "direction" : "self"}
+              board={objectivesBoard.data}
+              selfId={focusManagerId}
+              isPending={objectivesBoard.isPending}
             />
           </div>
         </CrmCard>

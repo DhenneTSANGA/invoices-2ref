@@ -151,11 +151,12 @@ export function computeWeeklyRoutine(
       (a.status !== "terminee" || !a.summary.trim() || !a.nextAction?.trim()),
   ).length;
 
-  // Proposition sous 5 jours ouvrés : opportunités restées à l’étape RDV au-delà.
+  // Proposition sous 5 jours ouvrés : affaires entrées en « Proposition » (RDV tenu)
+  // dont la proposition n’est toujours pas envoyée.
   const lateProposals = data.opportunities.filter(
     (o) =>
       o.ownerId === staffId &&
-      o.stage === "rendez_vous" &&
+      o.stage === "proposition" &&
       o.stageChangedAt &&
       addBusinessDays(o.stageChangedAt, 5) < today,
   ).length;
@@ -188,7 +189,7 @@ export function computeWeeklyRoutine(
       detail:
         lateProposals === 0
           ? "Aucune proposition en retard"
-          : `${plural(lateProposals, "opportunité", "opportunités")} à l’étape RDV depuis plus de 5 jours ouvrés`,
+          : `${plural(lateProposals, "proposition", "propositions")} à envoyer depuis plus de 5 jours ouvrés après le RDV`,
     },
     {
       key: "expenses",

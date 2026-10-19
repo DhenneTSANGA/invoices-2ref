@@ -411,18 +411,54 @@ export const STAGE_ACTIVITY_KIND: Record<PipelineStage, ActivityKind> = {
  * Prochaine action suggérée pendant que l’affaire est à cette étape :
  * ce qu’il faut faire pour avancer vers l’étape suivante (pas le travail déjà « contenu » dans l’étape actuelle).
  */
+/** Travail à mener pendant chaque étape (prochaine action proposée en y entrant). */
 export const STAGE_NEXT_PLACEHOLDER: Record<PipelineStage, string> = {
-  identification: "Qualifier le besoin et le décideur",
+  identification: "Qualifier le besoin, le décideur et le budget",
   qualification: "Établir le premier contact",
-  premier_contact: "Planifier le rendez-vous de découverte",
-  rendez_vous: "Envoyer la proposition",
-  proposition: "Relancer après envoi",
-  negotiation: "Arbitrer les honoraires",
+  premier_contact: "Obtenir un rendez-vous de découverte",
+  rendez_vous: "Tenir le rendez-vous",
+  proposition: "Rédiger et envoyer la proposition",
+  negotiation: "Relancer le client et arbitrer les honoraires",
   decision: "Obtenir la décision",
   gagne: "Planifier le kick-off",
   perdu: "Conserver en historique",
   reporte: "Relancer dans 3 mois",
 };
+
+/** Étapes en cours, dans l’ordre du pipeline. */
+export const PIPELINE_STAGES: PipelineStage[] = [
+  "identification",
+  "qualification",
+  "premier_contact",
+  "rendez_vous",
+  "proposition",
+  "negotiation",
+  "decision",
+];
+
+/** Étape suivante dans le pipeline (Décision → Gagnée). */
+export function nextPipelineStage(current: PipelineStage): PipelineStage | null {
+  if (current === "decision") return "gagne";
+  const i = PIPELINE_STAGES.indexOf(current);
+  if (i < 0) return null;
+  return PIPELINE_STAGES[i + 1] ?? null;
+}
+
+/** Ce que le manager déclare en validant l’étape en cours (bouton unique de la carte). */
+export const STAGE_ADVANCE_LABEL: Partial<Record<PipelineStage, string>> = {
+  identification: "Besoin qualifié",
+  qualification: "Contact établi",
+  premier_contact: "RDV obtenu",
+  rendez_vous: "RDV tenu",
+  proposition: "Proposition envoyée",
+  negotiation: "Accord sur les honoraires",
+  decision: "Affaire gagnée",
+};
+
+/** Affaire perdue ou reportée dont la date de relance est arrivée. */
+export function isReviveDue(o: Pick<Opportunity, "stage" | "reviveOn">, today: string): boolean {
+  return (o.stage === "perdu" || o.stage === "reporte") && Boolean(o.reviveOn && o.reviveOn <= today);
+}
 
 export const SOURCE_LABELS: Record<OpportunitySource, string> = {
   nouveau: "Nouveau client",
@@ -622,6 +658,7 @@ export function computeKpis(data: ProspectionData, period: KpiPeriod = {}) {
   const overdueActions = opportunities.filter(
     (o) => ACTIVE_STAGES.includes(o.stage) && o.nextActionOn && o.nextActionOn < today,
   );
+  const reviveDue = opportunities.filter((o) => isReviveDue(o, today));
   const staleStrategic = clients.filter((c) => {
     if (!c.strategic) return false;
     const last = data.activities
@@ -682,6 +719,7 @@ export function computeKpis(data: ProspectionData, period: KpiPeriod = {}) {
     leadsConverted: leads.filter((l) => l.status === "convertie").length,
     overdueActions,
     staleStrategic,
+    reviveDue,
     pendingApprovals: data.expenses.filter((e) => e.approval === "pending"),
   };
 }

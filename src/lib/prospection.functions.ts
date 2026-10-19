@@ -29,6 +29,7 @@ import {
   uploadCrmReceiptFile,
 } from "@/lib/crm-receipts-storage";
 import {
+  ACTIVE_STAGES,
   DEFAULT_BUDGET_SETTINGS,
   STAGE_LABELS,
   STAGE_PROBABILITY,
@@ -39,7 +40,10 @@ import {
   type CompanyKind,
   type LeadStatus,
   type Manager,
+  type Objective,
   type OpportunitySource,
+  type ProspectionData,
+  realizedForMetric,
   type PipelineStage,
   portfolioManagers,
   type ServiceLine,
@@ -105,6 +109,9 @@ function assertCrmWriter(ctx: CrmContext) {
   }
 }
 
+/** Délai pendant lequel le manager peut supprimer une affaire saisie par erreur. */
+const OPPORTUNITY_DELETE_GRACE_MS = 24 * 3600_000;
+
 function assertCrmAllowed(allowed: boolean, message: string) {
   if (!allowed) throw new Error(message);
 }
@@ -162,7 +169,8 @@ function staffFullName(staff: { firstName?: string | null; lastName?: string | n
 
 const monthSchema = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
 
-const PROPOSAL_STAGES: CrmPipelineStage[] = ["proposition", "negotiation", "decision", "gagne"];
+/** Proposition comptée comme envoyée quand l’étape « Proposition » est validée (ou dépassée). */
+const PROPOSAL_STAGES: CrmPipelineStage[] = ["negotiation", "decision", "gagne"];
 
 /** Dates de passage en qualification / proposition / signature, posées une seule fois. */
 function stageMilestones(
@@ -1092,20 +1100,24 @@ export const upsertCrmOpportunity = createServerFn({ method: "POST" })
         select: {
           stage: true,
           ownerId: true,
-          qualifiedAt: true,
-          proposalAt: true,
-          wonAt: true,
           cabinet: true,
+          probability: true,
+          lostReason: true,
+          reviveOn: true,
         },
       });
-      assertInCabinet(ctx, previous?.cabinet, "Opportunité");
-      assertOwned(ctx, previous?.ownerId);
+      if (!previous) throw new Error("Opportunité introuvable");
+      assertInCabinet(ctx, previous.cabinet, "Opportunité");
+      assertOwned(ctx, previous.ownerId);
+      // L’étape (et ce qui en dépend) ne change que par la validation d’étape, jamais ici.
       const row = await prisma.crmOpportunity.update({
         where: { id: data.id },
         data: {
           ...common,
-          ...(previous && previous.stage !== stage ? { stageChangedAt: new Date() } : {}),
-          ...stageMilestones(stage, previous),
+          stage: previous.stage,
+          probability: data.probability ?? previous.probability,
+          lostReason: data.lostReason ?? previous.lostReason,
+          reviveOn: data.reviveOn ? toDateInput(data.reviveOn) : previous.reviveOn,
         },
         include: { company: { select: { id: true, clientId: true } } },
       });
@@ -1145,6 +1157,15 @@ export const advanceCrmOpportunity = createServerFn({ method: "POST" })
     assertOwned(ctx, current.ownerId);
 
     const stage = data.stage as CrmPipelineStage;
+    // Une affaire gagnée est définitive : son CA est déjà compté chez le client.
+    if (current.stage === "gagne" && stage !== "gagne") {
+      throw new Error("Affaire gagnée : elle est verrouillée et ne peut plus changer d’étape.");
+    }
+    const closed = current.stage === "perdu" || current.stage === "reporte";
+    const reopening = closed && ACTIVE_STAGES.includes(stage as PipelineStage);
+    if (closed && stage === "gagne") {
+      throw new Error("Rouvrez d’abord l’affaire avant de la déclarer gagnée.");
+    }
     // Double envoi (double clic, réseau) : l’étape est déjà appliquée — rien n’est recréé.
     if (current.stage === stage) {
       const [company, last] = await Promise.all([
@@ -1172,8 +1193,12 @@ export const advanceCrmOpportunity = createServerFn({ method: "POST" })
           probability,
           nextAction: data.nextAction,
           nextActionOn: toDateInput(data.nextActionOn),
-          lostReason: data.lostReason ?? current.lostReason,
-          reviveOn: reviveDefault(stage, data.reviveOn) ?? current.reviveOn,
+          // Rouverte : le motif de perte et la relance prévue n’ont plus lieu d’être.
+          lostReason:
+            stage === "perdu" ? (data.lostReason ?? current.lostReason) : reopening ? null : current.lostReason,
+          reviveOn: reopening
+            ? null
+            : (reviveDefault(stage, data.reviveOn) ?? current.reviveOn),
           ...stageMilestones(stage, current),
         },
         include: { company: { select: { id: true, clientId: true } } },
@@ -2066,10 +2091,16 @@ export const deleteCrmOpportunity = createServerFn({ method: "POST" })
     assertCrmWriter(ctx);
     const opp = await prisma.crmOpportunity.findUnique({
       where: { id: data.id },
-      select: { ownerId: true, cabinet: true },
+      select: { ownerId: true, cabinet: true, createdAt: true },
     });
     assertInCabinet(ctx, opp?.cabinet, "Opportunité");
     assertOwned(ctx, opp?.ownerId);
+    // Une affaire ne se supprime pas, elle se clôture (CDC §4) — sauf erreur de saisie récente.
+    assertCrmAllowed(
+      canSeeAllPortfolios(ctx.crm) ||
+        Boolean(opp && Date.now() - opp.createdAt.getTime() < OPPORTUNITY_DELETE_GRACE_MS),
+      "Une affaire ne se supprime pas : clôturez-la en « Perdue » (elle reste en historique). Seule la direction peut supprimer.",
+    );
     await prisma.crmOpportunity.deleteMany({ where: { id: data.id } });
     return true;
   });
@@ -2208,6 +2239,87 @@ export const getCrmTeamPulse = createServerFn({ method: "GET" })
       new Date(),
       ctx.cabinet,
     );
+  });
+
+export type ObjectivesBoardCell = { done: number; target: number };
+export type ObjectivesBoard = {
+  month: string;
+  managers: {
+    id: string;
+    name: string;
+    lines: ServiceLine[];
+    cells: Partial<Record<Objective["metric"], ObjectivesBoardCell>>;
+  }[];
+};
+
+/**
+ * Objectifs du mois de tous les managers du cabinet (cible et réalisé), visibles
+ * par toute l’équipe : chacun sait où en sont les autres. Calculé côté serveur car
+ * un manager ne reçoit que ses propres affaires — seuls les compteurs sortent.
+ */
+export const getCrmObjectivesBoard = createServerFn({ method: "GET" })
+  .validator(z.object({ month: z.string().regex(/^\d{4}-\d{2}$/) }))
+  .handler(async ({ data }): Promise<ObjectivesBoard> => {
+    const ctx = await requireCrm();
+    const managers = portfolioManagers(await loadCrmManagers(ctx.cabinet));
+    const ids = managers.map((m) => m.id);
+    const start = new Date(`${data.month}-01T00:00:00.000Z`);
+    const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1));
+    const iso = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : undefined);
+    const [objectives, opps, acts] = await Promise.all([
+      prisma.crmObjective.findMany({
+        where: { cabinet: ctx.cabinet, month: data.month, managerId: { in: ids } },
+      }),
+      prisma.crmOpportunity.findMany({
+        where: { cabinet: ctx.cabinet, ownerId: { in: ids } },
+        select: { ownerId: true, stage: true, qualifiedAt: true, proposalAt: true, wonAt: true },
+      }),
+      prisma.crmActivity.findMany({
+        where: {
+          cabinet: ctx.cabinet,
+          ownerId: { in: ids },
+          status: "terminee",
+          at: { gte: start, lt: end },
+        },
+        select: { ownerId: true, kind: true, at: true, status: true, companyId: true },
+      }),
+    ]);
+    // Mêmes règles de calcul que l’écran Objectifs (realizedForMetric).
+    const snapshot = {
+      opportunities: opps.map((o) => ({
+        ownerId: o.ownerId,
+        stage: o.stage,
+        qualifiedAt: iso(o.qualifiedAt),
+        proposalAt: iso(o.proposalAt),
+        wonAt: iso(o.wonAt),
+      })),
+      activities: acts.map((a) => ({
+        ownerId: a.ownerId,
+        kind: a.kind,
+        status: a.status,
+        at: iso(a.at),
+        companyId: a.companyId,
+      })),
+    } as unknown as ProspectionData;
+    return {
+      month: data.month,
+      managers: managers.map((m) => ({
+        id: m.id,
+        name: m.name,
+        lines: m.lines,
+        cells: Object.fromEntries(
+          objectives
+            .filter((o) => o.managerId === m.id)
+            .map((o) => [
+              o.metric,
+              {
+                target: o.target,
+                done: realizedForMetric(snapshot, o.metric as Objective["metric"], m.id, data.month),
+              },
+            ]),
+        ),
+      })),
+    };
   });
 
 /** Évolution semaine par semaine de l’équipe — vue direction (§6). */

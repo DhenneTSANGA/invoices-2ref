@@ -49,6 +49,8 @@ export type ManagerDigest = {
   missingReports: DigestItem[];
   lateProposals: DigestItem[];
   idleLeads: DigestItem[];
+  /** Affaires perdues ou reportées dont la date de relance est arrivée. */
+  revivals: DigestItem[];
 };
 
 export type CrmDailyDigestResult =
@@ -120,7 +122,8 @@ export function digestCount(d: ManagerDigest): number {
     d.today.length +
     d.missingReports.length +
     d.lateProposals.length +
-    d.idleLeads.length
+    d.idleLeads.length +
+    d.revivals.length
   );
 }
 
@@ -131,7 +134,7 @@ export async function computeManagerDigest(
   today: Date,
 ): Promise<ManagerDigest> {
   const activeStages = ACTIVE_STAGES as CrmPipelineStage[];
-  const [openActs, rdvs, opps, leads] = await Promise.all([
+  const [openActs, rdvs, opps, leads, closed] = await Promise.all([
     prisma.crmActivity.findMany({
       where: {
         cabinet,
@@ -160,6 +163,16 @@ export async function computeManagerDigest(
     prisma.crmLead.findMany({
       where: { cabinet, ownerId, status: "nouvelle", at: { lt: addDays(today, -LEAD_IDLE_DAYS) } },
       orderBy: { at: "asc" },
+    }),
+    prisma.crmOpportunity.findMany({
+      where: {
+        cabinet,
+        ownerId,
+        stage: { in: ["perdu", "reporte"] },
+        reviveOn: { gte: addDays(today, -OVERDUE_WINDOW_DAYS), lte: today },
+      },
+      include: { company: { select: { name: true } } },
+      orderBy: { reviveOn: "asc" },
     }),
   ]);
 
@@ -216,18 +229,27 @@ export async function computeManagerDigest(
       date: a.at,
     }));
 
+  // Entrée en « Proposition » = RDV tenu : la proposition est attendue sous 5 jours ouvrés.
   const lateProposals = opps
     .filter(
       (o) =>
-        o.stage === "rendez_vous" &&
+        o.stage === "proposition" &&
         o.stageChangedAt &&
         addBusinessDays(o.stageChangedAt, PROPOSAL_BUSINESS_DAYS) < today,
     )
     .map((o) => ({
       title: `${o.company.name} — ${o.title}`,
-      detail: `RDV depuis le ${frDate(o.stageChangedAt!)} · proposition attendue sous ${PROPOSAL_BUSINESS_DAYS} jours ouvrés`,
+      detail: `RDV tenu le ${frDate(o.stageChangedAt!)} · proposition attendue sous ${PROPOSAL_BUSINESS_DAYS} jours ouvrés`,
       date: o.stageChangedAt!,
     }));
+
+  const revivals = closed.map((o) => ({
+    title: `${o.company.name} — ${o.title}`,
+    detail: `${o.stage === "perdu" ? "Perdue" : "Reportée"} · relance prévue le ${frDate(o.reviveOn!)}${
+      o.lostReason ? ` · motif : ${o.lostReason}` : ""
+    }`,
+    date: o.reviveOn!,
+  }));
 
   const idleLeads = leads.map((l) => ({
     title: `Piste — ${l.companyName}`,
@@ -235,7 +257,7 @@ export async function computeManagerDigest(
     date: l.at,
   }));
 
-  return { overdue, today: todayItems, missingReports, lateProposals, idleLeads };
+  return { overdue, today: todayItems, missingReports, lateProposals, idleLeads, revivals };
 }
 
 export async function runCrmDailyDigest(options?: {
@@ -284,7 +306,8 @@ export async function runCrmDailyDigest(options?: {
           digest.overdue.length +
           digest.missingReports.length +
           digest.lateProposals.length +
-          digest.idleLeads.length;
+          digest.idleLeads.length +
+          digest.revivals.length;
         const subject =
           late > 0
             ? `Prospection ${CABINET_LABELS[cabinet]} — ${late} point(s) en attente, ${digest.today.length} prévu(s) aujourd’hui`
@@ -381,6 +404,7 @@ function digestHtml(input: {
       ${section("Comptes rendus manquants", "#d97706", "Chaque RDV doit être clôturé avec son compte rendu et sa prochaine action sous 48 h.", digest.missingReports)}
       ${section("Propositions à envoyer", "#7c3aed", "Après un RDV, la proposition est attendue sous 5 jours ouvrés.", digest.lateProposals)}
       ${section("Pistes non traitées", "#0891b2", `Pistes reçues il y a plus de ${LEAD_IDLE_DAYS} jours, toujours au statut « nouvelle ».`, digest.idleLeads)}
+      ${section("Affaires à relancer", "#059669", "Affaires perdues ou reportées arrivées à leur date de relance : rouvrez-les ou reprogrammez.", digest.revivals)}
       ${section("Au programme aujourd’hui", "#1e3a8a", "Actions planifiées et prochaines actions du jour.", digest.today)}
       <a href="${escapeHtml(input.link)}" style="display:inline-block;background:#1e3a8a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:bold">Ouvrir ma prospection</a>
       <p style="margin:20px 0 0;font-size:11px;color:#9ca3af">Les retards de plus de ${ESCALATION_DAYS} jours sont signalés à la direction dans la synthèse du lundi.</p>

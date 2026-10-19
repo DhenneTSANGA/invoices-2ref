@@ -1348,7 +1348,8 @@ export function NewOpportunityDialog({
       setSource(defaultSource ?? (defaultLine ? "client_existant" : ""));
       setAmount("");
       setDecisionOn(isoDate(45));
-      setNextAction(STAGE_NEXT_PLACEHOLDER.qualification);
+      const entry = (defaultSource ?? (defaultLine ? "client_existant" : "")) === "nouveau" ? "identification" : "qualification";
+      setNextAction(STAGE_NEXT_PLACEHOLDER[entry]);
       setNextActionOn(isoDate(2));
       const co = companies.find((c) => c.id === defaultCompanyId);
       setOwnerId(co?.managerId || selfId);
@@ -1408,7 +1409,9 @@ export function NewOpportunityDialog({
                 toast.success("Opportunité mise à jour");
               } else {
                 await addOpportunity(payload);
-                toast.success("Opportunité créée à Qualification");
+                toast.success(
+                  `Opportunité créée en ${STAGE_LABELS[source === "nouveau" ? "identification" : "qualification"]}`,
+                );
               }
               onOpenChange(false);
             } catch (err) {
@@ -1452,7 +1455,18 @@ export function NewOpportunityDialog({
           <CrmLabeledField label="Source">
             <CrmSelect
               value={source}
-              onChange={(value) => setSource(value as OpportunitySource)}
+              onChange={(value) => {
+                const next = value as OpportunitySource;
+                setSource(next);
+                // Prochaine action par défaut alignée sur l’étape d’entrée (tant qu’elle n’a pas été modifiée).
+                if (
+                  !editing &&
+                  (nextAction === STAGE_NEXT_PLACEHOLDER.identification ||
+                    nextAction === STAGE_NEXT_PLACEHOLDER.qualification)
+                ) {
+                  setNextAction(STAGE_NEXT_PLACEHOLDER[next === "nouveau" ? "identification" : "qualification"]);
+                }
+              }}
               placeholder="Origine"
               options={(Object.keys(SOURCE_LABELS) as OpportunitySource[]).map((s) => ({
                 value: s,
@@ -1497,7 +1511,7 @@ export function NewOpportunityDialog({
           <input
             value={nextAction}
             onChange={(e) => setNextAction(e.target.value)}
-            placeholder={STAGE_NEXT_PLACEHOLDER.qualification}
+            placeholder={STAGE_NEXT_PLACEHOLDER[source === "nouveau" ? "identification" : "qualification"]}
             className={CRM_FIELD}
           />
         </CrmLabeledField>
@@ -2142,281 +2156,6 @@ export function AddReferentialDialog({
         <CrmFormActions
           onCancel={() => onOpenChange(false)}
           submitLabel={editing ? "Enregistrer" : "Ajouter"}
-        />
-      </form>
-    </CrmDialog>
-  );
-}
-
-export function StageChangeDialog({
-  open,
-  onOpenChange,
-  opportunityId,
-  nextStage,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  opportunityId: string | null;
-  nextStage: PipelineStage | null;
-}) {
-  const opportunities = useProspectionStore((s) => s.opportunities);
-  const { companies } = useProspectionCompanies();
-  const advanceStage = useProspectionStore((s) => s.advanceStage);
-  const lastId = useRef(opportunityId);
-  const lastStage = useRef(nextStage);
-  if (opportunityId) lastId.current = opportunityId;
-  if (nextStage) lastStage.current = nextStage;
-  const activeId = opportunityId ?? lastId.current;
-  const destination = nextStage ?? lastStage.current;
-  const opportunity = opportunities.find((o) => o.id === activeId) ?? null;
-  const company = opportunity ? companies.find((c) => c.id === opportunity.companyId) : null;
-  const currentStage = opportunity?.stage ?? null;
-
-  const [kind, setKind] = useState<ActivityKind>("appel");
-  const [summary, setSummary] = useState("");
-  const [nextAction, setNextAction] = useState("");
-  const [nextActionOn, setNextActionOn] = useState(isoDate(2));
-  const [lostReason, setLostReason] = useState("");
-  // Verrou synchrone : un double clic est bloqué avant même le nouveau rendu.
-  const savingRef = useRef(false);
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (!open || !destination || !currentStage) return;
-    savingRef.current = false;
-    setSaving(false);
-    setKind(STAGE_ACTIVITY_KIND[currentStage]);
-    setSummary("");
-    setNextAction(STAGE_NEXT_PLACEHOLDER[destination]);
-    setLostReason("");
-    if (destination === "reporte") setNextActionOn(isoDate(90));
-    else if (destination === "proposition") setNextActionOn(addBusinessDays(isoDate(), 5));
-    else if (destination === "rendez_vous") setNextActionOn(isoDate(2));
-    else setNextActionOn(isoDate(2));
-  }, [open, destination, currentStage]);
-
-  const isOutcome = destination === "perdu" || destination === "reporte" || destination === "gagne";
-  /** Qualification = étape d’entrée par défaut après conversion : pas de commentaire forcé. */
-  const isEntryQualification =
-    currentStage === "identification" || currentStage === "qualification";
-  /** À partir de Premier contact : on note ce qui s’est passé à l’étape courante. */
-  const commentRequired =
-    !isEntryQualification && ((!isOutcome && currentStage !== null) || destination === "gagne");
-  const fromLabel = currentStage ? STAGE_LABELS[currentStage] : null;
-  const toLabel = destination ? STAGE_LABELS[destination] : null;
-
-  const title =
-    destination === "perdu"
-      ? "Clôturer — Perdue"
-      : destination === "reporte"
-        ? "Clôturer — Reportée"
-        : destination === "gagne"
-          ? "Valider et gagner l’affaire"
-          : isEntryQualification && toLabel
-            ? `Passer en ${toLabel}`
-            : fromLabel
-              ? `Valider « ${fromLabel} »`
-              : "Valider l’étape";
-
-  const description =
-    destination === "perdu"
-      ? "Motif obligatoire. L’affaire reste en historique."
-      : destination === "reporte"
-        ? "Clôture temporaire : programmez la relance (3 mois par défaut)."
-        : destination === "gagne"
-          ? "Confirmez le gain avec un court commentaire, puis la suite (kick-off…)."
-          : isEntryQualification && toLabel
-            ? `La Qualification est l’étape d’entrée. Programmez la suite en « ${toLabel} » — le détail se notera ensuite.`
-            : currentStage === "rendez_vous"
-              ? "Compte rendu du rendez-vous obligatoire, puis passage à l’étape suivante."
-              : currentStage === "proposition"
-                ? "Tracez l’envoi de la proposition, puis la relance prévue."
-                : fromLabel && toLabel
-                  ? `Notez ce qui s’est passé en « ${fromLabel} », puis l’affaire passera en « ${toLabel} ».`
-                  : "Notez ce qui s’est passé, puis avancez.";
-
-  const commentLabel =
-    currentStage === "rendez_vous"
-      ? "Compte rendu du rendez-vous"
-      : currentStage === "proposition"
-        ? "Détail de l’envoi (proposition)"
-        : fromLabel
-          ? `Ce qui s’est passé — ${fromLabel}`
-          : "Ce qui s’est passé";
-
-  const commentPlaceholder =
-    currentStage === "rendez_vous"
-      ? "Compte rendu du rendez-vous (points clés, décisions…)"
-      : currentStage === "proposition"
-        ? "Proposition envoyée (version, destinataire…)"
-        : currentStage === "premier_contact"
-          ? "Contact établi, échanges, disponibilités…"
-          : "Ce qui a été fait à cette étape";
-
-  return (
-    <CrmDialog open={open} onOpenChange={onOpenChange} icon={Target} title={title} description={description}>
-      <form
-        className="space-y-3 p-5 sm:p-6"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (!opportunity || !destination || !currentStage) return;
-          if (destination === "perdu" && !lostReason.trim()) {
-            toast.error("Motif de perte obligatoire");
-            return;
-          }
-          if (commentRequired && !summary.trim()) {
-            toast.error(
-              currentStage === "rendez_vous"
-                ? "Compte rendu obligatoire après le rendez-vous"
-                : currentStage === "proposition"
-                  ? "Indiquez que la proposition a été envoyée"
-                  : "Indiquez ce qui s’est passé à cette étape",
-            );
-            return;
-          }
-          if (destination !== "perdu" && (!nextAction.trim() || !nextActionOn)) {
-            toast.error("Prochaine action et date obligatoires");
-            return;
-          }
-          const label = STAGE_LABELS[destination];
-          const activitySummary =
-            destination === "perdu"
-              ? lostReason.trim()
-              : summary.trim() ||
-                (isEntryQualification
-                  ? `Entrée pipeline → ${label}`
-                  : `Validation ${fromLabel ?? "étape"} → ${label}`);
-          if (savingRef.current) return;
-          savingRef.current = true;
-          setSaving(true);
-          void (async () => {
-            try {
-              await advanceStage(opportunity.id, destination, {
-                kind,
-                title: isEntryQualification
-                  ? `Passage ${fromLabel} → ${label} — ${opportunity.title}`
-                  : `Validation ${fromLabel ?? "étape"} → ${label} — ${opportunity.title}`,
-                summary: activitySummary,
-                nextAction: destination === "perdu" ? "Conserver en historique" : nextAction.trim(),
-                nextActionOn: destination === "perdu" ? isoDate() : nextActionOn,
-                lostReason: destination === "perdu" ? lostReason.trim() : undefined,
-                reviveOn: destination === "reporte" ? nextActionOn : undefined,
-              });
-              toast.success(
-                destination === "perdu"
-                  ? "Affaire clôturée (perdue)"
-                  : destination === "reporte"
-                    ? "Affaire reportée · relance notée"
-                    : isEntryQualification
-                      ? `Passée en ${label}`
-                      : `${fromLabel} validée · ${label}`,
-              );
-              onOpenChange(false);
-            } catch (err) {
-              toast.error(err instanceof Error ? err.message : "Enregistrement impossible");
-            } finally {
-              savingRef.current = false;
-              setSaving(false);
-            }
-          })();
-        }}
-      >
-        {company ? (
-          <p className="text-sm text-muted-foreground">
-            {company.name} · {opportunity?.title}
-          </p>
-        ) : null}
-        {fromLabel && toLabel ? (
-          <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border/70 bg-muted/40 px-3 py-2.5 text-sm">
-            <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 shadow-sm dark:bg-slate-800 dark:text-slate-200">
-              {fromLabel}
-            </span>
-            <span className="text-muted-foreground" aria-hidden>
-              →
-            </span>
-            <span className="rounded-full bg-slate-900 px-2.5 py-1 text-xs font-semibold text-white dark:bg-slate-100 dark:text-slate-900">
-              {toLabel}
-            </span>
-            <span className="w-full text-[11px] text-muted-foreground sm:ml-auto sm:w-auto">
-              Étape validée → suivante
-            </span>
-          </div>
-        ) : null}
-
-        {destination === "perdu" ? (
-          <CrmLabeledField label="Motif de perte" required>
-            <textarea
-              value={lostReason}
-              onChange={(e) => setLostReason(e.target.value)}
-              rows={3}
-              placeholder="Prix, concurrent, timing…"
-              className={CRM_FIELD}
-            />
-          </CrmLabeledField>
-        ) : (
-          <>
-            {!isEntryQualification ? (
-              <>
-                <CrmLabeledField label="Type d’action réalisée">
-                  <CrmSelect
-                    value={kind}
-                    onChange={(value) => setKind(value as ActivityKind)}
-                    placeholder="Type d’action"
-                    options={(Object.keys(ACTIVITY_LABELS) as ActivityKind[]).map((k) => ({
-                      value: k,
-                      label: ACTIVITY_LABELS[k],
-                    }))}
-                  />
-                </CrmLabeledField>
-                <CrmLabeledField label={commentLabel} required={commentRequired}>
-                  <textarea
-                    value={summary}
-                    onChange={(e) => setSummary(e.target.value)}
-                    rows={3}
-                    placeholder={commentPlaceholder}
-                    className={CRM_FIELD}
-                  />
-                </CrmLabeledField>
-              </>
-            ) : null}
-            <CrmLabeledField
-              label={toLabel ? `Prochaine action (en « ${toLabel} »)` : "Prochaine action"}
-              required
-            >
-              <input
-                value={nextAction}
-                onChange={(e) => setNextAction(e.target.value)}
-                placeholder={destination ? STAGE_NEXT_PLACEHOLDER[destination] : "Prochaine action"}
-                className={CRM_FIELD}
-              />
-            </CrmLabeledField>
-            <CrmLabeledField label="Date de cette action" required>
-              <input
-                type="date"
-                value={nextActionOn}
-                onChange={(e) => setNextActionOn(e.target.value)}
-                className={CRM_FIELD}
-              />
-            </CrmLabeledField>
-          </>
-        )}
-
-        <CrmFormActions
-          onCancel={() => onOpenChange(false)}
-          pending={saving}
-          submitLabel={
-            destination === "perdu"
-              ? "Confirmer la perte"
-              : destination === "reporte"
-                ? "Programmer la relance"
-                : destination === "gagne"
-                  ? "Confirmer le gain"
-                  : isEntryQualification && toLabel
-                    ? `Passer en ${toLabel}`
-                    : fromLabel
-                      ? `Valider et passer en ${toLabel}`
-                      : "Valider et avancer"
-          }
         />
       </form>
     </CrmDialog>
