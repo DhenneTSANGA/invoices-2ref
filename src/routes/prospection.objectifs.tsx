@@ -11,7 +11,10 @@ import {
 } from "@/components/prospection/CrmCards";
 import { CRM_PRIMARY_BTN } from "@/components/prospection/CrmUi";
 import { LineBadge } from "@/components/prospection/ProspectionBadges";
-import { OBJECTIVE_LABELS, portfolioManagers, realizedForMetric } from "@/lib/prospection-model";
+import { OBJECTIVE_LABELS, type Objective } from "@/lib/prospection-model";
+import { useObjectivesBoard } from "@/hooks/use-objectives-board";
+
+const OBJECTIVE_METRICS = Object.keys(OBJECTIVE_LABELS) as Objective["metric"][];
 import { canApproveExpenses, crmRoleFromStaff } from "@/lib/prospection-access";
 import { cn } from "@/lib/utils";
 import { currentCrmMonth, monthLabelFr, shiftCrmMonth } from "@/lib/crm-month";
@@ -29,9 +32,9 @@ function ObjectivesPage() {
   const data = useProspectionStore((s) => s);
   const ensureObjectivesMonth = useProspectionStore((s) => s.ensureObjectivesMonth);
   const [month, setMonth] = useState(currentCrmMonth);
-  const managers = canEdit
-    ? portfolioManagers(data.managers)
-    : data.managers.filter((m) => m.id === session.staff.id);
+  // Toute l’équipe voit les objectifs de chacun ; seule la direction modifie les cibles.
+  const board = useObjectivesBoard(month);
+  const managers = board.data?.month === month ? board.data.managers : [];
   const [open, setOpen] = useState(false);
   const hasMonth = data.objectives.some((o) => o.month === month);
 
@@ -44,7 +47,7 @@ function ObjectivesPage() {
     <div>
       <PageHeader
         title="Objectifs"
-        subtitle="Objectifs mensuels par manager — Objectif → Réalisé du mois → % → Écart."
+        subtitle="Objectifs mensuels de toute l’équipe — Objectif → Réalisé du mois → % → Écart."
         actions={
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1 rounded-xl border border-border/60 bg-surface px-1 py-1">
@@ -78,13 +81,24 @@ function ObjectivesPage() {
       />
       <CrmCardGrid>
         {managers.map((m, i) => {
-          const rows = data.objectives.filter((o) => o.managerId === m.id && o.month === month);
+          const rows = OBJECTIVE_METRICS.flatMap((metric) => {
+            const c = m.cells[metric];
+            return c ? [{ id: `${m.id}:${metric}`, metric, target: c.target, done: c.done }] : [];
+          });
+          const isSelf = m.id === session.staff.id;
           return (
-            <CrmCard key={m.id} index={i} className="h-full">
+            <CrmCard key={m.id} index={i} className={cn("h-full", isSelf && "ring-2 ring-primary/25")}>
               <div className="flex items-start gap-3">
                 <EntityMark name={m.name} />
                 <div className="min-w-0 flex-1">
-                  <h2 className="font-display text-base font-semibold">{m.name}</h2>
+                  <h2 className="font-display text-base font-semibold">
+                    {m.name}
+                    {isSelf ? (
+                      <span className="ml-2 rounded-full bg-primary/15 px-2 py-0.5 align-middle text-xs font-semibold text-primary">
+                        Vous
+                      </span>
+                    ) : null}
+                  </h2>
                   <div className="mt-2 flex flex-wrap gap-1">
                     {m.lines.map((l) => (
                       <LineBadge key={l} line={l} />
@@ -94,7 +108,7 @@ function ObjectivesPage() {
               </div>
               <ul className="mt-4 space-y-3">
                 {rows.map((o) => {
-                  const done = realizedForMetric(data, o.metric, m.id, month);
+                  const done = o.done;
                   const pct = o.target === 0 ? 0 : Math.round((done / o.target) * 100);
                   const gap = done - o.target;
                   return (

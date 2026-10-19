@@ -46,6 +46,7 @@ export function ProspectionCabinetSwitcher({ className }: { className?: string }
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["crm-team-pulse"] }),
         qc.invalidateQueries({ queryKey: ["crm-team-trend"] }),
+        qc.invalidateQueries({ queryKey: ["crm-objectives-board"] }),
       ]);
       setStep(CABINET_TRANSITION_STEPS.length);
       // Laisse voir la dernière étape cochée avant de fermer.

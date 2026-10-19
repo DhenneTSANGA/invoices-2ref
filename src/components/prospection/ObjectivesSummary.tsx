@@ -1,11 +1,6 @@
 import { EntityMark } from "@/components/prospection/CrmCards";
-import {
-  OBJECTIVE_LABELS,
-  realizedForMetric,
-  type Manager,
-  type Objective,
-  type ProspectionData,
-} from "@/lib/prospection-model";
+import { OBJECTIVE_LABELS, type Objective } from "@/lib/prospection-model";
+import type { ObjectivesBoard } from "@/lib/prospection.functions";
 import { cn } from "@/lib/utils";
 
 const METRICS = Object.keys(OBJECTIVE_LABELS) as Objective["metric"][];
@@ -21,18 +16,16 @@ const SHORT_LABELS: Record<Objective["metric"], string> = {
 type Cell = { done: number; target: number; pct: number };
 
 function cellsFor(
-  data: ProspectionData,
-  managerId: string,
-  month: string,
+  manager: ObjectivesBoard["managers"][number],
 ): Map<Objective["metric"], Cell> {
   const cells = new Map<Objective["metric"], Cell>();
-  for (const o of data.objectives) {
-    if (o.managerId !== managerId || o.month !== month) continue;
-    const done = realizedForMetric(data, o.metric, managerId, month);
-    cells.set(o.metric, {
-      done,
-      target: o.target,
-      pct: o.target > 0 ? Math.round((done / o.target) * 100) : 0,
+  for (const metric of METRICS) {
+    const c = manager.cells[metric];
+    if (!c) continue;
+    cells.set(metric, {
+      done: c.done,
+      target: c.target,
+      pct: c.target > 0 ? Math.round((c.done / c.target) * 100) : 0,
     });
   }
   return cells;
@@ -64,48 +57,24 @@ function Bar({ pct, className }: { pct: number; className?: string }) {
 }
 
 /**
- * Objectifs du mois : la direction voit tous les managers dans un tableau
- * compact ; un manager ne voit que ses propres indicateurs.
+ * Objectifs du mois : chaque manager voit ceux de toute l’équipe (même tableau
+ * pour tous), sa propre ligne mise en évidence.
  */
 export function ObjectivesSummary({
-  data,
-  managers,
-  month,
-  mode,
+  board,
+  selfId,
+  isPending,
 }: {
-  data: ProspectionData;
-  managers: Manager[];
-  month: string;
-  mode: "direction" | "self";
+  board: ObjectivesBoard | undefined;
+  selfId: string;
+  isPending?: boolean;
 }) {
+  const managers = board?.managers ?? [];
   if (managers.length === 0) {
     return (
       <p className="rounded-2xl bg-muted/45 px-3 py-2.5 text-sm text-muted-foreground">
-        Aucun objectif pour ce mois.
+        {isPending ? "Chargement des objectifs…" : "Aucun objectif pour ce mois."}
       </p>
-    );
-  }
-
-  if (mode === "self") {
-    const cells = cellsFor(data, managers[0].id, month);
-    return (
-      <ul className="space-y-2.5">
-        {METRICS.map((metric) => {
-          const c = cells.get(metric) ?? { done: 0, target: 0, pct: 0 };
-          return (
-            <li key={metric}>
-              <div className="mb-1 flex items-baseline justify-between gap-2 text-sm">
-                <span>{OBJECTIVE_LABELS[metric]}</span>
-                <span className="tabular-nums text-muted-foreground">
-                  <span className="font-semibold text-foreground">{c.done}</span>/{c.target}
-                  <span className="ml-1.5 text-xs">{c.pct} %</span>
-                </span>
-              </div>
-              <Bar pct={c.pct} />
-            </li>
-          );
-        })}
-      </ul>
     );
   }
 
@@ -125,16 +94,25 @@ export function ObjectivesSummary({
         </thead>
         <tbody>
           {managers.map((manager) => {
-            const cells = cellsFor(data, manager.id, month);
+            const cells = cellsFor(manager);
             const score = overall(cells);
+            const isSelf = manager.id === selfId;
             return (
-              <tr key={manager.id} className="border-t border-border/50">
+              <tr
+                key={manager.id}
+                className={cn("border-t border-border/50", isSelf && "bg-primary/[0.06]")}
+              >
                 <td className="py-2.5 pr-2">
                   <div className="flex items-center gap-2">
                     <EntityMark name={manager.name} size="sm" />
                     <span className="max-w-[7rem] truncate font-medium" title={manager.name}>
                       {manager.name}
                     </span>
+                    {isSelf ? (
+                      <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+                        Vous
+                      </span>
+                    ) : null}
                   </div>
                 </td>
                 {METRICS.map((metric) => {
