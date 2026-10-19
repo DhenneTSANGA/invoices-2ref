@@ -25,6 +25,8 @@ type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   pagination?: PreviewPagination;
+  /** Éditeur : enregistre le document avant le téléchargement du PDF. */
+  prepareDownload?: () => Promise<Document | null>;
 };
 
 export function DocumentPreviewModal({
@@ -32,6 +34,7 @@ export function DocumentPreviewModal({
   open,
   onOpenChange,
   pagination,
+  prepareDownload,
 }: Props) {
   useEffect(() => {
     if (!open || !pagination || pagination.total <= 1) return;
@@ -66,6 +69,7 @@ export function DocumentPreviewModal({
           <div className="flex flex-wrap items-center justify-end gap-3">
             <DocumentPdfButton
               doc={doc}
+              prepare={prepareDownload}
               size="sm"
               className="border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white"
             />

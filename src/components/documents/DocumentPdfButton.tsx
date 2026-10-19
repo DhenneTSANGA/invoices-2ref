@@ -1,3 +1,4 @@
+import { useRef, useState } from "react";
 import { Download, Loader2, PenLine } from "lucide-react";
 import { toast } from "sonner";
 import type { Document } from "@/store/types";
@@ -12,6 +13,11 @@ type Props = {
   size?: "sm" | "default";
   /** Bouton d’en-tête des pages détail (pas le Button shadcn). */
   appearance?: "button" | "header";
+  /**
+   * Éditeur : enregistre le document avant de générer le PDF (numéro définitif,
+   * rien de perdu). Renvoie le document enregistré, ou null pour annuler.
+   */
+  prepare?: () => Promise<Document | null>;
 };
 
 function documentIsElectronicallySigned(doc: Document): boolean {
@@ -34,29 +40,47 @@ export function DocumentPdfButton({
   className,
   size = "default",
   appearance = "button",
+  prepare,
 }: Props) {
   const { data: session } = useSession();
   const downloadPdfMutation = useDownloadDocumentPdf();
-  const busy = downloadPdfMutation.isPending;
+  const [preparing, setPreparing] = useState(false);
+  // Verrou synchrone : un double clic ne crée pas deux documents.
+  const preparingRef = useRef(false);
+  const busy = downloadPdfMutation.isPending || preparing;
   const alreadySigned = documentIsElectronicallySigned(doc);
   const showDraftSignedPreview =
     Boolean(session && isAdmin(session.staff.role)) && !alreadySigned;
 
-  const run = (includeSignature: boolean) => {
+  const run = async (includeSignature: boolean) => {
+    let target = doc;
+    if (prepare) {
+      if (preparingRef.current) return;
+      preparingRef.current = true;
+      setPreparing(true);
+      try {
+        const saved = await prepare();
+        if (!saved) return;
+        target = saved;
+      } finally {
+        preparingRef.current = false;
+        setPreparing(false);
+      }
+    }
     const toastId = toast.loading(
       includeSignature
         ? "Génération du PDF signé…"
         : "Génération du PDF…",
     );
     downloadPdfMutation.mutate(
-      { doc, includeSignature },
+      { doc: target, includeSignature },
       {
         onSuccess: () =>
           toast.success("PDF téléchargé", {
             id: toastId,
             description: includeSignature
-              ? `${doc.number}-signe.pdf — avec signature électronique`
-              : `${doc.number}.pdf — espace pour signature manuscrite`,
+              ? `${target.number}-signe.pdf — avec signature électronique`
+              : `${target.number}.pdf — espace pour signature manuscrite`,
           }),
         onError: (err) => {
           console.error(err);
@@ -72,7 +96,7 @@ export function DocumentPdfButton({
   const label = (
     <>
       {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-      {busy ? "Impression en cours…" : alreadySigned ? "PDF signé" : "PDF"}
+      {preparing ? "Enregistrement…" : busy ? "Impression en cours…" : alreadySigned ? "PDF signé" : "PDF"}
     </>
   );
 
@@ -93,7 +117,7 @@ export function DocumentPdfButton({
         <button
           type="button"
           disabled={busy}
-          onClick={() => run(alreadySigned)}
+          onClick={() => void run(alreadySigned)}
           className={cn(
             "inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60",
             className,
@@ -106,7 +130,7 @@ export function DocumentPdfButton({
             type="button"
             disabled={busy}
             title="Aperçu admin : PDF avec signature électronique"
-            onClick={() => run(true)}
+            onClick={() => void run(true)}
             className="inline-flex items-center gap-1.5 rounded-2xl px-2.5 py-2 text-xs font-medium text-muted-foreground/80 hover:bg-muted hover:text-foreground disabled:opacity-60"
           >
             {signedLabel}
@@ -124,7 +148,7 @@ export function DocumentPdfButton({
         size={size}
         className={cn("rounded-xl", className)}
         disabled={busy}
-        onClick={() => run(alreadySigned)}
+        onClick={() => void run(alreadySigned)}
       >
         {label}
       </Button>
@@ -140,7 +164,7 @@ export function DocumentPdfButton({
             size === "sm" ? "px-2 text-xs" : "text-xs",
             className,
           )}
-          onClick={() => run(true)}
+          onClick={() => void run(true)}
         >
           {signedLabel}
         </Button>

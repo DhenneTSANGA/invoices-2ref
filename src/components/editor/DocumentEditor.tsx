@@ -710,6 +710,34 @@ export function DocumentEditor({ initial, type }: Props) {
     return saved;
   };
 
+  /** Téléchargement PDF : le document est d’abord enregistré (numéro définitif, rien de perdu). */
+  const persistForDownload = async (): Promise<Document | null> => {
+    if (
+      type === "invoice" &&
+      session &&
+      isMember(session.staff.role) &&
+      !isPersistedId(merged.id) &&
+      !window.confirm(
+        "Le PDF enregistre la facture : elle ne sera plus modifiable ensuite. Continuer ?",
+      )
+    ) {
+      return null;
+    }
+    setBusyAction("save");
+    try {
+      const saved = await persistDraft();
+      if (saved && isPersistedId(saved.id)) {
+        toast.success("Document enregistré", { description: saved.number });
+      }
+      return saved;
+    } catch (err) {
+      toast.error(formatSaveError(err));
+      return null;
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
   const save = async (status: Document["status"] = "draft") => {
     if (!merged.clientId) {
       toast.error("Sélectionnez un client");
@@ -1801,7 +1829,7 @@ export function DocumentEditor({ initial, type }: Props) {
         >
           <Eye className="h-4 w-4" /> Aperçu
         </Button>
-        <DocumentPdfButton doc={merged} />
+        <DocumentPdfButton doc={merged} prepare={persistForDownload} />
         <Button
           type="button"
           variant="outline"
@@ -1885,6 +1913,7 @@ export function DocumentEditor({ initial, type }: Props) {
         doc={merged}
         open={previewOpen}
         onOpenChange={setPreviewOpen}
+        prepareDownload={persistForDownload}
       />
     </div>
   );

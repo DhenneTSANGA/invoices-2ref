@@ -188,7 +188,8 @@ export function LetterEditor({ initial }: Props) {
       locked.has(doc.status) ? doc.status : ("draft" as const);
     const draft = { ...doc, clientId: effectiveClientId, status: nextStatus };
     const saved = await upsertMutation.mutateAsync({
-      ...(initial?.id && !initial.id.startsWith("d-") ? { id: draft.id } : {}),
+      // Une fois enregistrée (PDF, envoi…), la lettre est mise à jour, jamais dupliquée.
+      ...(!draft.id.startsWith("d-") ? { id: draft.id } : {}),
       type: "letter",
       number: draft.number,
       clientId: draft.clientId,
@@ -263,14 +264,24 @@ export function LetterEditor({ initial }: Props) {
     }
   };
 
+  /** Téléchargement PDF : la lettre est d’abord enregistrée. */
+  const persistForDownload = async (): Promise<Document | null> => {
+    try {
+      const saved = await persistDraft();
+      if (saved) toast.success("Courriel enregistré", { description: saved.number });
+      return saved;
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Enregistrement impossible");
+      return null;
+    }
+  };
+
   const sendSigned = async () => {
     try {
-      let target = doc;
-      if (!initial?.id || initial.id.startsWith("d-")) {
-        const saved = await persistDraft();
-        if (!saved) return;
-        target = saved;
-      }
+      // Toujours enregistrer avant l’envoi : les dernières modifications partent avec le mail.
+      const saved = await persistDraft();
+      if (!saved) return;
+      const target = saved;
       const ready =
         target.status === "signed" ||
         target.status === "sent" ||
@@ -491,7 +502,7 @@ export function LetterEditor({ initial }: Props) {
           <Button variant="outline" className="rounded-xl" onClick={() => setPreviewOpen(true)}>
             <Eye className="h-4 w-4" /> Aperçu
           </Button>
-          <DocumentPdfButton doc={previewDoc} />
+          <DocumentPdfButton doc={previewDoc} prepare={persistForDownload} />
           <Button
             variant="outline"
             className="rounded-xl"
@@ -532,7 +543,12 @@ export function LetterEditor({ initial }: Props) {
         </div>
       </div>
 
-      <DocumentPreviewModal doc={previewDoc} open={previewOpen} onOpenChange={setPreviewOpen} />
+      <DocumentPreviewModal
+        doc={previewDoc}
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        prepareDownload={persistForDownload}
+      />
     </div>
   );
 }
