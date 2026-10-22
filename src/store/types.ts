@@ -212,6 +212,10 @@ export type Document = {
   deposit?: number;
   /** Période optionnelle de la facture (« AAAA-MM », null = aucune). */
   period?: string | null;
+  /** Facture : manager Prospection apporteur (encaissé suivi en Prospection). */
+  prospectionManagerId?: string | null;
+  /** Facture : date d’encaissement (passage en « payée »). */
+  paidAt?: string | null;
   mailMergeCampaignId?: string | null;
   /** Devis */
   validityDays?: number;

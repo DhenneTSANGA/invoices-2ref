@@ -319,6 +319,8 @@ export const documentInputSchema = z.object({
     .regex(/^\d{4}-(0[1-9]|1[0-2])$/)
     .optional()
     .nullable(),
+  /** Facture : manager Prospection apporteur (non transmis = inchangé). */
+  prospectionManagerId: z.string().min(1).nullable().optional(),
   discountMode: z.enum(["percent", "amount"]).optional().default("percent"),
   discountFixed: z.coerce.number().min(0).optional().default(0),
   validityDays: z.number().optional().nullable(),

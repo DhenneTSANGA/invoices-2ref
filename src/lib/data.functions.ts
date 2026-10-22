@@ -112,6 +112,12 @@ import {
   type LetterServiceCode,
 } from "@/lib/letter-ref";
 import { buildInvoiceInputFromQuotation } from "@/lib/convert-quotation-to-invoice";
+import {
+  assertInvoiceManagerAllowed,
+  loadInvoiceProspectionInfo,
+  persistInvoiceProspectionManager,
+  syncInvoicePaidAt,
+} from "@/lib/document-prospection-db";
 import { clientAllowsSubscription } from "@/lib/client-billing";
 
 const docInclude = {
@@ -589,7 +595,7 @@ export const deleteService = createServerFn({ method: "POST" })
 async function mappedDocuments(rows: Parameters<typeof mapDocument>[0][]) {
   const mapped = rows.map(mapDocument);
   const ids = mapped.map((d) => d.id);
-  const [flags, hideZeroFlags, roundingFlags, depositFlags, poles, clientPoles, periods] =
+  const [flags, hideZeroFlags, roundingFlags, depositFlags, poles, clientPoles, periods, prospection] =
     await Promise.all([
       loadShowDueMonthOnLines(ids),
       loadHideZeroLineFigures(ids),
@@ -601,6 +607,7 @@ async function mappedDocuments(rows: Parameters<typeof mapDocument>[0][]) {
       loadDocumentPoles(ids),
       loadClientPoles([...new Set(mapped.map((d) => d.clientId))]),
       loadDocumentPeriods(ids),
+      loadInvoiceProspectionInfo(mapped.filter((d) => d.type === "invoice").map((d) => d.id)),
     ]);
   const units = await loadLineQuantityUnits(
     mapped.flatMap((d) => d.items.map((it) => it.id)),
@@ -646,8 +653,10 @@ async function mappedDocuments(rows: Parameters<typeof mapDocument>[0][]) {
     }));
     const discountMode = choice?.mode ?? d.discountMode ?? "percent";
     const discountFixed = choice?.fixed ?? d.discountFixed ?? 0;
+    const link = prospection.get(d.id);
     const next = {
       ...withFlags,
+      ...(link ? { prospectionManagerId: link.managerId, paidAt: link.paidAt } : {}),
       pole: poles.has(d.id) ? withFlags.pole : (fromClient ?? withFlags.pole),
       discountMode,
       discountFixed,
@@ -1131,6 +1140,11 @@ async function upsertDocumentHandler(
           Boolean(data.showDueMonthOnLines),
         );
         await persistDocumentPeriod(updated.id, data.period);
+        if (data.prospectionManagerId !== undefined) {
+          await assertInvoiceManagerAllowed(data.prospectionManagerId, existing.cabinet);
+          await persistInvoiceProspectionManager(updated.id, data.prospectionManagerId);
+        }
+        await syncInvoicePaidAt(updated.id);
       }
       if (existing.type === "invoice" || existing.type === "quotation") {
         await persistTotalRounding(updated.id, data.totalRounding ?? 0);
@@ -1239,6 +1253,11 @@ async function upsertDocumentHandler(
         Boolean(data.showDueMonthOnLines),
       );
       await persistDocumentPeriod(created.id, data.period);
+      if (data.prospectionManagerId) {
+        await assertInvoiceManagerAllowed(data.prospectionManagerId, created.cabinet);
+        await persistInvoiceProspectionManager(created.id, data.prospectionManagerId);
+      }
+      await syncInvoicePaidAt(created.id);
     }
     if (data.type === "invoice" || data.type === "quotation") {
       await persistTotalRounding(created.id, data.totalRounding ?? 0);
@@ -1381,6 +1400,7 @@ export const setDocumentStatus = createServerFn({ method: "POST" })
       },
       include: docInclude,
     });
+    await syncInvoicePaidAt(updated.id);
     let emailNotice: {
       emailSent?: boolean;
       emailError?: string;

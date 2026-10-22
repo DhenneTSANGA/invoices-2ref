@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { addDaysIso, crmTodayIso, crmWeekStart, currentCrmMonth } from "@/lib/crm-month";
 import type { Manager } from "@/lib/prospection-model";
 import type { Cabinet } from "@/lib/cabinets";
+import { loadManagerInvoices } from "@/lib/document-prospection-db";
 
 export type TeamPulsePeriod = "week" | "month";
 
@@ -15,6 +16,8 @@ export type TeamPulseCounts = {
   actions: number;
   /** Honoraires des missions signées sur la période (FCFA). */
   signedAmount: number;
+  /** Factures encaissées sur la période (Facturation, manager apporteur). */
+  collectedAmount: number;
 };
 
 export type TeamPulseTargets = Pick<
@@ -31,6 +34,8 @@ export type TeamPulseManager = {
   previous: TeamPulseCounts;
   /** Cibles de la période : objectif du mois (mois) ou objectif × 7 / jours du mois (semaine). */
   targets: TeamPulseTargets;
+  /** Reste à encaisser aujourd’hui : factures émises non payées (acompte déduit). */
+  outstanding: number;
 };
 
 export type TeamPulse = {
@@ -102,9 +107,9 @@ export async function computeTeamPulse(
   const [year, monthNum] = month.split("-").map(Number);
   const monthDays = daysInMonth(year, monthNum);
 
-  const [activities, opportunities, objectives] =
+  const [activities, opportunities, objectives, invoices] =
     ids.length === 0
-      ? [[], [], []]
+      ? [[], [], [], []]
       : await Promise.all([
           prisma.crmActivity.findMany({
             where: {
@@ -140,6 +145,7 @@ export async function computeTeamPulse(
             where: { managerId: { in: ids }, month, cabinet },
             select: { managerId: true, metric: true, target: true },
           }),
+          loadManagerInvoices(ids, cabinet),
         ]);
 
   const count = (
@@ -166,8 +172,16 @@ export async function computeTeamPulse(
       signatures: won.length,
       actions: acts.length,
       signedAmount: won.reduce((s, o) => s + Number(o.amount), 0),
+      collectedAmount: invoices
+        .filter((f) => f.managerId === managerId && f.status === "paid" && inRange(f.paidAt))
+        .reduce((s, f) => s + f.total, 0),
     };
   };
+
+  const outstanding = (managerId: string) =>
+    invoices
+      .filter((f) => f.managerId === managerId && f.status !== "paid")
+      .reduce((s, f) => s + Math.max(0, f.total - f.deposit), 0);
 
   const target = (managerId: string, metric: string) => {
     const monthly = objectives.find((o) => o.managerId === managerId && o.metric === metric)?.target;
@@ -192,6 +206,7 @@ export async function computeTeamPulse(
         proposals: target(m.id, "propositions"),
         signatures: target(m.id, "signatures"),
       },
+      outstanding: outstanding(m.id),
     })),
   };
 }

@@ -234,8 +234,18 @@ function sumCounts(list: TeamPulseCounts[]): TeamPulseCounts {
       signatures: t.signatures + c.signatures,
       actions: t.actions + c.actions,
       signedAmount: t.signedAmount + c.signedAmount,
+      collectedAmount: t.collectedAmount + (c.collectedAmount ?? 0),
     }),
-    { qualified: 0, contacts: 0, rdv: 0, proposals: 0, signatures: 0, actions: 0, signedAmount: 0 },
+    {
+      qualified: 0,
+      contacts: 0,
+      rdv: 0,
+      proposals: 0,
+      signatures: 0,
+      actions: 0,
+      signedAmount: 0,
+      collectedAmount: 0,
+    },
   );
 }
 
@@ -373,6 +383,7 @@ export function TeamPulse({ refreshKey }: { refreshKey: string }) {
   const self = ranked.find((m) => m.id === data.selfId) ?? null;
   const updated = sinceLabel(data.generatedAt, now);
   const teamScore = periodScore(team, sumTargets(data.managers.map((m) => m.targets)));
+  const teamOutstanding = data.managers.reduce((s, m) => s + (m.outstanding ?? 0), 0);
 
   return (
     <section className="mb-5">
@@ -421,6 +432,15 @@ export function TeamPulse({ refreshKey }: { refreshKey: string }) {
                 </p>
                 <p className="mt-1.5 whitespace-nowrap font-sans text-3xl font-semibold tabular-nums sm:text-4xl">
                   <CountUp value={team.signedAmount} format={(n) => currency(Math.round(n))} />
+                </p>
+                <p className="mt-2 text-sm text-white/75">
+                  Encaissé {copy.of} :{" "}
+                  <span className="font-semibold tabular-nums text-emerald-300">
+                    <CountUp value={team.collectedAmount} format={(n) => currency(Math.round(n))} />
+                  </span>
+                  {teamOutstanding > 0 ? (
+                    <span className="text-white/60"> · reste à encaisser {currency(teamOutstanding)}</span>
+                  ) : null}
                 </p>
               </div>
               <dl className="grid grid-cols-3 gap-x-6 gap-y-4 sm:grid-cols-6 lg:border-l lg:border-white/10 lg:pl-6">
@@ -580,6 +600,33 @@ function ManagerCard({
         <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-background/80">
           <GrowBar pct={m.revenueShare} className={cn("bg-gradient-to-r", accent.bar)} delay={delay + 0.2} />
         </div>
+        {/* Encaissé : factures payées dont il est le manager apporteur (Facturation). */}
+        <div
+          className="mt-3 flex items-baseline justify-between gap-2 border-t border-border/50 pt-2.5 text-sm"
+          title={`${share(m.current.collectedAmount ?? 0, team.collectedAmount)} % de l’encaissé de l’équipe ${periodOf}`}
+        >
+          <span className="text-muted-foreground">Encaissé</span>
+          <span
+            className={cn(
+              "tabular-nums",
+              (m.current.collectedAmount ?? 0) > 0
+                ? "font-semibold text-emerald-700 dark:text-emerald-300"
+                : "text-muted-foreground",
+            )}
+          >
+            <CountUp
+              value={m.current.collectedAmount ?? 0}
+              format={(n) => currency(Math.round(n))}
+              delay={delay + 0.15}
+            />
+          </span>
+        </div>
+        {(m.outstanding ?? 0) > 0 ? (
+          <div className="mt-1 flex items-baseline justify-between gap-2 text-xs text-muted-foreground">
+            <span>Reste à encaisser</span>
+            <span className="tabular-nums">{currency(m.outstanding)}</span>
+          </div>
+        ) : null}
       </div>
 
       {/* Entonnoir : réalisé / cible par étape */}

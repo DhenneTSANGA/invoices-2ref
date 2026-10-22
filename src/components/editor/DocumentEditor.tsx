@@ -23,6 +23,10 @@ import { ClientPolePicker } from "@/components/clients/ClientPolePicker";
 import { memberVisibilityPole } from "@/lib/staff-pole";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 import { DocumentPdfButton } from "@/components/documents/DocumentPdfButton";
+import {
+  InvoiceProspectionManagerPicker,
+  useInvoiceProspectionContext,
+} from "@/components/documents/InvoiceProspectionManager";
 import { number } from "@/lib/format";
 import {
   PERIOD_MONTHS_FR,
@@ -189,6 +193,21 @@ export function DocumentEditor({ initial, type }: Props) {
     if (!cabinet) return;
     setDoc((d) => (d.cabinet === cabinet ? d : { ...d, cabinet }));
   }, [session?.activeCabinet, initial]);
+
+  // Facture : manager Prospection apporteur proposé d’après la fiche Prospection du client,
+  // tant que l’utilisateur ne l’a pas choisi lui-même (nouvelle facture uniquement).
+  const prospectionContext = useInvoiceProspectionContext();
+  const managerTouchedRef = useRef(false);
+  const suggestedManagerId =
+    type === "invoice" ? (prospectionContext.data?.clientManagers[doc.clientId] ?? null) : null;
+  useEffect(() => {
+    if (type !== "invoice" || initial || managerTouchedRef.current || !prospectionContext.data) return;
+    setDoc((d) =>
+      d.prospectionManagerId === (suggestedManagerId ?? null)
+        ? d
+        : { ...d, prospectionManagerId: suggestedManagerId ?? null },
+    );
+  }, [type, initial, suggestedManagerId, prospectionContext.data]);
 
   // Quand les clients arrivent (async), rattacher le 1er client si aucun n'est encore choisi
   useEffect(() => {
@@ -635,6 +654,7 @@ export function DocumentEditor({ initial, type }: Props) {
     showDueMonthOnLines:
       type === "invoice" ? Boolean(merged.showDueMonthOnLines) : false,
     period: type === "invoice" ? parseDocumentPeriod(merged.period) : null,
+    ...(type === "invoice" ? { prospectionManagerId: merged.prospectionManagerId ?? null } : {}),
     hideZeroLineFigures: merged.hideZeroLineFigures !== false,
     totalRounding:
       type === "invoice" || type === "quotation"
@@ -962,6 +982,16 @@ export function DocumentEditor({ initial, type }: Props) {
               value={doc.period}
               issueDate={doc.issueDate}
               onChange={(period) => setDoc({ ...doc, period })}
+            />
+          ) : null}
+          {type === "invoice" ? (
+            <InvoiceProspectionManagerPicker
+              value={doc.prospectionManagerId}
+              suggested={suggestedManagerId}
+              onChange={(prospectionManagerId) => {
+                managerTouchedRef.current = true;
+                setDoc({ ...doc, prospectionManagerId });
+              }}
             />
           ) : null}
           {type === "quotation" ? (

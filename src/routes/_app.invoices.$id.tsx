@@ -25,6 +25,7 @@ import {
 import { DocumentPreview } from "@/components/documents/DocumentPreview";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 import { DocumentPdfButton } from "@/components/documents/DocumentPdfButton";
+import { InvoiceProspectionManagerControl } from "@/components/documents/InvoiceProspectionManager";
 import { MarkAsPaidDialog } from "@/components/documents/MarkAsPaidDialog";
 import { SubscriptionDialog } from "@/components/documents/SubscriptionDialog";
 import {
@@ -301,6 +302,14 @@ function InvoiceDetailPage() {
               {doc.status === "paid" && (
                 <Row label="Règlement" value={paymentMethodLabel(doc.paymentMethod)} />
               )}
+            </div>
+            <div className="mt-3 border-t border-border/50 pt-3">
+              <InvoiceProspectionManagerControl
+                key={`${doc.id}:${doc.prospectionManagerId ?? ""}`}
+                invoiceId={doc.id}
+                managerId={doc.prospectionManagerId}
+                canEdit={adminLike}
+              />
             </div>
             <div className="mt-5 rounded-2xl bg-gradient-mesh p-4">
               <div className="text-xs uppercase tracking-wider text-muted-foreground">{hasFunds ? "Net à payer" : "Total TTC"}</div>
