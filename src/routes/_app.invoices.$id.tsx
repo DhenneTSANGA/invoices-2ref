@@ -239,6 +239,78 @@ function InvoiceDetailPage() {
         }
       />
 
+      {isSubscriptionTemplate ? (
+        <div
+          className={
+            doc.subscriptionActive
+              ? "mb-4 flex flex-col gap-3 rounded-3xl border border-primary/25 bg-gradient-to-r from-primary/12 via-primary/6 to-transparent p-4 sm:flex-row sm:items-center"
+              : "mb-4 flex flex-col gap-3 rounded-3xl border border-border bg-muted/50 p-4 sm:flex-row sm:items-center"
+          }
+        >
+          <span
+            className={
+              doc.subscriptionActive
+                ? "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-primary text-primary-foreground shadow-glow"
+                : "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-muted text-muted-foreground"
+            }
+          >
+            {doc.subscriptionActive ? <Repeat className="h-5 w-5" /> : <PauseCircle className="h-5 w-5" />}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="font-display text-base font-semibold">
+              {doc.subscriptionActive ? "Facture en abonnement" : "Abonnement en pause"}
+            </p>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {doc.subscriptionActive
+                ? "Une nouvelle facture est générée et envoyée automatiquement chaque mois à partir de celle-ci."
+                : "Aucune facture n’est générée tant que l’abonnement n’est pas réactivé."}
+            </p>
+          </div>
+          {doc.subscriptionDay ? (
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <div className="rounded-2xl bg-surface/80 px-3 py-2 text-center shadow-sm ring-1 ring-border/60">
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Génération</div>
+                <div className="font-display text-sm font-semibold">Le {doc.subscriptionDay} de chaque mois</div>
+              </div>
+              {doc.subscriptionActive && doc.subscriptionNextAt ? (
+                <div className="rounded-2xl bg-surface/80 px-3 py-2 text-center shadow-sm ring-1 ring-border/60">
+                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Prochaine</div>
+                  <div className="font-display text-sm font-semibold">{longDate(doc.subscriptionNextAt)}</div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : isSubscriptionGenerated ? (
+        <div className="mb-4 flex flex-col gap-3 rounded-3xl border border-violet-500/25 bg-gradient-to-r from-violet-500/12 via-violet-500/5 to-transparent p-4 sm:flex-row sm:items-center">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-600 text-white shadow-sm">
+            <Repeat className="h-5 w-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="font-display text-base font-semibold">Générée par un abonnement</p>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {subscriptionTemplate ? (
+                <>
+                  Facture mensuelle émise automatiquement depuis{" "}
+                  <Link
+                    to="/invoices/$id"
+                    params={{ id: subscriptionTemplate.id }}
+                    className="font-medium text-primary hover:underline"
+                  >
+                    {subscriptionTemplate.number}
+                  </Link>
+                  {subscriptionTemplate.subscriptionDay
+                    ? `, générée le ${subscriptionTemplate.subscriptionDay} de chaque mois.`
+                    : "."}
+                </>
+              ) : (
+                "Facture mensuelle émise automatiquement depuis un modèle d’abonnement."
+              )}
+            </p>
+          </div>
+        </div>
+      ) : null}
+
       {doc.status === "draft" && (
         <div className="glass-panel mb-4 rounded-3xl p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

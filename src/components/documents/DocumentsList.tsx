@@ -362,34 +362,43 @@ export function DocumentsList({ type }: { type: DocumentType }) {
                     <td className="px-5 py-3 font-medium font-numeric">
                       <div className="flex flex-wrap items-center gap-1.5">
                         <span>{d.number}</span>
-                        {type === "invoice" && d.isSubscription && !d.subscriptionOfId && (
-                          <span
-                            title={
-                              d.subscriptionActive
-                                ? `Modèle abonnement · jour ${d.subscriptionDay}`
-                                : "Modèle abonnement en pause"
-                            }
-                            className={cn(
-                              "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide",
-                              d.subscriptionActive
-                                ? "bg-primary/15 text-primary"
-                                : "bg-muted text-muted-foreground",
-                            )}
-                          >
-                            <Repeat className="h-2.5 w-2.5" />
-                            Modèle
-                          </span>
-                        )}
-                        {type === "invoice" && d.subscriptionOfId && (
-                          <span
-                            title="Facture générée automatiquement depuis un abonnement"
-                            className="inline-flex items-center gap-0.5 rounded-full bg-violet-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-violet-700 dark:text-violet-300"
-                          >
-                            <Repeat className="h-2.5 w-2.5" />
-                            Auto
-                          </span>
-                        )}
                       </div>
+                      {type === "invoice" && d.isSubscription && !d.subscriptionOfId && (
+                        <div
+                          title={
+                            d.subscriptionActive
+                              ? "Facture en abonnement : une nouvelle facture est générée chaque mois"
+                              : "Abonnement en pause : aucune facture n’est générée"
+                          }
+                          className={cn(
+                            "mt-1.5 inline-flex max-w-full items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold",
+                            d.subscriptionActive
+                              ? "bg-primary/12 text-primary ring-1 ring-primary/25"
+                              : "bg-muted text-muted-foreground ring-1 ring-border",
+                          )}
+                        >
+                          <Repeat className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate">
+                            {d.subscriptionActive
+                              ? `Abonnement · le ${d.subscriptionDay} du mois`
+                              : "Abonnement en pause"}
+                          </span>
+                          {d.subscriptionActive && d.subscriptionNextAt ? (
+                            <span className="shrink-0 font-normal opacity-80">
+                              · proch. {shortDate(d.subscriptionNextAt)}
+                            </span>
+                          ) : null}
+                        </div>
+                      )}
+                      {type === "invoice" && d.subscriptionOfId && (
+                        <div
+                          title="Facture générée automatiquement depuis un abonnement"
+                          className="mt-1.5 inline-flex items-center gap-1.5 rounded-lg bg-violet-500/12 px-2 py-1 text-xs font-semibold text-violet-700 ring-1 ring-violet-500/25 dark:text-violet-300"
+                        >
+                          <Repeat className="h-3.5 w-3.5" />
+                          Générée par l’abonnement
+                        </div>
+                      )}
                     </td>
                     <td className="px-5 py-3">
                       <div className="flex flex-col items-start gap-1">
