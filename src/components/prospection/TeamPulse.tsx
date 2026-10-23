@@ -169,7 +169,10 @@ function GrowBar({ pct, className, delay = 0 }: { pct: number; className: string
 const PERIOD_COPY: Record<TeamPulsePeriod, { tab: string; of: string; previous: string }> = {
   week: { tab: "Cette semaine", of: "de la semaine", previous: "la semaine dernière à la même heure" },
   month: { tab: "Ce mois", of: "du mois", previous: "le mois dernier à la même date" },
+  year: { tab: "Cette année", of: "de l’année", previous: "l’an dernier à la même date" },
 };
+
+const PERIOD_SHORT: Record<TeamPulsePeriod, string> = { week: "S-1", month: "M-1", year: "A-1" };
 
 const PERIOD_KEY = "crm-team-pulse-period";
 
@@ -311,7 +314,8 @@ function Segmented<T extends string>({
 export function TeamPulse({ refreshKey }: { refreshKey: string }) {
   const [period, setPeriod] = useState<TeamPulsePeriod>(() => {
     try {
-      return localStorage.getItem(PERIOD_KEY) === "month" ? "month" : "week";
+      const saved = localStorage.getItem(PERIOD_KEY);
+      return saved === "month" || saved === "year" ? saved : "week";
     } catch {
       return "week";
     }
@@ -351,6 +355,7 @@ export function TeamPulse({ refreshKey }: { refreshKey: string }) {
         options={[
           { value: "week", label: PERIOD_COPY.week.tab },
           { value: "month", label: PERIOD_COPY.month.tab },
+          { value: "year", label: PERIOD_COPY.year.tab },
         ]}
       />
     </div>
@@ -486,7 +491,7 @@ export function TeamPulse({ refreshKey }: { refreshKey: string }) {
                   isSelf={m.id === data.selfId}
                   periodOf={copy.of}
                   previousLabel={copy.previous}
-                  periodShort={data.period === "week" ? "S-1" : "M-1"}
+                  periodShort={PERIOD_SHORT[data.period]}
                 />
               ))}
             </ul>
@@ -824,7 +829,7 @@ function ObjectivesChart({
                   ) : null}
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">
-                      {period === "week" ? "S-1" : "M-1"} à durée égale
+                      {PERIOD_SHORT[period]} à durée égale
                     </span>
                     <span className="tabular-nums">{r.previous}</span>
                   </div>
@@ -837,7 +842,9 @@ function ObjectivesChart({
       <p className="mt-4 text-[11px] text-muted-foreground">
         {period === "week"
           ? "Cible de la semaine = objectif du mois × 7 / nombre de jours du mois."
-          : "Cibles = objectifs du mois fixés par la direction."}
+          : period === "year"
+            ? "Cibles = objectifs mensuels cumulés de janvier au mois en cours."
+            : "Cibles = objectifs du mois fixés par la direction."}
       </p>
     </CrmCard>
   );

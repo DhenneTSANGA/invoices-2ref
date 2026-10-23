@@ -72,6 +72,14 @@ export async function syncInvoicePaidAt(id: string) {
   }
 }
 
+/** Date d’encaissement saisie à la main (facture payée uniquement). */
+export async function persistInvoicePaidAt(id: string, paidAt: Date) {
+  await prisma.$executeRaw`
+    UPDATE "documents" SET "paidAt" = ${paidAt}
+    WHERE id = ${id} AND "type" = 'invoice' AND "status" = 'paid'
+  `;
+}
+
 export type ManagerInvoice = {
   managerId: string;
   total: number;

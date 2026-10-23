@@ -4,7 +4,7 @@ import type { Manager } from "@/lib/prospection-model";
 import type { Cabinet } from "@/lib/cabinets";
 import { loadManagerInvoices } from "@/lib/document-prospection-db";
 
-export type TeamPulsePeriod = "week" | "month";
+export type TeamPulsePeriod = "week" | "month" | "year";
 
 /** Indicateurs comparés entre managers (jamais de client ni de détail d’affaire). */
 export type TeamPulseCounts = {
@@ -55,11 +55,29 @@ function daysInMonth(year: number, month1: number) {
 
 /**
  * Bornes de la période en cours et de la période précédente à durée écoulée égale
- * (semaine : lundi 00:00 ; mois : le 1er à 00:00 — heure de Libreville, UTC+1).
+ * (semaine : lundi 00:00 ; mois : le 1er à 00:00 ; année : 1er janvier — heure de Libreville, UTC+1).
  */
 function periodBounds(period: TeamPulsePeriod, now: Date) {
   const DAY = 86_400_000;
   const today = crmTodayIso(now);
+  if (period === "year") {
+    const y = Number(today.slice(0, 4));
+    const startIso = `${y}-01-01`;
+    const start = new Date(`${startIso}T00:00:00.000+01:00`);
+    // Même date l’an dernier (29 février → 28), même heure.
+    const mmdd = today.slice(5) === "02-29" ? "02-28" : today.slice(5);
+    const prevToday = `${y - 1}-${mmdd}`;
+    const elapsed = now.getTime() - new Date(`${today}T00:00:00.000+01:00`).getTime();
+    return {
+      startIso,
+      today,
+      start,
+      prevStartIso: `${y - 1}-01-01`,
+      prevToday,
+      prevStart: new Date(`${y - 1}-01-01T00:00:00.000+01:00`),
+      prevNow: new Date(new Date(`${prevToday}T00:00:00.000+01:00`).getTime() + elapsed),
+    };
+  }
   if (period === "week") {
     const startIso = crmWeekStart(now);
     const start = new Date(`${startIso}T00:00:00.000+01:00`);
@@ -142,7 +160,12 @@ export async function computeTeamPulse(
             },
           }),
           prisma.crmObjective.findMany({
-            where: { managerId: { in: ids }, month, cabinet },
+            where: {
+              managerId: { in: ids },
+              cabinet,
+              // Année : objectifs de janvier jusqu’au mois en cours (cumulés).
+              month: period === "year" ? { gte: `${year}-01`, lte: month } : month,
+            },
             select: { managerId: true, metric: true, target: true },
           }),
           loadManagerInvoices(ids, cabinet),
@@ -184,7 +207,9 @@ export async function computeTeamPulse(
       .reduce((s, f) => s + Math.max(0, f.total - f.deposit), 0);
 
   const target = (managerId: string, metric: string) => {
-    const monthly = objectives.find((o) => o.managerId === managerId && o.metric === metric)?.target;
+    const mine = objectives.filter((o) => o.managerId === managerId && o.metric === metric);
+    if (period === "year") return mine.reduce((s, o) => s + o.target, 0);
+    const monthly = mine[0]?.target;
     if (!monthly) return 0;
     return period === "month" ? monthly : Math.round(((monthly * 7) / monthDays) * 10) / 10;
   };

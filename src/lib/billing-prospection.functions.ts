@@ -6,6 +6,7 @@ import { isAdmin, isSuperAdmin } from "@/lib/roles";
 import {
   assertInvoiceManagerAllowed,
   loadInvoiceManagerOptions,
+  persistInvoicePaidAt,
   persistInvoiceProspectionManager,
   type ProspectionManagerOption,
 } from "@/lib/document-prospection-db";
@@ -65,4 +66,28 @@ export const setInvoiceProspectionManager = createServerFn({ method: "POST" })
     await assertInvoiceManagerAllowed(data.managerId, doc.cabinet);
     await persistInvoiceProspectionManager(doc.id, data.managerId);
     return { id: doc.id, managerId: data.managerId };
+  });
+
+/** Date d’encaissement réelle d’une facture payée (administrateurs). */
+export const setInvoicePaidAt = createServerFn({ method: "POST" })
+  .validator(z.object({ id: z.string(), paidAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }))
+  .handler(async ({ data }) => {
+    const session = await requireSession();
+    if (!isAdmin(session.staff.role)) {
+      throw new Error("Seul un administrateur peut modifier la date d’encaissement.");
+    }
+    const doc = await prisma.document.findFirst({
+      where: isSuperAdmin(session.staff.role)
+        ? { id: data.id, type: "invoice" }
+        : { id: data.id, type: "invoice", cabinet: session.activeCabinet },
+      select: { id: true, status: true },
+    });
+    if (!doc) throw new Error("Facture introuvable");
+    if (doc.status !== "paid") throw new Error("La facture doit être marquée payée.");
+    const paidAt = new Date(`${data.paidAt}T12:00:00.000Z`);
+    if (paidAt.getTime() > Date.now() + 86_400_000) {
+      throw new Error("La date d’encaissement ne peut pas être dans le futur.");
+    }
+    await persistInvoicePaidAt(doc.id, paidAt);
+    return { id: doc.id, paidAt: paidAt.toISOString() };
   });

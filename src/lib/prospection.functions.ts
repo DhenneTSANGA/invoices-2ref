@@ -2229,7 +2229,7 @@ export const getCrmReceiptUrl = createServerFn({ method: "POST" })
  * en compteurs et CA signé — sans accès aux fiches ni au détail des affaires des autres.
  */
 export const getCrmTeamPulse = createServerFn({ method: "GET" })
-  .validator(z.object({ period: z.enum(["week", "month"]).default("week") }))
+  .validator(z.object({ period: z.enum(["week", "month", "year"]).default("week") }))
   .handler(async ({ data }) => {
     const ctx = await requireCrm();
     return computeTeamPulse(

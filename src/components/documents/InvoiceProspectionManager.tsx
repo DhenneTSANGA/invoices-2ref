@@ -4,6 +4,7 @@ import { Loader2, Target } from "lucide-react";
 import { toast } from "sonner";
 import {
   getInvoiceProspectionContext,
+  setInvoicePaidAt,
   setInvoiceProspectionManager,
 } from "@/lib/billing-prospection.functions";
 
@@ -128,6 +129,68 @@ export function InvoiceProspectionManagerControl({
         ))}
       </select>
       {saving ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : null}
+    </label>
+  );
+}
+
+/** Page détail d’une facture payée : date d’encaissement, modifiable par un administrateur. */
+export function InvoicePaidAtControl({
+  invoiceId,
+  paidAt,
+  canEdit,
+}: {
+  invoiceId: string;
+  paidAt?: string | null;
+  canEdit: boolean;
+}) {
+  const qc = useQueryClient();
+  const [value, setValue] = useState(paidAt ? paidAt.slice(0, 10) : "");
+  const [saving, setSaving] = useState(false);
+  const label = value
+    ? new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(
+        new Date(`${value}T12:00:00.000Z`),
+      )
+    : "—";
+
+  if (!canEdit) {
+    return (
+      <div className="flex items-center justify-between gap-2 text-sm">
+        <span className="text-muted-foreground">Encaissée le</span>
+        <span className="font-medium">{label}</span>
+      </div>
+    );
+  }
+
+  return (
+    <label className="flex items-center justify-between gap-2 text-sm">
+      <span className="text-muted-foreground">Encaissée le</span>
+      <span className="inline-flex items-center gap-1.5">
+        {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" /> : null}
+        <input
+          type="date"
+          value={value}
+          max={new Date().toISOString().slice(0, 10)}
+          disabled={saving}
+          onChange={(e) => {
+            const next = e.target.value;
+            if (!next) return;
+            const previous = value;
+            setValue(next);
+            setSaving(true);
+            void setInvoicePaidAt({ data: { id: invoiceId, paidAt: next } })
+              .then(() => {
+                toast.success("Date d’encaissement mise à jour");
+                void qc.invalidateQueries({ queryKey: ["crm-team-pulse"] });
+              })
+              .catch((err) => {
+                setValue(previous);
+                toast.error(err instanceof Error ? err.message : "Modification impossible");
+              })
+              .finally(() => setSaving(false));
+          }}
+          className="rounded-lg border border-border/60 bg-surface px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
+        />
+      </span>
     </label>
   );
 }
