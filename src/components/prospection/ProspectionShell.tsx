@@ -41,6 +41,7 @@ import {
   type CrmNavItem,
 } from "@/components/prospection/prospection-nav";
 import { CrmHubTabs } from "@/components/prospection/CrmHubTabs";
+import { ScrollToTopButton } from "@/components/common/ScrollToTopButton";
 import { ProspectionCabinetSwitcher } from "@/components/prospection/ProspectionCabinetSwitcher";
 
 function selectPathname(s: { location: { pathname: string } }) {
@@ -56,6 +57,7 @@ export function ProspectionShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen w-full max-w-[100vw] overflow-x-clip">
       <BrandTheme />
       <ProspectionPipelineSync />
+      <ScrollToTopButton />
       <ProspectionSidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <ProspectionTopbar />

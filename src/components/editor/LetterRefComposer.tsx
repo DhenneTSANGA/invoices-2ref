@@ -17,6 +17,7 @@ import {
 } from "@/lib/letter-ref";
 import { cn } from "@/lib/utils";
 
+import { FancySelect } from "@/components/common/FancySelect";
 type Props = {
   cabinet: Cabinet;
   issueDate: string;
@@ -118,7 +119,7 @@ export function LetterRefComposer({
           <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Langue
           </span>
-          <select
+          <FancySelect
             className="mt-1.5 w-full rounded-xl border border-border/60 bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
             value={language}
             onChange={(e) => setLanguage(e.target.value as LetterLanguage)}
@@ -128,14 +129,14 @@ export function LetterRefComposer({
                 {l.label} ({l.code})
               </option>
             ))}
-          </select>
+          </FancySelect>
         </label>
 
         <label className="block">
           <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Service
           </span>
-          <select
+          <FancySelect
             className="mt-1.5 w-full rounded-xl border border-border/60 bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
             value={service}
             onChange={(e) => setService(e.target.value as LetterServiceCode)}
@@ -145,7 +146,7 @@ export function LetterRefComposer({
                 {s.label} ({s.code})
               </option>
             ))}
-          </select>
+          </FancySelect>
         </label>
 
         {isPredefined ? (

@@ -36,6 +36,7 @@ import {
 } from "@/components/clients/ClientPolePicker";
 import { memberVisibilityPole } from "@/lib/staff-pole";
 
+import { FancySelect } from "@/components/common/FancySelect";
 export const Route = createFileRoute("/_app/clients/$id")({
   head: () => ({ meta: [{ title: "Fiche client — 2R Hub" }] }),
   component: EditClient,
@@ -125,7 +126,7 @@ function EditClient() {
 
   return (
     <div>
-      <button onClick={() => history.back()} className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" /> Retour</button>
+      <button onClick={() => history.back()} className="mb-4 back-link"><ArrowLeft className="h-4 w-4" /> Retour</button>
       <PageHeader
         title={client.name}
         subtitle={
@@ -354,7 +355,7 @@ function Select({
       <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
         {label}
       </span>
-      <select
+      <FancySelect
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="mt-1 w-full rounded-xl border border-border/60 bg-surface px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
@@ -365,7 +366,7 @@ function Select({
             {o}
           </option>
         ))}
-      </select>
+      </FancySelect>
     </label>
   );
 }

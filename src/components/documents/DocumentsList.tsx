@@ -40,6 +40,7 @@ import {
   useDeleteDocument,
 } from "@/hooks/use-data";
 
+import { FancySelect } from "@/components/common/FancySelect";
 const labels = {
   invoice: { title: "Factures", new: "/invoices/new", detail: "/invoices/$id", subtitle: "Suivi de vos factures émises" },
   quotation: { title: "Devis", new: "/quotations/new", detail: "/quotations/$id", subtitle: "Pipeline de propositions commerciales" },
@@ -268,12 +269,12 @@ export function DocumentsList({ type }: { type: DocumentType }) {
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher par numéro ou client…" className="w-full rounded-xl border border-border/60 bg-transparent pl-10 pr-3 py-2 text-sm focus:border-primary focus:outline-none" />
         </div>
-        <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full rounded-xl border border-border/60 bg-surface px-3 py-2 text-sm sm:w-auto">
+        <FancySelect value={status} onChange={(e) => setStatus(e.target.value)} className="w-full rounded-xl border border-border/60 bg-surface px-3 py-2 text-sm sm:w-auto">
           <option value="all">Tous les statuts</option>
           {statusOptions.map((s) => (
             <option key={s} value={s}>{statusLabel(s)}</option>
           ))}
-        </select>
+        </FancySelect>
       </div>
 
       <div className="mb-4 space-y-3">
@@ -408,7 +409,7 @@ export function DocumentsList({ type }: { type: DocumentType }) {
                     <td className="px-5 py-3">
                       <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center">
                         <StatusBadge status={d.status} variant={onColoredRow ? "onRow" : "default"} />
-                        <select
+                        <FancySelect
                           value={d.status}
                           onChange={(e) => setStatusWithToast(d.id, e.target.value as DocumentStatus, d.number)}
                           className={cn(
@@ -420,7 +421,7 @@ export function DocumentsList({ type }: { type: DocumentType }) {
                           {statusOptions.map((s) => (
                             <option key={s} value={s}>{statusLabel(s)}</option>
                           ))}
-                        </select>
+                        </FancySelect>
                       </div>
                     </td>
                     <td className="px-5 py-3 text-right font-numeric font-semibold">

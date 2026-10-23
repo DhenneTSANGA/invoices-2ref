@@ -24,6 +24,7 @@ import { homePathForStaff } from "@/lib/app-space";
 import { isPublicSelfSignupEnabled } from "@/lib/access-policy";
 import { humanAuthError } from "@/lib/auth-errors";
 
+import { FancySelect } from "@/components/common/FancySelect";
 export const Route = createFileRoute("/signup")({
   head: () => ({ meta: [{ title: "Inscription — 2R Hub" }] }),
   beforeLoad: async () => {
@@ -245,7 +246,7 @@ function Select({
       </span>
       <div className="relative">
         <Icon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <select
+        <FancySelect
           value={value}
           required={required}
           onChange={(e) => onChange(e.target.value)}
@@ -259,7 +260,7 @@ function Select({
               {o.label}
             </option>
           ))}
-        </select>
+        </FancySelect>
       </div>
     </label>
   );

@@ -11,6 +11,7 @@ import { prefetchCommonAppData } from "@/lib/prefetch-app-data";
 import { NotificationSync } from "@/components/layout/NotificationSync";
 import { BrandTheme } from "@/components/layout/BrandTheme";
 import { requireSpaceSession } from "@/lib/app-session-gate";
+import { ScrollToTopButton } from "@/components/common/ScrollToTopButton";
 
 export const Route = createFileRoute("/_app")({
   beforeLoad: async ({ context }) =>
@@ -38,6 +39,7 @@ function AppLayout() {
           </PageTransition>
         </main>
       </div>
+      <ScrollToTopButton />
     </div>
   );
 }

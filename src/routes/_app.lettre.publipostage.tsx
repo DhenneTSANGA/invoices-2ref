@@ -50,6 +50,7 @@ import {
 import { isRichTextEmpty } from "@/lib/rich-text";
 import { LETTER_PLACE_CITIES } from "@/lib/letter-place-city";
 
+import { FancySelect } from "@/components/common/FancySelect";
 export const Route = createFileRoute("/_app/lettre/publipostage")({
   head: () => ({ meta: [{ title: "Publipostage — 2R Hub" }] }),
   component: MailMergePage,
@@ -430,7 +431,7 @@ function MailMergePage() {
     <div className="mx-auto w-full max-w-5xl space-y-5">
       <Link
         to="/lettre"
-        className="mb-2 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+        className="mb-2 back-link"
       >
         <ArrowLeft className="h-4 w-4" /> Retour aux courriels
       </Link>
@@ -659,7 +660,7 @@ function MailMergePage() {
                   <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                     Langue
                   </span>
-                  <select
+                  <FancySelect
                     className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
                     value={letterLanguage}
                     onChange={(e) =>
@@ -671,13 +672,13 @@ function MailMergePage() {
                         {l.label}
                       </option>
                     ))}
-                  </select>
+                  </FancySelect>
                 </label>
                 <label className="block">
                   <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                     Service
                   </span>
-                  <select
+                  <FancySelect
                     className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
                     value={letterService}
                     onChange={(e) =>
@@ -689,7 +690,7 @@ function MailMergePage() {
                         {s.label}
                       </option>
                     ))}
-                  </select>
+                  </FancySelect>
                 </label>
                 {isPredefinedLetterSubject(subject) ? (
                   <div className="rounded-xl border border-border/60 bg-muted/30 px-3 py-2.5">
@@ -720,7 +721,7 @@ function MailMergePage() {
                 <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   Ville d’émission
                 </span>
-                <select
+                <FancySelect
                   className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
                   value={placeCity}
                   onChange={(e) => setPlaceCity(e.target.value)}
@@ -730,7 +731,7 @@ function MailMergePage() {
                       {city}
                     </option>
                   ))}
-                </select>
+                </FancySelect>
               </label>
               <RichTextEditor
                 label="Formule d'appel"

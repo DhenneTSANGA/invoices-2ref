@@ -1,6 +1,14 @@
 import type { LucideIcon } from "lucide-react";
+import {
+  SELECT_CONTENT,
+  SELECT_ITEM,
+  SELECT_TRIGGER_STATE,
+  SELECT_VIEWPORT,
+  SelectChevron,
+  SelectItemDecor,
+} from "@/components/common/FancySelect";
 import type { ReactNode } from "react";
-import { Check, ChevronDown, Plus, Search, X } from "lucide-react";
+import { Plus, Search, X } from "lucide-react";
 import { EmptyState } from "@/components/common/EmptyState";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import {
@@ -82,17 +90,11 @@ export function CrmSelect({
       onOpenChange={noteCrmSelectOpen}
     >
       <SelectPrimitive.Trigger
-        className={cn(
-          CRM_FIELD,
-          "group flex cursor-pointer items-center justify-between gap-2 text-left data-[placeholder]:text-muted-foreground data-[state=open]:border-primary data-[state=open]:ring-2 data-[state=open]:ring-primary/20 [&>span]:min-w-0 [&>span]:truncate",
-          className,
-        )}
+        className={cn(CRM_FIELD, SELECT_TRIGGER_STATE, "flex w-full [&>span]:min-w-0 [&>span]:truncate", className)}
       >
         <SelectPrimitive.Value placeholder={placeholder} />
         <SelectPrimitive.Icon asChild>
-          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground transition group-data-[state=open]:bg-primary/10 group-data-[state=open]:text-primary">
-            <ChevronDown className="h-3.5 w-3.5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-          </span>
+          <SelectChevron />
         </SelectPrimitive.Icon>
       </SelectPrimitive.Trigger>
       <SelectPrimitive.Portal>
@@ -100,35 +102,20 @@ export function CrmSelect({
           position="popper"
           sideOffset={6}
           collisionPadding={12}
-          className="z-[80] max-h-72 w-[var(--radix-select-trigger-width)] overflow-hidden rounded-2xl border border-border/70 bg-popover text-popover-foreground shadow-float data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
+          className={SELECT_CONTENT}
           style={{ pointerEvents: "auto" }}
         >
-          <SelectPrimitive.Viewport className="max-h-64 overflow-y-auto overscroll-contain p-1.5 [scrollbar-color:color-mix(in_oklch,var(--primary)_40%,transparent)_transparent] [scrollbar-width:thin]">
+          <SelectPrimitive.Viewport className={SELECT_VIEWPORT}>
             {emptyLabel ? (
-              <SelectPrimitive.Item
-                value={CRM_EMPTY}
-                className="relative flex cursor-pointer select-none items-center rounded-xl py-2.5 pl-3 pr-9 text-sm text-muted-foreground outline-none data-[highlighted]:bg-primary/10 data-[highlighted]:text-primary data-[state=checked]:bg-primary/10 data-[state=checked]:font-medium data-[state=checked]:text-primary"
-              >
+              <SelectPrimitive.Item value={CRM_EMPTY} className={cn(SELECT_ITEM, "text-muted-foreground")}>
+                <SelectItemDecor />
                 <SelectPrimitive.ItemText>{emptyLabel}</SelectPrimitive.ItemText>
-                <span className="absolute right-2.5 flex h-4 w-4 items-center justify-center text-primary">
-                  <SelectPrimitive.ItemIndicator>
-                    <Check className="h-4 w-4" strokeWidth={2.5} />
-                  </SelectPrimitive.ItemIndicator>
-                </span>
               </SelectPrimitive.Item>
             ) : null}
             {items.map((item) => (
-              <SelectPrimitive.Item
-                key={item.value}
-                value={item.value}
-                className="relative flex cursor-pointer select-none items-center rounded-xl py-2.5 pl-3 pr-9 text-sm outline-none transition-colors data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-primary/10 data-[highlighted]:text-primary data-[state=checked]:bg-primary/10 data-[state=checked]:font-semibold data-[state=checked]:text-primary"
-              >
+              <SelectPrimitive.Item key={item.value} value={item.value} className={SELECT_ITEM}>
+                <SelectItemDecor />
                 <SelectPrimitive.ItemText>{item.label}</SelectPrimitive.ItemText>
-                <span className="absolute right-2.5 flex h-4 w-4 items-center justify-center text-primary">
-                  <SelectPrimitive.ItemIndicator>
-                    <Check className="h-4 w-4" strokeWidth={2.5} />
-                  </SelectPrimitive.ItemIndicator>
-                </span>
               </SelectPrimitive.Item>
             ))}
           </SelectPrimitive.Viewport>

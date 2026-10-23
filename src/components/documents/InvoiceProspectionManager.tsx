@@ -8,6 +8,7 @@ import {
   setInvoiceProspectionManager,
 } from "@/lib/billing-prospection.functions";
 
+import { FancySelect } from "@/components/common/FancySelect";
 export const invoiceProspectionKey = ["invoice-prospection-context"] as const;
 
 /** Managers Prospection du cabinet actif et suggestions par client (fiche Prospection reliée). */
@@ -41,7 +42,7 @@ export function InvoiceProspectionManagerPicker({
       <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
         Manager apporteur (optionnel)
       </span>
-      <select
+      <FancySelect
         className={SELECT_CLASS}
         value={value ?? ""}
         disabled={isPending}
@@ -54,7 +55,7 @@ export function InvoiceProspectionManagerPicker({
             {suggested === m.id ? " (fiche Prospection)" : ""}
           </option>
         ))}
-      </select>
+      </FancySelect>
       <span className="mt-1 block text-[11px] text-muted-foreground">
         L’encaissement de cette facture sera compté pour ce manager dans l’espace Prospection.
       </span>
@@ -97,7 +98,7 @@ export function InvoiceProspectionManagerControl({
         <Target className="h-4 w-4" aria-hidden />
         Manager apporteur
       </span>
-      <select
+      <FancySelect
         className="rounded-xl border border-border/60 bg-surface px-3 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
         value={value ?? ""}
         disabled={saving}
@@ -127,7 +128,7 @@ export function InvoiceProspectionManagerControl({
             {m.name}
           </option>
         ))}
-      </select>
+      </FancySelect>
       {saving ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : null}
     </label>
   );

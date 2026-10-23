@@ -19,6 +19,7 @@ import {
 } from "@/components/clients/ClientPolePicker";
 import { CLIENT_BILLING_LABELS, CLIENT_BILLING_PROFILES } from "@/lib/client-billing";
 
+import { FancySelect } from "@/components/common/FancySelect";
 export const Route = createFileRoute("/_app/clients/")({
   head: () => ({ meta: [{ title: "Clients — 2R Hub" }] }),
   component: ClientsPage,
@@ -99,7 +100,7 @@ function ClientsPage() {
             className="w-full rounded-xl border border-border/60 bg-transparent pl-10 pr-3 py-2 text-sm focus:border-primary focus:outline-none"
           />
         </div>
-        <select
+        <FancySelect
           value={city}
           onChange={(e) => setCity(e.target.value)}
           className="rounded-xl border border-border/60 bg-surface px-3 py-2 text-sm"
@@ -110,7 +111,7 @@ function ClientsPage() {
               {c}
             </option>
           ))}
-        </select>
+        </FancySelect>
       </div>
 
       <div className="mb-4 space-y-3">

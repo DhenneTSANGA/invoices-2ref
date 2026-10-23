@@ -48,6 +48,7 @@ import type { DocumentExportJobView } from "@/lib/document-export";
 import type { DocumentStatus, DocumentType } from "@/store/types";
 import { currency, shortDate } from "@/lib/format";
 
+import { FancySelect } from "@/components/common/FancySelect";
 export const Route = createFileRoute("/_app/bilan")({
   head: () => ({ meta: [{ title: "Bilan — 2R Hub" }] }),
   beforeLoad: ({ context }) => {
@@ -276,7 +277,7 @@ function BilanPage() {
             <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Type de document
             </span>
-            <select
+            <FancySelect
               className="mt-1.5 w-full rounded-xl border border-border/60 bg-surface px-3 py-2.5 text-sm"
               value={documentType}
               onChange={(e) => {
@@ -289,14 +290,14 @@ function BilanPage() {
               <option value="invoice">Factures payées</option>
               <option value="quotation">Devis acceptés</option>
               <option value="letter">Courriels signés / envoyés</option>
-            </select>
+            </FancySelect>
           </label>
 
           <label className="block">
             <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Période
             </span>
-            <select
+            <FancySelect
               className="mt-1.5 w-full rounded-xl border border-border/60 bg-surface px-3 py-2.5 text-sm"
               value={months}
               onChange={(e) => {
@@ -309,14 +310,14 @@ function BilanPage() {
                   {m} dernier{m > 1 ? "s" : ""} mois
                 </option>
               ))}
-            </select>
+            </FancySelect>
           </label>
 
           <label className="block sm:col-span-2">
             <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Client (optionnel)
             </span>
-            <select
+            <FancySelect
               className="mt-1.5 w-full rounded-xl border border-border/60 bg-surface px-3 py-2.5 text-sm"
               value={clientId}
               onChange={(e) => {
@@ -330,7 +331,7 @@ function BilanPage() {
                   {c.name}
                 </option>
               ))}
-            </select>
+            </FancySelect>
           </label>
         </div>
 

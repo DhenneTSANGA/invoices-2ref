@@ -27,6 +27,7 @@ import { humanAuthError } from "@/lib/auth-errors";
 import { signOut } from "@/lib/auth";
 import type { z } from "zod";
 
+import { FancySelect } from "@/components/common/FancySelect";
 type ProfileForm = {
   firstName: string;
   lastName: string;
@@ -205,7 +206,7 @@ function ProfilePage() {
                 <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   Poste <span className="text-danger">*</span>
                 </span>
-                <select
+                <FancySelect
                   value={form.jobTitle}
                   required
                   onChange={(e) =>
@@ -224,7 +225,7 @@ function ProfilePage() {
                       {j.label}
                     </option>
                   ))}
-                </select>
+                </FancySelect>
               </label>
               <F
                 label="Cabinet"

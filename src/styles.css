@@ -579,3 +579,67 @@ button.crm-quiet-hit:not(:disabled):not([aria-disabled="true"]):active {
     transform: none;
   }
 }
+
+
+/* Bouton « Retour » : pastille avec flèche dans un rond, qui glisse au survol. */
+@layer components {
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    border-radius: 9999px;
+    border: 1px solid color-mix(in oklab, var(--border) 85%, transparent);
+    background: color-mix(in oklab, var(--surface) 80%, transparent);
+    backdrop-filter: blur(12px);
+    padding: 0.3rem 1rem 0.3rem 0.3rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--muted-foreground);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+    cursor: pointer;
+    transition:
+      color 150ms ease,
+      border-color 150ms ease,
+      box-shadow 150ms ease,
+      transform 150ms ease;
+  }
+  .back-link:hover {
+    color: var(--foreground);
+    border-color: color-mix(in oklab, var(--primary) 45%, transparent);
+    box-shadow: 0 6px 18px -8px color-mix(in oklab, var(--primary) 45%, transparent);
+  }
+  .back-link:active {
+    transform: scale(0.97);
+  }
+  .back-link:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+  .back-link > svg {
+    box-sizing: content-box;
+    width: 1rem;
+    height: 1rem;
+    padding: 0.375rem;
+    border-radius: 9999px;
+    background: var(--muted);
+    color: var(--foreground);
+    transition:
+      background 150ms ease,
+      color 150ms ease,
+      transform 200ms ease;
+  }
+  .back-link:hover > svg {
+    background: var(--primary);
+    color: var(--primary-foreground);
+    transform: translateX(-2px);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .back-link,
+    .back-link > svg {
+      transition: none;
+    }
+    .back-link:hover > svg {
+      transform: none;
+    }
+  }
+}

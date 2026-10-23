@@ -11,6 +11,7 @@ import { onboardingSchema } from "@/lib/auth-schemas";
 import { CABINET_LABELS, STAFF_JOB_TITLES } from "@/lib/cabinets";
 import { homePathForStaff } from "@/lib/app-space";
 
+import { FancySelect } from "@/components/common/FancySelect";
 export const Route = createFileRoute("/onboarding")({
   head: () => ({ meta: [{ title: "Finaliser le profil — 2R Hub" }] }),
   beforeLoad: async () => {
@@ -119,7 +120,7 @@ function OnboardingPage() {
             </span>
             <div className="relative">
               <Building2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <select
+              <FancySelect
                 required
                 value={form.cabinet}
                 onChange={(e) => setForm({ ...form, cabinet: e.target.value })}
@@ -132,7 +133,7 @@ function OnboardingPage() {
                 <option value="expertise_fiscale">
                   {CABINET_LABELS.expertise_fiscale}
                 </option>
-              </select>
+              </FancySelect>
             </div>
           </label>
           <label className="sm:col-span-2">
@@ -141,7 +142,7 @@ function OnboardingPage() {
             </span>
             <div className="relative">
               <Briefcase className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <select
+              <FancySelect
                 required
                 value={form.jobTitle}
                 onChange={(e) => setForm({ ...form, jobTitle: e.target.value })}
@@ -155,7 +156,7 @@ function OnboardingPage() {
                     {j.label}
                   </option>
                 ))}
-              </select>
+              </FancySelect>
             </div>
           </label>
           <Field

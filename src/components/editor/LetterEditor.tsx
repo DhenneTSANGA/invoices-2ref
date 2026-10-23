@@ -51,6 +51,7 @@ import { clientPoleLabel, parseClientPole } from "@/lib/client-pole";
 import { ClientPolePicker } from "@/components/clients/ClientPolePicker";
 import { memberVisibilityPole } from "@/lib/staff-pole";
 
+import { FancySelect } from "@/components/common/FancySelect";
 type Props = { initial?: Document };
 
 function provisionalLetterNumber(cabinet: Cabinet, issueDate: string) {
@@ -320,7 +321,7 @@ export function LetterEditor({ initial }: Props) {
               <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Client
               </span>
-              <select
+              <FancySelect
                 className="mt-1.5 w-full rounded-xl border border-border/60 bg-surface px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
                 value={effectiveClientId}
                 onChange={(e) => setDoc({ ...doc, clientId: e.target.value })}
@@ -330,7 +331,7 @@ export function LetterEditor({ initial }: Props) {
                     {c.name}
                   </option>
                 ))}
-              </select>
+              </FancySelect>
             </label>
             <ClientPolePicker
               compact
@@ -398,7 +399,7 @@ export function LetterEditor({ initial }: Props) {
                 <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   Ville d’émission
                 </span>
-                <select
+                <FancySelect
                   className="mt-1.5 w-full rounded-xl border border-border/60 bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                   value={doc.placeCity || DEFAULT_LETTER_PLACE_CITY}
                   onChange={(e) =>
@@ -410,7 +411,7 @@ export function LetterEditor({ initial }: Props) {
                       {city}
                     </option>
                   ))}
-                </select>
+                </FancySelect>
               </label>
               <Field
                 label="Date"
@@ -477,7 +478,7 @@ export function LetterEditor({ initial }: Props) {
             <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Signataire
             </span>
-            <select
+            <FancySelect
               className="mt-1 w-full rounded-xl border border-border/60 bg-surface px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
               value={resolveSignatoryRole(doc.signatoryTitle)}
               onChange={(e) =>
@@ -494,7 +495,7 @@ export function LetterEditor({ initial }: Props) {
                   {r.label}
                 </option>
               ))}
-            </select>
+            </FancySelect>
           </label>
         </Section>
 

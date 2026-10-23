@@ -62,6 +62,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 
+import { FancySelect } from "@/components/common/FancySelect";
 const requestsKey = adminRequestsKey;
 const staffKey = cabinetStaffKey;
 
@@ -243,7 +244,7 @@ export function TeamAdminPage({ scope }: { scope?: "prospection" } = {}) {
             <span className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Cabinet
             </span>
-            <select
+            <FancySelect
               value={demoteCabinet}
               onChange={(e) =>
                 setDemoteCabinet(
@@ -257,7 +258,7 @@ export function TeamAdminPage({ scope }: { scope?: "prospection" } = {}) {
               <option value="expertise_fiscale">
                 {CABINET_LABELS.expertise_fiscale}
               </option>
-            </select>
+            </FancySelect>
           </label>
           <div className="mt-4 flex justify-end gap-2">
             <button
@@ -384,7 +385,7 @@ export function TeamAdminPage({ scope }: { scope?: "prospection" } = {}) {
                         {SPACES_ALLOWED_LABELS[s.spacesAllowed ?? "facturation"]}
                       </span>
                     ) : (
-                      <select
+                      <FancySelect
                         aria-label={`Espace de ${s.firstName} ${s.lastName}`}
                         value={s.spacesAllowed ?? "facturation"}
                         disabled={
@@ -406,7 +407,7 @@ export function TeamAdminPage({ scope }: { scope?: "prospection" } = {}) {
                           {SPACES_ALLOWED_LABELS.prospection}
                         </option>
                         <option value="both">{SPACES_ALLOWED_LABELS.both}</option>
-                      </select>
+                      </FancySelect>
                     )}
                     {isSuper && s.role === "super_admin" ? (
                       <SuperAdminPortfolioEditor
@@ -441,7 +442,7 @@ export function TeamAdminPage({ scope }: { scope?: "prospection" } = {}) {
                       s.spacesAllowed === "prospection" ? (
                         <span className="text-xs text-muted-foreground">—</span>
                       ) : (
-                        <select
+                        <FancySelect
                           aria-label={`Pôle de ${s.firstName} ${s.lastName}`}
                           value={parseClientPole(s.pole)}
                           disabled={
@@ -461,7 +462,7 @@ export function TeamAdminPage({ scope }: { scope?: "prospection" } = {}) {
                               {CLIENT_POLE_LABELS[pole]}
                             </option>
                           ))}
-                        </select>
+                        </FancySelect>
                       )}
                     </td>
                   ) : null}
@@ -725,7 +726,7 @@ function CreateStaffCard({ prospectionOnly = false }: { prospectionOnly?: boolea
             <span className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Cabinet
             </span>
-            <select
+            <FancySelect
               value={form.cabinet}
               onChange={(e) => setForm((f) => ({ ...f, cabinet: e.target.value }))}
               className="w-full rounded-2xl border border-border/60 bg-surface/70 px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25"
@@ -735,13 +736,13 @@ function CreateStaffCard({ prospectionOnly = false }: { prospectionOnly?: boolea
               <option value="expertise_fiscale">
                 {CABINET_LABELS.expertise_fiscale}
               </option>
-            </select>
+            </FancySelect>
           </label>
           <label className="block">
             <span className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Poste
             </span>
-            <select
+            <FancySelect
               value={form.jobTitle}
               onChange={(e) => setForm((f) => ({ ...f, jobTitle: e.target.value }))}
               className="w-full rounded-2xl border border-border/60 bg-surface/70 px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25"
@@ -752,14 +753,14 @@ function CreateStaffCard({ prospectionOnly = false }: { prospectionOnly?: boolea
                   {j.label}
                 </option>
               ))}
-            </select>
+            </FancySelect>
           </label>
           {!prospectionOnly ? (
             <label className="block">
               <span className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Espace
               </span>
-              <select
+              <FancySelect
                 value={form.spacesAllowed}
                 onChange={(e) => {
                   const spacesAllowed = e.target.value as "facturation" | "prospection";
@@ -775,7 +776,7 @@ function CreateStaffCard({ prospectionOnly = false }: { prospectionOnly?: boolea
               >
                 <option value="facturation">{SPACES_ALLOWED_LABELS.facturation}</option>
                 <option value="prospection">{SPACES_ALLOWED_LABELS.prospection}</option>
-              </select>
+              </FancySelect>
             </label>
           ) : null}
           {/* Compte Prospection : rôle technique « admin » posé automatiquement, non affiché. */}
@@ -784,7 +785,7 @@ function CreateStaffCard({ prospectionOnly = false }: { prospectionOnly?: boolea
               <span className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Rôle initial
               </span>
-              <select
+              <FancySelect
                 value={form.role}
                 onChange={(e) =>
                   setForm((f) => ({
@@ -796,7 +797,7 @@ function CreateStaffCard({ prospectionOnly = false }: { prospectionOnly?: boolea
               >
                 <option value="member">Membre</option>
                 <option value="admin">Administrateur</option>
-              </select>
+              </FancySelect>
             </label>
           ) : null}
           {form.spacesAllowed === "facturation" ? (
@@ -817,7 +818,7 @@ function CreateStaffCard({ prospectionOnly = false }: { prospectionOnly?: boolea
                 <span className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   Profil Prospection <span className="text-danger">*</span>
                 </span>
-                <select
+                <FancySelect
                   value={form.crmProfile ?? ""}
                   onChange={(e) =>
                     setForm((f) => ({
@@ -833,7 +834,7 @@ function CreateStaffCard({ prospectionOnly = false }: { prospectionOnly?: boolea
                       {CRM_PROFILE_LABELS[p]}
                     </option>
                   ))}
-                </select>
+                </FancySelect>
                 <span className="mt-1 block text-[11px] text-muted-foreground">
                   {form.crmProfile ? CRM_PROFILE_HINTS[form.crmProfile] : "Détermine ce que la personne voit et peut faire dans la Prospection."}
                 </span>
@@ -1234,7 +1235,7 @@ function CrmProfileEditor({
   const withLines = profile === "manager" || profile === "chef_service";
   return (
     <div className="mt-1.5 flex flex-col gap-1.5">
-      <select
+      <FancySelect
         aria-label={`Profil Prospection de ${name}`}
         // « Administrateur » explicite et profil non choisi donnent les mêmes droits.
         value={profile && profile !== "admin" ? profile : ""}
@@ -1248,7 +1249,7 @@ function CrmProfileEditor({
             {CRM_PROFILE_LABELS[p]}
           </option>
         ))}
-      </select>
+      </FancySelect>
       {withLines ? (
         <ServiceLinesPicker
           name={name}

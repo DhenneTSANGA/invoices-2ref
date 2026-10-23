@@ -65,6 +65,7 @@ import {
 import { PrestationTitleInput } from "@/components/editor/PrestationTitleInput";
 import { abbrevForPrestationTitle, applyPrestationAbbrevToNumber } from "@/lib/default-prestation-titles";
 
+import { FancySelect } from "@/components/common/FancySelect";
 const DEFAULT_PAYMENT_MODALITY = "Le 05 suivant le mois de la prestation";
 
 type Props = { initial?: Document; type: DocumentType };
@@ -1598,7 +1599,7 @@ export function DocumentEditor({ initial, type }: Props) {
                 <div className="flex items-center justify-between gap-3 text-sm">
                   <span className="text-muted-foreground">Remise</span>
                   <div className="flex items-center gap-2">
-                    <select
+                    <FancySelect
                       className="rounded-lg border border-border/60 bg-transparent px-2 py-1.5 text-xs focus:border-primary focus:outline-none"
                       value={doc.discountMode === "amount" ? "amount" : "percent"}
                       onChange={(e) =>
@@ -1611,7 +1612,7 @@ export function DocumentEditor({ initial, type }: Props) {
                     >
                       <option value="percent">%</option>
                       <option value="amount">Forfait</option>
-                    </select>
+                    </FancySelect>
                     {doc.discountMode === "amount" ? (
                       <NumInput
                         value={doc.discountFixed ?? 0}
@@ -2019,7 +2020,7 @@ function Select({
       <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
         {label}
       </span>
-      <select
+      <FancySelect
         className="mt-1 w-full rounded-xl border border-border/60 bg-surface px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -2029,7 +2030,7 @@ function Select({
             {o.label}
           </option>
         ))}
-      </select>
+      </FancySelect>
     </label>
   );
 }
@@ -2063,7 +2064,7 @@ function PeriodPicker({
             : "mt-1 grid min-w-0 grid-cols-1"
         }
       >
-        <select
+        <FancySelect
           aria-label="Mois de la période"
           className={selectClass}
           value={parts ? String(parts.month) : ""}
@@ -2078,9 +2079,9 @@ function PeriodPicker({
               {label}
             </option>
           ))}
-        </select>
+        </FancySelect>
         {parts ? (
-          <select
+          <FancySelect
             aria-label="Année de la période"
             className={selectClass}
             value={String(year)}
@@ -2093,7 +2094,7 @@ function PeriodPicker({
                 {y}
               </option>
             ))}
-          </select>
+          </FancySelect>
         ) : null}
       </div>
     </div>
@@ -2161,7 +2162,7 @@ function LineRow({
       </td>
       {commercial ? (
         <td className="px-1 py-2">
-          <select
+          <FancySelect
             className={LINE_SELECT_CLASS + " w-full min-w-[6.5rem]"}
             value={unit}
             title="Unité de la quantité"
@@ -2178,7 +2179,7 @@ function LineRow({
                 {opt.label}
               </option>
             ))}
-          </select>
+          </FancySelect>
         </td>
       ) : null}
       <td className="px-1 py-2">
@@ -2190,7 +2191,7 @@ function LineRow({
             className="min-w-[8.5rem] flex-1 rounded-lg border border-border/60 bg-transparent px-2 py-1.5 text-right font-numeric focus:border-primary focus:outline-none"
           />
           {showZeroMenu ? (
-            <select
+            <FancySelect
               className={LINE_SELECT_CLASS + " w-[4.75rem] shrink-0"}
               value={it.hideZeroFigures === false ? "show" : "hide"}
               title="Afficher ou masquer le zéro sur le document"
@@ -2202,7 +2203,7 @@ function LineRow({
             >
               <option value="hide">—</option>
               <option value="show">0</option>
-            </select>
+            </FancySelect>
           ) : null}
         </div>
       </td>
