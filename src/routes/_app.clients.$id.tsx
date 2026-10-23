@@ -34,6 +34,7 @@ import {
   ClientPoleBadge,
   ClientPolePicker,
 } from "@/components/clients/ClientPolePicker";
+import { ClientExtraEmails } from "@/components/clients/ClientExtraEmails";
 import { memberVisibilityPole } from "@/lib/staff-pole";
 
 import { FancySelect } from "@/components/common/FancySelect";
@@ -200,6 +201,10 @@ function EditClient() {
             />
             <Field label="Email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} />
             <Field label="Téléphone" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} />
+            <ClientExtraEmails
+              value={form.extraEmails ?? []}
+              onChange={(extraEmails) => setForm({ ...form, extraEmails })}
+            />
           </Section>
 
           <Section title="Adresse">

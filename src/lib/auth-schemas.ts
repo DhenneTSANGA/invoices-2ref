@@ -221,6 +221,7 @@ export const clientInputSchema = z.object({
   contactName: z.string().default(""),
   representativeTitle: z.string().default(""),
   email: z.string().default(""),
+  extraEmails: z.array(z.string()).max(2).default([]),
   phone: z.string().default(""),
   address: z.string().default(""),
   bp: z.string().default(""),

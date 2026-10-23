@@ -18,6 +18,8 @@ import {
   resolveManagerCc,
   resendErrorMessage,
 } from "@/lib/email";
+import { clientEmails, pickClientRecipients } from "@/lib/client-emails";
+import { loadClientExtraEmails } from "@/lib/client-extra-emails-db";
 import {
   broadcastDocumentStatusChange,
   staffDisplayName,
@@ -406,6 +408,8 @@ export async function sendDocumentEmailInternal(params: {
   previewImageBase64?: string;
   skipAccessCheck?: boolean;
   activeCabinet?: "conseil" | "expertise_fiscale";
+  /** Adresses du client cochées à l’envoi ; par défaut, l’adresse principale. */
+  recipients?: string[];
 }) {
   requireResendApiKey();
 
@@ -478,8 +482,19 @@ export async function sendDocumentEmailInternal(params: {
     }
   }
     if (!doc.client) throw new Error("Client introuvable");
-    if (!doc.client.email?.trim()) {
+    const extraEmails = await loadClientExtraEmails([doc.client.id]);
+    const allowedEmails = clientEmails({
+      email: doc.client.email,
+      extraEmails: extraEmails.get(doc.client.id),
+    });
+    if (allowedEmails.length === 0) {
       throw new Error(`Le client « ${doc.client.name} » n'a pas d'adresse email`);
+    }
+    const recipients = params.recipients?.length
+      ? pickClientRecipients(allowedEmails, params.recipients)
+      : [allowedEmails[0]!];
+    if (recipients.length === 0) {
+      throw new Error("Choisissez au moins une adresse e-mail du client");
     }
 
     const companyRow = await prisma.company.findUnique({
@@ -488,8 +503,10 @@ export async function sendDocumentEmailInternal(params: {
     const company = companyForPreview(companyRow, doc.cabinet);
     const { from, replyTo } = resolveCabinetMailAddresses(company);
     const typeLabel = documentTypeLabel(doc.type as DocumentType);
-    const to = doc.client.email.trim();
-    const managerCc = resolveManagerCc(company, to);
+    const to = recipients.join(", ");
+    const managerCc = recipients.every((r) => resolveManagerCc(company, r))
+      ? resolveManagerCc(company, recipients[0]!)
+      : undefined;
     const niuLabel = niuLabelForCabinet(doc.cabinet);
 
   const pdfFileName =
@@ -634,7 +651,7 @@ export async function sendDocumentEmailInternal(params: {
 
   const { data: sent, error } = await resend.emails.send({
       from,
-      to,
+      to: recipients,
       ...(managerCc ? { cc: [managerCc] } : {}),
       subject,
       html,
@@ -709,11 +726,13 @@ export const sendDocumentEmail = createServerFn({ method: "POST" })
       pdfBase64: z.string().optional(),
       fileName: z.string().optional(),
       previewImageBase64: z.string().optional(),
+      recipients: z.array(z.string()).max(3).optional(),
     }),
   )
   .handler(async ({ data }) => {
     const session = await requireSession();
     return sendDocumentEmailInternal({
+      recipients: data.recipients,
       documentId: data.id,
       staff: session.staff,
       pdfBase64: data.pdfBase64,

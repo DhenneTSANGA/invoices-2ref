@@ -18,6 +18,7 @@ import {
 } from "@/lib/client-form-options";
 import { ClientBillingProfilePicker } from "@/components/clients/ClientBillingProfilePicker";
 import { ClientPolePicker } from "@/components/clients/ClientPolePicker";
+import { ClientExtraEmails } from "@/components/clients/ClientExtraEmails";
 import { CLIENT_POLE_LABELS, type ClientPole } from "@/lib/client-pole";
 import { memberVisibilityPole } from "@/lib/staff-pole";
 
@@ -53,6 +54,7 @@ const empty: Omit<
   contactName: "",
   representativeTitle: "",
   email: "",
+  extraEmails: [],
   phone: "",
   address: "",
   bp: "",
@@ -311,6 +313,10 @@ function NewClient() {
             label="Téléphone"
             value={form.phone}
             onChange={(v) => setForm({ ...form, phone: v })}
+          />
+          <ClientExtraEmails
+            value={form.extraEmails}
+            onChange={(extraEmails) => setForm({ ...form, extraEmails })}
           />
         </Section>
 

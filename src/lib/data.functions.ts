@@ -119,6 +119,12 @@ import {
   syncInvoicePaidAt,
 } from "@/lib/document-prospection-db";
 import { clientAllowsSubscription } from "@/lib/client-billing";
+import { normalizeExtraEmails } from "@/lib/client-emails";
+import {
+  loadClientExtraEmails,
+  persistClientExtraEmails,
+  withExtraEmails,
+} from "@/lib/client-extra-emails-db";
 
 const docInclude = {
   lines: { orderBy: { position: "asc" as const } },
@@ -247,9 +253,10 @@ export const listClients = createServerFn({ method: "GET" })
     });
     const mapped = rows.map(mapClient);
     const poles = await loadClientPoles(mapped.map((c) => c.id));
+    const extras = await loadClientExtraEmails(mapped.map((c) => c.id));
     return filterByMemberPole(
       session.staff,
-      mapped.map((c) => withClientPole(c, poles)),
+      mapped.map((c) => withExtraEmails(withClientPole(c, poles), extras)),
     );
   });
 
@@ -285,7 +292,10 @@ export const getClient = createServerFn({ method: "GET" })
         : { id: data.id, cabinet: session.activeCabinet },
     });
     const mapped = row
-      ? withClientPole(mapClient(row), await loadClientPoles([row.id]))
+      ? withExtraEmails(
+          withClientPole(mapClient(row), await loadClientPoles([row.id])),
+          await loadClientExtraEmails([row.id]),
+        )
       : null;
     if (!mapped || !memberCanSeePole(session.staff, mapped.pole)) return null;
     return mapped;
@@ -335,7 +345,12 @@ export const createClient = createServerFn({ method: "POST" })
     });
     const pole = resolveStaffWritePole(staff, data.pole);
     await persistClientPole(row.id, pole);
-    return withClientPole(mapClient(row), new Map([[row.id, pole]]));
+    const extraEmails = normalizeExtraEmails(data.extraEmails, data.email);
+    await persistClientExtraEmails(row.id, extraEmails);
+    return {
+      ...withClientPole(mapClient(row), new Map([[row.id, pole]])),
+      extraEmails,
+    };
   });
 
 export const updateClient = createServerFn({ method: "POST" })
@@ -390,7 +405,12 @@ export const updateClient = createServerFn({ method: "POST" })
     });
     const pole = resolveStaffWritePole(staff, rest.pole);
     await persistClientPole(row.id, pole);
-    return withClientPole(mapClient(row), new Map([[row.id, pole]]));
+    const extraEmails = normalizeExtraEmails(rest.extraEmails, rest.email);
+    await persistClientExtraEmails(row.id, extraEmails);
+    return {
+      ...withClientPole(mapClient(row), new Map([[row.id, pole]])),
+      extraEmails,
+    };
   });
 
 /** Téléverse une fiche circuit ou status pour un client (Supabase Storage). */

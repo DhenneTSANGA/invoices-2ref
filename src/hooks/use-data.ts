@@ -60,6 +60,8 @@ import type {
 import type { Cabinet } from "@/lib/cabinets";
 import type { z } from "zod";
 import type { clientInputSchema, documentInputSchema, companyInputSchema, serviceInputSchema } from "@/lib/auth-schemas";
+import { clientEmails } from "@/lib/client-emails";
+import { pickRecipients } from "@/components/documents/RecipientPicker";
 
 export const sessionKey = ["session"] as const;
 export const clientsKey = ["clients"] as const;
@@ -486,12 +488,46 @@ export function useClearMailHistory() {
   });
 }
 
+/**
+ * Client à plusieurs adresses : fenêtre de choix (cases à cocher).
+ * Une seule adresse : envoi direct, sans fenêtre.
+ */
+async function chooseRecipients(
+  qc: ReturnType<typeof useQueryClient>,
+  doc: Document | null | undefined,
+): Promise<string[] | undefined> {
+  if (!doc?.clientId) return undefined;
+  const client = await qc.fetchQuery({
+    queryKey: [...clientsKey, doc.clientId],
+    queryFn: () => getClient({ data: { id: doc.clientId } }),
+    staleTime: 60_000,
+  });
+  const emails = client ? clientEmails(client) : [];
+  if (emails.length < 2) return undefined;
+  const picked = await pickRecipients({
+    clientName: client!.name,
+    documentNumber: doc.number,
+    emails,
+  });
+  if (!picked) throw new Error("Envoi annulé — aucun destinataire choisi");
+  return picked;
+}
+
 export function useSendDocumentEmail() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: string | Document) => {
+      const target =
+        typeof input === "string"
+          ? await qc.fetchQuery({
+              queryKey: ["document", input],
+              queryFn: () => getDocument({ data: { id: input } }),
+              staleTime: 60_000,
+            })
+          : input;
+      const recipients = await chooseRecipients(qc, target);
       if (typeof input === "string") {
-        return sendDocumentEmail({ data: { id: input } });
+        return sendDocumentEmail({ data: { id: input, recipients } });
       }
       // Un brouillon n’est accepté à l’envoi que par un admin, et le serveur le signe avant
       // de l’expédier : le PDF joint doit donc déjà porter la signature.
@@ -504,6 +540,7 @@ export function useSendDocumentEmail() {
           pdfBase64: built.base64,
           fileName: built.fileName,
           previewImageBase64: built.previewBase64,
+          recipients,
         },
       });
     },

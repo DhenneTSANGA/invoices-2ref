@@ -14,6 +14,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Logo } from "@/components/common/Logo";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { Toaster } from "@/components/ui/sonner";
+import { RecipientPickerHost } from "@/components/documents/RecipientPicker";
 import { formatPrismaError } from "@/lib/prisma-errors";
 
 function NotFoundComponent() {
@@ -160,6 +161,7 @@ function RootComponent() {
       <ThemeProvider>
         <Outlet />
         <Toaster position="top-right" />
+        <RecipientPickerHost />
       </ThemeProvider>
     </QueryClientProvider>
   );

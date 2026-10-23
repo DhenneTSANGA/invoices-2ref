@@ -258,6 +258,8 @@ model Client {
   /// Qualité du représentant (ex. Gérant).
   representativeTitle String @default("")
   email       String
+  // Colonne "extraEmails" (TEXT[]) : lue / écrite en SQL brut
+  // (src/lib/client-extra-emails-db.ts), migration 20261023100000.
   phone       String
   address     String
   /// Boîte postale (affichée sur les courriels à la place du quartier).
