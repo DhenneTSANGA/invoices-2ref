@@ -55,7 +55,7 @@ export function SubscriptionDialog({
           </DialogTitle>
           <DialogDescription>
             {documentNumber
-              ? `${documentNumber} sera générée et envoyée chaque mois à la date choisie (échéance selon le modèle). La facture doit déjà être signée et envoyée.`
+              ? `${documentNumber} sera générée et envoyée chaque mois à la date choisie (échéance selon le modèle). La facture modèle est signée automatiquement à l’activation.`
               : "Choisissez le jour d’envoi mensuel."}
           </DialogDescription>
         </DialogHeader>

@@ -7,7 +7,7 @@ import {
   useSession,
   useSignLetterDocument,
 } from "@/hooks/use-data";
-import { isAdmin } from "@/lib/roles";
+import { canSignDocument, isAdmin } from "@/lib/roles";
 import type { Document } from "@/store/types";
 import { cn } from "@/lib/utils";
 
@@ -59,12 +59,10 @@ export function DocumentSignatureActions({
     !adminLike &&
     !isQuotation;
 
-  /** Devis : tous les profils. Autres types : admin / SA. */
+  /** Devis : tous les profils. Autres types : tout admin / SA. */
+  const signAllowed = role ? canSignDocument(role, doc.type) : false;
   const canSign =
-    !alreadySigned &&
-    doc.status === "draft" &&
-    previewSeen &&
-    (adminLike || isQuotation);
+    !alreadySigned && doc.status === "draft" && previewSeen && signAllowed;
 
   if (alreadySigned) return null;
 
@@ -160,7 +158,7 @@ export function DocumentSignatureActions({
           <Ban className="h-4 w-4" /> Refuser
         </button>
       )}
-      {(adminLike || isQuotation) && !previewSeen && doc.status === "draft" && (
+      {signAllowed && !previewSeen && doc.status === "draft" && (
         <span className="text-xs text-muted-foreground">
           Consultez l’aperçu pour activer la signature.
         </span>

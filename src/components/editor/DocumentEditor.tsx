@@ -54,7 +54,12 @@ import {
   lineQuantityForTotal,
   parseLineQuantityUnit,
 } from "@/lib/line-quantity";
-import { canEditInvoiceContent, isAdmin, isMember } from "@/lib/roles";
+import {
+  canEditInvoiceContent,
+  canSignDocument,
+  isAdmin,
+  isMember,
+} from "@/lib/roles";
 import {
   DEFAULT_SIGNATORY_TITLE,
   resolveSignatoryRole,
@@ -612,8 +617,10 @@ export function DocumentEditor({ initial, type }: Props) {
     doc.status === "paid" ||
     doc.status === "accepted";
   const canOnlineSign = commercial && !alreadySigned;
-  /** Devis : tous les profils signent. Factures : admin / SA uniquement. */
-  const canSignDirectly = adminLike || type === "quotation";
+  /** Devis : tous les profils signent. Factures : tout admin / SA. */
+  const canSignDirectly = session
+    ? canSignDocument(session.staff.role, type)
+    : false;
 
   const buildPayload = (status: Document["status"] = "draft") => {
     // Ne pas écraser un statut « figé » (signé / envoyé / payé…) en brouillon

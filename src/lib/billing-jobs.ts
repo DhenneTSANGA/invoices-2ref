@@ -46,6 +46,7 @@ import {
   subscriptionDueDateFromIssue,
 } from "@/lib/subscription";
 import { sendDocumentEmailInternal } from "@/lib/send-document-email";
+import { recordAdminSignature } from "@/lib/letter-signature.functions";
 import { getResend } from "@/lib/resend";
 import {
   requireResendApiKey,
@@ -138,10 +139,17 @@ async function generateSubscriptionInvoice(
   todayUtc: Date,
   staff: StaffMember,
 ): Promise<{ number: string; id: string }> {
-  if (!["signed", "sent", "overdue"].includes(template.status)) {
-    throw new Error(
-      `Modèle ${template.number} non signé — signez et envoyez la facture modèle avant l'abonnement automatique`,
-    );
+  if (template.status === "cancelled") {
+    throw new Error(`Modèle ${template.number} annulé`);
+  }
+  // Modèle repassé en brouillon : signature automatique du cabinet.
+  if (template.status === "draft") {
+    await recordAdminSignature({
+      documentId: template.id,
+      cabinet: template.cabinet,
+      staffId: staff.id,
+      note: "Signature automatique du modèle d’abonnement",
+    });
   }
 
   const issueDate = todayUtc;

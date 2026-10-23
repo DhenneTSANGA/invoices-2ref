@@ -36,7 +36,7 @@ import {
   documentCanSendEmail,
 } from "@/components/documents/DocumentSignatureActions";
 import { SignedDocumentReadyBanner } from "@/components/documents/SignedDocumentReadyBanner";
-import { StatusBadge, statusLabel } from "@/components/common/StatusBadge";
+import { StatusBadge } from "@/components/common/StatusBadge";
 import { DocumentCreatorCard } from "@/components/documents/DocumentCreatorCard";
 import { DocumentPdfTracesPanel } from "@/components/documents/DocumentPdfTracesPanel";
 import { documentDetailRoute } from "@/lib/document-nav";
@@ -135,13 +135,6 @@ function InvoiceDetailPage() {
     canSubscribe &&
     !isSubscriptionTemplate &&
     (!doc.isSubscription || !doc.subscriptionActive);
-  const subscriptionTemplateReady = ["signed", "sent"].includes(doc.status);
-  const needsSignatureRecovery =
-    isSubscriptionTemplate &&
-    !subscriptionTemplateReady &&
-    doc.status !== "paid" &&
-    doc.status !== "cancelled";
-
   const patchStatus = (
     status: typeof doc.status,
     message: string,
@@ -340,28 +333,6 @@ function InvoiceDetailPage() {
       ) : null}
 
       {doc.status === "signed" && <SignedDocumentReadyBanner type={doc.type} />}
-
-      {needsSignatureRecovery && (
-        <div className="glass-panel mb-4 rounded-3xl border border-amber-500/30 bg-amber-500/10 p-4">
-          <h3 className="font-display text-sm font-semibold text-amber-950 dark:text-amber-100">
-            Modèle d&apos;abonnement — signature requise
-          </h3>
-          <p className="mt-1.5 text-sm leading-relaxed text-amber-900/90 dark:text-amber-100/90">
-            Le statut « {doc.status === "overdue" ? "En retard" : statusLabel(doc.status)} »
-            empêche la signature en ligne. Repassez la facture en brouillon, signez-la
-            puis envoyez-la pour débloquer la génération automatique.
-          </p>
-          <button
-            type="button"
-            onClick={() =>
-              patchStatus("draft", "Facture modèle repassée en brouillon")
-            }
-            className="mt-3 inline-flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
-          >
-            <Edit3 className="h-4 w-4" /> Repasser en brouillon pour signer
-          </button>
-        </div>
-      )}
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
         <aside className="space-y-4">

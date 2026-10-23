@@ -135,6 +135,15 @@ export function canEditInvoiceContent(
   return canWriteDocument(role, staffId, createdById);
 }
 
+/**
+ * Signature électronique (facture, devis, courrier) :
+ * tout administrateur / super admin signe tous les documents ;
+ * un membre ne signe que les devis.
+ */
+export function canSignDocument(role: AppRole, docType: string): boolean {
+  return isAdmin(role) || docType === "quotation";
+}
+
 export function roleLabel(role: AppRole): string {
   if (role === "super_admin") return "Super administrateur";
   if (role === "admin") return "Administrateur";

@@ -1519,10 +1519,20 @@ export const setInvoiceSubscription = createServerFn({ method: "POST" })
       );
     }
 
-    if (!["signed", "sent"].includes(existing.status)) {
-      throw new Error(
-        "Signez et envoyez la facture modèle avant d'activer l'abonnement automatique.",
+    if (existing.status === "cancelled") {
+      throw new Error("Facture annulée — abonnement impossible");
+    }
+    // Facture modèle encore en brouillon : signature automatique du cabinet.
+    if (existing.status === "draft") {
+      const { recordAdminSignature } = await import(
+        "@/lib/letter-signature.functions"
       );
+      await recordAdminSignature({
+        documentId: existing.id,
+        cabinet: existing.cabinet,
+        staffId: staff.id,
+        note: "Signature automatique à l’activation de l’abonnement",
+      });
     }
 
     const day = clampSubscriptionDay(data.dayOfMonth ?? existing.subscriptionDay ?? 1);

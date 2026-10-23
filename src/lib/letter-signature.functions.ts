@@ -3,7 +3,12 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { formatPrismaError } from "@/lib/prisma-errors";
 import { getCurrentSession } from "@/lib/session.functions";
-import { isAdmin, isSuperAdmin, canWriteDocument } from "@/lib/roles";
+import {
+  canSignDocument,
+  canWriteDocument,
+  isAdmin,
+  isSuperAdmin,
+} from "@/lib/roles";
 import { loadDocumentPoles } from "@/lib/client-pole-db";
 import { assertMemberCanAccessPole } from "@/lib/staff-pole";
 import { parseClientPole } from "@/lib/client-pole";
@@ -245,7 +250,7 @@ export async function recordAdminSignature(args: {
 
 /**
  * Signature électronique après consultation de l’aperçu.
- * Devis : tous les profils. Factures / lettres : admin / SA uniquement.
+ * Devis : tous les profils. Factures / lettres : tout administrateur / SA.
  * Applique le cachet cabinet (stampUrl + managerName) via le statut signed.
  */
 export const signLetterDocument = createServerFn({ method: "POST" })
@@ -265,14 +270,10 @@ export const signLetterDocument = createServerFn({ method: "POST" })
       activeCabinet,
       includeCreatedBy: true,
     });
-    const isQuotation = doc.type === "quotation";
-    if (!isAdmin(staff.role) && !isQuotation) {
+    if (!canSignDocument(staff.role, doc.type)) {
       throw new Error(
-        "Seuls l’administrateur (gérant) ou le super admin peuvent signer ce type de document",
+        "Seuls les administrateurs ou le super admin peuvent signer ce type de document",
       );
-    }
-    if (!isSuperAdmin(staff.role) && doc.cabinet !== activeCabinet) {
-      throw new Error("Ce document appartient à un autre cabinet");
     }
     if (doc.status === "signed" || doc.status === "sent" || doc.status === "paid") {
       throw new Error("Ce document est déjà signé ou finalisé");
