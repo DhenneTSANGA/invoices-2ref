@@ -968,7 +968,7 @@ function ObjectivesChart({
         {period === "week"
           ? "Cible de la semaine = objectif du mois × 7 / nombre de jours du mois."
           : period === "year"
-            ? "Cibles = objectifs mensuels cumulés de janvier au mois en cours."
+            ? "Cible annuelle = somme des 12 objectifs mensuels (l’objectif en vigueur pour les mois sans cible)."
             : "Cibles = objectifs du mois fixés par la direction."}
       </p>
     </CrmCard>

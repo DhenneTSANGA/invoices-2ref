@@ -187,10 +187,10 @@ export async function computeTeamPulse(
             where: {
               managerId: { in: ids },
               cabinet,
-              // Année : objectifs de janvier jusqu’au mois en cours (cumulés).
-              month: period === "year" ? { gte: `${year}-01`, lte: month } : month,
+              // Année : tous les objectifs saisis jusqu’en décembre (reportés sur les mois sans cible).
+              month: period === "year" ? { lte: `${year}-12` } : month,
             },
-            select: { managerId: true, metric: true, target: true },
+            select: { managerId: true, metric: true, target: true, month: true },
           }),
           loadManagerInvoices(ids, cabinet),
         ]);
@@ -255,7 +255,19 @@ export async function computeTeamPulse(
 
   const target = (managerId: string, metric: string) => {
     const mine = objectives.filter((o) => o.managerId === managerId && o.metric === metric);
-    if (period === "year") return mine.reduce((s, o) => s + o.target, 0);
+    if (period === "year") {
+      // Objectif annuel = 12 objectifs mensuels : celui saisi pour le mois, sinon le
+      // dernier en vigueur avant (ou, pour les mois antérieurs au premier, le premier saisi).
+      const byMonth = [...mine].sort((a, z) => a.month.localeCompare(z.month));
+      if (byMonth.length === 0) return 0;
+      let total = 0;
+      for (let mm = 1; mm <= 12; mm++) {
+        const key = `${year}-${String(mm).padStart(2, "0")}`;
+        const inForce = byMonth.filter((o) => o.month <= key).at(-1) ?? byMonth[0];
+        total += inForce.target;
+      }
+      return total;
+    }
     const monthly = mine[0]?.target;
     if (!monthly) return 0;
     return period === "month" ? monthly : Math.round(((monthly * 7) / monthDays) * 10) / 10;
