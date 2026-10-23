@@ -81,7 +81,11 @@ export async function persistInvoicePaidAt(id: string, paidAt: Date) {
 }
 
 export type ManagerInvoice = {
+  id: string;
   managerId: string;
+  number: string;
+  clientName: string;
+  issueDate: Date;
   total: number;
   deposit: number;
   status: string;
@@ -92,16 +96,19 @@ export type ManagerInvoice = {
 export async function loadManagerInvoices(managerIds: string[], cabinet: Cabinet): Promise<ManagerInvoice[]> {
   if (managerIds.length === 0) return [];
   try {
-    const rows = await prisma.$queryRaw<
-      { managerId: string; total: number; deposit: number; status: string; paidAt: Date | null }[]
-    >`
-      SELECT COALESCE(d."prospectionManagerId", p."prospectionManagerId") AS "managerId",
+    const rows = await prisma.$queryRaw<ManagerInvoice[]>`
+      SELECT d.id,
+             COALESCE(d."prospectionManagerId", p."prospectionManagerId") AS "managerId",
+             d."number" AS "number",
+             c."name" AS "clientName",
+             d."issueDate" AS "issueDate",
              d."total"::float8 AS "total",
              d."deposit"::float8 AS "deposit",
              d."status"::text AS "status",
              d."paidAt" AS "paidAt"
       FROM "documents" d
       LEFT JOIN "documents" p ON p.id = d."subscriptionOfId"
+      JOIN "clients" c ON c.id = d."clientId"
       WHERE d."type" = 'invoice'
         AND d."cabinet"::text = ${cabinet}
         AND d."status"::text IN ('paid', 'sent', 'overdue', 'signed')

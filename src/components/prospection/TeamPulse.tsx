@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { ArrowDownRight, ArrowUpRight, CheckCircle2, Minus, Users } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, CheckCircle2, Minus, Receipt, Users } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { animate, motion, useReducedMotion } from "framer-motion";
 import { CrmCard, EntityMark, IconMark, personAccent } from "@/components/prospection/CrmCards";
@@ -7,6 +7,7 @@ import { TeamTrend } from "@/components/prospection/TeamTrend";
 import { getCrmTeamPulse } from "@/lib/prospection.functions";
 import type {
   TeamPulseCounts,
+  TeamPulseInvoice,
   TeamPulseManager,
   TeamPulsePeriod,
   TeamPulseTargets,
@@ -238,6 +239,7 @@ function sumCounts(list: TeamPulseCounts[]): TeamPulseCounts {
       actions: t.actions + c.actions,
       signedAmount: t.signedAmount + c.signedAmount,
       collectedAmount: t.collectedAmount + (c.collectedAmount ?? 0),
+      invoicedAmount: t.invoicedAmount + (c.invoicedAmount ?? 0),
     }),
     {
       qualified: 0,
@@ -248,6 +250,7 @@ function sumCounts(list: TeamPulseCounts[]): TeamPulseCounts {
       actions: 0,
       signedAmount: 0,
       collectedAmount: 0,
+      invoicedAmount: 0,
     },
   );
 }
@@ -498,10 +501,13 @@ export function TeamPulse({ refreshKey }: { refreshKey: string }) {
           )}
           <p className="mt-3 text-[11px] text-muted-foreground">
             Chiffres {copy.of} en cours, réalisé / cible de chaque étape ; la part indique le poids
-            de chacun dans le CA signé par l’équipe. Les clients et le détail des affaires restent
-            privés.
+            de chacun dans le CA signé par l’équipe. Le détail des affaires de chacun reste privé.
           </p>
         </CrmCard>
+
+        {data.invoices?.length ? (
+          <ManagerInvoices invoices={data.invoices} managers={ranked} periodOf={copy.of} />
+        ) : null}
 
         {self ? (
           <ObjectivesChart self={self} team={ranked} updated={updated} period={data.period} />
@@ -605,9 +611,24 @@ function ManagerCard({
         <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-background/80">
           <GrowBar pct={m.revenueShare} className={cn("bg-gradient-to-r", accent.bar)} delay={delay + 0.2} />
         </div>
-        {/* Encaissé : factures payées dont il est le manager apporteur (Facturation). */}
+        {/* Facturé puis encaissé : factures dont il est le manager apporteur (Facturation). */}
+        <div className="mt-3 flex items-baseline justify-between gap-2 border-t border-border/50 pt-2.5 text-sm">
+          <span className="text-muted-foreground">Facturé</span>
+          <span
+            className={cn(
+              "tabular-nums",
+              (m.current.invoicedAmount ?? 0) > 0 ? "font-semibold" : "text-muted-foreground",
+            )}
+          >
+            <CountUp
+              value={m.current.invoicedAmount ?? 0}
+              format={(n) => currency(Math.round(n))}
+              delay={delay + 0.15}
+            />
+          </span>
+        </div>
         <div
-          className="mt-3 flex items-baseline justify-between gap-2 border-t border-border/50 pt-2.5 text-sm"
+          className="mt-1 flex items-baseline justify-between gap-2 text-sm"
           title={`${share(m.current.collectedAmount ?? 0, team.collectedAmount)} % de l’encaissé de l’équipe ${periodOf}`}
         >
           <span className="text-muted-foreground">Encaissé</span>
@@ -689,6 +710,110 @@ function ManagerCard({
         </span>
       </div>
     </motion.li>
+  );
+}
+
+const INVOICE_STATUS: Record<string, { label: string; className: string }> = {
+  paid: { label: "Payée", className: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" },
+  sent: { label: "Envoyée", className: "bg-sky-500/15 text-sky-800 dark:text-sky-300" },
+  signed: { label: "Signée", className: "bg-indigo-500/15 text-indigo-700 dark:text-indigo-300" },
+  overdue: { label: "En retard", className: "bg-danger/10 text-danger" },
+};
+
+/** Qui a fait rentrer quoi : factures de la période par manager apporteur (Facturation). */
+function ManagerInvoices({
+  invoices,
+  managers,
+  periodOf,
+}: {
+  invoices: TeamPulseInvoice[];
+  managers: { id: string; name: string }[];
+  periodOf: string;
+}) {
+  const groups = managers
+    .map((m) => ({ manager: m, rows: invoices.filter((f) => f.managerId === m.id) }))
+    .filter((g) => g.rows.length > 0);
+  const day = (iso: string) =>
+    new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", timeZone: "UTC" }).format(
+      new Date(iso.length === 10 ? `${iso}T12:00:00.000Z` : iso),
+    );
+
+  return (
+    <CrmCard>
+      <div className="flex items-start gap-3">
+        <IconMark icon={Receipt} tone="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" />
+        <div>
+          <h3 className="font-display text-base font-semibold">Factures des managers</h3>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            Factures {periodOf} (émises ou encaissées) et celles restant à encaisser, par manager
+            apporteur.
+          </p>
+        </div>
+      </div>
+      <div className="mt-4 space-y-5">
+        {groups.map(({ manager, rows }) => {
+          const paid = rows.filter((f) => f.status === "paid").reduce((s, f) => s + f.total, 0);
+          const due = rows.reduce((s, f) => s + f.due, 0);
+          return (
+            <section key={manager.id}>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                <div className="flex items-center gap-2">
+                  <EntityMark name={manager.name} size="sm" />
+                  <span className="font-semibold">{manager.name}</span>
+                </div>
+                <span className="text-sm text-muted-foreground">
+                  Encaissé{" "}
+                  <span className="font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">
+                    {currency(paid)}
+                  </span>
+                </span>
+                {due > 0 ? (
+                  <span className="text-sm text-muted-foreground">
+                    Reste à encaisser <span className="font-semibold tabular-nums text-foreground">{currency(due)}</span>
+                  </span>
+                ) : null}
+              </div>
+              <div className="-mx-1 mt-2 overflow-x-auto px-1">
+                <table className="w-full min-w-[36rem] text-sm">
+                  <thead className="text-xs uppercase tracking-wider text-muted-foreground">
+                    <tr>
+                      <th className="py-2 pr-3 text-left font-semibold">Facture</th>
+                      <th className="px-3 py-2 text-left font-semibold">Client</th>
+                      <th className="px-3 py-2 text-left font-semibold">Émise le</th>
+                      <th className="px-3 py-2 text-right font-semibold">Montant</th>
+                      <th className="py-2 pl-3 text-left font-semibold">Statut</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((f) => {
+                      const st = INVOICE_STATUS[f.status] ?? { label: f.status, className: "bg-muted text-muted-foreground" };
+                      return (
+                        <tr key={f.id} className="border-t border-border/50">
+                          <td className="py-2.5 pr-3 font-medium tabular-nums">{f.number}</td>
+                          <td className="max-w-[14rem] truncate px-3 py-2.5" title={f.clientName}>
+                            {f.clientName}
+                          </td>
+                          <td className="px-3 py-2.5 tabular-nums text-muted-foreground">{day(f.issueDate)}</td>
+                          <td className="px-3 py-2.5 text-right font-semibold tabular-nums">{currency(f.total)}</td>
+                          <td className="py-2.5 pl-3">
+                            <span className={cn("inline-flex rounded-full px-2 py-0.5 text-xs font-semibold", st.className)}>
+                              {st.label}
+                            </span>
+                            {f.status === "paid" && f.paidAt ? (
+                              <span className="ml-2 text-xs text-muted-foreground">le {day(f.paidAt)}</span>
+                            ) : null}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          );
+        })}
+      </div>
+    </CrmCard>
   );
 }
 

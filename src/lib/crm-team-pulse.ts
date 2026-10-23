@@ -18,6 +18,22 @@ export type TeamPulseCounts = {
   signedAmount: number;
   /** Factures encaissées sur la période (Facturation, manager apporteur). */
   collectedAmount: number;
+  /** Factures émises sur la période (hors brouillons et annulées). */
+  invoicedAmount: number;
+};
+
+/** Facture rattachée à un manager, affichée dans la Prospection. */
+export type TeamPulseInvoice = {
+  id: string;
+  managerId: string;
+  number: string;
+  clientName: string;
+  issueDate: string;
+  total: number;
+  /** Reste dû (acompte déduit) ; 0 si payée. */
+  due: number;
+  status: string;
+  paidAt: string | null;
 };
 
 export type TeamPulseTargets = Pick<
@@ -45,9 +61,17 @@ export type TeamPulse = {
   generatedAt: string;
   selfId: string;
   managers: TeamPulseManager[];
+  /** Factures de la période (émises ou encaissées) et toutes celles restant à encaisser. */
+  invoices: TeamPulseInvoice[];
 };
 
 const PULSE_CONTACT_KINDS = new Set(["appel", "email", "visite"]);
+
+/** Facture émise entre deux jours (AAAA-MM-JJ, bornes incluses). */
+function issuedIn(issueDate: Date, fromIso: string, toIso: string) {
+  const iso = issueDate.toISOString().slice(0, 10);
+  return iso >= fromIso && iso <= toIso;
+}
 
 function daysInMonth(year: number, month1: number) {
   return new Date(Date.UTC(year, month1, 0)).getUTCDate();
@@ -198,8 +222,31 @@ export async function computeTeamPulse(
       collectedAmount: invoices
         .filter((f) => f.managerId === managerId && f.status === "paid" && inRange(f.paidAt))
         .reduce((s, f) => s + f.total, 0),
+      invoicedAmount: invoices
+        .filter((f) => f.managerId === managerId && issuedIn(f.issueDate, fromIso, toIso))
+        .reduce((s, f) => s + f.total, 0),
     };
   };
+
+  const periodInvoices: TeamPulseInvoice[] = invoices
+    .filter(
+      (f) =>
+        f.status !== "paid" ||
+        issuedIn(f.issueDate, b.startIso, b.today) ||
+        Boolean(f.paidAt && f.paidAt >= b.start && f.paidAt <= now),
+    )
+    .sort((a, z) => z.issueDate.getTime() - a.issueDate.getTime())
+    .map((f) => ({
+      id: f.id,
+      managerId: f.managerId,
+      number: f.number,
+      clientName: f.clientName,
+      issueDate: f.issueDate.toISOString().slice(0, 10),
+      total: f.total,
+      due: f.status === "paid" ? 0 : Math.max(0, f.total - f.deposit),
+      status: f.status,
+      paidAt: f.paidAt ? f.paidAt.toISOString() : null,
+    }));
 
   const outstanding = (managerId: string) =>
     invoices
@@ -233,6 +280,7 @@ export async function computeTeamPulse(
       },
       outstanding: outstanding(m.id),
     })),
+    invoices: periodInvoices,
   };
 }
 
