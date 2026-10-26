@@ -10,6 +10,7 @@ import { currency, shortDate } from "@/lib/format";
 import { canAccessDashboard } from "@/lib/roles";
 import { CABINET_LABELS } from "@/lib/cabinets";
 import type { AppSession } from "@/lib/session.functions";
+import { compareDocumentsNewestFirst } from "@/lib/document-order";
 
 export const Route = createFileRoute("/_app/home")({
   head: () => ({ meta: [{ title: "Accueil — 2R Hub" }] }),
@@ -39,7 +40,7 @@ function HomePage() {
 
   const mine = documents.filter((d) => d.createdById === session?.staff.id);
   const recent = [...documents]
-    .sort((a, b) => b.issueDate.localeCompare(a.issueDate))
+    .sort(compareDocumentsNewestFirst)
     .slice(0, 8);
 
   return (

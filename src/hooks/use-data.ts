@@ -61,6 +61,7 @@ import type { Cabinet } from "@/lib/cabinets";
 import type { z } from "zod";
 import type { clientInputSchema, documentInputSchema, companyInputSchema, serviceInputSchema } from "@/lib/auth-schemas";
 import { clientEmails } from "@/lib/client-emails";
+import { sortDocumentsNewestFirst } from "@/lib/document-order";
 import { pickRecipients } from "@/components/documents/RecipientPicker";
 
 export const sessionKey = ["session"] as const;
@@ -205,6 +206,7 @@ export function useDocuments(
       listDocuments({
         data: { type, ...(cabinetScope ? { cabinetScope } : {}) },
       }),
+    select: sortDocumentsNewestFirst,
     staleTime: 60_000,
   });
 }
@@ -212,7 +214,7 @@ export function useDocuments(
 function mergeDocumentsById(docs: Document[]): Document[] {
   const map = new Map<string, Document>();
   for (const d of docs) map.set(d.id, d);
-  return Array.from(map.values());
+  return sortDocumentsNewestFirst(Array.from(map.values()));
 }
 
 /**
@@ -255,6 +257,7 @@ export function useAllDocuments(
       listAllDocuments({
         data: { type, ...(cabinetScope ? { cabinetScope } : {}) },
       }),
+    select: sortDocumentsNewestFirst,
     staleTime: 60_000,
   });
 

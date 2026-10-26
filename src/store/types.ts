@@ -173,6 +173,8 @@ export type Document = {
   createdBy?: StaffMember;
   status: DocumentStatus;
   issueDate: string;
+  /** Date de création (ISO) : départage les documents émis le même jour. */
+  createdAt?: string;
   /** Optionnel — vide = aucune échéance affichée. */
   dueDate?: string | null;
   items: LineItem[];

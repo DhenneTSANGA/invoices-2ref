@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { Eye, FileText, Plus, Search, Send, Banknote, XCircle, CheckCircle2, Ban, Mails, Repeat, Trash2, HandCoins } from "lucide-react";
+import { Eye, FileText, Plus, Search, Send, Banknote, XCircle, CheckCircle2, Ban, Mails, Repeat, Trash2, HandCoins, Download, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -38,6 +38,7 @@ import {
   useSendDocumentEmail,
   useProcessDueSubscriptions,
   useDeleteDocument,
+  useDownloadDocumentPdf,
 } from "@/hooks/use-data";
 
 import { FancySelect } from "@/components/common/FancySelect";
@@ -89,6 +90,8 @@ export function DocumentsList({ type }: { type: DocumentType }) {
   const setDepositMutation = useSetInvoiceDeposit();
   const sendEmailMutation = useSendDocumentEmail();
   const deleteDocument = useDeleteDocument();
+  const downloadPdf = useDownloadDocumentPdf();
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const processSubs = useProcessDueSubscriptions();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string>("all");
@@ -469,6 +472,35 @@ export function DocumentsList({ type }: { type: DocumentType }) {
                         {d.status !== "cancelled" && (
                           <ActionBtn title="Annuler" onClick={() => setStatusWithToast(d.id, "cancelled", d.number)} className={row.actionBtn}>
                             <Ban className="h-4 w-4" />
+                          </ActionBtn>
+                        )}
+                        {d.status !== "cancelled" && (
+                          <ActionBtn
+                            title="Télécharger le PDF"
+                            onClick={() => {
+                              if (downloadingId) return;
+                              setDownloadingId(d.id);
+                              const toastId = toast.loading(`Génération du PDF — ${d.number}…`);
+                              downloadPdf.mutate(
+                                { doc: d },
+                                {
+                                  onSuccess: () => toast.success("PDF téléchargé", { id: toastId }),
+                                  onError: (err) =>
+                                    toast.error("Impossible de générer le PDF", {
+                                      id: toastId,
+                                      description: err instanceof Error ? err.message : undefined,
+                                    }),
+                                  onSettled: () => setDownloadingId(null),
+                                },
+                              );
+                            }}
+                            className={row.actionBtn}
+                          >
+                            {downloadingId === d.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Download className="h-4 w-4" />
+                            )}
                           </ActionBtn>
                         )}
                         <Link

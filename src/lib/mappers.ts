@@ -199,6 +199,7 @@ export function mapDocument(row: {
   status: Document["status"];
   issueDate: Date;
   dueDate: Date | null;
+  createdAt?: Date;
   subtotal: Decimal;
   discount?: Decimal;
   tps: Decimal;
@@ -298,6 +299,7 @@ export function mapDocument(row: {
   return {
     id: row.id,
     cabinet: row.cabinet,
+    createdAt: row.createdAt?.toISOString(),
     type: row.type,
     number: row.number,
     clientId: row.clientId,

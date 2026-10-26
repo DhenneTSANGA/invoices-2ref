@@ -43,6 +43,7 @@ import {
   type AmountBasis,
 } from "@/lib/dashboard-metrics";
 import { cn } from "@/lib/utils";
+import { compareDocumentsNewestFirst } from "@/lib/document-order";
 
 export const Route = createFileRoute("/_app/dashboard")({
   head: () => ({
@@ -234,7 +235,7 @@ function Dashboard() {
   ];
 
   const recent = [...documents]
-    .sort((a, b) => b.issueDate.localeCompare(a.issueDate))
+    .sort(compareDocumentsNewestFirst)
     .slice(0, 6);
 
   return (

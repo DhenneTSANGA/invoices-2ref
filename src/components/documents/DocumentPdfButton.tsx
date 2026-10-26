@@ -20,6 +20,10 @@ type Props = {
   prepare?: () => Promise<Document | null>;
 };
 
+function isPersistedDocId(id: string | undefined): boolean {
+  return Boolean(id) && !/^(d|tmp|tpl)-/.test(id!);
+}
+
 function documentIsElectronicallySigned(doc: Document): boolean {
   return (
     doc.status === "signed" ||
@@ -52,9 +56,13 @@ export function DocumentPdfButton({
   const showDraftSignedPreview =
     Boolean(session && isAdmin(session.staff.role)) && !alreadySigned;
 
+  // Document déjà enregistré et sorti du brouillon (signé, envoyé, payé…) :
+  // téléchargement direct, sans réenregistrement (qui pouvait bloquer le PDF).
+  const needsPrepare = Boolean(prepare) && (!isPersistedDocId(doc.id) || doc.status === "draft");
+
   const run = async (includeSignature: boolean) => {
     let target = doc;
-    if (prepare) {
+    if (prepare && needsPrepare) {
       if (preparingRef.current) return;
       preparingRef.current = true;
       setPreparing(true);

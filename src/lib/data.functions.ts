@@ -120,6 +120,7 @@ import {
 } from "@/lib/document-prospection-db";
 import { clientAllowsSubscription } from "@/lib/client-billing";
 import { normalizeExtraEmails } from "@/lib/client-emails";
+import { DOCUMENT_NEWEST_FIRST } from "@/lib/document-order";
 import {
   loadClientExtraEmails,
   persistClientExtraEmails,
@@ -723,7 +724,7 @@ export const listDocuments = createServerFn({ method: "GET" })
     const rows = await prisma.document.findMany({
       where: cabinetDocWhere(cabinet, data.type),
       include: docInclude,
-      orderBy: { issueDate: "desc" },
+      orderBy: DOCUMENT_NEWEST_FIRST,
     });
     return filterByMemberPole(session.staff, await mappedDocuments(rows));
   });
@@ -742,7 +743,7 @@ export const listAllDocuments = createServerFn({ method: "GET" })
     const rows = await prisma.document.findMany({
       where: cabinetDocWhere(cabinet, data.type),
       include: docInclude,
-      orderBy: { issueDate: "desc" },
+      orderBy: DOCUMENT_NEWEST_FIRST,
     });
     return filterByMemberPole(session.staff, await mappedDocuments(rows));
   });
@@ -1866,7 +1867,7 @@ export const listArchivedDocuments = createServerFn({ method: "GET" }).handler(
         ],
       },
       include: docInclude,
-      orderBy: { issueDate: "desc" },
+      orderBy: DOCUMENT_NEWEST_FIRST,
     });
     return filterByMemberPole(staff, await mappedDocuments(rows));
   },

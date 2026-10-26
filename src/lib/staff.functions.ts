@@ -53,7 +53,7 @@ export const listDocumentsForStaff = createServerFn({ method: "GET" })
         createdBy: true,
         lines: { orderBy: { position: "asc" } },
       },
-      orderBy: { issueDate: "desc" },
+      orderBy: [{ issueDate: "desc" }, { createdAt: "desc" }, { number: "desc" }],
     });
     return rows.map(mapDocument);
   });
