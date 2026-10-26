@@ -6,8 +6,9 @@ import {
   useRouter,
   HeadContent,
   Scripts,
+  type ErrorComponentProps,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -16,6 +17,11 @@ import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { Toaster } from "@/components/ui/sonner";
 import { RecipientPickerHost } from "@/components/documents/RecipientPicker";
 import { formatPrismaError } from "@/lib/prisma-errors";
+import {
+  installStaleChunkHandler,
+  isStaleChunkError,
+  reloadForNewVersion,
+} from "@/lib/stale-chunk";
 
 function NotFoundComponent() {
   const path =
@@ -67,12 +73,31 @@ function NotFoundComponent() {
   );
 }
 
-function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
-  console.error(error);
+function ErrorComponent({ error: rawError, reset }: ErrorComponentProps) {
+  const error = rawError instanceof Error ? rawError : new Error(String(rawError));
+  const staleChunk = isStaleChunkError(error);
+  // Nouvelle version déployée : rechargement automatique (une fois) au lieu de l'erreur.
+  const [reloading, setReloading] = useState(staleChunk);
+  if (!staleChunk) console.error(error);
   const router = useRouter();
   useEffect(() => {
+    if (staleChunk) {
+      if (!reloadForNewVersion()) setReloading(false);
+      return;
+    }
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
-  }, [error]);
+  }, [error, staleChunk]);
+
+  if (reloading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+        <div className="flex flex-col items-center gap-3 text-center">
+          <span className="h-8 w-8 animate-spin rounded-full border-2 border-primary/25 border-t-primary" />
+          <p className="text-sm text-muted-foreground">Mise à jour de l’application…</p>
+        </div>
+      </div>
+    );
+  }
 
   const msg = String(error?.message ?? "");
   const isDb =
@@ -81,7 +106,9 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
     msg.includes("PrismaClientInitializationError");
   const detail = isDb
     ? "Impossible de joindre la base Supabase. Vérifiez que le projet n’est pas en pause, puis réessayez."
-    : formatPrismaError(error, "Réessayez ou retournez à l'accueil.");
+    : staleChunk
+      ? "Une nouvelle version de l’application est disponible. Rechargez la page."
+      : formatPrismaError(error, "Réessayez ou retournez à l'accueil.");
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -90,7 +117,14 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
         <p className="mt-2 text-sm text-muted-foreground">{detail}</p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
-            onClick={() => { router.invalidate(); reset(); }}
+            onClick={() => {
+              if (staleChunk) {
+                window.location.reload();
+                return;
+              }
+              router.invalidate();
+              reset();
+            }}
             className="rounded-[14px] bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow"
           >
             Réessayer
@@ -156,6 +190,7 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  useEffect(() => installStaleChunkHandler(), []);
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
