@@ -20,6 +20,15 @@ type Props = {
   prepare?: () => Promise<Document | null>;
 };
 
+function documentIsElectronicallySigned(doc: Document): boolean {
+  return (
+    doc.status === "signed" ||
+    doc.status === "sent" ||
+    doc.status === "paid" ||
+    doc.status === "accepted"
+  );
+}
+
 function isPersistedDocId(id: string | undefined): boolean {
   return Boolean(id) && !/^(d|tmp|tpl)-/.test(id!);
 }
@@ -28,7 +37,8 @@ function isPersistedDocId(id: string | undefined): boolean {
  * Téléchargement PDF.
  * - « PDF » : tous les utilisateurs, tout statut — sans signature électronique
  *   (espace pour paraphe manuscrit).
- * - « PDF signé » : administrateurs / super admin — avec signature électronique.
+ * - « PDF signé » : tous les utilisateurs dès que le document est signé
+ *   (signé / envoyé / payé / accepté) ; administrateurs / super admin : toujours.
  */
 export function DocumentPdfButton({
   doc,
@@ -45,7 +55,9 @@ export function DocumentPdfButton({
   // Verrou synchrone : un double clic ne crée pas deux documents.
   const preparingRef = useRef(false);
   const busy = downloadPdfMutation.isPending || preparing;
-  const showSignedPdf = Boolean(session && isAdmin(session.staff.role));
+  const showSignedPdf =
+    documentIsElectronicallySigned(doc) ||
+    Boolean(session && isAdmin(session.staff.role));
 
   // Document déjà enregistré et sorti du brouillon (signé, envoyé, payé…) :
   // téléchargement direct, sans réenregistrement (qui pouvait bloquer le PDF).
@@ -129,7 +141,7 @@ export function DocumentPdfButton({
           <button
             type="button"
             disabled={busy}
-            title="PDF avec signature électronique (administrateurs)"
+            title="PDF avec signature électronique"
             onClick={() => void run(true)}
             className={cn(
               "inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60",
@@ -161,7 +173,7 @@ export function DocumentPdfButton({
           variant="outline"
           size={size}
           disabled={busy}
-          title="PDF avec signature électronique (administrateurs)"
+          title="PDF avec signature électronique"
           className={cn("rounded-xl", className)}
           onClick={() => void run(true)}
         >
