@@ -249,7 +249,7 @@ function ProspectDetailPage() {
         </div>
         <ul className="mt-4 grid gap-2 sm:grid-cols-2">
           {steps.map((step) => (
-            <li key={step.title} className="flex items-center justify-between gap-3 rounded-2xl bg-muted/45 px-3 py-2.5">
+            <li key={step.title} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-muted/45 px-3 py-2.5">
               <div className="flex min-w-0 items-start gap-2.5">
                 <span
                   className={cn(
@@ -339,7 +339,7 @@ function ProspectDetailPage() {
         </CrmCard>
 
         <CrmCard>
-          <div className="flex items-start justify-between gap-2">
+          <div className="flex flex-wrap items-start justify-between gap-2">
             <div className="flex items-start gap-3">
               <IconMark icon={UserRound} tone="bg-sky-500/15 text-sky-800 dark:text-sky-300" />
               <div>
@@ -443,7 +443,7 @@ function ProspectDetailPage() {
 
       <div className="mb-5 grid gap-4 lg:grid-cols-2">
         <CrmCard>
-          <div className="flex items-start justify-between gap-2">
+          <div className="flex flex-wrap items-start justify-between gap-2">
             <h2 className="font-display text-base font-semibold">Opportunités</h2>
             <button type="button" className="text-xs font-semibold text-primary hover:underline" onClick={() => openDeal()}>
               Nouvelle
@@ -463,7 +463,7 @@ function ProspectDetailPage() {
                 <li key={o.id} className="rounded-2xl bg-muted/45 px-3 py-2.5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-sm font-semibold">{o.title}</span>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <StageBadge stage={o.stage} />
                       <button
                         type="button"
@@ -502,7 +502,7 @@ function ProspectDetailPage() {
         </CrmCard>
 
         <CrmCard>
-          <div className="flex items-start justify-between gap-2">
+          <div className="flex flex-wrap items-start justify-between gap-2">
             <h2 className="font-display text-base font-semibold">Journal</h2>
             <button type="button" className="text-xs font-semibold text-primary hover:underline" onClick={() => openActivity()}>
               Noter
@@ -524,7 +524,7 @@ function ProspectDetailPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="text-sm font-semibold">{a.title}</span>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <ActivityStatusBadge status={a.status} />
                         <button
                           type="button"
@@ -563,7 +563,7 @@ function ProspectDetailPage() {
             </ul>
           )}
           <div className="mt-4">
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Pistes internes</p>
               <button type="button" className="text-xs font-semibold text-primary hover:underline" onClick={() => setLeadOpen(true)}>
                 Signaler
@@ -611,7 +611,7 @@ function ProspectDetailPage() {
       </div>
 
       <CrmCard>
-        <div className="flex items-start justify-between gap-2">
+        <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="flex items-start gap-3">
             <IconMark icon={FileText} tone="bg-violet-500/15 text-violet-700 dark:text-violet-300" />
             <div>

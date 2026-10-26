@@ -157,7 +157,7 @@ function LibraryPage() {
                     {LIBRARY_DOMAIN_LABELS[item.line]}
                     {item.terms?.length ? ` · ${item.terms.length} termes` : ""}
                   </p>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
                       className={CRM_SECONDARY_BTN + " !px-3 !py-1.5 !text-xs"}

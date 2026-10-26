@@ -310,7 +310,7 @@ function ProspectionHomePage() {
         </CrmCard>
 
         <CrmCard className="h-full">
-          <div className="flex items-start justify-between gap-2">
+          <div className="flex flex-wrap items-start justify-between gap-2">
             <div className="flex items-start gap-3">
               <IconMark icon={Target} tone="bg-violet-500/15 text-violet-700 dark:text-violet-300" />
               <div>
@@ -405,7 +405,7 @@ function ProspectionHomePage() {
 
       {crm !== "collaborateur" ? (
         <section className="mb-5">
-          <div className="mb-3 flex items-center justify-between gap-2">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h3 className="font-display font-semibold">Port-Gentil — 6 clients</h3>
             <Link to="/prospection/port-gentil" className="text-xs font-semibold text-primary hover:underline">
               Ouvrir

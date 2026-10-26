@@ -226,7 +226,7 @@ function CrmClientDetailPage() {
         </CrmCard>
 
         <CrmCard>
-          <div className="flex items-start justify-between gap-2">
+          <div className="flex flex-wrap items-start justify-between gap-2">
             <div className="flex items-start gap-3">
               <IconMark icon={UserRound} tone="bg-sky-500/15 text-sky-800 dark:text-sky-300" />
               <div>
@@ -306,7 +306,7 @@ function CrmClientDetailPage() {
       </CrmCard>
 
       <CrmCard className="mb-5">
-        <div className="flex items-start justify-between gap-2">
+        <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="flex items-start gap-3">
             <IconMark icon={FileText} tone="bg-violet-500/15 text-violet-700 dark:text-violet-300" />
             <div>
@@ -341,7 +341,7 @@ function CrmClientDetailPage() {
 
       <div className="mb-5 grid gap-4 lg:grid-cols-2">
         <CrmCard>
-          <div className="flex items-start justify-between gap-2">
+          <div className="flex flex-wrap items-start justify-between gap-2">
             <h2 className="font-display text-base font-semibold">Opportunités</h2>
             <button type="button" className="text-xs font-semibold text-primary hover:underline" onClick={() => setOppOpen(true)}>
               Nouvelle
@@ -378,7 +378,7 @@ function CrmClientDetailPage() {
         </CrmCard>
 
         <CrmCard>
-          <div className="flex items-start justify-between gap-2">
+          <div className="flex flex-wrap items-start justify-between gap-2">
             <h2 className="font-display text-base font-semibold">Activités</h2>
             <button type="button" className="text-xs font-semibold text-primary hover:underline" onClick={() => setActivityOpen(true)}>
               Noter

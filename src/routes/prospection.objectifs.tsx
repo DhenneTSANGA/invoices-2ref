@@ -49,7 +49,7 @@ function ObjectivesPage() {
         title="Objectifs"
         subtitle="Objectifs mensuels de toute l’équipe — Objectif → Réalisé du mois → % → Écart."
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-1 rounded-xl border border-border/60 bg-surface px-1 py-1">
               <button
                 type="button"

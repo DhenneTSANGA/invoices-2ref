@@ -123,7 +123,7 @@ export function SignaturePad({
         <p className="text-xs text-muted-foreground">
           Signez au stylet ou à la souris dans le cadre.
         </p>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button
             type="button"
             variant="outline"

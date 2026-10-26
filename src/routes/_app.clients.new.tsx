@@ -179,7 +179,7 @@ function NewClient() {
             value={form.billingProfile}
             onChange={(billingProfile) => setForm({ ...form, billingProfile })}
           />
-          <div className="flex justify-between">
+          <div className="flex flex-wrap gap-2 justify-between">
             <button
               type="button"
               onClick={() => setStep(1)}
@@ -391,7 +391,7 @@ function NewClient() {
           />
         </Section>
 
-        <div className="flex justify-end gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
           <button
             type="button"
             onClick={() => setStep(2)}

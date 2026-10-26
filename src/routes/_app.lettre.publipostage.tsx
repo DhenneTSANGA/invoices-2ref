@@ -513,7 +513,7 @@ function MailMergePage() {
         <>
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-stretch">
             <div className="glass-panel flex min-h-[28rem] flex-col gap-3 rounded-3xl p-5 lg:min-h-[calc(100vh-11rem)]">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap gap-2 items-center justify-between">
                 <h3 className="flex items-center gap-2 font-display font-semibold">
                   <Users className="h-4 w-4" /> Destinataires
                   <span className="text-xs font-normal text-muted-foreground">
@@ -553,7 +553,7 @@ function MailMergePage() {
                     <Field label="RCCM {{rccm}}" value={guestDraft.rccm} onChange={(v) => setGuestDraft({ ...guestDraft, rccm: v })} />
                     <Field label="Activité {{activite}}" value={guestDraft.activity} onChange={(v) => setGuestDraft({ ...guestDraft, activity: v })} />
                   </div>
-                  <div className="flex justify-end gap-2">
+                  <div className="flex flex-wrap justify-end gap-2">
                     <Button type="button" variant="outline" size="sm" className="rounded-xl" onClick={() => setShowGuestForm(false)}>
                       Annuler
                     </Button>

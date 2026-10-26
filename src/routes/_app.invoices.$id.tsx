@@ -572,7 +572,7 @@ function InvoiceDetailPage() {
         </aside>
 
         <div>
-          <div className="mb-3 flex items-center justify-between">
+          <div className="mb-3 flex flex-wrap gap-2 items-center justify-between">
             <div className="text-xs uppercase tracking-wider text-muted-foreground">Aperçu</div>
             <button type="button" onClick={() => setPreviewOpen(true)} className="text-xs font-medium text-primary hover:underline">Plein écran</button>
           </div>

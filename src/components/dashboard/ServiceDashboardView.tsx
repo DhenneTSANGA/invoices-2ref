@@ -281,7 +281,7 @@ export function ServiceDashboardView({
         animate={{ opacity: 1, y: 0 }}
         className="glass-panel mt-6 rounded-3xl p-5"
       >
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap gap-2 items-center justify-between">
           <h3 className="font-display text-lg font-semibold">
             Documents récents
           </h3>

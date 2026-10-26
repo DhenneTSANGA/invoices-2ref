@@ -260,7 +260,7 @@ function EditClient() {
             />
           </Section>
 
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             <button type="button" onClick={() => navigate({ to: "/clients" })} className="rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted">Annuler</button>
             <button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow disabled:opacity-60">
               <Save className="h-4 w-4" />

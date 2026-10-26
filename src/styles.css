@@ -326,6 +326,13 @@
     max-width: 100%;
     overflow-x: clip;
   }
+  /* Boutons icône + libellé : le texte reste sur une ligne (mobile : pas de
+     « Nouvelle / activité » écrasé). Le conteneur passe à la ligne à la place.
+     .text-left exclu : déclencheurs de menus déroulants (valeur tronquée). */
+  button.inline-flex:not(.text-left),
+  a.inline-flex:not(.text-left) {
+    white-space: nowrap;
+  }
 }
 
 /* Micro-animations icônes sidebar (style Resend) — déclenchées via .group:hover */

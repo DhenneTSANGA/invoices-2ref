@@ -260,7 +260,7 @@ export function TeamAdminPage({ scope }: { scope?: "prospection" } = {}) {
               </option>
             </FancySelect>
           </label>
-          <div className="mt-4 flex justify-end gap-2">
+          <div className="mt-4 flex flex-wrap justify-end gap-2">
             <button
               type="button"
               className="rounded-xl border border-border px-3 py-2 text-sm hover:bg-muted"
@@ -1040,7 +1040,7 @@ function CredentialRow({
 }) {
   return (
     <div className="rounded-2xl border border-border/60 bg-surface/40 px-4 py-3">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <div className="text-xs uppercase tracking-wider text-muted-foreground">
             {label}
@@ -1158,7 +1158,7 @@ function DeleteConfirmDialog({
             l'authentification. Cette action est irréversible.
           </DialogDescription>
         </DialogHeader>
-        <div className="mt-4 flex justify-end gap-3">
+        <div className="mt-4 flex flex-wrap justify-end gap-3">
           <button
             type="button"
             onClick={onCancel}

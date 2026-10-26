@@ -561,7 +561,7 @@ function Dashboard() {
           transition={{ delay: 0.4 }}
           className="glass-panel rounded-3xl p-5 xl:col-span-2"
         >
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap gap-2 items-center justify-between">
             <h3 className="font-display text-lg font-semibold">
               Documents récents
             </h3>
