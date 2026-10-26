@@ -24,20 +24,11 @@ function isPersistedDocId(id: string | undefined): boolean {
   return Boolean(id) && !/^(d|tmp|tpl)-/.test(id!);
 }
 
-function documentIsElectronicallySigned(doc: Document): boolean {
-  return (
-    doc.status === "signed" ||
-    doc.status === "sent" ||
-    doc.status === "paid" ||
-    doc.status === "accepted"
-  );
-}
-
 /**
  * Téléchargement PDF.
- * - Document déjà signé / envoyé / payé : PDF avec signature électronique.
- * - Brouillon : PDF sans tampon (espace pour paraphe manuscrit).
- * Les admins peuvent aussi prévisualiser le PDF signé sur un brouillon.
+ * - « PDF » : tous les utilisateurs, tout statut — sans signature électronique
+ *   (espace pour paraphe manuscrit).
+ * - « PDF signé » : administrateurs / super admin — avec signature électronique.
  */
 export function DocumentPdfButton({
   doc,
@@ -49,18 +40,19 @@ export function DocumentPdfButton({
   const { data: session } = useSession();
   const downloadPdfMutation = useDownloadDocumentPdf();
   const [preparing, setPreparing] = useState(false);
+  /** Bouton cliqué (spinner sur celui-ci seulement). */
+  const [pendingSigned, setPendingSigned] = useState(false);
   // Verrou synchrone : un double clic ne crée pas deux documents.
   const preparingRef = useRef(false);
   const busy = downloadPdfMutation.isPending || preparing;
-  const alreadySigned = documentIsElectronicallySigned(doc);
-  const showDraftSignedPreview =
-    Boolean(session && isAdmin(session.staff.role)) && !alreadySigned;
+  const showSignedPdf = Boolean(session && isAdmin(session.staff.role));
 
   // Document déjà enregistré et sorti du brouillon (signé, envoyé, payé…) :
   // téléchargement direct, sans réenregistrement (qui pouvait bloquer le PDF).
   const needsPrepare = Boolean(prepare) && (!isPersistedDocId(doc.id) || doc.status === "draft");
 
   const run = async (includeSignature: boolean) => {
+    setPendingSigned(includeSignature);
     let target = doc;
     if (prepare && needsPrepare) {
       if (preparingRef.current) return;
@@ -103,29 +95,29 @@ export function DocumentPdfButton({
 
   const label = (
     <>
-      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-      {preparing ? "Enregistrement…" : busy ? "Impression en cours…" : alreadySigned ? "PDF signé" : "PDF"}
+      {busy && !pendingSigned ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+      {busy && !pendingSigned ? (preparing ? "Enregistrement…" : "Impression en cours…") : "PDF"}
     </>
   );
 
   const signedLabel = (
     <>
-      {busy ? (
-        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+      {busy && pendingSigned ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
       ) : (
-        <PenLine className="h-3.5 w-3.5" />
+        <PenLine className="h-4 w-4" />
       )}
-      {busy ? "Impression en cours…" : "PDF signé"}
+      {busy && pendingSigned ? (preparing ? "Enregistrement…" : "Impression en cours…") : "PDF signé"}
     </>
   );
 
   if (appearance === "header") {
     return (
-      <span className="inline-flex items-center gap-1">
+      <span className="inline-flex flex-wrap items-center gap-2">
         <button
           type="button"
           disabled={busy}
-          onClick={() => void run(alreadySigned)}
+          onClick={() => void run(false)}
           className={cn(
             "inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60",
             className,
@@ -133,13 +125,16 @@ export function DocumentPdfButton({
         >
           {label}
         </button>
-        {showDraftSignedPreview ? (
+        {showSignedPdf ? (
           <button
             type="button"
             disabled={busy}
-            title="Aperçu admin : PDF avec signature électronique"
+            title="PDF avec signature électronique (administrateurs)"
             onClick={() => void run(true)}
-            className="inline-flex items-center gap-1.5 rounded-2xl px-2.5 py-2 text-xs font-medium text-muted-foreground/80 hover:bg-muted hover:text-foreground disabled:opacity-60"
+            className={cn(
+              "inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60",
+              className,
+            )}
           >
             {signedLabel}
           </button>
@@ -149,29 +144,25 @@ export function DocumentPdfButton({
   }
 
   return (
-    <span className="inline-flex items-center gap-1">
+    <span className="inline-flex flex-wrap items-center gap-2">
       <Button
         type="button"
         variant="outline"
         size={size}
         className={cn("rounded-xl", className)}
         disabled={busy}
-        onClick={() => void run(alreadySigned)}
+        onClick={() => void run(false)}
       >
         {label}
       </Button>
-      {showDraftSignedPreview ? (
+      {showSignedPdf ? (
         <Button
           type="button"
-          variant="ghost"
+          variant="outline"
           size={size}
           disabled={busy}
-          title="Aperçu admin : PDF avec signature électronique"
-          className={cn(
-            "rounded-xl text-muted-foreground/80 hover:text-foreground",
-            size === "sm" ? "px-2 text-xs" : "text-xs",
-            className,
-          )}
+          title="PDF avec signature électronique (administrateurs)"
+          className={cn("rounded-xl", className)}
           onClick={() => void run(true)}
         >
           {signedLabel}

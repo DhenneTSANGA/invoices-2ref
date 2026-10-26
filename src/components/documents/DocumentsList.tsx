@@ -482,7 +482,7 @@ export function DocumentsList({ type }: { type: DocumentType }) {
                               setDownloadingId(d.id);
                               const toastId = toast.loading(`Génération du PDF — ${d.number}…`);
                               downloadPdf.mutate(
-                                { doc: d },
+                                { doc: d, includeSignature: false },
                                 {
                                   onSuccess: () => toast.success("PDF téléchargé", { id: toastId }),
                                   onError: (err) =>
