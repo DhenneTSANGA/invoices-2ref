@@ -59,9 +59,14 @@ export const CRM_NAV: CrmNavItem[] = [
     iconMotion: "pulse",
     roles: ["manager", "direction", "chef_service", "collaborateur", "admin"],
     group: "main",
-    matchPaths: ["/prospection/pistes", "/prospection/prospects"],
+    matchPaths: [
+      "/prospection/pistes",
+      "/prospection/pistes-externes",
+      "/prospection/prospects",
+    ],
     tabs: [
       { to: "/prospection/pistes", label: "Pistes internes" },
+      { to: "/prospection/pistes-externes", label: "Pistes externes" },
       {
         to: "/prospection/prospects",
         label: "Prospects",
@@ -185,8 +190,8 @@ export function crmNavFor(role: CrmRole) {
 
     if (item.to === "/prospection/pistes") {
       if (role === "chef_service" || role === "collaborateur") {
-        const tabs = item.tabs.filter((t) => t.to === "/prospection/pistes");
-        return { ...item, tabs, matchPaths: ["/prospection/pistes"] };
+        const tabs = item.tabs.filter((t) => t.to !== "/prospection/prospects");
+        return { ...item, tabs, matchPaths: tabs.map((t) => t.to) };
       }
       return item;
     }

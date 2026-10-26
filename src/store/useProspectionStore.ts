@@ -494,6 +494,10 @@ const actions: Actions = {
         ownerId: patch.ownerId ?? current.ownerId,
         author: patch.author ?? current.author,
         status: patch.status ?? current.status,
+        origin: patch.origin ?? current.origin,
+        referrerName: patch.referrerName ?? current.referrerName,
+        referrerContact: patch.referrerContact ?? current.referrerContact,
+        referrerRelation: patch.referrerRelation ?? current.referrerRelation,
       },
     });
     scheduleReload();

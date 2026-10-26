@@ -51,6 +51,7 @@ import {
   type Expense,
   type ExpenseCategory,
   type Lead,
+  type LeadOrigin,
   type LibraryItem,
   type Objective,
   type Opportunity,
@@ -604,17 +605,25 @@ export function NewLeadDialog({
   onOpenChange,
   defaultCompanyName = "",
   editing,
+  origin: originProp = "interne",
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultCompanyName?: string;
   editing?: Lead | null;
+  /** Externe : recommandation d’un tiers (hors de l’entreprise visée). */
+  origin?: LeadOrigin;
 }) {
   const { session } = useRouteContext({ from: "/prospection" });
   const selfId = session.staff.id;
   const { companies } = useProspectionCompanies();
   const managers = useProspectionStore((s) => s.managers);
   const addLead = useProspectionStore((s) => s.addLead);
+  const origin: LeadOrigin = editing?.origin ?? originProp;
+  const external = origin === "externe";
+  const [referrerName, setReferrerName] = useState("");
+  const [referrerContact, setReferrerContact] = useState("");
+  const [referrerRelation, setReferrerRelation] = useState("");
   const updateLead = useProspectionStore((s) => s.updateLead);
   const [companyName, setCompanyName] = useState(defaultCompanyName);
   const [need, setNeed] = useState("");
@@ -637,8 +646,14 @@ export function NewLeadDialog({
       setComment(editing.comment);
       setLine(editing.line);
       setOwnerId(editing.ownerId || selfId);
+      setReferrerName(editing.referrerName ?? "");
+      setReferrerContact(editing.referrerContact ?? "");
+      setReferrerRelation(editing.referrerRelation ?? "");
       return;
     }
+    setReferrerName("");
+    setReferrerContact("");
+    setReferrerRelation("");
     setCompanyName(defaultCompanyName);
     setNeed("");
     setComment("");
@@ -654,8 +669,20 @@ export function NewLeadDialog({
       open={open}
       onOpenChange={onOpenChange}
       icon={Megaphone}
-      title={editing ? "Modifier la piste" : "Signaler une piste"}
-      description="Attribution automatique au manager référent si l’entreprise est déjà en portefeuille."
+      title={
+        editing
+          ? external
+            ? "Modifier la piste externe"
+            : "Modifier la piste"
+          : external
+            ? "Signaler une piste externe"
+            : "Signaler une piste"
+      }
+      description={
+        external
+          ? "Une personne extérieure à l’entreprise nous recommande ce prospect. Attribution automatique au manager référent si l’entreprise est déjà en portefeuille."
+          : "Attribution automatique au manager référent si l’entreprise est déjà en portefeuille."
+      }
     >
       <form
         className="space-y-3 p-5 sm:p-6"
@@ -665,6 +692,16 @@ export function NewLeadDialog({
             toast.error("Client, besoin et ligne de service sont requis");
             return;
           }
+          if (external && !referrerName.trim()) {
+            toast.error("Indiquez qui recommande cette piste");
+            return;
+          }
+          const originFields = {
+            origin,
+            referrerName: external ? referrerName.trim() : "",
+            referrerContact: external ? referrerContact.trim() : "",
+            referrerRelation: external ? referrerRelation.trim() : "",
+          };
           const resolvedOwner = matchedCompany?.managerId || ownerId;
           if (!resolvedOwner) {
             toast.error("Choisissez un manager — aucun référent trouvé pour cette entreprise");
@@ -680,6 +717,7 @@ export function NewLeadDialog({
                   need: need.trim(),
                   comment: comment.trim(),
                   ownerId: resolvedOwner,
+                  ...originFields,
                 });
                 toast.success("Piste mise à jour");
                 onOpenChange(false);
@@ -693,6 +731,7 @@ export function NewLeadDialog({
                 comment: comment.trim(),
                 ownerId: resolvedOwner,
                 author: "Vous",
+                ...originFields,
               });
               toast.success(
                 assignedManager
@@ -706,7 +745,38 @@ export function NewLeadDialog({
           })();
         }}
       >
-        <CrmLabeledField label="Entreprise">
+        {external ? (
+          <div className="space-y-3 rounded-2xl border border-primary/20 bg-primary/5 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+              Recommandé par
+            </p>
+            <CrmLabeledField label="Nom du recommandant">
+              <input
+                value={referrerName}
+                onChange={(e) => setReferrerName(e.target.value)}
+                placeholder="Personne qui nous donne la piste"
+                className={CRM_FIELD}
+              />
+            </CrmLabeledField>
+            <CrmLabeledField label="Contact du recommandant">
+              <input
+                value={referrerContact}
+                onChange={(e) => setReferrerContact(e.target.value)}
+                placeholder="Téléphone ou e-mail (optionnel)"
+                className={CRM_FIELD}
+              />
+            </CrmLabeledField>
+            <CrmLabeledField label="Lien avec nous">
+              <input
+                value={referrerRelation}
+                onChange={(e) => setReferrerRelation(e.target.value)}
+                placeholder="Ami, partenaire, ancien client… (optionnel)"
+                className={CRM_FIELD}
+              />
+            </CrmLabeledField>
+          </div>
+        ) : null}
+        <CrmLabeledField label={external ? "Entreprise recommandée" : "Entreprise"}>
           <input
             list="crm-company-names"
             value={companyName}

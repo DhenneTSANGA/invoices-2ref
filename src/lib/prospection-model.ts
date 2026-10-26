@@ -13,7 +13,8 @@ export type OpportunitySource =
   | "nouveau"
   | "client_existant"
   | "client_formation"
-  | "piste_interne";
+  | "piste_interne"
+  | "piste_externe";
 
 /** Canevas §4 : 1 Identification · 2 Qualification · 3 Premier contact · 4 RDV · 5 Proposition · 6 Négociation / décision. */
 export type PipelineStage =
@@ -175,7 +176,17 @@ export type Lead = {
   authorId?: string;
   status: LeadStatus;
   at: string;
+  /** Interne : signalée par l’équipe. Externe : recommandée par un tiers. */
+  origin?: LeadOrigin;
+  /** Piste externe : personne (hors de l’entreprise visée) qui recommande. */
+  referrerName?: string;
+  /** Téléphone ou e-mail du recommandant. */
+  referrerContact?: string;
+  /** Lien avec le cabinet (ami, partenaire, ancien client…). */
+  referrerRelation?: string;
 };
+
+export type LeadOrigin = "interne" | "externe";
 
 export type Expense = {
   id: string;
@@ -465,6 +476,7 @@ export const SOURCE_LABELS: Record<OpportunitySource, string> = {
   client_existant: "Client existant",
   client_formation: "Client formation",
   piste_interne: "Piste interne",
+  piste_externe: "Piste externe",
 };
 
 export const ACTIVITY_LABELS: Record<ActivityKind, string> = {

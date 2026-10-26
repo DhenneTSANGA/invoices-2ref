@@ -51,6 +51,13 @@ import {
 } from "@/lib/prospection-model";
 import { HELP_LIBRARY } from "@/lib/prospection-library";
 import {
+  INTERNAL_LEAD_ORIGIN,
+  loadLeadOrigins,
+  persistLeadOrigin,
+  withLeadOrigin,
+  type LeadOriginFields,
+} from "@/lib/crm-lead-origin-db";
+import {
   DEFAULT_OBJECTIVE_TARGETS,
   mapCrmActivity,
   mapCrmCompany,
@@ -224,6 +231,7 @@ const sourceSchema = z.enum([
   "client_existant",
   "client_formation",
   "piste_interne",
+  "piste_externe",
 ]);
 const stageSchema = z.enum([
   "identification",
@@ -607,6 +615,7 @@ async function readPipelineData(
     objectives,
   });
 
+  const leadOrigins = await loadLeadOrigins(scoped.leads.map((l) => l.id));
   const localCompanies = scoped.companies.filter((c) => !c.clientId).map(mapCrmCompany);
   const clientOverlays: CrmPipelineSnapshot["clientOverlays"] = {};
   for (const c of scoped.companies) {
@@ -621,7 +630,7 @@ async function readPipelineData(
     contacts: scoped.contacts.map((c) => mapCrmContact(c, c.company)),
     opportunities: scoped.opportunities.map((o) => mapCrmOpportunity(o, o.company)),
     activities: scoped.activities.map((a) => mapCrmActivity(a, a.company)),
-    leads: scoped.leads.map((l) => mapCrmLead(l, l.company)),
+    leads: scoped.leads.map((l) => withLeadOrigin(mapCrmLead(l, l.company), leadOrigins)),
     expenses: scoped.expenses.map((e) => mapCrmExpense(e, e.company)),
     objectives: scoped.objectives.map(mapCrmObjective),
     notifications: notifications.map(mapCrmNotification),
@@ -1366,7 +1375,26 @@ const leadInputSchema = z.object({
   ownerId: z.string().optional(),
   author: z.string().optional(),
   status: leadStatusSchema.optional(),
+  origin: z.enum(["interne", "externe"]).optional(),
+  referrerName: z.string().max(200).optional(),
+  referrerContact: z.string().max(200).optional(),
+  referrerRelation: z.string().max(200).optional(),
 });
+
+/** Champs « piste externe » normalisés (recommandant obligatoire). */
+function leadOriginFromInput(data: z.infer<typeof leadInputSchema>): LeadOriginFields {
+  if (data.origin !== "externe") return INTERNAL_LEAD_ORIGIN;
+  const referrerName = data.referrerName?.trim() ?? "";
+  if (!referrerName) {
+    throw new Error("Indiquez qui recommande cette piste externe");
+  }
+  return {
+    origin: "externe",
+    referrerName,
+    referrerContact: data.referrerContact?.trim() ?? "",
+    referrerRelation: data.referrerRelation?.trim() ?? "",
+  };
+}
 
 export const upsertCrmLead = createServerFn({ method: "POST" })
   .validator(leadInputSchema)
@@ -1409,29 +1437,45 @@ export const upsertCrmLead = createServerFn({ method: "POST" })
       status: (data.status ?? "nouvelle") as LeadStatus,
     };
 
+    const originFields = leadOriginFromInput(data);
+
     if (data.id) {
       const row = await prisma.crmLead.update({
         where: { id: data.id },
         data: common,
         include: { company: { select: { id: true, clientId: true } } },
       });
-      return mapCrmLead(row, row.company);
+      // Une piste interne existante n’a rien à écrire si elle reste interne.
+      if (data.origin) await persistLeadOrigin(row.id, originFields);
+      return { ...mapCrmLead(row, row.company), ...originFields };
     }
 
     const row = await prisma.crmLead.create({
       data: { ...common, author: staffFullName(staff), authorId: staff.id, cabinet: ctx.cabinet },
       include: { company: { select: { id: true, clientId: true } } },
     });
+    if (originFields.origin === "externe") {
+      try {
+        await persistLeadOrigin(row.id, originFields);
+      } catch (err) {
+        // Pas de piste externe enregistrée comme interne : on annule la création.
+        await prisma.crmLead.deleteMany({ where: { id: row.id } });
+        throw err;
+      }
+    }
     if (row.ownerId !== staff.id) {
+      const external = originFields.origin === "externe";
       await notifyCrmStaff(
         ctx.cabinet,
-        "Nouvelle piste",
-        `${row.companyName} — ${row.need} (signalée par ${row.author})`,
-        "/prospection/pistes",
+        external ? "Nouvelle piste externe" : "Nouvelle piste",
+        external
+          ? `${row.companyName} — ${row.need} (recommandée par ${originFields.referrerName}, saisie par ${row.author})`
+          : `${row.companyName} — ${row.need} (signalée par ${row.author})`,
+        external ? "/prospection/pistes-externes" : "/prospection/pistes",
         [row.ownerId],
       );
     }
-    return mapCrmLead(row, row.company);
+    return { ...mapCrmLead(row, row.company), ...originFields };
   });
 
 export const setCrmLeadStatus = createServerFn({ method: "POST" })
@@ -1464,6 +1508,20 @@ export const convertCrmLead = createServerFn({ method: "POST" })
     assertInCabinet(ctx, lead.cabinet, "Piste");
     assertOwned(ctx, lead.ownerId);
     if (lead.status === "convertie") throw new Error("Piste déjà convertie");
+    const origin =
+      (await loadLeadOrigins([lead.id])).get(lead.id) ?? INTERNAL_LEAD_ORIGIN;
+    const external = origin.origin === "externe";
+    const leadSource = external ? "piste_externe" : "piste_interne";
+    const leadNotes = external
+      ? [
+          `Recommandé par ${origin.referrerName}` +
+            (origin.referrerRelation ? ` (${origin.referrerRelation})` : "") +
+            (origin.referrerContact ? ` — ${origin.referrerContact}` : ""),
+          lead.comment,
+        ]
+          .filter(Boolean)
+          .join("\n")
+      : lead.comment;
 
     const name = lead.companyName.trim();
     const linked = lead.companyId
@@ -1490,8 +1548,8 @@ export const convertCrmLead = createServerFn({ method: "POST" })
           address: "Libreville",
           managerId: lead.ownerId,
           targetLines: [lead.line],
-          source: "piste_interne",
-          notes: lead.comment,
+          source: leadSource,
+          notes: leadNotes,
           createdById: staff.id,
           cabinet: lead.cabinet,
         },
@@ -1505,7 +1563,7 @@ export const convertCrmLead = createServerFn({ method: "POST" })
           leadId: lead.id,
           title: lead.need,
           line: lead.line,
-          source: "piste_interne",
+          source: leadSource,
           stage: "qualification",
           amount: 0,
           probability: STAGE_PROBABILITY.qualification ?? 20,
@@ -1515,7 +1573,7 @@ export const convertCrmLead = createServerFn({ method: "POST" })
           nextAction: "Établir le premier contact",
           nextActionOn: toDateInput(new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10)),
           ownerId: lead.ownerId,
-          notes: lead.comment,
+          notes: leadNotes,
           cabinet: lead.cabinet,
         },
         include: { company: { select: { id: true, clientId: true } } },
@@ -1541,7 +1599,7 @@ export const convertCrmLead = createServerFn({ method: "POST" })
     return {
       company: mapCrmCompany(result.company),
       opportunity: mapCrmOpportunity(result.opportunity, result.opportunity.company),
-      lead: mapCrmLead(result.lead, result.lead.company),
+      lead: { ...mapCrmLead(result.lead, result.lead.company), ...origin },
     };
   });
 

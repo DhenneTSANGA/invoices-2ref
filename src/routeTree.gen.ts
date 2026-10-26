@@ -58,6 +58,7 @@ import { Route as ProspectionOpportunitesRouteImport } from './routes/prospectio
 import { Route as ProspectionPipelineRouteImport } from './routes/prospection.pipeline'
 import { Route as ProspectionPisteRouteImport } from './routes/prospection.piste'
 import { Route as ProspectionPistesRouteImport } from './routes/prospection.pistes'
+import { Route as ProspectionPistesExternesRouteImport } from './routes/prospection.pistes-externes'
 import { Route as ProspectionPortGentilRouteImport } from './routes/prospection.port-gentil'
 import { Route as ProspectionPortefeuilleRouteImport } from './routes/prospection.portefeuille'
 import { Route as ProspectionProspectsRouteImport } from './routes/prospection.prospects'
@@ -334,6 +335,12 @@ const ProspectionPistesRoute = ProspectionPistesRouteImport.update({
   path: '/pistes',
   getParentRoute: () => ProspectionRoute,
 } as any)
+const ProspectionPistesExternesRoute =
+  ProspectionPistesExternesRouteImport.update({
+    id: '/pistes-externes',
+    path: '/pistes-externes',
+    getParentRoute: () => ProspectionRoute,
+  } as any)
 const ProspectionPortGentilRoute = ProspectionPortGentilRouteImport.update({
   id: '/port-gentil',
   path: '/port-gentil',
@@ -534,6 +541,7 @@ export interface FileRoutesByFullPath {
   '/prospection/pipeline': typeof ProspectionPipelineRoute
   '/prospection/piste': typeof ProspectionPisteRoute
   '/prospection/pistes': typeof ProspectionPistesRoute
+  '/prospection/pistes-externes': typeof ProspectionPistesExternesRoute
   '/prospection/port-gentil': typeof ProspectionPortGentilRoute
   '/prospection/portefeuille': typeof ProspectionPortefeuilleRoute
   '/prospection/prospects': typeof ProspectionProspectsRouteWithChildren
@@ -609,6 +617,7 @@ export interface FileRoutesByTo {
   '/prospection/pipeline': typeof ProspectionPipelineRoute
   '/prospection/piste': typeof ProspectionPisteRoute
   '/prospection/pistes': typeof ProspectionPistesRoute
+  '/prospection/pistes-externes': typeof ProspectionPistesExternesRoute
   '/prospection/port-gentil': typeof ProspectionPortGentilRoute
   '/prospection/portefeuille': typeof ProspectionPortefeuilleRoute
   '/prospection/strategiques': typeof ProspectionStrategiquesRoute
@@ -690,6 +699,7 @@ export interface FileRoutesById {
   '/prospection/pipeline': typeof ProspectionPipelineRoute
   '/prospection/piste': typeof ProspectionPisteRoute
   '/prospection/pistes': typeof ProspectionPistesRoute
+  '/prospection/pistes-externes': typeof ProspectionPistesExternesRoute
   '/prospection/port-gentil': typeof ProspectionPortGentilRoute
   '/prospection/portefeuille': typeof ProspectionPortefeuilleRoute
   '/prospection/prospects': typeof ProspectionProspectsRouteWithChildren
@@ -772,6 +782,7 @@ export interface FileRouteTypes {
     | '/prospection/pipeline'
     | '/prospection/piste'
     | '/prospection/pistes'
+    | '/prospection/pistes-externes'
     | '/prospection/port-gentil'
     | '/prospection/portefeuille'
     | '/prospection/prospects'
@@ -847,6 +858,7 @@ export interface FileRouteTypes {
     | '/prospection/pipeline'
     | '/prospection/piste'
     | '/prospection/pistes'
+    | '/prospection/pistes-externes'
     | '/prospection/port-gentil'
     | '/prospection/portefeuille'
     | '/prospection/strategiques'
@@ -927,6 +939,7 @@ export interface FileRouteTypes {
     | '/prospection/pipeline'
     | '/prospection/piste'
     | '/prospection/pistes'
+    | '/prospection/pistes-externes'
     | '/prospection/port-gentil'
     | '/prospection/portefeuille'
     | '/prospection/prospects'
@@ -1326,6 +1339,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProspectionPistesRouteImport
       parentRoute: typeof ProspectionRoute
     }
+    '/prospection/pistes-externes': {
+      id: '/prospection/pistes-externes'
+      path: '/pistes-externes'
+      fullPath: '/prospection/pistes-externes'
+      preLoaderRoute: typeof ProspectionPistesExternesRouteImport
+      parentRoute: typeof ProspectionRoute
+    }
     '/prospection/port-gentil': {
       id: '/prospection/port-gentil'
       path: '/port-gentil'
@@ -1712,6 +1732,7 @@ interface ProspectionRouteChildren {
   ProspectionPipelineRoute: typeof ProspectionPipelineRoute
   ProspectionPisteRoute: typeof ProspectionPisteRoute
   ProspectionPistesRoute: typeof ProspectionPistesRoute
+  ProspectionPistesExternesRoute: typeof ProspectionPistesExternesRoute
   ProspectionPortGentilRoute: typeof ProspectionPortGentilRoute
   ProspectionPortefeuilleRoute: typeof ProspectionPortefeuilleRoute
   ProspectionProspectsRoute: typeof ProspectionProspectsRouteWithChildren
@@ -1736,6 +1757,7 @@ const ProspectionRouteChildren: ProspectionRouteChildren = {
   ProspectionPipelineRoute: ProspectionPipelineRoute,
   ProspectionPisteRoute: ProspectionPisteRoute,
   ProspectionPistesRoute: ProspectionPistesRoute,
+  ProspectionPistesExternesRoute: ProspectionPistesExternesRoute,
   ProspectionPortGentilRoute: ProspectionPortGentilRoute,
   ProspectionPortefeuilleRoute: ProspectionPortefeuilleRoute,
   ProspectionProspectsRoute: ProspectionProspectsRouteWithChildren,

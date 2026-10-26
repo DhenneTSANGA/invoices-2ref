@@ -689,6 +689,7 @@ enum CrmOpportunitySource {
   client_existant
   client_formation
   piste_interne
+  piste_externe
 }
 
 enum CrmPipelineStage {
@@ -816,6 +817,8 @@ model CrmLead {
   /// Collaborateur ayant signalé la piste (tout le cabinet peut en remonter).
   authorId    String?
   status      CrmLeadStatus  @default(nouvelle)
+  // Colonnes "origin" (interne / externe), "referrerName", "referrerContact",
+  // "referrerRelation" : SQL brut (src/lib/crm-lead-origin-db.ts), migration 20261026100000.
   at          DateTime       @default(now())
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
