@@ -250,9 +250,7 @@ export async function downloadDocumentPdf(
         data: {
           documentId: doc.id,
           action: "download",
-          fileName: includeSignature
-            ? built.fileName.replace(/\.pdf$/i, "-signe.pdf")
-            : built.fileName,
+          fileName: built.fileName,
           base64: built.base64,
         },
       });
@@ -261,8 +259,6 @@ export async function downloadDocumentPdf(
     }
   }
 
-  const fileName = includeSignature
-    ? built.fileName.replace(/\.pdf$/i, "-signe.pdf")
-    : built.fileName;
-  triggerPdfDownload(fileName, built.bytes);
+  // Nom = numéro du document, signé ou non (pas de suffixe « -signe »).
+  triggerPdfDownload(built.fileName, built.bytes);
 }

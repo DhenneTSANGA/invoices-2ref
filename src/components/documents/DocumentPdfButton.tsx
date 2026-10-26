@@ -91,7 +91,7 @@ export function DocumentPdfButton({
           toast.success("PDF téléchargé", {
             id: toastId,
             description: includeSignature
-              ? `${target.number}-signe.pdf — avec signature électronique`
+              ? `${target.number}.pdf — avec signature électronique`
               : `${target.number}.pdf — espace pour signature manuscrite`,
           }),
         onError: (err) => {
