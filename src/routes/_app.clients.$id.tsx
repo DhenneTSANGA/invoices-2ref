@@ -202,8 +202,8 @@ function EditClient() {
             <Field label="Email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} />
             <Field label="Téléphone" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} />
             <ClientExtraEmails
-              value={form.extraEmails ?? []}
-              onChange={(extraEmails) => setForm({ ...form, extraEmails })}
+              value={form.extraEmailContacts ?? []}
+              onChange={(extraEmailContacts) => setForm({ ...form, extraEmailContacts })}
             />
           </Section>
 

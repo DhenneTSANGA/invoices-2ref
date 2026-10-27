@@ -109,7 +109,6 @@ export function mapClient(row: {
   contactName: string;
   representativeTitle?: string | null;
   email: string;
-  extraEmails?: string[] | null;
   phone: string;
   address: string;
   bp?: string | null;
@@ -145,7 +144,7 @@ export function mapClient(row: {
     contactName: row.contactName,
     representativeTitle: row.representativeTitle ?? "",
     email: row.email,
-    extraEmails: row.extraEmails ?? [],
+    extraEmailContacts: [],
     phone: row.phone,
     address: row.address,
     bp: row.bp ?? "",

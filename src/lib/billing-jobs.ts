@@ -47,6 +47,7 @@ import {
 } from "@/lib/subscription";
 import { sendDocumentEmailInternal } from "@/lib/send-document-email";
 import { recordAdminSignature } from "@/lib/letter-signature.functions";
+import { emailGreeting, normalizeCivility } from "@/lib/client-emails";
 import { getResend } from "@/lib/resend";
 import {
   requireResendApiKey,
@@ -386,6 +387,8 @@ export async function runPaymentReminders(options?: {
       cabinet: true,
       name: true,
       email: true,
+      civility: true,
+      contactName: true,
     },
   });
 
@@ -465,6 +468,11 @@ export async function runPaymentReminders(options?: {
       const html = buildReminderEmailHtml({
         companyName: company.name,
         clientName: client.name,
+        // Relance : adresse principale → civilité + représentant de la fiche.
+        greeting: emailGreeting({
+          civility: normalizeCivility(client.civility),
+          name: client.contactName ?? "",
+        }),
         intro: copy.intro,
         rows,
         totalDue: money(totalDue, currency),

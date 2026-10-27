@@ -119,7 +119,7 @@ import {
   syncInvoicePaidAt,
 } from "@/lib/document-prospection-db";
 import { clientAllowsSubscription } from "@/lib/client-billing";
-import { normalizeExtraEmails } from "@/lib/client-emails";
+import { normalizeExtraEmailContacts } from "@/lib/client-emails";
 import { DOCUMENT_NEWEST_FIRST } from "@/lib/document-order";
 import {
   loadClientExtraEmails,
@@ -346,11 +346,11 @@ export const createClient = createServerFn({ method: "POST" })
     });
     const pole = resolveStaffWritePole(staff, data.pole);
     await persistClientPole(row.id, pole);
-    const extraEmails = normalizeExtraEmails(data.extraEmails, data.email);
-    await persistClientExtraEmails(row.id, extraEmails);
+    const extraEmailContacts = normalizeExtraEmailContacts(data.extraEmailContacts, data.email);
+    await persistClientExtraEmails(row.id, extraEmailContacts);
     return {
       ...withClientPole(mapClient(row), new Map([[row.id, pole]])),
-      extraEmails,
+      extraEmailContacts,
     };
   });
 
@@ -406,11 +406,11 @@ export const updateClient = createServerFn({ method: "POST" })
     });
     const pole = resolveStaffWritePole(staff, rest.pole);
     await persistClientPole(row.id, pole);
-    const extraEmails = normalizeExtraEmails(rest.extraEmails, rest.email);
-    await persistClientExtraEmails(row.id, extraEmails);
+    const extraEmailContacts = normalizeExtraEmailContacts(rest.extraEmailContacts, rest.email);
+    await persistClientExtraEmails(row.id, extraEmailContacts);
     return {
       ...withClientPole(mapClient(row), new Map([[row.id, pole]])),
-      extraEmails,
+      extraEmailContacts,
     };
   });
 

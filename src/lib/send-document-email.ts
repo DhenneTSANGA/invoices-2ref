@@ -18,7 +18,12 @@ import {
   resolveManagerCc,
   resendErrorMessage,
 } from "@/lib/email";
-import { clientEmails, pickClientRecipients } from "@/lib/client-emails";
+import {
+  clientEmailContacts,
+  emailGreeting,
+  pickClientRecipients,
+  type ClientEmailContact,
+} from "@/lib/client-emails";
 import { loadClientExtraEmails } from "@/lib/client-extra-emails-db";
 import {
   broadcastDocumentStatusChange,
@@ -171,16 +176,6 @@ function emailShell(params: {
   </table>
 </body>
 </html>`.trim();
-}
-
-/** « Bonjour Monsieur Dupont, » — civilité renseignée sur la fiche client. */
-function emailGreeting(civility: string | null | undefined, contactName: string): string {
-  const civ = civility === "Monsieur" || civility === "Madame" ? civility : "";
-  const name = contactName.trim();
-  if (civ && name) return `Bonjour ${civ} ${name},`;
-  if (civ) return `Bonjour ${civ},`;
-  if (name) return `Bonjour ${name},`;
-  return "Bonjour Madame, Monsieur,";
 }
 
 export const DOCUMENT_PREVIEW_CID = "document-preview";
@@ -483,9 +478,11 @@ export async function sendDocumentEmailInternal(params: {
   }
     if (!doc.client) throw new Error("Client introuvable");
     const extraEmails = await loadClientExtraEmails([doc.client.id]);
-    const allowedEmails = clientEmails({
+    const allowedEmails = clientEmailContacts({
       email: doc.client.email,
-      extraEmails: extraEmails.get(doc.client.id),
+      civility: doc.client.civility,
+      contactName: doc.client.contactName,
+      extraEmailContacts: extraEmails.get(doc.client.id),
     });
     if (allowedEmails.length === 0) {
       throw new Error(`Le client « ${doc.client.name} » n'a pas d'adresse email`);
@@ -503,9 +500,9 @@ export async function sendDocumentEmailInternal(params: {
     const company = companyForPreview(companyRow, doc.cabinet);
     const { from, replyTo } = resolveCabinetMailAddresses(company);
     const typeLabel = documentTypeLabel(doc.type as DocumentType);
-    const to = recipients.join(", ");
-    const managerCc = recipients.every((r) => resolveManagerCc(company, r))
-      ? resolveManagerCc(company, recipients[0]!)
+    // Gérant en copie une seule fois (sur le premier envoi), sauf s'il est destinataire.
+    const managerCc = recipients.every((r) => resolveManagerCc(company, r.email))
+      ? resolveManagerCc(company, recipients[0]!.email)
       : undefined;
     const niuLabel = niuLabelForCabinet(doc.cabinet);
 
@@ -554,7 +551,8 @@ export async function sendDocumentEmailInternal(params: {
   );
 
     let subject: string;
-    let html: string;
+    /** Corps du mail ; la salutation dépend du destinataire (factures / devis). */
+    let buildHtml: (recipient: ClientEmailContact) => string;
 
     if (doc.type === "letter") {
       subject = doc.subject?.trim() || `${typeLabel} ${doc.number}`;
@@ -564,7 +562,7 @@ export async function sendDocumentEmailInternal(params: {
         ? doc.recipientOverride.trim()
         : clientLetterRecipientLines(doc.client).join("\n");
 
-      html = buildLetterEmailHtml({
+      const letterHtml = buildLetterEmailHtml({
         company,
         number: doc.number,
         subject,
@@ -578,6 +576,8 @@ export async function sendDocumentEmailInternal(params: {
         niuLabel,
         cabinet: doc.cabinet,
       });
+      // Courrier : la formule d'appel est celle rédigée dans le courrier.
+      buildHtml = () => letterHtml;
     } else {
       const currency = doc.currency || "XAF";
       const roundingFlags = await loadTotalRounding([doc.id]);
@@ -608,12 +608,12 @@ export async function sendDocumentEmailInternal(params: {
       });
       const useComputed = totals.hasFunds || discountChoice?.mode === "amount";
       subject = `${typeLabel} ${doc.number} — ${company.name}`;
-      html = buildCommercialEmailHtml({
+      buildHtml = (recipient) => buildCommercialEmailHtml({
         company,
         type: doc.type as "invoice" | "quotation",
         typeLabel,
         number: doc.number,
-        greeting: emailGreeting(doc.client.civility, doc.client.contactName),
+        greeting: emailGreeting(recipient),
         issueDate: formatDate(doc.issueDate),
         dueDate: doc.dueDate ? formatDate(doc.dueDate) : null,
         currency,
@@ -649,37 +649,53 @@ export async function sendDocumentEmailInternal(params: {
       : []),
   ];
 
-  const { data: sent, error } = await resend.emails.send({
+  // Un e-mail par destinataire : chacun reçoit sa propre salutation.
+  const delivered: string[] = [];
+  const failed: { email: string; error: string }[] = [];
+  let firstEmailId: string | null = null;
+  for (const recipient of recipients) {
+    const html = buildHtml(recipient);
+    const cc = delivered.length === 0 && failed.length === 0 ? managerCc : undefined;
+    const { data: sent, error } = await resend.emails.send({
       from,
-      to: recipients,
-      ...(managerCc ? { cc: [managerCc] } : {}),
+      to: recipient.email,
+      ...(cc ? { cc: [cc] } : {}),
       subject,
       html,
       ...(replyTo ? { replyTo: [replyTo] } : {}),
       ...(attachments.length ? { attachments } : {}),
     });
 
-  if (error) {
-    console.error("[sendDocumentEmail]", doc.number, to, error);
-    throw new Error(resendErrorMessage(error));
+    if (error) {
+      console.error("[sendDocumentEmail]", doc.number, recipient.email, error);
+      failed.push({ email: recipient.email, error: resendErrorMessage(error) });
+      continue;
+    }
+    delivered.push(recipient.email);
+    firstEmailId ??= sent?.id ?? null;
+
+    await logOutboundMail({
+      cabinet: doc.cabinet,
+      resendId: sent?.id ?? null,
+      fromEmail: from,
+      toEmail: recipient.email,
+      ccEmail: cc ?? null,
+      subject,
+      html: html.replace(
+        new RegExp(`<img src="cid:${DOCUMENT_PREVIEW_CID}"[^>]*/>`),
+        `<p style="font-size:12px;font-style:italic;color:#64748B;">[Aperçu du document intégré au mail]</p>`,
+      ),
+      documentId: doc.id,
+      clientId: doc.clientId,
+      staffId: params.staff.id,
+      lastEvent: "sent",
+    });
   }
 
-  await logOutboundMail({
-    cabinet: doc.cabinet,
-    resendId: sent?.id ?? null,
-    fromEmail: from,
-    toEmail: to,
-    ccEmail: managerCc ?? null,
-    subject,
-    html: html.replace(
-      new RegExp(`<img src="cid:${DOCUMENT_PREVIEW_CID}"[^>]*/>`),
-      `<p style="font-size:12px;font-style:italic;color:#64748B;">[Aperçu du document intégré au mail]</p>`,
-    ),
-    documentId: doc.id,
-    clientId: doc.clientId,
-    staffId: params.staff.id,
-    lastEvent: "sent",
-  });
+  if (delivered.length === 0) {
+    throw new Error(failed[0]?.error ?? "Envoi impossible");
+  }
+  const to = delivered.join(", ");
 
   const previousStatus = doc.status;
   const updated =
@@ -709,8 +725,10 @@ export async function sendDocumentEmailInternal(params: {
 
   return {
     ok: true as const,
-    emailId: sent?.id ?? null,
+    emailId: firstEmailId,
     to,
+    /** Destinataires en échec (les autres ont bien reçu le mail). */
+    failed,
     subject,
     documentId: doc.id,
     number: doc.number,

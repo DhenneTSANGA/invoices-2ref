@@ -55,8 +55,8 @@ export type Client = {
   /** Qualité (ex. Gérant). */
   representativeTitle: string;
   email: string;
-  /** Adresses e-mail supplémentaires (2 max). */
-  extraEmails: string[];
+  /** Adresses e-mail supplémentaires (2 max), avec civilité et nom pour la salutation. */
+  extraEmailContacts: import("@/lib/client-emails").ClientEmailContact[];
   phone: string;
   address: string;
   /** Boîte postale (courriels). */

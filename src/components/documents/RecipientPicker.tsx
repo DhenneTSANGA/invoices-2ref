@@ -14,6 +14,8 @@ type PickerRequest = {
   clientName: string;
   documentNumber: string;
   emails: string[];
+  /** Personne associée à chaque adresse (« Madame Nzé »), si renseignée. */
+  labels?: Record<string, string>;
   resolve: (picked: string[] | null) => void;
 };
 
@@ -32,6 +34,7 @@ export function pickRecipients(args: {
   clientName: string;
   documentNumber: string;
   emails: string[];
+  labels?: Record<string, string>;
 }): Promise<string[] | null> {
   current?.resolve(null);
   return new Promise((resolve) => {
@@ -78,7 +81,7 @@ export function RecipientPickerHost() {
           </DialogTitle>
           <DialogDescription>
             {request
-              ? `Cochez la ou les adresses de « ${request.clientName} » qui recevront ${request.documentNumber}.`
+              ? `Cochez la ou les adresses de « ${request.clientName} » qui recevront ${request.documentNumber}. Chaque destinataire reçoit son propre e-mail, avec sa salutation.`
               : null}
           </DialogDescription>
         </DialogHeader>
@@ -93,7 +96,14 @@ export function RecipientPickerHost() {
                 checked={checked.includes(email)}
                 onCheckedChange={(v) => toggle(email, v === true)}
               />
-              <span className="min-w-0 flex-1 truncate text-sm">{email}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm">{email}</span>
+                {request.labels?.[email] ? (
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {request.labels[email]}
+                  </span>
+                ) : null}
+              </span>
               {index === 0 ? (
                 <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
                   Principale

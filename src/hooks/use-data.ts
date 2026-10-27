@@ -60,7 +60,8 @@ import type {
 import type { Cabinet } from "@/lib/cabinets";
 import type { z } from "zod";
 import type { clientInputSchema, documentInputSchema, companyInputSchema, serviceInputSchema } from "@/lib/auth-schemas";
-import { clientEmails } from "@/lib/client-emails";
+import { toast } from "sonner";
+import { clientEmailContacts, emailContactLabel } from "@/lib/client-emails";
 import { sortDocumentsNewestFirst } from "@/lib/document-order";
 import { pickRecipients } from "@/components/documents/RecipientPicker";
 
@@ -505,12 +506,13 @@ async function chooseRecipients(
     queryFn: () => getClient({ data: { id: doc.clientId } }),
     staleTime: 60_000,
   });
-  const emails = client ? clientEmails(client) : [];
-  if (emails.length < 2) return undefined;
+  const contacts = client ? clientEmailContacts(client) : [];
+  if (contacts.length < 2) return undefined;
   const picked = await pickRecipients({
     clientName: client!.name,
     documentNumber: doc.number,
-    emails,
+    emails: contacts.map((c) => c.email),
+    labels: Object.fromEntries(contacts.map((c) => [c.email, emailContactLabel(c)])),
   });
   if (!picked) throw new Error("Envoi annulé — aucun destinataire choisi");
   return picked;
@@ -548,6 +550,12 @@ export function useSendDocumentEmail() {
       });
     },
     onSuccess: (res) => {
+      if (res.failed?.length) {
+        toast.warning("Envoi partiel", {
+          description: `Non reçu par : ${res.failed.map((f) => f.email).join(", ")} — ${res.failed[0]!.error}`,
+          duration: 12_000,
+        });
+      }
       qc.invalidateQueries({ queryKey: documentsKey() });
       qc.invalidateQueries({ queryKey: documentsKey(res.type) });
       qc.invalidateQueries({ queryKey: ["document", res.documentId] });

@@ -54,7 +54,7 @@ const empty: Omit<
   contactName: "",
   representativeTitle: "",
   email: "",
-  extraEmails: [],
+  extraEmailContacts: [],
   phone: "",
   address: "",
   bp: "",
@@ -315,8 +315,8 @@ function NewClient() {
             onChange={(v) => setForm({ ...form, phone: v })}
           />
           <ClientExtraEmails
-            value={form.extraEmails}
-            onChange={(extraEmails) => setForm({ ...form, extraEmails })}
+            value={form.extraEmailContacts}
+            onChange={(extraEmailContacts) => setForm({ ...form, extraEmailContacts })}
           />
         </Section>
 

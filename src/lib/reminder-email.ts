@@ -29,6 +29,8 @@ export const REMINDER_PREVIEW_TOTAL = "1\u00A0730\u00A0000 XAF";
 export function buildReminderEmailHtml(params: {
   companyName: string;
   clientName: string;
+  /** Salutation du destinataire (« Bonjour Madame Nzé, ») ; défaut « Madame, Monsieur, ». */
+  greeting?: string;
   intro: string;
   rows: ReminderEmailRow[];
   totalDue: string;
@@ -60,7 +62,7 @@ export function buildReminderEmailHtml(params: {
         <div style="font-size:18px;font-weight:700;color:${accent};">${escapeHtml(params.companyName)}</div>
         <div style="margin-top:16px;font-size:15px;font-weight:600;">Relance de paiement</div>
         <div style="margin-top:8px;font-size:14px;line-height:1.6;color:#334155;">
-          Madame, Monsieur,<br/><br/>
+          ${escapeHtml(params.greeting?.trim() || "Madame, Monsieur,")}<br/><br/>
           ${escapeHtml(params.intro)}
         </div>
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px;border-collapse:collapse;">

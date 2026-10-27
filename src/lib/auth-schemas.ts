@@ -221,7 +221,16 @@ export const clientInputSchema = z.object({
   contactName: z.string().default(""),
   representativeTitle: z.string().default(""),
   email: z.string().default(""),
-  extraEmails: z.array(z.string()).max(2).default([]),
+  extraEmailContacts: z
+    .array(
+      z.object({
+        email: z.string(),
+        civility: z.enum(["", "Monsieur", "Madame"]).default(""),
+        name: z.string().max(120).default(""),
+      }),
+    )
+    .max(2)
+    .default([]),
   phone: z.string().default(""),
   address: z.string().default(""),
   bp: z.string().default(""),
