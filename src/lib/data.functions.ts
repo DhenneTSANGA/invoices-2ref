@@ -113,7 +113,12 @@ import {
 } from "@/lib/letter-ref";
 import { buildInvoiceInputFromQuotation } from "@/lib/convert-quotation-to-invoice";
 import {
+  loadConvertedInvoices,
+  persistSourceQuotation,
+} from "@/lib/document-source-quotation-db";
+import {
   assertInvoiceManagerAllowed,
+  loadInvoiceManagerOptions,
   loadInvoiceProspectionInfo,
   persistInvoiceProspectionManager,
   syncInvoicePaidAt,
@@ -641,6 +646,9 @@ async function mappedDocuments(rows: Parameters<typeof mapDocument>[0][]) {
     }
     throw err;
   });
+  const convertedInvoices = await loadConvertedInvoices(
+    mapped.filter((d) => d.type === "quotation").map((d) => d.id),
+  );
   const discountChoices = await loadDiscountChoices(ids).catch((err) => {
     if (
       isPrismaColumnMissing(err, "discountMode") ||
@@ -678,6 +686,9 @@ async function mappedDocuments(rows: Parameters<typeof mapDocument>[0][]) {
     const next = {
       ...withFlags,
       ...(link ? { prospectionManagerId: link.managerId, paidAt: link.paidAt } : {}),
+      ...(d.type === "quotation"
+        ? { convertedInvoice: convertedInvoices.get(d.id) ?? null }
+        : {}),
       pole: poles.has(d.id) ? withFlags.pole : (fromClient ?? withFlags.pole),
       discountMode,
       discountFixed,
@@ -1304,6 +1315,27 @@ async function upsertDocumentHandler(
     return mappedDocument(created);
 }
 
+/** Manager Prospection de la fiche reliée au client (même suggestion que l'éditeur de facture). */
+async function suggestedProspectionManager(
+  cabinet: Cabinet,
+  clientId: string,
+): Promise<string | null> {
+  try {
+    const company = await prisma.crmCompany.findFirst({
+      where: { cabinet, clientId },
+      select: { managerId: true },
+    });
+    if (!company?.managerId) return null;
+    const managers = await loadInvoiceManagerOptions(cabinet);
+    return managers.some((m) => m.id === company.managerId)
+      ? company.managerId
+      : null;
+  } catch {
+    // Suggestion facultative : ne jamais bloquer la conversion.
+    return null;
+  }
+}
+
 export const convertQuotationToInvoice = createServerFn({ method: "POST" })
   .validator(z.object({ quotationId: z.string() }))
   .handler(async ({ data }) => {
@@ -1332,11 +1364,35 @@ export const convertQuotationToInvoice = createServerFn({ method: "POST" })
     if (quotation.status === "rejected" || quotation.status === "cancelled") {
       throw new Error("Ce devis ne peut pas être converti (refusé ou annulé).");
     }
+    if (quotation.lines.length === 0) {
+      throw new Error("Ce devis ne contient aucune prestation à facturer.");
+    }
 
-    const payload = buildInvoiceInputFromQuotation(await mappedDocument(quotation));
-    const invoice = await upsertDocumentHandler(payload, {
-      cabinet: quotation.cabinet,
-    });
+    const mappedQuotation = await mappedDocument(quotation);
+    if (mappedQuotation.convertedInvoice) {
+      throw new Error(
+        `Ce devis a déjà été converti en facture (${mappedQuotation.convertedInvoice.number}).`,
+      );
+    }
+
+    const payload = {
+      ...buildInvoiceInputFromQuotation(mappedQuotation),
+      prospectionManagerId: await suggestedProspectionManager(
+        quotation.cabinet,
+        quotation.clientId,
+      ),
+    };
+    let invoice;
+    try {
+      invoice = await upsertDocumentHandler(payload, {
+        cabinet: quotation.cabinet,
+      });
+    } catch (err) {
+      throw new Error(
+        formatPrismaError(err, "Conversion du devis en facture impossible"),
+      );
+    }
+    await persistSourceQuotation(invoice.id, quotation.id);
 
     if (
       quotation.status === "draft" ||

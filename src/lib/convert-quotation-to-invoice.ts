@@ -7,6 +7,9 @@ export function buildInvoiceInputFromQuotation(
   quotation: Document,
 ): z.infer<typeof documentInputSchema> {
   const today = new Date().toISOString().slice(0, 10);
+  // Une échéance de devis déjà passée n'a pas de sens sur une facture émise aujourd'hui.
+  const quotationDue = quotation.dueDate?.trim() || null;
+  const dueDate = quotationDue && quotationDue.slice(0, 10) >= today ? quotationDue : null;
 
   return {
     type: "invoice",
@@ -15,7 +18,7 @@ export function buildInvoiceInputFromQuotation(
     pole: quotation.pole,
     status: "draft",
     issueDate: today,
-    dueDate: quotation.dueDate ?? null,
+    dueDate,
     currency: quotation.currency,
     notes: quotation.notes ?? null,
     paymentTerms: quotation.paymentTerms ?? null,

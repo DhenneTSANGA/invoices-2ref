@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { createFileRoute, Link, Outlet, useChildMatches, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Send, CheckCircle2, XCircle, Edit3, Eye, FileText } from "lucide-react";
+import { ArrowLeft, Send, CheckCircle2, XCircle, Edit3, Eye, FileText, Receipt } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { LoadingState } from "@/components/common/LoadingState";
@@ -26,7 +26,12 @@ import { DocumentPdfTracesPanel } from "@/components/documents/DocumentPdfTraces
 import { documentDetailRoute } from "@/lib/document-nav";
 import { currency, longDate } from "@/lib/format";
 import { remainingDue, normalizedDeposit, isFundsLine } from "@/lib/document-math";
-import { isAdmin } from "@/lib/roles";
+import {
+  canEditInvoiceContent,
+  canWriteDocument,
+  isAdmin,
+  isMember,
+} from "@/lib/roles";
 
 export const Route = createFileRoute("/_app/quotations/$id")({
   head: () => ({ meta: [{ title: "Détail devis — 2R Hub" }] }),
@@ -98,19 +103,43 @@ function QuotationDetailPage() {
     );
   };
 
-  const canConvert =
-    doc.status !== "rejected" && doc.status !== "cancelled";
+  const convertedInvoice = doc.convertedInvoice ?? null;
+  const canWriteQuotation = session
+    ? canWriteDocument(session.staff.role, session.staff.id, doc.createdById)
+    : false;
+  const convertBlockedReason =
+    doc.status === "rejected" || doc.status === "cancelled"
+      ? "Un devis refusé ou annulé ne peut pas être converti."
+      : doc.items.length === 0
+        ? "Ajoutez au moins une prestation au devis avant de le convertir."
+        : !canWriteQuotation
+          ? "Seul le créateur du devis ou un administrateur peut le convertir."
+          : null;
+  const canConvert = !convertedInvoice && convertBlockedReason === null;
 
   const convertToInvoice = () => {
+    if (!canConvert || !session) return;
+    const member = isMember(session.staff.role);
+    const confirmMessage = member
+      ? `Créer une facture à partir du devis ${doc.number} ?\n\nLa facture sera enregistrée immédiatement avec un numéro définitif et ne sera plus modifiable ensuite (seul un administrateur pourra la corriger).`
+      : `Créer une facture à partir du devis ${doc.number} ?\n\nLa facture est créée en brouillon avec un numéro définitif ; vous pourrez la relire et la modifier avant de l’envoyer.`;
+    if (!window.confirm(confirmMessage)) return;
+
     convertMutation.mutate(doc.id, {
       onSuccess: (invoice) => {
         toast.success("Facture créée à partir du devis", {
           description: invoice.number,
         });
-        void navigate({
-          to: "/invoices/$id/edit",
-          params: { id: invoice.id },
-        });
+        const editable = canEditInvoiceContent(
+          session.staff.role,
+          session.staff.id,
+          invoice.createdById,
+        );
+        void navigate(
+          editable
+            ? { to: "/invoices/$id/edit", params: { id: invoice.id } }
+            : { to: "/invoices/$id", params: { id: invoice.id } },
+        );
       },
       onError: (e) => toast.error(e.message),
     });
@@ -225,14 +254,36 @@ function QuotationDetailPage() {
                 <div className="font-numeric font-semibold">{currency(-doc.tps)}</div>
               </div>
             ) : null}
-            <button
-              type="button"
-              onClick={convertToInvoice}
-              disabled={convertMutation.isPending || !canConvert}
-              className="mt-4 block w-full rounded-xl bg-gradient-primary px-3 py-2 text-center text-sm font-medium text-primary-foreground shadow-glow disabled:opacity-60"
-            >
-              {convertMutation.isPending ? "Conversion…" : "Convertir en facture"}
-            </button>
+            {convertedInvoice ? (
+              <div className="mt-4 space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  Ce devis a déjà été converti en facture.
+                </p>
+                <Link
+                  to="/invoices/$id"
+                  params={{ id: convertedInvoice.id }}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-center text-sm font-medium hover:bg-muted"
+                >
+                  <Receipt className="h-4 w-4" /> Voir la facture {convertedInvoice.number}
+                </Link>
+              </div>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={convertToInvoice}
+                  disabled={convertMutation.isPending || !canConvert}
+                  title={convertBlockedReason ?? undefined}
+                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-primary px-3 py-2 text-center text-sm font-medium text-primary-foreground shadow-glow disabled:opacity-60"
+                >
+                  <Receipt className="h-4 w-4" />
+                  {convertMutation.isPending ? "Conversion…" : "Convertir en facture"}
+                </button>
+                {convertBlockedReason ? (
+                  <p className="mt-2 text-xs text-muted-foreground">{convertBlockedReason}</p>
+                ) : null}
+              </>
+            )}
           </div>
           <DocumentCreatorCard creator={doc.createdBy} />
           <DocumentPdfTracesPanel documentId={doc.id} />

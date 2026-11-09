@@ -221,6 +221,8 @@ export type Document = {
   /** Facture : date d’encaissement (passage en « payée »). */
   paidAt?: string | null;
   mailMergeCampaignId?: string | null;
+  /** Devis : facture issue de sa conversion (hors facture annulée). */
+  convertedInvoice?: { id: string; number: string; status: string } | null;
   /** Devis */
   validityDays?: number;
   executionTerms?: string;
