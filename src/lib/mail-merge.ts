@@ -91,6 +91,7 @@ const createCampaignSchema = z
     issueDate: z.string().optional(),
     language: z.enum(["CF", "CA"]).default("CF"),
     service: z.enum(["SA", "DIR", "SAF", "SEM", "SF"]).default("SA"),
+    responsible: z.enum(["ROB", "RIB"]).optional(),
     subjectAbbrev: z.string().optional(),
     placeCity: z.string().optional(),
   })
@@ -151,6 +152,7 @@ async function nextLetterRef(args: {
   issueDate: Date;
   language: LetterLanguage;
   service: LetterServiceCode;
+  responsible?: "ROB" | "RIB";
   subjectAbbrev: string;
   existingNumbers: string[];
 }) {
@@ -163,6 +165,7 @@ async function nextLetterRef(args: {
     issueDate: args.issueDate,
     subjectAbbrev: args.subjectAbbrev,
     service: args.service,
+    responsible: args.responsible,
   });
 }
 
@@ -370,6 +373,7 @@ export const createMailMergeCampaign = createServerFn({ method: "POST" })
         issueDate,
         language,
         service,
+        responsible: data.responsible,
         subjectAbbrev,
         existingNumbers: numbers,
       });

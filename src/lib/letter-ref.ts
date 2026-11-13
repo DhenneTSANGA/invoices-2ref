@@ -38,8 +38,17 @@ export function letterCabinetPrefix(cabinet: Cabinet): "2RC" | "2REF" {
   return cabinet === "conseil" ? "2RC" : "2REF";
 }
 
-/** Code cabinet final (ROB / RIB). */
-export function letterCabinetSuffix(cabinet: Cabinet): "ROB" | "RIB" {
+/** Responsable en fin de référence (ROB / RIB). */
+export type LetterResponsibleCode = "ROB" | "RIB";
+
+export const LETTER_RESPONSIBLES: LetterResponsibleCode[] = ["ROB", "RIB"];
+
+export function isLetterResponsibleCode(v: string): v is LetterResponsibleCode {
+  return v === "ROB" || v === "RIB";
+}
+
+/** Responsable par défaut du cabinet (ROB / RIB). */
+export function letterCabinetSuffix(cabinet: Cabinet): LetterResponsibleCode {
   return cabinet === "conseil" ? "ROB" : "RIB";
 }
 
@@ -115,6 +124,8 @@ export type LetterRefParts = {
   issueDate: string | Date;
   subjectAbbrev: string;
   service: LetterServiceCode;
+  /** ROB / RIB — défaut : celui du cabinet. */
+  responsible?: LetterResponsibleCode | null;
 };
 
 /** Construit : 2RC/CF/002/026/RCNF/ROB/SA */
@@ -127,7 +138,7 @@ export function buildLetterRef(parts: LetterRefParts): string {
     seq,
     letterYearCode(parts.issueDate),
     abbr,
-    letterCabinetSuffix(parts.cabinet),
+    parts.responsible ?? letterCabinetSuffix(parts.cabinet),
     parts.service,
   ].join("/");
 }

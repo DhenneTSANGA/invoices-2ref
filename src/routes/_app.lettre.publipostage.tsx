@@ -39,11 +39,14 @@ import { LetterSubjectInput } from "@/components/editor/LetterSubjectInput";
 import { RichTextEditor } from "@/components/editor/RichTextEditor";
 import {
   LETTER_LANGUAGES,
+  LETTER_RESPONSIBLES,
   LETTER_SERVICES,
   abbrevForLetterSubject,
+  letterCabinetSuffix,
   isPredefinedLetterSubject,
   resolveLetterSubjectAbbrev,
   type LetterLanguage,
+  type LetterResponsibleCode,
   type LetterServiceCode,
 } from "@/lib/letter-ref";
 import { isRichTextEmpty } from "@/lib/rich-text";
@@ -185,6 +188,11 @@ function MailMergePage() {
   const [letterLanguage, setLetterLanguage] = useState<LetterLanguage>("CF");
   const [letterService, setLetterService] = useState<LetterServiceCode>("SA");
   const [subjectAbbrev, setSubjectAbbrev] = useState("");
+  /** ROB / RIB — null = celui du cabinet actif. */
+  const [letterResponsible, setLetterResponsible] =
+    useState<LetterResponsibleCode | null>(null);
+  const effectiveResponsible: LetterResponsibleCode =
+    letterResponsible ?? letterCabinetSuffix(session?.activeCabinet ?? "expertise_fiscale");
   const [placeCity, setPlaceCity] = useState("Libreville");
   const [salutation, setSalutation] = useState("");
   const [body, setBody] = useState("");
@@ -217,6 +225,7 @@ function MailMergePage() {
           signatoryTitle,
           language: letterLanguage,
           service: letterService,
+          responsible: effectiveResponsible,
           subjectAbbrev: resolveLetterSubjectAbbrev(subject, subjectAbbrev),
           placeCity,
         },
@@ -655,7 +664,7 @@ function MailMergePage() {
                   />
                 </div>
               </label>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <label className="block">
                   <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                     Langue
@@ -714,6 +723,24 @@ function MailMergePage() {
                     />
                   </label>
                 )}
+                <label className="block">
+                  <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Responsable
+                  </span>
+                  <FancySelect
+                    className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
+                    value={effectiveResponsible}
+                    onChange={(e) =>
+                      setLetterResponsible(e.target.value as LetterResponsibleCode)
+                    }
+                  >
+                    {LETTER_RESPONSIBLES.map((code) => (
+                      <option key={code} value={code}>
+                        {code}
+                      </option>
+                    ))}
+                  </FancySelect>
+                </label>
               </div>
               <label className="block">
                 <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">

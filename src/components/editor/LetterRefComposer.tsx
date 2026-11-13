@@ -5,6 +5,7 @@ import {
   buildLetterRef,
   isPredefinedLetterSubject,
   LETTER_LANGUAGES,
+  LETTER_RESPONSIBLES,
   LETTER_SERVICES,
   letterCabinetPrefix,
   letterCabinetSuffix,
@@ -12,6 +13,7 @@ import {
   parseLetterRef,
   resolveLetterSubjectAbbrev,
   type LetterLanguage,
+  type LetterResponsibleCode,
   type LetterServiceCode,
 } from "@/lib/letter-ref";
 import { cn } from "@/lib/utils";
@@ -49,6 +51,10 @@ export function LetterRefComposer({
   const [service, setService] = useState<LetterServiceCode>(
     parsed?.service ?? "SA",
   );
+  /** Responsable ROB / RIB (défaut : celui du cabinet). */
+  const [responsible, setResponsible] = useState<LetterResponsibleCode>(
+    parsed?.cabinetSuffix ?? letterCabinetSuffix(cabinet),
+  );
   /** Saisie manuelle — ignorée si l'objet vient de la liste prédéfinie. */
   const [manualAbbrev, setManualAbbrev] = useState(
     parsed?.subjectAbbrev ?? "",
@@ -65,6 +71,7 @@ export function LetterRefComposer({
     if (!p) return;
     setLanguage((prev) => (prev === p.language ? prev : p.language));
     setService((prev) => (prev === p.service ? prev : p.service));
+    setResponsible((prev) => (prev === p.cabinetSuffix ? prev : p.cabinetSuffix));
     lastEmittedRef.current = value;
   }, [value]);
 
@@ -89,8 +96,9 @@ export function LetterRefComposer({
         issueDate,
         subjectAbbrev: effectiveAbbrev,
         service,
+        responsible,
       }),
-    [cabinet, language, seq, issueDate, effectiveAbbrev, service],
+    [cabinet, language, seq, issueDate, effectiveAbbrev, service, responsible],
   );
 
   useEffect(() => {
@@ -150,7 +158,7 @@ export function LetterRefComposer({
         </label>
 
         {isPredefined ? (
-          <div className="sm:col-span-2 rounded-xl border border-border/60 bg-muted/30 px-3 py-2.5">
+          <div className="rounded-xl border border-border/60 bg-muted/30 px-3 py-2.5">
             <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
               Abrégé objet (automatique)
             </div>
@@ -159,7 +167,7 @@ export function LetterRefComposer({
             </div>
           </div>
         ) : (
-          <label className="block sm:col-span-2">
+          <label className="block">
             <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Abrégé objet
             </span>
@@ -176,12 +184,28 @@ export function LetterRefComposer({
             ) : null}
           </label>
         )}
+
+        <label className="block">
+          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Responsable
+          </span>
+          <FancySelect
+            className="mt-1.5 w-full rounded-xl border border-border/60 bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+            value={responsible}
+            onChange={(e) => setResponsible(e.target.value as LetterResponsibleCode)}
+          >
+            {LETTER_RESPONSIBLES.map((code) => (
+              <option key={code} value={code}>
+                {code}
+              </option>
+            ))}
+          </FancySelect>
+        </label>
       </div>
 
       <p className="text-[11px] text-muted-foreground">
         Fixe : {letterCabinetPrefix(cabinet)} · n°{" "}
-        {String(seq).padStart(3, "0")} · {letterYearCode(issueDate)} ·{" "}
-        {letterCabinetSuffix(cabinet)}
+        {String(seq).padStart(3, "0")} · {letterYearCode(issueDate)}
       </p>
     </div>
   );

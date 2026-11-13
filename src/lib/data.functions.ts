@@ -102,6 +102,7 @@ import {
 import {
   buildLetterRef,
   isLetterLanguage,
+  isLetterResponsibleCode,
   isLetterServiceCode,
   letterYearCode,
   nextLetterSequenceFromNumbers,
@@ -173,6 +174,8 @@ async function allocateLetterNumber(
     subject ?? "",
     parsed?.subjectAbbrev ?? "",
   );
+  const responsible =
+    parsed && isLetterResponsibleCode(parsed.cabinetSuffix) ? parsed.cabinetSuffix : undefined;
 
   const rows = await prisma.document.findMany({
     where: { cabinet, type: "letter" },
@@ -189,6 +192,7 @@ async function allocateLetterNumber(
     issueDate,
     subjectAbbrev,
     service,
+    responsible,
   });
 }
 
@@ -801,6 +805,7 @@ export const peekNextLetterNumber = createServerFn({ method: "GET" })
       language: z.enum(["CF", "CA"]).default("CF"),
       service: z.enum(["SA", "DIR", "SAF", "SEM", "SF"]).default("SA"),
       subjectAbbrev: z.string().default("OBJ"),
+      responsible: z.enum(["ROB", "RIB"]).optional(),
     }),
   )
   .handler(async ({ data }) => {
@@ -821,6 +826,7 @@ export const peekNextLetterNumber = createServerFn({ method: "GET" })
       issueDate: data.issueDate,
       subjectAbbrev: data.subjectAbbrev,
       service: data.service,
+      responsible: data.responsible,
     });
     return { number, seq };
   });
