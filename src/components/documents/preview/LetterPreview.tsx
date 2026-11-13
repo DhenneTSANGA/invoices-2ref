@@ -20,10 +20,15 @@ import { letterPlaceCityLabel } from "@/lib/letter-place-city";
 const PT = 820 / 595.28;
 const pt = (n: number) => `${(n * PT).toFixed(2)}px`;
 
-/** Interligne Word « simple » (1.0) pour Times New Roman. */
-const LINE = 1.15;
+/**
+ * Interligne Word « simple » (1,0) : hauteur = métriques de la police.
+ * Times New Roman : (winAscent 1825 + winDescent 443) / 2048 ≈ 1,107.
+ */
+const LINE = 1.107;
+/** Interligne simple (1,0) de Calibri / Calibri Light : (1950 + 550) / 2048 ≈ 1,22. */
+const FOOTER_LINE = 1.22;
 /** Ligne vide Word (paragraphe vide 12 pt) entre deux blocs. */
-const BLANK = `${LINE}em`;
+const BLANK = `${(12 * LINE * (820 / 595.28)).toFixed(2)}px`;
 
 const LETTER_FONT = '"Times New Roman", Times, "Liberation Serif", serif';
 const FOOTER_FONT = '"Calibri Light", Calibri, Carlito, "Segoe UI", Arial, sans-serif';
@@ -34,6 +39,18 @@ const TEXT_COLOR = "#000000";
 const MARGIN_MM = 25;
 /** Pied de page à ~28 cm du haut de page (modèle). */
 const BOTTOM_MM = 8;
+
+/** 1 cm en px d'aperçu (820 px = 21 cm). */
+const CM = 820 / 21;
+const MARGIN_PX = MARGIN_MM / 10 * CM;
+/** Dessin du logo : ~4,5 × 2,3 cm, haut à 0,8 cm du bord, 0,35 cm après la marge gauche. */
+const LOGO_ARTWORK_HEIGHT = Math.round(2.3 * CM);
+const LOGO_TOP = 0.8 * CM;
+const LOGO_LEFT = Math.round(0.35 * CM);
+/** Date à ~3,85 cm du haut de page, sous le logo. */
+const DATE_TOP = 3.85 * CM;
+/** REF à ~7,9 cm du haut de page (bloc destinataire de 5 lignes). */
+const HEADER_MIN_HEIGHT = Math.round((7.9 - MARGIN_MM / 10) * CM);
 
 /** Espace signature : ~4 lignes vides 11 pt du modèle (+ marge). */
 const SIGNATURE_GAP = 92;
@@ -68,8 +85,8 @@ function RichHtml({
     <div
       className={cn(
         // Paragraphes séparés par une ligne vide, comme dans le modèle Word.
-        "[&_p]:m-0 [&_p]:mb-[1.15em] [&_p:last-child]:mb-0 [&_p:empty]:hidden",
-        "[&_ul]:m-0 [&_ul]:mb-[1.15em] [&_ul]:list-disc [&_ol]:m-0 [&_ol]:mb-[1.15em] [&_ol]:list-decimal",
+        "[&_p]:m-0 [&_p]:mb-[1.107em] [&_p:last-child]:mb-0 [&_p:empty]:hidden",
+        "[&_ul]:m-0 [&_ul]:mb-[1.107em] [&_ul]:list-disc [&_ol]:m-0 [&_ol]:mb-[1.107em] [&_ol]:list-decimal",
         "[&_ul:last-child]:mb-0 [&_ol:last-child]:mb-0 [&_li]:m-0 [&_li_p]:mb-0",
         "[&_strong]:font-bold [&_em]:italic [&_u]:underline",
         className,
@@ -141,21 +158,27 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
       baseTextClass=""
     >
       <div className="flex flex-1 flex-col" style={{ fontFamily: LETTER_FONT, color: TEXT_COLOR }}>
-        {/* En-tête : logo à gauche (dans la marge haute), date + destinataire à droite. */}
-        <div className="relative flex justify-between gap-4">
-          <div className="shrink-0" style={{ marginTop: -66, marginLeft: -19 }}>
-            <PreviewLogo cabinet={doc.cabinet} className="h-[178px] max-w-[200px]" />
+        {/*
+          En-tête (mesures du courrier imprimé) : logo seul en haut à gauche,
+          puis date + destinataire sous le logo, à droite ; REF à ~7,9 cm du haut de page.
+        */}
+        <div className="relative" style={{ minHeight: HEADER_MIN_HEIGHT }}>
+          <div
+            className="absolute"
+            style={{ top: LOGO_TOP - MARGIN_PX, left: LOGO_LEFT }}
+          >
+            <PreviewLogo cabinet={doc.cabinet} artworkHeight={LOGO_ARTWORK_HEIGHT} />
           </div>
-          <div className="flex flex-col items-end" style={{ width: 270 }}>
-            <div
-              className="w-full text-center italic"
-              style={{ ...body12, marginTop: pt(11.85) }}
-            >
+          <div
+            className="ml-auto flex flex-col"
+            style={{ width: 270, paddingTop: DATE_TOP - MARGIN_PX, paddingBottom: BLANK }}
+          >
+            <div className="w-full text-center italic" style={body12}>
               {city}, le {letterDate(doc.issueDate)}
             </div>
             <div
-              className="mt-4 w-full whitespace-pre-line text-center font-bold"
-              style={{ fontSize: pt(11), lineHeight: LINE, color: TEXT_COLOR }}
+              className="w-full whitespace-pre-line text-center font-bold"
+              style={{ fontSize: pt(11), lineHeight: LINE, color: TEXT_COLOR, marginTop: 6 }}
             >
               {recipientLines || (
                 <span className="font-normal italic text-[#94A3B8]">
@@ -167,7 +190,7 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
         </div>
 
         {/* REF / Objet */}
-        <div className="text-justify" style={{ ...body12, marginTop: BLANK }}>
+        <div className="text-justify" style={body12}>
           <p className="m-0 font-bold">
             <span className="underline">REF</span> : {doc.number}
           </p>
@@ -241,7 +264,7 @@ export const LetterPreview = forwardRef<HTMLDivElement, Props>(function LetterPr
             fontFamily: FOOTER_FONT,
             color: FOOTER_COLOR,
             fontSize: pt(8),
-            lineHeight: 1.2,
+            lineHeight: FOOTER_LINE,
             marginLeft: -34,
             marginRight: -34,
           }}
