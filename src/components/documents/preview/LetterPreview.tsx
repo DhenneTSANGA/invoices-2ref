@@ -100,7 +100,8 @@ const LIST_INDENT = 57;
 const LIST_HANGING = 25;
 
 const BLANK_P_RE =
-  /<p\b[^>]*>(?:\s|&nbsp;|&#160;| |<br\s*\/?>|<(\w+)\b[^>]*>(?:\s|&nbsp;|&#160;| |<br\s*\/?>)*<\/\1>)*<\/p>/gi;
+  // `\s` couvre aussi l'espace insécable (U+00A0).
+  /<p\b[^>]*>(?:\s|&nbsp;|&#160;|<br\s*\/?>|<(\w+)\b[^>]*>(?:\s|&nbsp;|&#160;|<br\s*\/?>)*<\/\1>)*<\/p>/gi;
 const SPACE = "(?:\\s|&nbsp;|&#160;|\\u00a0)";
 /** « 1. », « 2) », « a. », « • », « - », « – » en tête de paragraphe (numérotation collée depuis Word). */
 const MANUAL_ITEM_RE = new RegExp(
