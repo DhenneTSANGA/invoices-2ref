@@ -28,7 +28,12 @@ import {
 import type { Cabinet } from "@/lib/cabinets";
 import { isAdmin } from "@/lib/roles";
 import { cn } from "@/lib/utils";
-import { clientLetterPostalLine, clientRepresentativeLine, clientDisplayName } from "@/lib/client-address";
+import {
+  clientLetterPostalLine,
+  clientLetterRecipientLines,
+  clientRepresentativeLine,
+  clientDisplayName,
+} from "@/lib/client-address";
 import {
   DEFAULT_SIGNATORY_TITLE,
   resolveSignatoryRole,
@@ -171,6 +176,10 @@ export function LetterEditor({ initial }: Props) {
   const effectiveClientId = doc.clientId || clients[0]?.id || "";
   const previewDoc = { ...doc, clientId: effectiveClientId };
   const selectedClient = clients.find((c) => c.id === effectiveClientId);
+  /** Bloc « À l'attention de » calculé depuis la fiche client (modifiable dans le formulaire). */
+  const autoRecipient = selectedClient
+    ? clientLetterRecipientLines(selectedClient).join("\n")
+    : "";
   const clientPole = selectedClient ? parseClientPole(selectedClient.pole) : null;
   const docPole = parseClientPole(memberPole ?? doc.pole);
   const alreadySigned = doc.status === "signed" || doc.status === "sent";
@@ -204,7 +213,12 @@ export function LetterEditor({ initial }: Props) {
       body: draft.body ?? null,
       closing: draft.closing ?? null,
       signatoryTitle: draft.signatoryTitle?.trim() || DEFAULT_SIGNATORY_TITLE,
-      recipientOverride: draft.recipientOverride ?? null,
+      // Texte identique au bloc calculé ou vide → pas de surcharge (suit la fiche client).
+      recipientOverride:
+        draft.recipientOverride?.trim() &&
+        draft.recipientOverride.trim() !== autoRecipient.trim()
+          ? draft.recipientOverride
+          : null,
       placeCity: draft.placeCity ?? "Libreville",
       items: [],
       showRib: false,
@@ -324,7 +338,10 @@ export function LetterEditor({ initial }: Props) {
               <FancySelect
                 className="mt-1.5 w-full rounded-xl border border-border/60 bg-surface px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
                 value={effectiveClientId}
-                onChange={(e) => setDoc({ ...doc, clientId: e.target.value })}
+                // Nouveau client → le bloc « À l'attention de » est recalculé.
+                onChange={(e) =>
+                  setDoc({ ...doc, clientId: e.target.value, recipientOverride: undefined })
+                }
               >
                 {clients.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -369,14 +386,6 @@ export function LetterEditor({ initial }: Props) {
               </div>
             )}
 
-            <TextArea
-              label="Adresse destinataire (optionnel)"
-              hint="Remplace l'adresse du client sur le courrier"
-              rows={3}
-              placeholder={"Nom\nEntreprise\nAdresse\nVille, Pays"}
-              value={doc.recipientOverride ?? ""}
-              onChange={(v) => setDoc({ ...doc, recipientOverride: v || undefined })}
-            />
           </div>
         </Section>
 
@@ -426,9 +435,30 @@ export function LetterEditor({ initial }: Props) {
         <Section
           icon={<PenLine className="h-4 w-4" />}
           title="Contenu du courriel"
-          hint="Objet, formule d'appel et corps du message"
+          hint="À l'attention de, objet, formule d'appel et corps du message"
         >
           <div className="space-y-4">
+            <div>
+              <TextArea
+                label="À l'attention de"
+                hint="Prérempli depuis la fiche client — modifiable (une ligne du courrier par ligne)."
+                rows={5}
+                placeholder={
+                  "À\nL’attention\nDe Monsieur le Directeur Général\nDe NOM DU CLIENT\nBP : … Libreville-Gabon"
+                }
+                value={doc.recipientOverride ?? autoRecipient}
+                onChange={(v) => setDoc({ ...doc, recipientOverride: v })}
+              />
+              {doc.recipientOverride != null && doc.recipientOverride !== autoRecipient ? (
+                <button
+                  type="button"
+                  onClick={() => setDoc({ ...doc, recipientOverride: undefined })}
+                  className="mt-1 text-[11px] font-medium text-primary hover:underline"
+                >
+                  Revenir au texte de la fiche client
+                </button>
+              ) : null}
+            </div>
             <label className="block">
               <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Objet

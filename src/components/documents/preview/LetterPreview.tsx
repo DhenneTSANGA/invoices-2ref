@@ -52,8 +52,8 @@ const DATE_TOP = 3.85 * CM;
 /** REF à ~7,9 cm du haut de page (bloc destinataire de 5 lignes). */
 const HEADER_MIN_HEIGHT = Math.round((7.9 - MARGIN_MM / 10) * CM);
 
-/** Espace signature : ~4 lignes vides 11 pt du modèle (+ marge). */
-const SIGNATURE_GAP = 92;
+/** Espace signature : assez haut pour que la qualité (GÉRANT …) passe sous le cachet. */
+const SIGNATURE_GAP = 130;
 /** Hauteur de l'image signature / cachet (déborde de l'espace, centrée). */
 const STAMP_HEIGHT = 140;
 
