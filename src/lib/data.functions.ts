@@ -799,7 +799,7 @@ export const peekNextLetterNumber = createServerFn({ method: "GET" })
     z.object({
       issueDate: z.string().min(1),
       language: z.enum(["CF", "CA"]).default("CF"),
-      service: z.enum(["SA", "DIR", "SAF"]).default("SA"),
+      service: z.enum(["SA", "DIR", "SAF", "SEM", "SF"]).default("SA"),
       subjectAbbrev: z.string().default("OBJ"),
     }),
   )

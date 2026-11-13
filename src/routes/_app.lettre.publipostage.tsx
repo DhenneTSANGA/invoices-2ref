@@ -42,7 +42,6 @@ import {
   LETTER_SERVICES,
   abbrevForLetterSubject,
   isPredefinedLetterSubject,
-  normalizeSubjectAbbrev,
   resolveLetterSubjectAbbrev,
   type LetterLanguage,
   type LetterServiceCode,
@@ -51,6 +50,7 @@ import { isRichTextEmpty } from "@/lib/rich-text";
 import { LETTER_PLACE_CITIES } from "@/lib/letter-place-city";
 
 import { FancySelect } from "@/components/common/FancySelect";
+import { LetterSubjectAbbrevSelect } from "@/components/editor/LetterSubjectAbbrevSelect";
 export const Route = createFileRoute("/_app/lettre/publipostage")({
   head: () => ({ meta: [{ title: "Publipostage — 2R Hub" }] }),
   component: MailMergePage,
@@ -706,13 +706,11 @@ function MailMergePage() {
                     <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                       Abrégé objet
                     </span>
-                    <input
-                      className="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 font-mono text-sm uppercase focus:border-primary focus:outline-none"
+                    <LetterSubjectAbbrevSelect
                       value={subjectAbbrev}
-                      placeholder="Ex. RDP (OBJ si vide)"
-                      onChange={(e) =>
-                        setSubjectAbbrev(normalizeSubjectAbbrev(e.target.value))
-                      }
+                      onChange={setSubjectAbbrev}
+                      selectClassName="mt-1 w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
+                      inputClassName="w-full rounded-xl border border-border/60 bg-transparent px-3 py-2.5 font-mono text-sm uppercase focus:border-primary focus:outline-none"
                     />
                   </label>
                 )}

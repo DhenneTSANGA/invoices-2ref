@@ -9,7 +9,6 @@ import {
   letterCabinetPrefix,
   letterCabinetSuffix,
   letterYearCode,
-  normalizeSubjectAbbrev,
   parseLetterRef,
   resolveLetterSubjectAbbrev,
   type LetterLanguage,
@@ -18,6 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import { FancySelect } from "@/components/common/FancySelect";
+import { LetterSubjectAbbrevSelect } from "@/components/editor/LetterSubjectAbbrevSelect";
 type Props = {
   cabinet: Cabinet;
   issueDate: string;
@@ -163,17 +163,15 @@ export function LetterRefComposer({
             <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Abrégé objet
             </span>
-            <input
-              className="mt-1.5 w-full rounded-xl border border-border/60 bg-surface px-3 py-2.5 font-mono text-sm uppercase outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+            <LetterSubjectAbbrevSelect
               value={manualAbbrev}
-              placeholder="Ex. RDP (OBJ si vide)"
-              onChange={(e) =>
-                setManualAbbrev(normalizeSubjectAbbrev(e.target.value))
-              }
+              onChange={setManualAbbrev}
+              selectClassName="mt-1.5 w-full rounded-xl border border-border/60 bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+              inputClassName="w-full rounded-xl border border-border/60 bg-surface px-3 py-2.5 font-mono text-sm uppercase outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
             />
             {subject.trim() ? (
               <p className="mt-1 text-[11px] text-muted-foreground">
-                Objet libre : saisissez l’abrégé pour la référence.
+                Objet libre : choisissez l’abrégé pour la référence.
               </p>
             ) : null}
           </label>

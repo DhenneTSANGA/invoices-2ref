@@ -5,7 +5,7 @@ import { DEFAULT_LETTER_SUBJECTS } from "@/lib/default-letter-subjects";
 export type LetterLanguage = "CF" | "CA";
 
 /** Service émetteur. */
-export type LetterServiceCode = "SA" | "DIR" | "SAF";
+export type LetterServiceCode = "SA" | "DIR" | "SAF" | "SEM" | "SF";
 
 export const LETTER_LANGUAGES: {
   code: LetterLanguage;
@@ -22,6 +22,15 @@ export const LETTER_SERVICES: {
   { code: "SA", label: "Service administratif" },
   { code: "DIR", label: "Direction" },
   { code: "SAF", label: "Service audit fiscal" },
+  { code: "SEM", label: "Séminaire" },
+  { code: "SF", label: "Service formation" },
+];
+
+/** Abrégés objet proposés dans le menu déroulant (objet libre). */
+export const LETTER_SUBJECT_ABBREV_OPTIONS: { code: string; label: string }[] = [
+  { code: "FRM", label: "Formation" },
+  { code: "DA", label: "Demande d'audience" },
+  { code: "ODS", label: "Offre de service" },
 ];
 
 /** Préfixe cabinet dans la réf (2RC / 2REF). */
@@ -134,7 +143,7 @@ export type ParsedLetterRef = {
 };
 
 const REF_RE =
-  /^(2RC|2REF)\/(CF|CA)\/(\d{1,6})\/(\d{3})\/([A-Z0-9]+)\/(ROB|RIB)\/(SA|DIR|SAF)$/i;
+  /^(2RC|2REF)\/(CF|CA)\/(\d{1,6})\/(\d{3})\/([A-Z0-9]+)\/(ROB|RIB)\/(SA|DIR|SAF|SEM|SF)$/i;
 
 export function parseLetterRef(number: string): ParsedLetterRef | null {
   const m = number.trim().match(REF_RE);
@@ -178,5 +187,5 @@ export function isLetterLanguage(v: string): v is LetterLanguage {
 }
 
 export function isLetterServiceCode(v: string): v is LetterServiceCode {
-  return v === "SA" || v === "DIR" || v === "SAF";
+  return LETTER_SERVICES.some((s) => s.code === v);
 }

@@ -90,7 +90,7 @@ const createCampaignSchema = z
     signatoryTitle: z.string().default("Le Gérant"),
     issueDate: z.string().optional(),
     language: z.enum(["CF", "CA"]).default("CF"),
-    service: z.enum(["SA", "DIR", "SAF"]).default("SA"),
+    service: z.enum(["SA", "DIR", "SAF", "SEM", "SF"]).default("SA"),
     subjectAbbrev: z.string().optional(),
     placeCity: z.string().optional(),
   })
