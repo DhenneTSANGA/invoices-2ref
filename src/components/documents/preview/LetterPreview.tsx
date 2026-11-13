@@ -80,27 +80,81 @@ function RichHtml({
   className?: string;
   style?: CSSProperties;
 }) {
-  const content = looksLikeHtml(html) ? html : plainTextToHtml(html);
+  const content = normalizeLetterHtml(looksLikeHtml(html) ? html : plainTextToHtml(html));
   return (
     <div
       className={cn(
-        // Paragraphes séparés par une ligne vide, comme dans le modèle Word.
-        "[&_p]:m-0 [&_p]:mb-[1.107em] [&_p:last-child]:mb-0 [&_p:empty]:hidden",
-        "[&_ul]:m-0 [&_ul]:mb-[1.107em] [&_ul]:list-disc [&_ol]:m-0 [&_ol]:mb-[1.107em] [&_ol]:list-decimal",
-        "[&_ul:last-child]:mb-0 [&_ol:last-child]:mb-0 [&_li]:m-0 [&_li_p]:mb-0",
-        "[&_strong]:font-bold [&_em]:italic [&_u]:underline",
+        // Marges des blocs posées en ligne par normalizeLetterHtml (une ligne vide entre blocs).
+        "[&_p]:m-0 [&_p:empty]:min-h-[1.107em] [&_ul]:m-0 [&_ol]:m-0 [&_ul]:list-disc [&_ol]:list-decimal [&_li]:m-0 [&_li_p]:m-0",
+        "[&_strong]:font-bold [&_b]:font-bold [&_em]:italic [&_u]:underline",
         className,
       )}
       style={style}
-      dangerouslySetInnerHTML={{
-        // Retrait des puces du modèle : 1,47 cm (≈ 57 px).
-        __html: content.replace(
-          /<(ul|ol)(\s|>)/g,
-          '<$1 style="padding-left:57px"$2',
-        ),
-      }}
+      dangerouslySetInnerHTML={{ __html: content }}
     />
   );
+}
+
+/** Retrait des listes du modèle Word : gauche 1,47 cm (≈ 57 px), suspendu 0,63 cm (≈ 25 px). */
+const LIST_INDENT = 57;
+const LIST_HANGING = 25;
+
+const BLANK_P_RE =
+  /<p\b[^>]*>(?:\s|&nbsp;|&#160;| |<br\s*\/?>|<(\w+)\b[^>]*>(?:\s|&nbsp;|&#160;| |<br\s*\/?>)*<\/\1>)*<\/p>/gi;
+const SPACE = "(?:\\s|&nbsp;|&#160;|\\u00a0)";
+/** « 1. », « 2) », « a. », « • », « - », « – » en tête de paragraphe (numérotation collée depuis Word). */
+const MANUAL_ITEM_RE = new RegExp(
+  `^(<p\\b[^>]*>)((?:<(?:strong|b|em|i|u|span)\\b[^>]*>)*)${SPACE}*(\\d{1,2}[.)]|[a-z][.)]|[•·▪◦\\-–])${SPACE}+`,
+  "i",
+);
+
+/**
+ * Texte collé depuis Word / saisi avec des lignes vides :
+ * - supprime les paragraphes vides (l'espacement d'une ligne est automatique) ;
+ * - transforme « 1. texte » en élément de liste avec retrait suspendu, sans ligne vide entre éléments.
+ */
+function normalizeLetterHtml(html: string): string {
+  const withoutBlanks = html.replace(BLANK_P_RE, "").trim();
+  const blocks = withoutBlanks.match(/<(p|ul|ol|h[1-6]|blockquote|div)\b[\s\S]*?<\/\1>/gi);
+  // Structure inattendue (texte hors bloc, listes imbriquées…) : rendu tel quel,
+  // en gardant les lignes vides saisies.
+  if (!blocks || blocks.join("").length !== withoutBlanks.replace(/<\/(p|ul|ol|h[1-6]|blockquote|div)>\s+</gi, "</$1><").length) {
+    return html;
+  }
+  const items = blocks
+    .map((block) => {
+      if (/^<(ul|ol)\b/i.test(block)) {
+        return block.replace(/^<(ul|ol)\b/i, `<$1 style="padding-left:${LIST_INDENT}px"`);
+      }
+      const m = block.match(MANUAL_ITEM_RE);
+      if (!m) return block;
+      const [whole, , inlineOpen, marker] = m;
+      return (
+        `<p class="letter-li" style="padding-left:${LIST_INDENT}px;text-indent:-${LIST_HANGING}px">` +
+        `<span style="display:inline-block;width:${LIST_HANGING}px;text-indent:0">${marker}</span>` +
+        inlineOpen +
+        block.slice(whole.length)
+      );
+    });
+  // Une ligne vide (interligne 1,0) avant chaque bloc, sauf entre deux éléments de liste.
+  return items
+    .map((block, i) => {
+      const listFollow =
+        i > 0 && block.startsWith('<p class="letter-li"') && items[i - 1]!.startsWith('<p class="letter-li"');
+      const marginTop = i === 0 || listFollow ? "0" : "1.107em";
+      return withStyle(block, `margin:0;margin-top:${marginTop}`);
+    })
+    .join("");
+}
+
+/** Ajoute des déclarations CSS en ligne à la balise ouvrante d'un bloc. */
+function withStyle(block: string, css: string): string {
+  const open = block.match(/^<[a-z0-9]+\b[^>]*>/i)?.[0];
+  if (!open) return block;
+  const styled = /\sstyle="/i.test(open)
+    ? open.replace(/\sstyle="([^"]*)"/i, (_, prev: string) => ` style="${prev.replace(/;?\s*$/, ";")}${css}"`)
+    : open.replace(/>$/, ` style="${css}">`);
+  return styled + block.slice(open.length);
 }
 
 /** « 21 octobre 2026 » → « 21 Octobre 2026 » (mois capitalisé, comme le modèle). */
