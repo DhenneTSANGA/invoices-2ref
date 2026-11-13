@@ -99,7 +99,11 @@ export function clientRepresentativeLine(client: {
   return title ? `${name}, ${title}` : name;
 }
 
-/** Bloc destinataire courrier (lignes). */
+/**
+ * Bloc destinataire courrier (lignes) — commence toujours par « À » :
+ * - avec représentant : À / Représentant / De Client / BP… ;
+ * - sans représentant : À / Client / BP….
+ */
 export function clientLetterRecipientLines(client: {
   name?: string | null;
   sigle?: string | null;
@@ -111,10 +115,10 @@ export function clientLetterRecipientLines(client: {
 }): string[] {
   const rep = clientRepresentativeLine(client);
   const display = clientDisplayName(client);
-  return [
-    rep ? "À" : "",
+  const lines = [
     rep,
-    display ? `De ${display}` : "",
+    display ? (rep ? `De ${display}` : display) : "",
     clientLetterPostalLine(client),
   ].filter(Boolean);
+  return lines.length > 0 ? ["À", ...lines] : [];
 }
