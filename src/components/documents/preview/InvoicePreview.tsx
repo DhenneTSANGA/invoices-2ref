@@ -772,7 +772,7 @@ function ItemsTable({
           )}
           {items.map((it, i) => {
             const lineTotal = lineQuantityForTotal(it) * it.unitPrice;
-            const hideZero = shouldHidePrintedZeros(it, doc.cabinet);
+            const hideZero = shouldHidePrintedZeros(it);
             const qtyLabel = formatLineQuantity(it, { mixed: mixedQty });
             const unitPriceLabel = formatPrintedFigure(
               it.unitPrice,

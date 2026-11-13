@@ -1399,7 +1399,7 @@ export function DocumentEditor({ initial, type }: Props) {
                 <Plus className="h-4 w-4" /> Ligne libre
               </Button>
             )}
-            {commercial && doc.cabinet === "conseil" && !sectionsEnabled ? (
+            {commercial && !sectionsEnabled ? (
               <Button
                 type="button"
                 onClick={() => addEmpty(undefined, "funds")}
@@ -1488,7 +1488,7 @@ export function DocumentEditor({ initial, type }: Props) {
                               key={it.id}
                               it={it}
                               commercial
-                              zeroToggle={doc.cabinet === "conseil"}
+                              zeroToggle
                               descriptionInputRefs={descriptionInputRefs}
                               updateItem={updateItem}
                               removeItem={removeItem}
@@ -1509,17 +1509,15 @@ export function DocumentEditor({ initial, type }: Props) {
                       >
                         <Plus className="h-4 w-4" /> Désignation
                       </Button>
-                      {doc.cabinet === "conseil" ? (
-                        <Button
-                          type="button"
-                          onClick={() => addEmpty(sec.id, "funds")}
-                          variant="outline"
-                          size="sm"
-                          className="rounded-xl"
-                        >
-                          <Plus className="h-4 w-4" /> Fonds procédures
-                        </Button>
-                      ) : null}
+                      <Button
+                        type="button"
+                        onClick={() => addEmpty(sec.id, "funds")}
+                        variant="outline"
+                        size="sm"
+                        className="rounded-xl"
+                      >
+                        <Plus className="h-4 w-4" /> Fonds procédures
+                      </Button>
                     </div>
                   ) : (
                     <div className="border-t border-border/50 px-3 py-2">
@@ -1527,17 +1525,15 @@ export function DocumentEditor({ initial, type }: Props) {
                         En mode TTC, utilisez « Appliquer » ci-dessus — la ligne
                         sera ajoutée à la dernière tâche.
                       </p>
-                      {doc.cabinet === "conseil" ? (
-                        <Button
-                          type="button"
-                          onClick={() => addEmpty(sec.id, "funds")}
-                          variant="outline"
-                          size="sm"
-                          className="mt-2 rounded-xl"
-                        >
-                          <Plus className="h-4 w-4" /> Fonds procédures
-                        </Button>
-                      ) : null}
+                      <Button
+                        type="button"
+                        onClick={() => addEmpty(sec.id, "funds")}
+                        variant="outline"
+                        size="sm"
+                        className="mt-2 rounded-xl"
+                      >
+                        <Plus className="h-4 w-4" /> Fonds procédures
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -1581,7 +1577,7 @@ export function DocumentEditor({ initial, type }: Props) {
                     key={it.id}
                     it={it}
                     commercial={commercial}
-                    zeroToggle={commercial && doc.cabinet === "conseil"}
+                    zeroToggle={commercial}
                     descriptionInputRefs={descriptionInputRefs}
                     updateItem={updateItem}
                     removeItem={removeItem}
@@ -1602,8 +1598,7 @@ export function DocumentEditor({ initial, type }: Props) {
               {commercialTotals.hasFunds ? (
                 <Total label="Base TVA/CSS" value={commercialTotals.serviceBase} />
               ) : null}
-              {doc.cabinet === "conseil" ? (
-                <div className="flex items-center justify-between gap-3 text-sm">
+              <div className="flex items-center justify-between gap-3 text-sm">
                   <span className="text-muted-foreground">Remise</span>
                   <div className="flex items-center gap-2">
                     <FancySelect
@@ -1648,23 +1643,6 @@ export function DocumentEditor({ initial, type }: Props) {
                     )}
                   </div>
                 </div>
-              ) : (
-                <div className="flex items-center justify-between gap-3 text-sm">
-                  <span className="text-muted-foreground">Remise %</span>
-                  <NumInput
-                    value={docDiscount}
-                    step={0.01}
-                    min={0}
-                    onChange={(v) =>
-                      setDoc((d) => ({
-                        ...d,
-                        discount: Math.min(100, Math.max(0, v)),
-                      }))
-                    }
-                    className="w-24 rounded-lg border border-border/60 bg-transparent px-2 py-1.5 text-right font-numeric focus:border-primary focus:outline-none"
-                  />
-                </div>
-              )}
               {commercialTotals.discountAmount > 0 ? (
                 <Total
                   label={commercialTotals.hasFunds ? "Réduction" : "Montant remise"}
