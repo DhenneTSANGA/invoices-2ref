@@ -26,7 +26,7 @@ import {
   usePeekNextLetterNumber,
 } from "@/hooks/use-data";
 import type { Cabinet } from "@/lib/cabinets";
-import { isAdmin } from "@/lib/roles";
+import { canSignDocument, isAdmin } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 import {
   clientLetterPostalLine,
@@ -83,6 +83,8 @@ export function LetterEditor({ initial }: Props) {
   const requestSignMutation = useRequestLetterSignature();
   const signMutation = useSignLetterDocument();
   const adminLike = session ? isAdmin(session.staff.role) : false;
+  /** Tous les profils peuvent signer un courriel. */
+  const canSignLetter = session ? canSignDocument(session.staff.role, "letter") : false;
   const memberPole = memberVisibilityPole(session?.staff);
   const isNew = !initial?.id || initial.id.startsWith("d-");
 
@@ -510,7 +512,9 @@ export function LetterEditor({ initial }: Props) {
           hint={
             adminLike
               ? "Administrateur : vous pouvez signer et envoyer ce courriel, quel que soit le pôle. Envoyer applique la signature du cabinet puis transmet l’e-mail."
-              : "Après enregistrement, demandez la signature de la Direction. L’envoi e-mail n’est possible qu’une fois le courriel signé."
+              : canSignLetter
+                ? "Vous pouvez signer ce courriel. L’envoi e-mail est possible une fois le courriel signé."
+                : "Après enregistrement, demandez la signature de la Direction. L’envoi e-mail n’est possible qu’une fois le courriel signé."
           }
         >
           <label className="block">
@@ -551,7 +555,7 @@ export function LetterEditor({ initial }: Props) {
           >
             <Save className="h-4 w-4" /> Enregistrer
           </Button>
-          {canOnlineSign && adminLike && (
+          {canOnlineSign && canSignLetter && (
             <Button
               className="rounded-xl bg-gradient-primary text-primary-foreground shadow-glow"
               disabled={busy}
@@ -561,7 +565,7 @@ export function LetterEditor({ initial }: Props) {
               {signMutation.isPending ? "Signature en cours…" : "Signer"}
             </Button>
           )}
-          {canOnlineSign && !adminLike && (
+          {canOnlineSign && !canSignLetter && (
             <Button
               className="rounded-xl bg-amber-600 text-white hover:bg-amber-600/90"
               disabled={busy}

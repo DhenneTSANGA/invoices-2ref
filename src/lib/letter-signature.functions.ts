@@ -272,7 +272,7 @@ export const signLetterDocument = createServerFn({ method: "POST" })
     });
     if (!canSignDocument(staff.role, doc.type)) {
       throw new Error(
-        "Seuls les administrateurs ou le super admin peuvent signer ce type de document",
+        "Seuls les administrateurs ou le super admin peuvent signer les factures",
       );
     }
     if (doc.status === "signed" || doc.status === "sent" || doc.status === "paid") {
@@ -302,7 +302,7 @@ export const signLetterDocument = createServerFn({ method: "POST" })
       staffId: staff.id,
       note: isAdmin(staff.role)
         ? "Signature directe par l’administrateur"
-        : "Signature du devis par un collaborateur",
+        : `Signature ${doc.type === "letter" ? "du courriel" : "du devis"} par un collaborateur`,
     });
 
     // Créateur + demandeur (souvent le même) : priorité à l’auteur du document

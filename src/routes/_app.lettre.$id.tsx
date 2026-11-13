@@ -34,7 +34,7 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { documentDetailRoute } from "@/lib/document-nav";
 import { longDate } from "@/lib/format";
 import { LetterEditor } from "@/components/editor/LetterEditor";
-import { isAdmin, canWriteDocument } from "@/lib/roles";
+import { isAdmin, canSignDocument, canWriteDocument } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/lettre/$id")({
@@ -114,14 +114,16 @@ function LetterDetail() {
   }
 
   const pending = signatureReq?.status === "pending";
-  /** Seuls les membres demandent une signature — admin / SA signent directement. */
+  /** Tous les profils signent les courriers : plus de demande de signature à faire. */
+  const signAllowed = session ? canSignDocument(session.staff.role, "letter") : false;
   const canRequest =
     doc.status === "draft" &&
     !pending &&
     isCreator &&
-    !adminLike;
+    !adminLike &&
+    !signAllowed;
   const canSign =
-    adminLike && doc.status === "draft" && previewSeen;
+    signAllowed && doc.status === "draft" && previewSeen;
   const canSend =
     doc.status !== "cancelled" &&
     (adminLike

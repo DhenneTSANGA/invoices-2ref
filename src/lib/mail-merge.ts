@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session.functions";
 import { mapDocument } from "@/lib/mappers";
 import { companyForPreview } from "@/lib/company-defaults";
-import { isAdmin } from "@/lib/roles";
+import { canSignDocument, isAdmin } from "@/lib/roles";
 import type { MailMergeCampaign } from "@/store/types";
 import { clientLetterRecipientLines, formatClientBp } from "@/lib/client-address";
 import { staffDisplayName } from "@/lib/notify-document-status";
@@ -462,8 +462,9 @@ export const signMailMergeCampaign = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const session = await requireSession();
     const { staff, activeCabinet } = session;
-    if (!isAdmin(staff.role)) {
-      throw new Error("Seuls les administrateurs peuvent signer les courriers");
+    // Tous les profils peuvent signer les courriels (comme pour un courriel seul).
+    if (!canSignDocument(staff.role, "letter")) {
+      throw new Error("Vous n'avez pas le droit de signer les courriers");
     }
 
     const campaign = await prisma.mailMergeCampaign.findFirst({

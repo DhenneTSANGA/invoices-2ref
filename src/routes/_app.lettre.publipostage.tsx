@@ -32,7 +32,7 @@ import {
 } from "@/lib/mail-merge";
 import { sendDocumentEmail } from "@/lib/send-document-email";
 import { buildDocumentPdfFromDoc } from "@/lib/pdf/downloadDocumentPdf";
-import { isAdmin } from "@/lib/roles";
+import { canSignDocument, isAdmin } from "@/lib/roles";
 import { humanAuthError } from "@/lib/auth-errors";
 import type { Client, Document, MailMergeCampaign } from "@/store/types";
 import { LetterSubjectInput } from "@/components/editor/LetterSubjectInput";
@@ -163,7 +163,9 @@ function statusLabel(status: MailMergeCampaign["status"]) {
 function MailMergePage() {
   const qc = useQueryClient();
   const { data: session } = useSession();
-  const canSign = session ? isAdmin(session.staff.role) : false;
+  /** Tous les profils signent ; refus et envoi de campagne restent réservés aux administrateurs. */
+  const canSign = session ? canSignDocument(session.staff.role, "letter") : false;
+  const adminLike = session ? isAdmin(session.staff.role) : false;
   const { data: clients = [], isPending: loadingClients } = useClients();
 
   const { data: campaigns = [], isLoading: loadingCampaigns } = useQuery({
@@ -358,7 +360,7 @@ function MailMergePage() {
   };
 
   const handleSendCampaign = async () => {
-    if (!activeCampaign || !canSign) return;
+    if (!activeCampaign || !adminLike) return;
     if (activeCampaign.status !== "signed") {
       toast.error("Signez d'abord la campagne avant l'envoi");
       return;
@@ -884,7 +886,7 @@ function MailMergePage() {
                         Signer / Cachet
                       </Button>
                     )}
-                    {canSign && activeCampaign.status === "pending_signature" && (
+                    {adminLike && activeCampaign.status === "pending_signature" && (
                       <Button
                         variant="outline"
                         className="rounded-xl border-danger/40 text-danger"
@@ -901,7 +903,7 @@ function MailMergePage() {
                         Refuser
                       </Button>
                     )}
-                    {canSign && activeCampaign.status === "signed" && (
+                    {adminLike && activeCampaign.status === "signed" && (
                       <Button
                         className="rounded-xl bg-gradient-primary text-primary-foreground"
                         disabled={sending}

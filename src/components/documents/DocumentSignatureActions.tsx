@@ -50,17 +50,18 @@ export function DocumentSignatureActions({
     doc.status === "sent" ||
     doc.status === "paid";
 
-  /** Facture / lettre : le créateur membre demande la signature. */
+  /** Devis et courriers : tous les profils. Factures : tout admin / SA. */
+  const signAllowed = role ? canSignDocument(role, doc.type) : false;
+
+  /** Facture : le créateur membre demande la signature (il ne peut pas signer lui-même). */
   const canRequest =
     !alreadySigned &&
     doc.status === "draft" &&
     !pending &&
     isCreator &&
     !adminLike &&
-    !isQuotation;
-
-  /** Devis : tous les profils. Autres types : tout admin / SA. */
-  const signAllowed = role ? canSignDocument(role, doc.type) : false;
+    !isQuotation &&
+    !signAllowed;
   const canSign =
     !alreadySigned && doc.status === "draft" && previewSeen && signAllowed;
 

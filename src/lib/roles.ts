@@ -138,10 +138,10 @@ export function canEditInvoiceContent(
 /**
  * Signature électronique (facture, devis, courrier) :
  * tout administrateur / super admin signe tous les documents ;
- * un membre ne signe que les devis.
+ * un membre signe les devis et les courriers (pas les factures).
  */
 export function canSignDocument(role: AppRole, docType: string): boolean {
-  return isAdmin(role) || docType === "quotation";
+  return isAdmin(role) || docType === "quotation" || docType === "letter";
 }
 
 export function roleLabel(role: AppRole): string {
