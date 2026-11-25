@@ -117,8 +117,15 @@ export function DocumentsList({ type }: { type: DocumentType }) {
             },
           );
         }
+        const retried = res.sent.filter((n) => !res.generated.includes(n));
+        if (retried.length > 0) {
+          toast.success(
+            `${retried.length} facture${retried.length > 1 ? "s" : ""} d’abonnement en attente envoyée${retried.length > 1 ? "s" : ""}`,
+            { description: retried.join(", ") },
+          );
+        }
         if (res.errors.length) {
-          toast.warning("Certaines générations ont échoué", {
+          toast.warning("Abonnements : génération ou envoi incomplet", {
             description: res.errors.slice(0, 3).join(" · "),
           });
         }
