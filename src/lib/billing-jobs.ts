@@ -107,7 +107,7 @@ async function allocateInvoiceNumber(
   });
 }
 
-async function resolveBillingStaff(
+export async function resolveBillingStaff(
   cabinet: Cabinet,
   preferredId: string,
 ): Promise<StaffMember | null> {
@@ -285,13 +285,69 @@ async function generateSubscriptionInvoice(
     data: { subscriptionNextAt: nextAt },
   });
 
-  await sendDocumentEmailInternal({
-    documentId: created.id,
-    staff,
-    skipAccessCheck: true,
-  });
-
   return { number, id: created.id };
+}
+
+/**
+ * Joint le PDF (rendu Chromium serveur) puis envoie la facture au client.
+ * Un seul navigateur est réutilisé pour tout le lot d’abonnements.
+ */
+async function emailSubscriptionInvoices(
+  pending: { id: string; number: string; staff: StaffMember }[],
+  errors: string[],
+): Promise<void> {
+  if (pending.length === 0) return;
+
+  const { createDocumentPdfRenderer } = await import(
+    "@/lib/pdf/server-render"
+  );
+  let renderer: Awaited<
+    ReturnType<typeof createDocumentPdfRenderer>
+  > | null = null;
+  try {
+    renderer = await createDocumentPdfRenderer();
+  } catch (err) {
+    errors.push(
+      `PDF serveur indisponible: ${err instanceof Error ? err.message : "échec"}`,
+    );
+  }
+
+  try {
+    for (const invoice of pending) {
+      let pdf: { fileName: string; base64: string; previewBase64?: string } | null =
+        null;
+      if (renderer) {
+        try {
+          pdf = await renderer.render(invoice.id);
+        } catch (err) {
+          errors.push(
+            `${invoice.number}: PDF non généré (${
+              err instanceof Error ? err.message : "échec"
+            })`,
+          );
+        }
+      }
+
+      try {
+        await sendDocumentEmailInternal({
+          documentId: invoice.id,
+          staff: invoice.staff,
+          skipAccessCheck: true,
+          pdfBase64: pdf?.base64,
+          fileName: pdf?.fileName,
+          previewImageBase64: pdf?.previewBase64,
+        });
+      } catch (err) {
+        errors.push(
+          `${invoice.number}: envoi échoué (${
+            err instanceof Error ? err.message : "échec"
+          })`,
+        );
+      }
+    }
+  } finally {
+    await renderer?.close();
+  }
 }
 
 export async function runDueSubscriptions(options?: {
@@ -300,6 +356,7 @@ export async function runDueSubscriptions(options?: {
   const todayUtc = todayUtcDate();
   const generated: string[] = [];
   const errors: string[] = [];
+  const pending: { id: string; number: string; staff: StaffMember }[] = [];
 
   const due = await prisma.document.findMany({
     where: {
@@ -339,18 +396,21 @@ export async function runDueSubscriptions(options?: {
         continue;
       }
 
-      const { number } = await generateSubscriptionInvoice(
+      const created = await generateSubscriptionInvoice(
         template,
         todayUtc,
         staff,
       );
-      generated.push(number);
+      generated.push(created.number);
+      pending.push({ ...created, staff });
     } catch (err) {
       errors.push(
         `${template.number}: ${err instanceof Error ? err.message : "échec"}`,
       );
     }
   }
+
+  await emailSubscriptionInvoices(pending, errors);
 
   return { generated, errors, count: generated.length };
 }

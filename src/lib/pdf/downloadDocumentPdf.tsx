@@ -120,6 +120,28 @@ async function inlineImagesForPdf(root: ParentNode) {
   );
 }
 
+/** Construit le PDF à partir d'un DocumentPreview déjà monté dans le DOM. */
+export async function buildPdfFromPreviewElement(
+  container: HTMLElement,
+  fileName: string,
+): Promise<BuiltPdf> {
+  await waitFrames(3);
+  await inlineImagesForPdf(container);
+  await new Promise((r) => setTimeout(r, 80));
+
+  const preview =
+    (container.querySelector("[data-document-preview]") as HTMLElement | null) ??
+    (container.firstElementChild as HTMLElement | null);
+  if (!preview) {
+    throw new Error("Aperçu introuvable pour l'export PDF.");
+  }
+
+  preview.style.width = "820px";
+  preview.style.maxWidth = "820px";
+
+  return await buildDocumentPdf(preview, fileName);
+}
+
 /**
  * Rend DocumentPreview hors champ et construit le PDF (bytes + base64).
  */
@@ -188,22 +210,7 @@ export async function buildDocumentPdfFromDoc(
       );
     });
 
-    await waitFrames(3);
-    await inlineImagesForPdf(mount);
-    await new Promise((r) => setTimeout(r, 80));
-
-    const preview =
-      (mount.querySelector("[data-document-preview]") as HTMLElement | null) ??
-      (mount.firstElementChild as HTMLElement | null);
-
-    if (!preview) {
-      throw new Error("Aperçu introuvable pour l'export PDF.");
-    }
-
-    preview.style.width = "820px";
-    preview.style.maxWidth = "820px";
-
-    return await buildDocumentPdf(preview, `${doc.number}.pdf`);
+    return await buildPdfFromPreviewElement(mount, `${doc.number}.pdf`);
   } finally {
     root?.unmount();
     root = null;

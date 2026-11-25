@@ -12,4 +12,12 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  // Rendu PDF serveur : Chromium est chargé dynamiquement, il faut donc forcer
+  // Nitro à tracer tout le paquet (y compris le binaire dans bin/).
+  nitro: {
+    traceDeps: ["@sparticuz/chromium*"],
+    vercel: {
+      functions: { maxDuration: 300, memory: 2048 },
+    },
+  } as never,
 });

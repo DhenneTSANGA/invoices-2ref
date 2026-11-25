@@ -133,7 +133,7 @@ import {
   withExtraEmails,
 } from "@/lib/client-extra-emails-db";
 
-const docInclude = {
+export const docInclude = {
   lines: { orderBy: { position: "asc" as const } },
   sections: { orderBy: { position: "asc" as const } },
   createdBy: true,
@@ -721,7 +721,7 @@ async function mappedDocuments(rows: Parameters<typeof mapDocument>[0][]) {
   });
 }
 
-async function mappedDocument(row: Parameters<typeof mapDocument>[0]) {
+export async function mappedDocument(row: Parameters<typeof mapDocument>[0]) {
   const [doc] = await mappedDocuments([row]);
   return doc!;
 }

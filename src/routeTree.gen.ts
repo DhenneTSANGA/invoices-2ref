@@ -81,14 +81,17 @@ import { Route as AppQuotationsIdRouteImport } from './routes/_app.quotations.$i
 import { Route as AppQuotationsNewRouteImport } from './routes/_app.quotations.new'
 import { Route as ApiCronBillingRouteImport } from './routes/api/cron.billing'
 import { Route as ApiCronProspectionRouteImport } from './routes/api/cron.prospection'
+import { Route as ApiCronSubscriptionPdfBackfillRouteImport } from './routes/api/cron.subscription-pdf-backfill'
 import { Route as ApiHealthEnvRouteImport } from './routes/api/health.env'
 import { Route as ApiStaffSyncRouteImport } from './routes/api/staff.sync'
+import { Route as PrintDocumentIdRouteImport } from './routes/print.document.$id'
 import { Route as ProspectionClientsIndexRouteImport } from './routes/prospection.clients.index'
 import { Route as ProspectionClientsIdRouteImport } from './routes/prospection.clients.$id'
 import { Route as ProspectionProspectsIndexRouteImport } from './routes/prospection.prospects.index'
 import { Route as ProspectionProspectsIdRouteImport } from './routes/prospection.prospects.$id'
 import { Route as AppInvoicesIdEditRouteImport } from './routes/_app.invoices.$id.edit'
 import { Route as AppQuotationsIdEditRouteImport } from './routes/_app.quotations.$id.edit'
+import { Route as ApiPdfDocumentIdRouteImport } from './routes/api/pdf.document.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -451,6 +454,12 @@ const ApiCronProspectionRoute = ApiCronProspectionRouteImport.update({
   path: '/api/cron/prospection',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCronSubscriptionPdfBackfillRoute =
+  ApiCronSubscriptionPdfBackfillRouteImport.update({
+    id: '/api/cron/subscription-pdf-backfill',
+    path: '/api/cron/subscription-pdf-backfill',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiHealthEnvRoute = ApiHealthEnvRouteImport.update({
   id: '/api/health/env',
   path: '/api/health/env',
@@ -459,6 +468,11 @@ const ApiHealthEnvRoute = ApiHealthEnvRouteImport.update({
 const ApiStaffSyncRoute = ApiStaffSyncRouteImport.update({
   id: '/api/staff/sync',
   path: '/api/staff/sync',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrintDocumentIdRoute = PrintDocumentIdRouteImport.update({
+  id: '/print/document/$id',
+  path: '/print/document/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProspectionClientsIndexRoute = ProspectionClientsIndexRouteImport.update({
@@ -491,6 +505,11 @@ const AppQuotationsIdEditRoute = AppQuotationsIdEditRouteImport.update({
   id: '/edit',
   path: '/edit',
   getParentRoute: () => AppQuotationsIdRoute,
+} as any)
+const ApiPdfDocumentIdRoute = ApiPdfDocumentIdRouteImport.update({
+  id: '/api/pdf/document/$id',
+  path: '/api/pdf/document/$id',
+  getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -560,8 +579,10 @@ export interface FileRoutesByFullPath {
   '/quotations/new': typeof AppQuotationsNewRoute
   '/api/cron/billing': typeof ApiCronBillingRoute
   '/api/cron/prospection': typeof ApiCronProspectionRoute
+  '/api/cron/subscription-pdf-backfill': typeof ApiCronSubscriptionPdfBackfillRoute
   '/api/health/env': typeof ApiHealthEnvRoute
   '/api/staff/sync': typeof ApiStaffSyncRoute
+  '/print/document/$id': typeof PrintDocumentIdRoute
   '/prospection/clients/$id': typeof ProspectionClientsIdRoute
   '/prospection/prospects/$id': typeof ProspectionProspectsIdRoute
   '/clients/': typeof AppClientsIndexRoute
@@ -573,6 +594,7 @@ export interface FileRoutesByFullPath {
   '/prospection/prospects/': typeof ProspectionProspectsIndexRoute
   '/invoices/$id/edit': typeof AppInvoicesIdEditRoute
   '/quotations/$id/edit': typeof AppQuotationsIdEditRoute
+  '/api/pdf/document/$id': typeof ApiPdfDocumentIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -635,8 +657,10 @@ export interface FileRoutesByTo {
   '/quotations/new': typeof AppQuotationsNewRoute
   '/api/cron/billing': typeof ApiCronBillingRoute
   '/api/cron/prospection': typeof ApiCronProspectionRoute
+  '/api/cron/subscription-pdf-backfill': typeof ApiCronSubscriptionPdfBackfillRoute
   '/api/health/env': typeof ApiHealthEnvRoute
   '/api/staff/sync': typeof ApiStaffSyncRoute
+  '/print/document/$id': typeof PrintDocumentIdRoute
   '/prospection/clients/$id': typeof ProspectionClientsIdRoute
   '/prospection/prospects/$id': typeof ProspectionProspectsIdRoute
   '/clients': typeof AppClientsIndexRoute
@@ -648,6 +672,7 @@ export interface FileRoutesByTo {
   '/prospection/prospects': typeof ProspectionProspectsIndexRoute
   '/invoices/$id/edit': typeof AppInvoicesIdEditRoute
   '/quotations/$id/edit': typeof AppQuotationsIdEditRoute
+  '/api/pdf/document/$id': typeof ApiPdfDocumentIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -718,8 +743,10 @@ export interface FileRoutesById {
   '/_app/quotations/new': typeof AppQuotationsNewRoute
   '/api/cron/billing': typeof ApiCronBillingRoute
   '/api/cron/prospection': typeof ApiCronProspectionRoute
+  '/api/cron/subscription-pdf-backfill': typeof ApiCronSubscriptionPdfBackfillRoute
   '/api/health/env': typeof ApiHealthEnvRoute
   '/api/staff/sync': typeof ApiStaffSyncRoute
+  '/print/document/$id': typeof PrintDocumentIdRoute
   '/prospection/clients/$id': typeof ProspectionClientsIdRoute
   '/prospection/prospects/$id': typeof ProspectionProspectsIdRoute
   '/_app/clients/': typeof AppClientsIndexRoute
@@ -731,6 +758,7 @@ export interface FileRoutesById {
   '/prospection/prospects/': typeof ProspectionProspectsIndexRoute
   '/_app/invoices/$id/edit': typeof AppInvoicesIdEditRoute
   '/_app/quotations/$id/edit': typeof AppQuotationsIdEditRoute
+  '/api/pdf/document/$id': typeof ApiPdfDocumentIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -801,8 +829,10 @@ export interface FileRouteTypes {
     | '/quotations/new'
     | '/api/cron/billing'
     | '/api/cron/prospection'
+    | '/api/cron/subscription-pdf-backfill'
     | '/api/health/env'
     | '/api/staff/sync'
+    | '/print/document/$id'
     | '/prospection/clients/$id'
     | '/prospection/prospects/$id'
     | '/clients/'
@@ -814,6 +844,7 @@ export interface FileRouteTypes {
     | '/prospection/prospects/'
     | '/invoices/$id/edit'
     | '/quotations/$id/edit'
+    | '/api/pdf/document/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -876,8 +907,10 @@ export interface FileRouteTypes {
     | '/quotations/new'
     | '/api/cron/billing'
     | '/api/cron/prospection'
+    | '/api/cron/subscription-pdf-backfill'
     | '/api/health/env'
     | '/api/staff/sync'
+    | '/print/document/$id'
     | '/prospection/clients/$id'
     | '/prospection/prospects/$id'
     | '/clients'
@@ -889,6 +922,7 @@ export interface FileRouteTypes {
     | '/prospection/prospects'
     | '/invoices/$id/edit'
     | '/quotations/$id/edit'
+    | '/api/pdf/document/$id'
   id:
     | '__root__'
     | '/'
@@ -958,8 +992,10 @@ export interface FileRouteTypes {
     | '/_app/quotations/new'
     | '/api/cron/billing'
     | '/api/cron/prospection'
+    | '/api/cron/subscription-pdf-backfill'
     | '/api/health/env'
     | '/api/staff/sync'
+    | '/print/document/$id'
     | '/prospection/clients/$id'
     | '/prospection/prospects/$id'
     | '/_app/clients/'
@@ -971,6 +1007,7 @@ export interface FileRouteTypes {
     | '/prospection/prospects/'
     | '/_app/invoices/$id/edit'
     | '/_app/quotations/$id/edit'
+    | '/api/pdf/document/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -990,8 +1027,11 @@ export interface RootRouteChildren {
   AuthSetPasswordRoute: typeof AuthSetPasswordRoute
   ApiCronBillingRoute: typeof ApiCronBillingRoute
   ApiCronProspectionRoute: typeof ApiCronProspectionRoute
+  ApiCronSubscriptionPdfBackfillRoute: typeof ApiCronSubscriptionPdfBackfillRoute
   ApiHealthEnvRoute: typeof ApiHealthEnvRoute
   ApiStaffSyncRoute: typeof ApiStaffSyncRoute
+  PrintDocumentIdRoute: typeof PrintDocumentIdRoute
+  ApiPdfDocumentIdRoute: typeof ApiPdfDocumentIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1500,6 +1540,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCronProspectionRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/cron/subscription-pdf-backfill': {
+      id: '/api/cron/subscription-pdf-backfill'
+      path: '/api/cron/subscription-pdf-backfill'
+      fullPath: '/api/cron/subscription-pdf-backfill'
+      preLoaderRoute: typeof ApiCronSubscriptionPdfBackfillRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/health/env': {
       id: '/api/health/env'
       path: '/api/health/env'
@@ -1512,6 +1559,13 @@ declare module '@tanstack/react-router' {
       path: '/api/staff/sync'
       fullPath: '/api/staff/sync'
       preLoaderRoute: typeof ApiStaffSyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/print/document/$id': {
+      id: '/print/document/$id'
+      path: '/print/document/$id'
+      fullPath: '/print/document/$id'
+      preLoaderRoute: typeof PrintDocumentIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/prospection/clients/': {
@@ -1555,6 +1609,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/quotations/$id/edit'
       preLoaderRoute: typeof AppQuotationsIdEditRouteImport
       parentRoute: typeof AppQuotationsIdRoute
+    }
+    '/api/pdf/document/$id': {
+      id: '/api/pdf/document/$id'
+      path: '/api/pdf/document/$id'
+      fullPath: '/api/pdf/document/$id'
+      preLoaderRoute: typeof ApiPdfDocumentIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
 }
@@ -1786,8 +1847,11 @@ const rootRouteChildren: RootRouteChildren = {
   AuthSetPasswordRoute: AuthSetPasswordRoute,
   ApiCronBillingRoute: ApiCronBillingRoute,
   ApiCronProspectionRoute: ApiCronProspectionRoute,
+  ApiCronSubscriptionPdfBackfillRoute: ApiCronSubscriptionPdfBackfillRoute,
   ApiHealthEnvRoute: ApiHealthEnvRoute,
   ApiStaffSyncRoute: ApiStaffSyncRoute,
+  PrintDocumentIdRoute: PrintDocumentIdRoute,
+  ApiPdfDocumentIdRoute: ApiPdfDocumentIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
